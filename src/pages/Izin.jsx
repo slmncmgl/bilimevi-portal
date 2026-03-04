@@ -3,13 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-<<<<<<< HEAD
 const SCRIPT_URL = ""; // Apps Script deploy URL buraya
-const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Baba İzni", "Evlilik İzni"];
+const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Babalık İzni", "Evlilik İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
-=======
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGLh4H8VN1GY72D-j2COW2vqFY5hLbWfkqd7NP-XYj_L7HvIY-yge1N7xzq1htDZ9-/exec"; // Apps Script deploy URL buraya
->>>>>>> 3fa57c198b107cf606c292b46488a2eeac44669a
 
 async function fetchSheetCSV(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
@@ -648,7 +644,7 @@ const styles = {
   izinGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" },
   izinBtn: { padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "'Sora', sans-serif", transition: "all 0.15s" },
   izinBtnActive: { background: "#eff6ff", borderColor: "#2563eb", color: "#1d4ed8", fontWeight: "600" },
-  digerGrid: { display: "flex", flexDirection: "column", gap: "6px", marginTop: "4px", animation: "slideDown 0.2s ease-out" },
+  digerGrid: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px", animation: "slideDown 0.2s ease-out" },
   digerBtn: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   digerBtnActive: { background: "#f5f3ff", borderColor: "#7c3aed", color: "#6d28d9" },
   digerSure: { fontSize: "11px", color: "#94a3b8", fontWeight: "600" },
