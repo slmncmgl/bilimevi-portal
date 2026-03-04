@@ -3,13 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-<<<<<<< HEAD
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGLh4H8VN1GY72D-j2COW2vqFY5hLbWfkqd7NP-XYj_L7HvIY-yge1N7xzq1htDZ9-/exec"; // Apps Script deploy URL buraya
-const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Baba İzni", "Evlilik İzni"];
-const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
-=======
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGLh4H8VN1GY72D-j2COW2vqFY5hLbWfkqd7NP-XYj_L7HvIY-yge1N7xzq1htDZ9-/exec"; // Apps Script deploy URL buraya
->>>>>>> 3fa57c198b107cf606c292b46488a2eeac44669a
 
 async function fetchSheetCSV(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
