@@ -4,6 +4,8 @@ import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SCRIPT_URL = ""; // Apps Script deploy URL buraya
+const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Baba İzni", "Evlilik İzni"];
+const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
 async function fetchSheetCSV(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
@@ -36,6 +38,12 @@ async function fetchPersonelData(name) {
   return rows.find(r => r["Ad Soyad"] === name) || null;
 }
 
+async function fetchModuller(name) {
+  const csv = await fetchSheetCSV("Modüller");
+  const rows = parseCSV(csv);
+  return rows.find(r => r["Ad Soyad"] === name) || null;
+}
+
 async function fetchTumPersonel() {
   const csv = await fetchSheetCSV("Personel");
   return parseCSV(csv).filter(r => r["Ad Soyad"]);
@@ -46,23 +54,15 @@ async function fetchIslemler() {
   return parseCSV(csv).filter(r => r["Personel"]);
 }
 
-async function submitIzin(data) {
-  await fetch(SCRIPT_URL, {
-    method: "POST",
-    mode: "no-cors",
-    body: JSON.stringify(data),
-  });
-  return true;
+async function fetchIzinSureleri() {
+  const csv = await fetchSheetCSV("İzin Süreleri");
+  const rows = parseCSV(csv);
+  const map = {};
+  rows.forEach(r => { if (r["İzinler"]) map[r["İzinler"]] = Number(r["Süre"]) || 0; });
+  return map;
 }
 
-async function updateHakedis(personelAdi, yeniHakedis, eskiHakedis) {
-  const fark = yeniHakedis - eskiHakedis;
-  const data = {
-    action: "updateHakedis",
-    personelAdi,
-    yeniHakedis,
-    fark,
-  };
+async function submitIzin(data) {
   await fetch(SCRIPT_URL, {
     method: "POST",
     mode: "no-cors",
@@ -99,63 +99,83 @@ function isGunuHesapla(baslangic, bitis) {
   return count;
 }
 
-const IZIN_TURLERI = ["Yıllık İzin", "Yarım Gün İzin", "Sağlık", "Diğer"];
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+const ANA_IZINLER = ["Yıllık İzin", "Yarım Gün İzin", "Hastalık", "Diğer"];
 
 export default function Izin() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [personel, setPersonel] = useState(null);
   const [izinTuru, setIzinTuru] = useState("Yıllık İzin");
+  const [digerAcik, setDigerAcik] = useState(false);
   const [baslangic, setBaslangic] = useState("");
   const [bitis, setBitis] = useState("");
   const [aciklama, setAciklama] = useState("");
+  const [dosya, setDosya] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
-  const [rol, setRol] = useState("personel"); // personel | evet | admin
+  const [rol, setRol] = useState("personel");
   const [adminView, setAdminView] = useState(false);
   const [adminList, setAdminList] = useState([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [yaklasanIzinler, setYaklasanIzinler] = useState([]);
+  const [izinSureleri, setIzinSureleri] = useState({});
 
   const yarimGun = izinTuru === "Yarım Gün İzin";
-  const isGunu = yarimGun ? 0.5 : isGunuHesapla(baslangic, bitis);
+  const digerIzin = DIGER_IZINLER.includes(izinTuru);
+  const hastalık = izinTuru === "Hastalık";
+  const hakedistenDusen = HAKEDISTEN_DUSEN.includes(izinTuru);
+
+  // Gün sayısı hesapla
+  let isGunu = 0;
+  if (yarimGun) isGunu = 0.5;
+  else if (digerIzin) isGunu = izinSureleri[izinTuru] || 0;
+  else if (baslangic && bitis) isGunu = isGunuHesapla(baslangic, bitis);
 
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
-    loadPersonelData(session.name);
+    loadData(session.name);
   }, []);
 
-  async function loadPersonelData(name) {
+  async function loadData(name) {
     setDataLoading(true);
     try {
-      const data = await fetchPersonelData(name);
+      const [data, moduller, sureler, tumPersonel, islemler] = await Promise.all([
+        fetchPersonelData(name),
+        fetchModuller(name),
+        fetchIzinSureleri(),
+        fetchTumPersonel(),
+        fetchIslemler(),
+      ]);
       setPersonel(data);
-      const goruntulemeIzni = (data?.["Görüntüleme İzni"] || "personel").toLowerCase().trim();
-      setRol(goruntulemeIzni);
+      setIzinSureleri(sureler);
+      const gorIzni = (moduller?.["Görüntüleme İzni"] || "personel").toLowerCase().trim();
+      setRol(gorIzni);
 
-      // Yaklaşan izinleri yükle
-      const tumPersonel = await fetchTumPersonel();
-      const islemler = await fetchIslemler();
       const bugun = new Date();
       bugun.setHours(0, 0, 0, 0);
-
-      // Aynı şubedeki personel (müdür olmayanlar)
       const subePersonel = tumPersonel.filter(p =>
         p["Şirket"] === data?.["Şirket"] &&
         p["Şube"] === data?.["Şube"] &&
         (p["Görüntüleme İzni"] || "personel").toLowerCase().trim() === "personel"
       );
       const subeIsimler = subePersonel.map(p => p["Ad Soyad"]);
-
-      const gelecekIzinler = islemler.filter(row => {
-        const bitis = new Date(row["Bitiş"]);
-        return subeIsimler.includes(row["Personel"]) && bitis >= bugun;
+      const gelecek = islemler.filter(row => {
+        const b = new Date(row["Bitiş"]);
+        return subeIsimler.includes(row["Personel"]) && b >= bugun;
       });
-
-      setYaklasanIzinler(gelecekIzinler);
+      setYaklasanIzinler(gelecek);
     } catch (_) {}
     setDataLoading(false);
   }
@@ -175,31 +195,61 @@ export default function Izin() {
     setAdminLoading(false);
   }
 
-  function handleAdminView() {
-    setAdminView(true);
-    loadAdminList();
+  function handleIzinTuruSec(tur) {
+    if (tur === "Diğer") {
+      setDigerAcik(!digerAcik);
+      return;
+    }
+    setIzinTuru(tur);
+    setDigerAcik(false);
+    setBaslangic(""); setBitis(""); setDosya(null);
+  }
+
+  function handleDigerSec(tur) {
+    setIzinTuru(tur);
+    setDigerAcik(false);
+    setBaslangic(""); setBitis("");
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!baslangic) return;
-    if (!yarimGun && !bitis) { setStatus({ type: "error", msg: "Bitiş tarihi seçiniz." }); return; }
+    if (!yarimGun && !digerIzin && !hastalık && !bitis) {
+      setStatus({ type: "error", msg: "Bitiş tarihi seçiniz." }); return;
+    }
     setLoading(true);
     setStatus(null);
-    const formData = {
-      personelAdi: user.name,
-      baslangicTarihi: baslangic,
-      bitisTarihi: yarimGun ? baslangic : bitis,
-      izinTuru,
-      aciklama,
-      userEmail: user.email,
-    };
+
     try {
+      let dosyaData = null;
+      let dosyaAdi = null;
+      let dosyaTipi = null;
+
+      if (hastalık && dosya) {
+        dosyaData = await fileToBase64(dosya);
+        dosyaAdi = dosya.name;
+        dosyaTipi = dosya.type;
+      }
+
+      const formData = {
+        personelAdi: user.name,
+        baslangicTarihi: baslangic,
+        bitisTarihi: digerIzin || hastalık ? baslangic : (yarimGun ? baslangic : bitis),
+        izinTuru,
+        aciklama,
+        userEmail: user.email,
+        gunSayisi: isGunu,
+        hakedistenDusen: hakedistenDusen,
+        dosyaData,
+        dosyaAdi,
+        dosyaTipi,
+      };
+
       await submitIzin(formData);
       setStatus({ type: "success", msg: "İzin talebiniz başarıyla kaydedildi!" });
-      setBaslangic(""); setBitis(""); setAciklama("");
+      setBaslangic(""); setBitis(""); setAciklama(""); setDosya(null);
       setIzinTuru("Yıllık İzin");
-      await loadPersonelData(user.name);
+      await loadData(user.name);
     } catch (err) {
       setStatus({ type: "error", msg: "Kayıt sırasında hata oluştu." });
     } finally {
@@ -208,7 +258,6 @@ export default function Izin() {
   }
 
   function logout() { clearSession(); navigate("/"); }
-
   if (!user) return null;
 
   return (
@@ -228,7 +277,7 @@ export default function Izin() {
           </div>
           <div style={styles.headerRight}>
             {(rol === "evet" || rol === "admin") && !adminView && (
-              <button onClick={handleAdminView} style={styles.adminBtn}>
+              <button onClick={() => { setAdminView(true); loadAdminList(); }} style={styles.adminBtn}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                   <circle cx="9" cy="7" r="4"/>
@@ -241,10 +290,7 @@ export default function Izin() {
             {adminView && (
               <button onClick={() => setAdminView(false)} style={styles.adminBtn}>← Kendi İznim</button>
             )}
-            <div style={styles.userChip}>
-              <div style={styles.userDot} />
-              {user.name}
-            </div>
+            <div style={styles.userChip}><div style={styles.userDot} />{user.name}</div>
             <button onClick={logout} style={styles.logoutBtn}>Çıkış</button>
           </div>
         </div>
@@ -259,75 +305,75 @@ export default function Izin() {
               {/* Bilgi kartı */}
               <div style={styles.infoCard}>
                 <h3 style={styles.infoTitle}>İzin Durumu</h3>
-                {dataLoading ? (
-                  <div style={styles.infoLoading}>Yükleniyor...</div>
-                ) : personel ? (
+                {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : personel ? (
                   <>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Ad Soyad</span>
-                      <span style={styles.infoValue}>{personel["Ad Soyad"]}</span>
-                    </div>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Şube</span>
-                      <span style={styles.infoValue}>{personel["Şube"]}</span>
-                    </div>
+                    <div style={styles.infoRow}><span style={styles.infoLabel}>Ad Soyad</span><span style={styles.infoValue}>{personel["Ad Soyad"]}</span></div>
+                    <div style={styles.infoRow}><span style={styles.infoLabel}>Şube</span><span style={styles.infoValue}>{personel["Şube"]}</span></div>
                     <div style={styles.infoDivider} />
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Toplam Hak</span>
-                      <span style={styles.infoValue}>{personel["Hakediş"]} gün</span>
-                    </div>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Kullanılan</span>
-                      <span style={{ ...styles.infoValue, color: "#dc2626" }}>{personel["Kullanılan İzin"] || 0} gün</span>
-                    </div>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Kalan</span>
-                      <span style={{ ...styles.infoValue, color: "#059669", fontWeight: "700", fontSize: "18px" }}>
-                        {personel["Kalan İzin"]} gün
-                      </span>
-                    </div>
+                    <div style={styles.infoRow}><span style={styles.infoLabel}>Toplam Hak</span><span style={styles.infoValue}>{personel["Hakediş"]} gün</span></div>
+                    <div style={styles.infoRow}><span style={styles.infoLabel}>Kullanılan</span><span style={{ ...styles.infoValue, color: "#dc2626" }}>{personel["Kullanılan İzin"] || 0} gün</span></div>
+                    <div style={styles.infoRow}><span style={styles.infoLabel}>Kalan</span><span style={{ ...styles.infoValue, color: "#059669", fontWeight: "700", fontSize: "18px" }}>{personel["Kalan İzin"]} gün</span></div>
                     <div style={styles.progressWrap}>
                       <div style={styles.progressBg}>
-                        <div style={{
-                          ...styles.progressFill,
-                          width: `${Math.min((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100, 100)}%`
-                        }} />
+                        <div style={{ ...styles.progressFill, width: `${Math.min((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100, 100)}%` }} />
                       </div>
-                      <span style={styles.progressText}>
-                        {Math.round((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100)}% kullanıldı
-                      </span>
+                      <span style={styles.progressText}>{Math.round((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100)}% kullanıldı</span>
                     </div>
                     {personel["Giriş Tarihi"] && sonrakiHakedis(personel["Giriş Tarihi"]) && (
                       <div style={styles.hakedisBox}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                        </svg>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         <span>Sonraki hakediş: <strong>{sonrakiHakedis(personel["Giriş Tarihi"])}</strong></span>
                       </div>
                     )}
                   </>
-                ) : (
-                  <div style={styles.infoLoading}>Personel verisi bulunamadı.</div>
-                )}
+                ) : <div style={styles.infoLoading}>Personel verisi bulunamadı.</div>}
               </div>
 
               {/* Form */}
               <div style={styles.formCard}>
                 <h2 style={styles.formCardTitle}>İzin Talep Formu</h2>
                 <form onSubmit={handleSubmit} style={styles.form}>
+
+                  {/* İzin Türü */}
                   <div style={styles.fieldGroup}>
                     <label style={styles.label}>İzin Türü</label>
                     <div style={styles.izinGrid}>
-                      {IZIN_TURLERI.map(t => (
-                        <button key={t} type="button" onClick={() => setIzinTuru(t)}
-                          style={{ ...styles.izinBtn, ...(izinTuru === t ? styles.izinBtnActive : {}) }}>
-                          {t}
+                      {ANA_IZINLER.map(t => (
+                        <button key={t} type="button"
+                          onClick={() => handleIzinTuruSec(t)}
+                          style={{
+                            ...styles.izinBtn,
+                            ...((izinTuru === t || (t === "Diğer" && DIGER_IZINLER.includes(izinTuru))) ? styles.izinBtnActive : {}),
+                          }}>
+                          {t === "Diğer" ? `${t} ${digerAcik ? "▲" : "▼"}` : t}
                         </button>
                       ))}
                     </div>
+
+                    {/* Diğer alt seçenekler */}
+                    {digerAcik && (
+                      <div style={styles.digerGrid}>
+                        {DIGER_IZINLER.map(t => (
+                          <button key={t} type="button" onClick={() => handleDigerSec(t)}
+                            style={{ ...styles.digerBtn, ...(izinTuru === t ? styles.digerBtnActive : {}) }}>
+                            {t}
+                            {izinSureleri[t] ? <span style={styles.digerSure}>{izinSureleri[t]} gün</span> : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Seçili diğer izin etiketi */}
+                    {DIGER_IZINLER.includes(izinTuru) && (
+                      <div style={styles.secilenEtiket}>
+                        <span>Seçili: <strong>{izinTuru}</strong></span>
+                        <button type="button" onClick={() => { setIzinTuru("Yıllık İzin"); }} style={styles.etiketKapat}>✕</button>
+                      </div>
+                    )}
                   </div>
 
-                  <div style={styles.dateGrid}>
+                  {/* Tarihler */}
+                  <div style={digerIzin || hastalık || yarimGun ? {} : styles.dateGrid}>
                     <div style={styles.fieldGroup}>
                       <label style={styles.label}>Başlangıç</label>
                       <input type="date" value={baslangic}
@@ -337,12 +383,12 @@ export default function Izin() {
                         onBlur={e => e.target.style.borderColor = "#e2e8f0"}
                       />
                     </div>
-                    {!yarimGun && (
+                    {!yarimGun && !digerIzin && !hastalık && (
                       <div style={styles.fieldGroup}>
                         <label style={styles.label}>Bitiş</label>
                         <input type="date" value={bitis}
                           onChange={e => setBitis(e.target.value)}
-                          required={!yarimGun} style={styles.input}
+                          required style={styles.input}
                           onFocus={e => e.target.style.borderColor = "#2563eb"}
                           onBlur={e => e.target.style.borderColor = "#e2e8f0"}
                         />
@@ -350,25 +396,46 @@ export default function Izin() {
                     )}
                   </div>
 
-                  {(baslangic && (yarimGun || bitis)) && (
+                  {/* İş günü göstergesi */}
+                  {baslangic && isGunu > 0 && (
                     <div style={styles.isGunuBox}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
                         <rect x="3" y="4" width="18" height="18" rx="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/>
-                        <line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                       </svg>
-                      <span>{yarimGun ? "Yarım gün izin" : `${isGunu} iş günü`}</span>
+                      <span>{isGunu === 0.5 ? "Yarım gün izin" : `${isGunu} ${digerIzin ? "takvim" : "iş"} günü`}</span>
+                      {!hakedistenDusen && <span style={styles.hakedistenDusmeyen}>· hakedişten düşmez</span>}
                     </div>
                   )}
 
+                  {/* Hastalık raporu upload */}
+                  {hastalık && (
+                    <div style={styles.fieldGroup}>
+                      <label style={styles.label}>Hastalık Raporu <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>(opsiyonel)</span></label>
+                      <label style={styles.uploadArea}>
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }}
+                          onChange={e => setDosya(e.target.files[0] || null)} />
+                        {dosya ? (
+                          <div style={styles.uploadDone}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+                            <span style={{ color: "#059669" }}>{dosya.name}</span>
+                            <button type="button" onClick={e => { e.preventDefault(); setDosya(null); }} style={styles.dosyaKapat}>✕</button>
+                          </div>
+                        ) : (
+                          <div style={styles.uploadPrompt}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" width="20" height="20"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <span style={{ color: "#94a3b8", fontSize: "13px" }}>PDF, JPG veya PNG yükle</span>
+                          </div>
+                        )}
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Açıklama */}
                   <div style={styles.fieldGroup}>
-                    <label style={styles.label}>
-                      Açıklama <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>(opsiyonel)</span>
-                    </label>
+                    <label style={styles.label}>Açıklama <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>(opsiyonel)</span></label>
                     <textarea value={aciklama} onChange={e => setAciklama(e.target.value)}
-                      placeholder="Varsa detay ekleyebilirsiniz..."
-                      rows={3} style={styles.textarea}
+                      placeholder="Varsa detay ekleyebilirsiniz..." rows={3} style={styles.textarea}
                       onFocus={e => e.target.style.borderColor = "#2563eb"}
                       onBlur={e => e.target.style.borderColor = "#e2e8f0"}
                     />
@@ -417,6 +484,7 @@ export default function Izin() {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Sora', sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   );
@@ -442,9 +510,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl }) {
           Yenile
         </button>
       </div>
-      {loading ? (
-        <div style={styles.adminLoading}>Yükleniyor...</div>
-      ) : (
+      {loading ? <div style={styles.adminLoading}>Yükleniyor...</div> : (
         <div style={styles.groupList}>
           {Object.entries(grouped).sort().map(([dept, emps]) => (
             <DeptGroup key={dept} dept={dept} emps={emps} scriptUrl={scriptUrl} onRefresh={onRefresh} />
@@ -475,9 +541,7 @@ function DeptGroup({ dept, emps, scriptUrl, onRefresh }) {
       </button>
       {open && (
         <div style={styles.empList}>
-          {emps.map((emp, i) => (
-            <EmpRow key={i} emp={emp} scriptUrl={scriptUrl} onRefresh={onRefresh} />
-          ))}
+          {emps.map((emp, i) => <EmpRow key={i} emp={emp} scriptUrl={scriptUrl} onRefresh={onRefresh} />)}
         </div>
       )}
     </div>
@@ -521,15 +585,8 @@ function EmpRow({ emp, scriptUrl, onRefresh }) {
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         {editing ? (
           <>
-            <input
-              type="number" value={newHakedis}
-              onChange={e => setNewHakedis(e.target.value)}
-              style={styles.editInput}
-              autoFocus
-            />
-            <button onClick={handleSave} disabled={saving} style={styles.saveBtn}>
-              {saving ? "..." : "✓"}
-            </button>
+            <input type="number" value={newHakedis} onChange={e => setNewHakedis(e.target.value)} style={styles.editInput} autoFocus />
+            <button onClick={handleSave} disabled={saving} style={styles.saveBtn}>{saving ? "..." : "✓"}</button>
             <button onClick={() => { setEditing(false); setNewHakedis(String(hakedis)); }} style={styles.cancelBtn}>✕</button>
           </>
         ) : (
@@ -587,10 +644,21 @@ const styles = {
   izinGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" },
   izinBtn: { padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "'Sora', sans-serif", transition: "all 0.15s" },
   izinBtnActive: { background: "#eff6ff", borderColor: "#2563eb", color: "#1d4ed8", fontWeight: "600" },
+  digerGrid: { display: "flex", flexDirection: "column", gap: "6px", marginTop: "4px", animation: "slideDown 0.2s ease-out" },
+  digerBtn: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  digerBtnActive: { background: "#f5f3ff", borderColor: "#7c3aed", color: "#6d28d9" },
+  digerSure: { fontSize: "11px", color: "#94a3b8", fontWeight: "600" },
+  secilenEtiket: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "8px", fontSize: "13px", color: "#6d28d9" },
+  etiketKapat: { background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "13px" },
   dateGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" },
   input: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "'Sora', sans-serif" },
   textarea: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "'Sora', sans-serif", resize: "vertical" },
   isGunuBox: { display: "flex", alignItems: "center", gap: "10px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px", padding: "12px 16px", fontSize: "14px", fontWeight: "600", color: "#1d4ed8" },
+  hakedistenDusmeyen: { fontSize: "12px", color: "#94a3b8", fontWeight: "400" },
+  uploadArea: { display: "block", border: "1.5px dashed #e2e8f0", borderRadius: "10px", padding: "16px", cursor: "pointer", background: "#f8fafc", transition: "border-color 0.2s" },
+  uploadPrompt: { display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" },
+  uploadDone: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px" },
+  dosyaKapat: { background: "none", border: "none", color: "#94a3b8", cursor: "pointer", marginLeft: "auto" },
   statusBox: { padding: "12px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "500" },
   statusSuccess: { background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#059669" },
   statusError: { background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626" },
