@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = ""; // Apps Script deploy URL buraya
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxr4wY1PeC8Tj_Mk7TvwX70Pc_kfwsw_vwlr56DocT_uO1GFBu7rHx9baDDfXNZJEph/exec"; // Apps Script deploy URL buraya
 
 async function fetchSheetCSV(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
