@@ -3,8 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
+<<<<<<< HEAD
 const SCRIPT_URL = ""; // Apps Script deploy URL buraya
 const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Babalık İzni", "Evlilik İzni"];
+=======
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGLh4H8VN1GY72D-j2COW2vqFY5hLbWfkqd7NP-XYj_L7HvIY-yge1N7xzq1htDZ9-/exec"; // Apps Script deploy URL buraya
+const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Baba İzni", "Evlilik İzni"];
+>>>>>>> ad2fcf8cf525d15a245db70c63e3b6c10de24bc4
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
 async function fetchSheetCSV(sheetName) {
