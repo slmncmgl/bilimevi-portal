@@ -4,6 +4,8 @@ import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGLh4H8VN1GY72D-j2COW2vqFY5hLbWfkqd7NP-XYj_L7HvIY-yge1N7xzq1htDZ9-/exec"; // Apps Script deploy URL buraya
+const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Baba İzni", "Evlilik İzni"];
+const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
 async function fetchSheetCSV(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
