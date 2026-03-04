@@ -214,7 +214,7 @@ export default function Izin() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!baslangic) return;
-    if (!yarimGun && !digerIzin && !hastalık && !bitis) {
+    if (!yarimGun && !digerIzin && !bitis) {
       setStatus({ type: "error", msg: "Bitiş tarihi seçiniz." }); return;
     }
     setLoading(true);
@@ -234,11 +234,11 @@ export default function Izin() {
       const formData = {
         personelAdi: user.name,
         baslangicTarihi: baslangic,
-        bitisTarihi: digerIzin || hastalık ? baslangic : (yarimGun ? baslangic : bitis),
+        bitisTarihi: digerIzin ? baslangic : (yarimGun ? baslangic : bitis),
         izinTuru,
         aciklama,
         userEmail: user.email,
-        gunSayisi: isGunu,
+        gunSayisi: isGunu || (DIGER_IZINLER.includes(izinTuru) ? (izinSureleri[izinTuru] || 1) : isGunu),
         hakedistenDusen: hakedistenDusen,
         dosyaData,
         dosyaAdi,
@@ -373,7 +373,7 @@ export default function Izin() {
                   </div>
 
                   {/* Tarihler */}
-                  <div style={digerIzin || hastalık || yarimGun ? {} : styles.dateGrid}>
+                  <div style={digerIzin || yarimGun ? {} : styles.dateGrid}>
                     <div style={styles.fieldGroup}>
                       <label style={styles.label}>Başlangıç</label>
                       <input type="date" value={baslangic}
@@ -383,7 +383,7 @@ export default function Izin() {
                         onBlur={e => e.target.style.borderColor = "#e2e8f0"}
                       />
                     </div>
-                    {!yarimGun && !digerIzin && !hastalık && (
+                    {!yarimGun && !digerIzin && (
                       <div style={styles.fieldGroup}>
                         <label style={styles.label}>Bitiş</label>
                         <input type="date" value={bitis}
