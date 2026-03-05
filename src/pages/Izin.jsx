@@ -560,16 +560,17 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
   const hakedis = displayHakedis;
 
   async function handleSave() {
-    const yeni = Number(newHakedis);
-    if (isNaN(yeni) || yeni < 0) return;
-    setSaving(true);
-    try {
-      console.log("Gönderilen:", JSON.stringify({
+     console.log("Gönderilen:", JSON.stringify({
   action: "updateHakedis",
   personelAdi: emp["Ad Soyad"],
   yeniHakedis: yeni,
   adminEmail: adminEmail,
 }));
+    const yeni = Number(newHakedis);
+    if (isNaN(yeni) || yeni < 0) return;
+    setSaving(true);
+    try {
+     
       await fetch(scriptUrl, {
         method: "POST",
         mode: "no-cors",
