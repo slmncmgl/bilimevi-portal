@@ -560,8 +560,10 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
   const hakedis = displayHakedis;
 
   async function handleSave() {
-  console.log("handleSave çalıştı:", emp["Ad Soyad"], yeni);
+  
     const yeni = Number(newHakedis);
+
+    console.log("handleSave çalıştı:", emp["Ad Soyad"], yeni);
     if (isNaN(yeni) || yeni < 0) return;
     setSaving(true);
     try {
