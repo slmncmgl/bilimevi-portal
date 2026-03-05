@@ -591,7 +591,7 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
 
   async function handleSave() {
     const yeni = Number(newHakedis);
-    if (isNaN(yeni) || yeni < 0) return;
+    if (isNaN(yeni)) return;
     setSaving(true);
     try {
      
