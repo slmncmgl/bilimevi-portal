@@ -84,7 +84,7 @@ export default function Login() {
               Bilimevi Personel Portalı'na erişmek için giriş yapın.
             </p>
           </div>
-          <p style={styles.leftFooter}>© 2025 Bilimevi Eğitim</p>
+          <p style={styles.leftFooter}>© {new Date().getFullYear()} Bilimevi Eğitim</p>
         </div>
 
         {/* Sağ panel */}
