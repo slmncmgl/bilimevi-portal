@@ -281,7 +281,7 @@ export default function Izin() {
       )}
       
       <header style={styles.header}>
-        <div style={styles.headerInner}>
+        <div style={styles.headerInner} className="izin-header-inner">
           <div style={styles.headerLeft}>
             <button onClick={() => navigate("/dashboard")} style={styles.backBtn}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -294,33 +294,33 @@ export default function Izin() {
           </div>
           <div style={styles.headerRight}>
             {(rol === "evet" || rol === "admin") && !adminView && (
-              <button onClick={() => { setAdminView(true); loadAdminList(); }} style={styles.adminBtn}>
+              <button onClick={() => { setAdminView(true); loadAdminList(); }} style={styles.adminBtn} className="izin-admin-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                   <circle cx="9" cy="7" r="4"/>
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
-                Yönetici Paneli
+                <span>Yönetici Paneli</span>
               </button>
             )}
             {adminView && (
               <button onClick={() => setAdminView(false)} style={styles.adminBtn}>← Kendi İznim</button>
             )}
-            <div style={styles.userChip}><div style={styles.userDot} />{user.name}</div>
+            <div style={styles.userChip} className="izin-user-chip"><div style={styles.userDot} />{user.name}</div>
             <button onClick={logout} style={styles.logoutBtn}>Çıkış</button>
           </div>
         </div>
       </header>
 
-      <main style={styles.main}>
+      <main style={styles.main} className="izin-main">
         {adminView ? (
           <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} />
         ) : (
           <div style={styles.pageLayout}>
-            <div style={styles.formLayout}>
+            <div style={styles.formLayout} className="izin-form-layout">
               {/* Bilgi kartı */}
-              <div style={styles.infoCard}>
+              <div style={styles.infoCard} className="izin-info-card">
                 <h3 style={styles.infoTitle}>İzin Durumu</h3>
                 {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : personel ? (
                   <>
@@ -347,7 +347,7 @@ export default function Izin() {
               </div>
 
               {/* Form */}
-              <div style={styles.formCard}>
+              <div style={styles.formCard} className="izin-form-card">
                 <h2 style={styles.formCardTitle}>İzin Talep Formu</h2>
                 <form onSubmit={handleSubmit} style={styles.form}>
 
@@ -481,7 +481,7 @@ export default function Izin() {
                 <h3 style={styles.yaklasanTitle}>Şubenizdeki Yaklaşan İzinler</h3>
                 <div style={styles.yaklasanList}>
                   {yaklasanIzinler.map((iz, i) => (
-                    <div key={i} style={styles.yaklasanRow}>
+                    <div key={i} style={styles.yaklasanRow} className="izin-yaklaşan-row">
                       <div>
                         <div style={styles.yaklasanIsim}>{iz["Personel"]}</div>
                         <div style={styles.yaklasanTur}>{(iz["Mazeret"] || "").split(" - ")[0]}</div>    
@@ -501,6 +501,18 @@ export default function Izin() {
         
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Calibri, sans-serif; }
+        @media (max-width: 640px) {
+          .izin-header-inner { padding: 10px 14px !important; }
+          .izin-admin-btn span { display: none !important; }
+          .izin-user-chip { display: none !important; }
+          .izin-main { padding: 20px 14px 48px !important; }
+          .izin-form-layout { grid-template-columns: 1fr !important; }
+          .izin-form-card { padding: 20px 16px !important; }
+          .izin-info-card { padding: 20px 16px !important; }
+          .izin-emp-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+          .izin-emp-actions { width: 100% !important; justify-content: flex-end !important; }
+          .izin-yaklaşan-row { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
+        }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -604,12 +616,12 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
 }
 }
   return (
-    <div style={styles.empRow}>
+    <div style={styles.empRow} className="izin-emp-row">
       <div>
         <div style={styles.empName}>{emp["Ad Soyad"]}</div>
         <div style={styles.empMeta}>{emp["E-posta"]} · Giriş: {emp["Giriş Tarihi"]}</div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="izin-emp-actions">
         {editing ? (
           <>
             <input type="number" value={newHakedis} onChange={e => setNewHakedis(e.target.value)} style={styles.editInput} autoFocus />
