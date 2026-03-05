@@ -3,11 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-<<<<<<< HEAD
 const SCRIPT_URL = ""; // Apps Script deploy URL buraya
-=======
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0njYunqOYNcMtcRjO4_T0c4dAsASKKo1dTUDgPgLUGnYYjbwt2glmRxZV2zVSx_cc/exec"; // Apps Script deploy URL buraya
->>>>>>> f1fa1dac899583d1528fc20d514b57cb8460447b
 const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Babalık İzni", "Evlilik İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -177,7 +173,8 @@ export default function Izin() {
       const subeIsimler = subePersonel.map(p => p["Ad Soyad"]);
       const gelecek = islemler.filter(row => {
         const b = new Date(row["Bitiş"]);
-        return subeIsimler.includes(row["Personel"]) && b >= bugun;
+        const izinTipi = (row["Mazeret"] || "").toLowerCase();
+        return subeIsimler.includes(row["Personel"]) && b >= bugun && !izinTipi.includes("yarım gün");
       });
       setYaklasanIzinler(gelecek);
     } catch (_) {}
@@ -567,7 +564,6 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
     if (isNaN(yeni) || yeni < 0) return;
     setSaving(true);
     try {
-      const fark = yeni - displayHakedis;
       await fetch(scriptUrl, {
         method: "POST",
         mode: "no-cors",
@@ -578,9 +574,10 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
           adminEmail: adminEmail,
         }),
       });
-      // Local state'i anında güncelle
+      // Sadece Hakediş değişir, Kalan İzin = Hakediş - Kullanılan İzin
+      const kullanilan = Number(emp["Kullanılan İzin"]) || 0;
       setDisplayHakedis(yeni);
-      setDisplayKalan(prev => prev + fark);
+      setDisplayKalan(yeni - kullanilan);
       setEditing(false);
     } catch (_) {}
     setSaving(false);
@@ -601,6 +598,7 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
           </>
         ) : (
           <>
+            <span style={styles.kalanLabel}>Kalan İzin</span>
             <div style={{ ...styles.kalanBadge, background: kalan <= 5 ? "#fef2f2" : "#ecfdf5", color: kalan <= 5 ? "#dc2626" : "#059669", border: `1px solid ${kalan <= 5 ? "#fecaca" : "#a7f3d0"}` }}>
               {kalan} gün
             </div>
