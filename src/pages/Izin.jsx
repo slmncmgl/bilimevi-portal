@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpFXA8J8SF317PFKwMnFEPI6e8YdX_mh6mL29DZX9CfaFlP8I-ib3nV_fn3v22yETn/exec"; // Apps Script deploy URL buraya
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0njYunqOYNcMtcRjO4_T0c4dAsASKKo1dTUDgPgLUGnYYjbwt2glmRxZV2zVSx_cc/exec"; // Apps Script deploy URL buraya
 const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Babalık İzni", "Evlilik İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
