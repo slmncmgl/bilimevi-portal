@@ -564,6 +564,12 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
     if (isNaN(yeni) || yeni < 0) return;
     setSaving(true);
     try {
+      console.log("Gönderilen:", JSON.stringify({
+  action: "updateHakedis",
+  personelAdi: emp["Ad Soyad"],
+  yeniHakedis: yeni,
+  adminEmail: adminEmail,
+}));
       await fetch(scriptUrl, {
         method: "POST",
         mode: "no-cors",
