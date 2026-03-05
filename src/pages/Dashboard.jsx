@@ -99,7 +99,7 @@ export default function Dashboard() {
 
       {/* Header */}
       <header style={styles.header}>
-        <div style={styles.headerInner}>
+        <div style={styles.headerInner} className="dash-header-inner">
           <img
             src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg"
             alt="Bilimevi"
@@ -111,8 +111,8 @@ export default function Dashboard() {
                 {user.name?.charAt(0).toUpperCase()}
               </div>
               <div>
-                <div style={styles.userName}>{user.name}</div>
-                <div style={styles.userMeta}>{user.company} · {user.branch}</div>
+                <div style={styles.userName} className="dash-user-name">{user.name}</div>
+                <div style={styles.userMeta} className="dash-user-meta">{user.company} · {user.branch}</div>
               </div>
             </div>
             <button onClick={logout} style={styles.logoutBtn}
@@ -130,9 +130,9 @@ export default function Dashboard() {
       </header>
 
       {/* Main */}
-      <main style={styles.main}>
+      <main style={styles.main} className="dash-main">
         <div style={styles.greeting}>
-          <h1 style={styles.greetingTitle}>
+          <h1 style={styles.greetingTitle} className="dash-greeting-title">
             {greeting}, <span style={styles.greetingName}>{user.name?.split(" ")[0]}</span> 👋
           </h1>
           <p style={styles.greetingDate}>
@@ -151,7 +151,7 @@ export default function Dashboard() {
             <span>Yöneticinizle iletişime geçin.</span>
           </div>
         ) : (
-          <div style={{
+          <div className="dash-grid" style={{
             ...styles.grid,
             gridTemplateColumns: allowedModules.length === 1 ? "1fr" :
                                  allowedModules.length === 2 ? "repeat(2, 1fr)" :
@@ -161,7 +161,7 @@ export default function Dashboard() {
               <button
                 key={mod.key}
                 onClick={() => navigate(mod.path)}
-                style={{
+                className="dash-module-card" style={{
                   ...styles.moduleCard,
                   animationDelay: `${i * 0.08}s`,
                   "--hover-border": mod.color,
@@ -177,7 +177,7 @@ export default function Dashboard() {
                   e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
                 }}
               >
-                <div style={{ ...styles.moduleIcon, background: mod.bg, color: mod.color, border: `1px solid ${mod.border}` }}>
+                <div className="dash-module-icon" style={{ ...styles.moduleIcon, background: mod.bg, color: mod.color, border: `1px solid ${mod.border}` }}>
                   {mod.icon}
                 </div>
                 <div style={styles.moduleContent}>
@@ -201,6 +201,17 @@ export default function Dashboard() {
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(16px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 640px) {
+          .dash-header-inner { padding: 12px 16px !important; }
+          .dash-user-name { display: none !important; }
+          .dash-user-meta { display: none !important; }
+          .dash-greeting-title { font-size: 24px !important; }
+          .dash-main { padding: 28px 16px 48px !important; }
+          .dash-grid { grid-template-columns: 1fr !important; }
+          .dash-module-card { padding: 18px 20px !important; gap: 14px !important; }
+          .dash-module-icon { width: 48px !important; height: 48px !important; border-radius: 12px !important; }
+          .dash-module-icon svg { width: 24px !important; height: 24px !important; }
         }
       `}</style>
     </div>

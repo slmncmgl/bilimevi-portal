@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = ""; // Apps Script deploy URL buraya
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby719EJQPrWIJNb9bkfkyxHvgYFprv6mjSSvVP9RTofyz694nY-WF4Qdz9jNb198pCp/exec"; // Apps Script deploy URL buraya
 const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Babalık İzni", "Evlilik İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -106,6 +106,13 @@ function fileToBase64(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function formatTarih(dateStr) {
+  if (!dateStr) return "";
+  const tarihObj = new Date(dateStr.replace(/-/g, "/"));
+  if (isNaN(tarihObj.getTime())) return dateStr;
+  return tarihObj.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 }
 
 const ANA_IZINLER = ["Yıllık İzin", "Yarım Gün İzin", "Hastalık", "Diğer"];
@@ -265,7 +272,7 @@ export default function Izin() {
     <div style={styles.root}>
       <div style={styles.bgGrid} />
       <header style={styles.header}>
-        <div style={styles.headerInner}>
+        <div style={styles.headerInner} className="izin-header-inner">
           <div style={styles.headerLeft}>
             <button onClick={() => navigate("/dashboard")} style={styles.backBtn}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -278,33 +285,33 @@ export default function Izin() {
           </div>
           <div style={styles.headerRight}>
             {(rol === "evet" || rol === "admin") && !adminView && (
-              <button onClick={() => { setAdminView(true); loadAdminList(); }} style={styles.adminBtn}>
+              <button onClick={() => { setAdminView(true); loadAdminList(); }} style={styles.adminBtn} className="izin-admin-btn">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                   <circle cx="9" cy="7" r="4"/>
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
-                Yönetici Paneli
+                <span>Yönetici Paneli</span>
               </button>
             )}
             {adminView && (
-              <button onClick={() => setAdminView(false)} style={styles.adminBtn}>← Kendi İznim</button>
+              <button onClick={() => setAdminView(false)} style={styles.adminBtn} className="izin-admin-btn">← Kendi İznim</button>
             )}
-            <div style={styles.userChip}><div style={styles.userDot} />{user.name}</div>
+            <div style={styles.userChip} className="izin-user-chip"><div style={styles.userDot} />{user.name}</div>
             <button onClick={logout} style={styles.logoutBtn}>Çıkış</button>
           </div>
         </div>
       </header>
 
-      <main style={styles.main}>
+      <main style={styles.main} className="izin-main">
         {adminView ? (
           <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} />
         ) : (
           <div style={styles.pageLayout}>
-            <div style={styles.formLayout}>
+            <div style={styles.formLayout} className="izin-form-layout">
               {/* Bilgi kartı */}
-              <div style={styles.infoCard}>
+              <div style={styles.infoCard} className="izin-info-card">
                 <h3 style={styles.infoTitle}>İzin Durumu</h3>
                 {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : personel ? (
                   <>
@@ -331,14 +338,14 @@ export default function Izin() {
               </div>
 
               {/* Form */}
-              <div style={styles.formCard}>
+              <div style={styles.formCard} className="izin-form-card">
                 <h2 style={styles.formCardTitle}>İzin Talep Formu</h2>
                 <form onSubmit={handleSubmit} style={styles.form}>
 
                   {/* İzin Türü */}
                   <div style={styles.fieldGroup}>
                     <label style={styles.label}>İzin Türü</label>
-                    <div style={styles.izinGrid}>
+                    <div style={styles.izinGrid} className="izin-izin-grid">
                       {ANA_IZINLER.map(t => (
                         <button key={t} type="button"
                           onClick={() => handleIzinTuruSec(t)}
@@ -465,10 +472,11 @@ export default function Izin() {
                 <h3 style={styles.yaklasanTitle}>Şubenizdeki Yaklaşan İzinler</h3>
                 <div style={styles.yaklasanList}>
                   {yaklasanIzinler.map((iz, i) => (
-                    <div key={i} style={styles.yaklasanRow}>
+                    <div key={i} style={styles.yaklasanRow} className="izin-yaklaşan-row">
                       <div>
                         <div style={styles.yaklasanIsim}>{iz["Personel"]}</div>
-                        <div style={styles.yaklasanTarih}>{iz["Başlangıç"]} – {iz["Bitiş"]}</div>
+                        <div style={styles.yaklasanTur}>{(iz["Mazeret"] || "").split(" - ")[0]}</div>    
+                        <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
                       </div>
                       <div style={styles.yaklasanBadge}>{iz["Gün Sayısı"]} gün</div>
                     </div>
@@ -481,9 +489,23 @@ export default function Izin() {
       </main>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+        
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Sora', sans-serif; }
+        body { font-family: Calibri, sans-serif; }
+        @media (max-width: 640px) {
+          .izin-header-inner { padding: 10px 14px !important; flex-wrap: wrap !important; gap: 8px !important; }
+          .izin-admin-btn span { display: none !important; }
+          .izin-user-chip { display: none !important; }
+          .izin-main { padding: 20px 14px 48px !important; }
+          .izin-form-layout { grid-template-columns: 1fr !important; }
+          .izin-form-card { padding: 20px 16px !important; }
+          .izin-info-card { padding: 20px 16px !important; }
+          .izin-date-grid { grid-template-columns: 1fr !important; }
+          .izin-izin-grid { grid-template-columns: 1fr 1fr !important; }
+          .izin-emp-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+          .izin-emp-actions { width: 100% !important; justify-content: flex-end !important; }
+          .izin-yaklaşan-row { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
+        }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
@@ -564,6 +586,7 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
     if (isNaN(yeni) || yeni < 0) return;
     setSaving(true);
     try {
+     
       await fetch(scriptUrl, {
         method: "POST",
         mode: "no-cors",
@@ -579,17 +602,18 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
       setDisplayHakedis(yeni);
       setDisplayKalan(yeni - kullanilan);
       setEditing(false);
-    } catch (_) {}
-    setSaving(false);
-  }
-
+      setSaving(false);
+ } catch (_) {
+  setSaving(false);
+}
+}
   return (
-    <div style={styles.empRow}>
+    <div style={styles.empRow} className="izin-emp-row">
       <div>
         <div style={styles.empName}>{emp["Ad Soyad"]}</div>
         <div style={styles.empMeta}>{emp["E-posta"]} · Giriş: {emp["Giriş Tarihi"]}</div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="izin-emp-actions">
         {editing ? (
           <>
             <input type="number" value={newHakedis} onChange={e => setNewHakedis(e.target.value)} style={styles.editInput} autoFocus />
@@ -616,19 +640,19 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
 }
 
 const styles = {
-  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative" },
+  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "Calibri, 'Sora', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
   headerInner: { maxWidth: "960px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
   headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   headerSep: { color: "#cbd5e1", fontSize: "16px" },
   headerTitle: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
   headerRight: { display: "flex", alignItems: "center", gap: "12px" },
-  adminBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", color: "#1d4ed8", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  adminBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", color: "#1d4ed8", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
   userDot: { width: "8px", height: "8px", borderRadius: "50%", background: "#22c55e" },
-  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   main: { maxWidth: "960px", margin: "0 auto", padding: "40px 24px 64px", position: "relative", zIndex: 1 },
   pageLayout: { display: "flex", flexDirection: "column", gap: "24px" },
   formLayout: { display: "grid", gridTemplateColumns: "280px 1fr", gap: "24px", animation: "fadeUp 0.4s ease-out" },
@@ -650,17 +674,17 @@ const styles = {
   fieldGroup: { display: "flex", flexDirection: "column", gap: "8px" },
   label: { fontSize: "12px", fontWeight: "600", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
   izinGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" },
-  izinBtn: { padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "'Sora', sans-serif", transition: "all 0.15s" },
+  izinBtn: { padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif", transition: "all 0.15s" },
   izinBtnActive: { background: "#eff6ff", borderColor: "#2563eb", color: "#1d4ed8", fontWeight: "600" },
   digerGrid: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px", animation: "slideDown 0.2s ease-out" },
-  digerBtn: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  digerBtn: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   digerBtnActive: { background: "#f5f3ff", borderColor: "#7c3aed", color: "#6d28d9" },
   digerSure: { fontSize: "11px", color: "#94a3b8", fontWeight: "600" },
   secilenEtiket: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "8px", fontSize: "13px", color: "#6d28d9" },
   etiketKapat: { background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "13px" },
   dateGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" },
-  input: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "'Sora', sans-serif" },
-  textarea: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "'Sora', sans-serif", resize: "vertical" },
+  input: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "Calibri, 'Sora', sans-serif" },
+  textarea: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "Calibri, 'Sora', sans-serif", resize: "vertical" },
   isGunuBox: { display: "flex", alignItems: "center", gap: "10px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px", padding: "12px 16px", fontSize: "14px", fontWeight: "600", color: "#1d4ed8" },
   hakedistenDusmeyen: { fontSize: "12px", color: "#94a3b8", fontWeight: "400" },
   uploadArea: { display: "block", border: "1.5px dashed #e2e8f0", borderRadius: "10px", padding: "16px", cursor: "pointer", background: "#f8fafc", transition: "border-color 0.2s" },
@@ -670,22 +694,23 @@ const styles = {
   statusBox: { padding: "12px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "500" },
   statusSuccess: { background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#059669" },
   statusError: { background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626" },
-  submitBtn: { padding: "13px", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "transform 0.15s", boxShadow: "0 4px 14px rgba(37,99,235,0.3)", fontFamily: "'Sora', sans-serif" },
+  submitBtn: { padding: "13px", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "transform 0.15s", boxShadow: "0 4px 14px rgba(37,99,235,0.3)", fontFamily: "Calibri, 'Sora', sans-serif" },
   yaklasanCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "28px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" },
   yaklasanTitle: { fontSize: "13px", fontWeight: "700", color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "16px" },
   yaklasanList: { display: "flex", flexDirection: "column", gap: "8px" },
   yaklasanRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9" },
   yaklasanIsim: { fontSize: "14px", fontWeight: "600", color: "#0f172a", marginBottom: "3px" },
+  yaklasanTur: { fontSize: "12px", color: "#2563eb", fontWeight: "500", marginBottom: "2px" },
   yaklasanTarih: { fontSize: "12px", color: "#94a3b8" },
   yaklasanBadge: { fontSize: "12px", fontWeight: "700", color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", padding: "4px 12px", borderRadius: "100px" },
   adminWrap: { animation: "fadeUp 0.4s ease-out" },
   adminHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" },
   adminTitle: { fontSize: "20px", fontWeight: "700", color: "#0f172a", letterSpacing: "-0.3px" },
-  refreshBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", fontWeight: "600", color: "#475569", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  refreshBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", fontWeight: "600", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   adminLoading: { textAlign: "center", padding: "60px", color: "#94a3b8", fontSize: "14px" },
   groupList: { display: "flex", flexDirection: "column", gap: "8px" },
   deptCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "14px", overflow: "hidden" },
-  deptHeader: { width: "100%", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  deptHeader: { width: "100%", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   deptLeft: { display: "flex", alignItems: "center", gap: "10px" },
   deptName: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
   deptCount: { fontSize: "11px", background: "#eff6ff", color: "#2563eb", padding: "2px 8px", borderRadius: "100px", fontWeight: "600" },
@@ -696,7 +721,7 @@ const styles = {
   kalanLabel: { fontSize: "11px", color: "#94a3b8", fontWeight: "500" },
   kalanBadge: { padding: "4px 12px", borderRadius: "100px", fontSize: "12px", fontWeight: "700" },
   editBtn: { display: "flex", alignItems: "center", padding: "6px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", cursor: "pointer", color: "#64748b" },
-  editInput: { width: "64px", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "7px", fontSize: "13px", fontWeight: "600", outline: "none", fontFamily: "'Sora', sans-serif", textAlign: "center" },
+  editInput: { width: "64px", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "7px", fontSize: "13px", fontWeight: "600", outline: "none", fontFamily: "Calibri, 'Sora', sans-serif", textAlign: "center" },
   saveBtn: { padding: "5px 10px", background: "#059669", border: "none", borderRadius: "7px", color: "#fff", fontSize: "13px", fontWeight: "700", cursor: "pointer" },
   cancelBtn: { padding: "5px 10px", background: "#f1f5f9", border: "none", borderRadius: "7px", color: "#64748b", fontSize: "13px", fontWeight: "700", cursor: "pointer" },
 };
