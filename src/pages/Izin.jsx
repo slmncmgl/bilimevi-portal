@@ -476,7 +476,7 @@ export default function Izin() {
                     <div key={i} style={styles.yaklasanRow}>
                       <div>
                         <div style={styles.yaklasanIsim}>{iz["Personel"]}</div>
-                        <div style={styles.yaklasanTur}>{iz["Mazeret"]}</div>
+                        <div style={styles.yaklasanTur}>{(iz["Mazeret"] || "").split(" - ")[0]}</div>    
                         <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
                       </div>
                       <div style={styles.yaklasanBadge}>{iz["Gün Sayısı"]} gün</div>
