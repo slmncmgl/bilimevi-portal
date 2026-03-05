@@ -298,7 +298,7 @@ const hastalık = izinTuru.toLowerCase().includes("hastal");
 
       <main style={styles.main}>
         {adminView ? (
-          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} />
+          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} />
         ) : (
           <div style={styles.pageLayout}>
             <div style={styles.formLayout}>
@@ -490,7 +490,7 @@ const hastalık = izinTuru.toLowerCase().includes("hastal");
   );
 }
 
-function AdminPanel({ list, loading, onRefresh, scriptUrl }) {
+function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
   const grouped = list.reduce((acc, emp) => {
     const key = `${emp["Şirket"]} - ${emp["Şube"]}`;
     if (!acc[key]) acc[key] = [];
@@ -513,7 +513,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl }) {
       {loading ? <div style={styles.adminLoading}>Yükleniyor...</div> : (
         <div style={styles.groupList}>
           {Object.entries(grouped).sort().map(([dept, emps]) => (
-            <DeptGroup key={dept} dept={dept} emps={emps} scriptUrl={scriptUrl} onRefresh={onRefresh} />
+            <DeptGroup key={dept} dept={dept} emps={emps} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} />
           ))}
         </div>
       )}
@@ -521,7 +521,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl }) {
   );
 }
 
-function DeptGroup({ dept, emps, scriptUrl, onRefresh }) {
+function DeptGroup({ dept, emps, scriptUrl, onRefresh, adminEmail }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={styles.deptCard}>
@@ -541,14 +541,14 @@ function DeptGroup({ dept, emps, scriptUrl, onRefresh }) {
       </button>
       {open && (
         <div style={styles.empList}>
-          {emps.map((emp, i) => <EmpRow key={i} emp={emp} scriptUrl={scriptUrl} onRefresh={onRefresh} />)}
+          {emps.map((emp, i) => <EmpRow key={i} emp={emp} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} />)}
         </div>
       )}
     </div>
   );
 }
 
-function EmpRow({ emp, scriptUrl, onRefresh }) {
+function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
   const kalan = Number(emp["Kalan İzin"]) || 0;
   const hakedis = Number(emp["Hakediş"]) || 0;
   const [editing, setEditing] = useState(false);
@@ -567,7 +567,7 @@ function EmpRow({ emp, scriptUrl, onRefresh }) {
           action: "updateHakedis",
           personelAdi: emp["Ad Soyad"],
           yeniHakedis: yeni,
-          fark: yeni - hakedis,
+          adminEmail: adminEmail,
         }),
       });
       setEditing(false);
@@ -685,6 +685,7 @@ const styles = {
   empRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid #f8fafc" },
   empName: { fontSize: "14px", fontWeight: "600", color: "#0f172a", marginBottom: "3px" },
   empMeta: { fontSize: "11px", color: "#94a3b8" },
+  kalanLabel: { fontSize: "11px", color: "#94a3b8", fontWeight: "500" },
   kalanBadge: { padding: "4px 12px", borderRadius: "100px", fontSize: "12px", fontWeight: "700" },
   editBtn: { display: "flex", alignItems: "center", padding: "6px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", cursor: "pointer", color: "#64748b" },
   editInput: { width: "64px", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "7px", fontSize: "13px", fontWeight: "600", outline: "none", fontFamily: "'Sora', sans-serif", textAlign: "center" },
