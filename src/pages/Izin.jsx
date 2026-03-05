@@ -4,7 +4,7 @@ import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby719EJQPrWIJNb9bkfkyxHvgYFprv6mjSSvVP9RTofyz694nY-WF4Qdz9jNb198pCp/exec"; // Apps Script deploy URL buraya
-const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Babalık İzni", "Evlilik İzni"];
+const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
 async function fetchSheetCSV(sheetName) {
@@ -279,6 +279,7 @@ export default function Izin() {
           </div>
         </div>
       )}
+      
       <header style={styles.header}>
         <div style={styles.headerInner}>
           <div style={styles.headerLeft}>
@@ -635,8 +636,9 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
 }
 
 const styles = {
-  loadingOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" },
-  loadingBox: { background: "#fff", borderRadius: "16px", padding: "32px 40px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", boxShadow: "0 25px 60px rgba(0,0,0,0.2)" },
+
+  loadingOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center" },
+  loadingBox: { background: "#fff", borderRadius: "16px", padding: "32px 48px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", boxShadow: "0 25px 60px rgba(0,0,0,0.2)" },
   loadingSpinner: { width: "36px", height: "36px", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.7s linear infinite" },
   loadingText: { fontSize: "15px", fontWeight: "600", color: "#0f172a" },
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "Calibri, 'Sora', sans-serif", position: "relative" },
