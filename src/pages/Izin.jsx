@@ -560,12 +560,7 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
   const hakedis = displayHakedis;
 
   async function handleSave() {
-     console.log("Gönderilen:", JSON.stringify({
-  action: "updateHakedis",
-  personelAdi: emp["Ad Soyad"],
-  yeniHakedis: yeni,
-  adminEmail: adminEmail,
-}));
+  console.log("handleSave çalıştı:", emp["Ad Soyad"], yeni);
     const yeni = Number(newHakedis);
     if (isNaN(yeni) || yeni < 0) return;
     setSaving(true);
