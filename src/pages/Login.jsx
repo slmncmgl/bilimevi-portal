@@ -68,27 +68,27 @@ export default function Login() {
       <div style={styles.bgGlow1} />
       <div style={styles.bgGlow2} />
 
-      <div style={styles.card} className="login-card">
+      <div style={styles.card}>
         {/* Sol panel */}
-        <div style={styles.leftPanel} className="login-left">
-          <div style={styles.logoWrap} className="login-logo-wrap">
+        <div style={styles.leftPanel}>
+          <div style={styles.logoWrap}>
             <img
               src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg"
               alt="Bilimevi"
               style={styles.logo}
             />
           </div>
-          <div style={styles.leftText} className="login-left-text">
+          <div style={styles.leftText}>
             <h2 style={styles.leftTitle}>Hoş Geldiniz</h2>
             <p style={styles.leftSub}>
               Bilimevi Personel Portalı'na erişmek için giriş yapın.
             </p>
           </div>
-          <p style={styles.leftFooter} className="login-left-footer">© {new Date().getFullYear()} Bilimevi Eğitim</p>
+          <p style={styles.leftFooter}>© {new Date().getFullYear()} Bilimevi Eğitim</p>
         </div>
 
         {/* Sağ panel */}
-        <div style={styles.rightPanel} className="login-right">
+        <div style={styles.rightPanel}>
           <div style={styles.formWrap}>
             <h1 style={styles.formTitle}>Giriş Yap</h1>
             <p style={styles.formSub}>Şirket e-posta adresinizi kullanın</p>
@@ -210,14 +210,6 @@ export default function Login() {
         body { font-family: 'Sora', sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 640px) {
-          .login-card { flex-direction: column !important; min-height: unset !important; }
-          .login-left { width: 100% !important; padding: 28px 24px !important; flex-direction: row !important; align-items: center !important; gap: 16px !important; }
-          .login-left-text { display: none !important; }
-          .login-left-footer { display: none !important; }
-          .login-logo-wrap { width: 120px !important; flex-shrink: 0 !important; padding: 12px !important; }
-          .login-right { padding: 28px 20px !important; }
-        }
       `}</style>
     </div>
   );
@@ -230,8 +222,8 @@ const styles = {
   bgGlow2: { position: "fixed", bottom: "-20%", right: "-10%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, #ede9fe66 0%, transparent 70%)", zIndex: 0 },
   card: { display: "flex", width: "100%", maxWidth: "860px", minHeight: "540px", borderRadius: "24px", overflow: "hidden", boxShadow: "0 25px 60px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)", position: "relative", zIndex: 1, animation: "fadeUp 0.5s ease-out" },
   leftPanel: { width: "40%", background: "linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)", padding: "48px 40px", display: "flex", flexDirection: "column", justifyContent: "space-between" },
-  logoWrap: { background: "rgba(255,255,255,0.12)", backdropFilter: "blur(10px)", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.2)" },
-  logo: { width: "100%", height: "44px", objectFit: "contain", filter: "brightness(0) invert(1)" },
+  logoWrap: { background: "rgba(255,255,255,0.12)", backdropFilter: "blur(10px)", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.2)", alignSelf: "center" },
+  logo: { width: "100%", height: "53px", objectFit: "contain", filter: "brightness(0) invert(1)" },
   leftText: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 0" },
   leftTitle: { fontSize: "26px", fontWeight: "700", color: "#fff", marginBottom: "12px", letterSpacing: "-0.5px" },
   leftSub: { fontSize: "14px", color: "rgba(255,255,255,0.7)", lineHeight: "1.7" },

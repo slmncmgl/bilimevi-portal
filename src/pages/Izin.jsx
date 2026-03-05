@@ -271,8 +271,16 @@ export default function Izin() {
   return (
     <div style={styles.root}>
       <div style={styles.bgGrid} />
+      {loading && (
+        <div style={styles.loadingOverlay}>
+          <div style={styles.loadingBox}>
+            <div style={styles.loadingSpinner} />
+            <span style={styles.loadingText}>Talep Gönderiliyor...</span>
+          </div>
+        </div>
+      )}
       <header style={styles.header}>
-        <div style={styles.headerInner} className="izin-header-inner">
+        <div style={styles.headerInner}>
           <div style={styles.headerLeft}>
             <button onClick={() => navigate("/dashboard")} style={styles.backBtn}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -285,33 +293,33 @@ export default function Izin() {
           </div>
           <div style={styles.headerRight}>
             {(rol === "evet" || rol === "admin") && !adminView && (
-              <button onClick={() => { setAdminView(true); loadAdminList(); }} style={styles.adminBtn} className="izin-admin-btn">
+              <button onClick={() => { setAdminView(true); loadAdminList(); }} style={styles.adminBtn}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
                   <circle cx="9" cy="7" r="4"/>
                   <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
                   <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                 </svg>
-                <span>Yönetici Paneli</span>
+                Yönetici Paneli
               </button>
             )}
             {adminView && (
-              <button onClick={() => setAdminView(false)} style={styles.adminBtn} className="izin-admin-btn">← Kendi İznim</button>
+              <button onClick={() => setAdminView(false)} style={styles.adminBtn}>← Kendi İznim</button>
             )}
-            <div style={styles.userChip} className="izin-user-chip"><div style={styles.userDot} />{user.name}</div>
+            <div style={styles.userChip}><div style={styles.userDot} />{user.name}</div>
             <button onClick={logout} style={styles.logoutBtn}>Çıkış</button>
           </div>
         </div>
       </header>
 
-      <main style={styles.main} className="izin-main">
+      <main style={styles.main}>
         {adminView ? (
           <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} />
         ) : (
           <div style={styles.pageLayout}>
-            <div style={styles.formLayout} className="izin-form-layout">
+            <div style={styles.formLayout}>
               {/* Bilgi kartı */}
-              <div style={styles.infoCard} className="izin-info-card">
+              <div style={styles.infoCard}>
                 <h3 style={styles.infoTitle}>İzin Durumu</h3>
                 {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : personel ? (
                   <>
@@ -338,14 +346,14 @@ export default function Izin() {
               </div>
 
               {/* Form */}
-              <div style={styles.formCard} className="izin-form-card">
+              <div style={styles.formCard}>
                 <h2 style={styles.formCardTitle}>İzin Talep Formu</h2>
                 <form onSubmit={handleSubmit} style={styles.form}>
 
                   {/* İzin Türü */}
                   <div style={styles.fieldGroup}>
                     <label style={styles.label}>İzin Türü</label>
-                    <div style={styles.izinGrid} className="izin-izin-grid">
+                    <div style={styles.izinGrid}>
                       {ANA_IZINLER.map(t => (
                         <button key={t} type="button"
                           onClick={() => handleIzinTuruSec(t)}
@@ -460,7 +468,7 @@ export default function Izin() {
                     onMouseEnter={e => !loading && (e.currentTarget.style.transform = "translateY(-1px)")}
                     onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
                   >
-                    {loading ? "Kaydediliyor..." : "İzin Talebini Gönder"}
+                    "İzin Talebini Gönder"
                   </button>
                 </form>
               </div>
@@ -472,7 +480,7 @@ export default function Izin() {
                 <h3 style={styles.yaklasanTitle}>Şubenizdeki Yaklaşan İzinler</h3>
                 <div style={styles.yaklasanList}>
                   {yaklasanIzinler.map((iz, i) => (
-                    <div key={i} style={styles.yaklasanRow} className="izin-yaklaşan-row">
+                    <div key={i} style={styles.yaklasanRow}>
                       <div>
                         <div style={styles.yaklasanIsim}>{iz["Personel"]}</div>
                         <div style={styles.yaklasanTur}>{(iz["Mazeret"] || "").split(" - ")[0]}</div>    
@@ -492,22 +500,9 @@ export default function Izin() {
         
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Calibri, sans-serif; }
-        @media (max-width: 640px) {
-          .izin-header-inner { padding: 10px 14px !important; flex-wrap: wrap !important; gap: 8px !important; }
-          .izin-admin-btn span { display: none !important; }
-          .izin-user-chip { display: none !important; }
-          .izin-main { padding: 20px 14px 48px !important; }
-          .izin-form-layout { grid-template-columns: 1fr !important; }
-          .izin-form-card { padding: 20px 16px !important; }
-          .izin-info-card { padding: 20px 16px !important; }
-          .izin-date-grid { grid-template-columns: 1fr !important; }
-          .izin-izin-grid { grid-template-columns: 1fr 1fr !important; }
-          .izin-emp-row { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
-          .izin-emp-actions { width: 100% !important; justify-content: flex-end !important; }
-          .izin-yaklaşan-row { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
-        }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );
@@ -608,12 +603,12 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
 }
 }
   return (
-    <div style={styles.empRow} className="izin-emp-row">
+    <div style={styles.empRow}>
       <div>
         <div style={styles.empName}>{emp["Ad Soyad"]}</div>
         <div style={styles.empMeta}>{emp["E-posta"]} · Giriş: {emp["Giriş Tarihi"]}</div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }} className="izin-emp-actions">
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         {editing ? (
           <>
             <input type="number" value={newHakedis} onChange={e => setNewHakedis(e.target.value)} style={styles.editInput} autoFocus />
@@ -640,6 +635,10 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
 }
 
 const styles = {
+  loadingOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", backdropFilter: "blur(4px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center" },
+  loadingBox: { background: "#fff", borderRadius: "16px", padding: "32px 40px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", boxShadow: "0 25px 60px rgba(0,0,0,0.2)" },
+  loadingSpinner: { width: "36px", height: "36px", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.7s linear infinite" },
+  loadingText: { fontSize: "15px", fontWeight: "600", color: "#0f172a" },
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "Calibri, 'Sora', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
@@ -682,7 +681,7 @@ const styles = {
   digerSure: { fontSize: "11px", color: "#94a3b8", fontWeight: "600" },
   secilenEtiket: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "8px", fontSize: "13px", color: "#6d28d9" },
   etiketKapat: { background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "13px" },
-  dateGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" },
+  dateGrid: { display: "grid", gridTemplateColumns: "1fr", gap: "12px" },
   input: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "Calibri, 'Sora', sans-serif" },
   textarea: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "Calibri, 'Sora', sans-serif", resize: "vertical" },
   isGunuBox: { display: "flex", alignItems: "center", gap: "10px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px", padding: "12px 16px", fontSize: "14px", fontWeight: "600", color: "#1d4ed8" },
