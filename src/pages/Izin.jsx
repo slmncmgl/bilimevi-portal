@@ -110,10 +110,9 @@ function fileToBase64(file) {
 
 function formatTarih(dateStr) {
   if (!dateStr) return "";
-  // "2026-03-05" veya "3/5/2026" formatlarını işle
-  const d = new Date(dateStr.replace(/-/g, "/"));
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+  const tarihObj = new Date(dateStr.replace(/-/g, "/"));
+  if (isNaN(tarihObj.getTime())) return dateStr;
+  return tarihObj.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 }
 
 const ANA_IZINLER = ["Yıllık İzin", "Yarım Gün İzin", "Hastalık", "Diğer"];
