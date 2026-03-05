@@ -590,10 +590,10 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
       setDisplayHakedis(yeni);
       setDisplayKalan(yeni - kullanilan);
       setEditing(false);
+      setSaving(false);
  } catch (_) {
   setSaving(false);
 }
-setSaving(false);
 
   return (
     <div style={styles.empRow}>
