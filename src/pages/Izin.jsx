@@ -132,7 +132,7 @@ export default function Izin() {
 
   const yarimGun = izinTuru === "Yarım Gün İzin";
   const digerIzin = DIGER_IZINLER.includes(izinTuru);
-  const hastalık = izinTuru === "Hastalık";
+const hastalık = izinTuru.toLowerCase().includes("hastal");
   const hakedistenDusen = HAKEDISTEN_DUSEN.includes(izinTuru);
 
   // Gün sayısı hesapla
