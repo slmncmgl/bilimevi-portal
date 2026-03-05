@@ -108,6 +108,13 @@ function fileToBase64(file) {
   });
 }
 
+function formatTarih(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+}
+
 const ANA_IZINLER = ["Yıllık İzin", "Yarım Gün İzin", "Hastalık", "Diğer"];
 
 export default function Izin() {
@@ -468,7 +475,8 @@ export default function Izin() {
                     <div key={i} style={styles.yaklasanRow}>
                       <div>
                         <div style={styles.yaklasanIsim}>{iz["Personel"]}</div>
-                        <div style={styles.yaklasanTarih}>{iz["Başlangıç"]} – {iz["Bitiş"]}</div>
+                        <div style={styles.yaklasanTur}>{iz["Mazeret"]}</div>
+                        <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
                       </div>
                       <div style={styles.yaklasanBadge}>{iz["Gün Sayısı"]} gün</div>
                     </div>
@@ -560,10 +568,8 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
   const hakedis = displayHakedis;
 
   async function handleSave() {
-  
+  console.log("handleSave çalıştı:", emp["Ad Soyad"], yeni);
     const yeni = Number(newHakedis);
-
-    console.log("handleSave çalıştı:", emp["Ad Soyad"], yeni);
     if (isNaN(yeni) || yeni < 0) return;
     setSaving(true);
     try {
@@ -680,6 +686,7 @@ const styles = {
   yaklasanList: { display: "flex", flexDirection: "column", gap: "8px" },
   yaklasanRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9" },
   yaklasanIsim: { fontSize: "14px", fontWeight: "600", color: "#0f172a", marginBottom: "3px" },
+  yaklasanTur: { fontSize: "12px", color: "#2563eb", fontWeight: "500", marginBottom: "2px" },
   yaklasanTarih: { fontSize: "12px", color: "#94a3b8" },
   yaklasanBadge: { fontSize: "12px", fontWeight: "700", color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", padding: "4px 12px", borderRadius: "100px" },
   adminWrap: { animation: "fadeUp 0.4s ease-out" },
