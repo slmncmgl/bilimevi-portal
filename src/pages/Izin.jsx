@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpFXA8J8SF317PFKwMnFEPI6e8YdX_mh6mL29DZX9CfaFlP8I-ib3nV_fn3v22yETn/exec"; // Apps Script deploy URL buraya
+const SCRIPT_URL = ""; // Apps Script deploy URL buraya
 const DIGER_IZINLER = ["Cenaze İzni", "Doğum İzni", "Babalık İzni", "Evlilik İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -132,7 +132,7 @@ export default function Izin() {
 
   const yarimGun = izinTuru === "Yarım Gün İzin";
   const digerIzin = DIGER_IZINLER.includes(izinTuru);
-const hastalık = izinTuru.toLowerCase().includes("hastal");
+  const hastalık = izinTuru === "Hastalık";
   const hakedistenDusen = HAKEDISTEN_DUSEN.includes(izinTuru);
 
   // Gün sayısı hesapla
@@ -549,17 +549,21 @@ function DeptGroup({ dept, emps, scriptUrl, onRefresh, adminEmail }) {
 }
 
 function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
-  const kalan = Number(emp["Kalan İzin"]) || 0;
-  const hakedis = Number(emp["Hakediş"]) || 0;
   const [editing, setEditing] = useState(false);
-  const [newHakedis, setNewHakedis] = useState(String(hakedis));
+  const [displayHakedis, setDisplayHakedis] = useState(Number(emp["Hakediş"]) || 0);
+  const [displayKalan, setDisplayKalan] = useState(Number(emp["Kalan İzin"]) || 0);
+  const [newHakedis, setNewHakedis] = useState(String(Number(emp["Hakediş"]) || 0));
   const [saving, setSaving] = useState(false);
+
+  const kalan = displayKalan;
+  const hakedis = displayHakedis;
 
   async function handleSave() {
     const yeni = Number(newHakedis);
     if (isNaN(yeni) || yeni < 0) return;
     setSaving(true);
     try {
+      const fark = yeni - displayHakedis;
       await fetch(scriptUrl, {
         method: "POST",
         mode: "no-cors",
@@ -570,8 +574,10 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
           adminEmail: adminEmail,
         }),
       });
+      // Local state'i anında güncelle
+      setDisplayHakedis(yeni);
+      setDisplayKalan(prev => prev + fark);
       setEditing(false);
-      onRefresh();
     } catch (_) {}
     setSaving(false);
   }
