@@ -110,8 +110,9 @@ function fileToBase64(file) {
 
 function formatTarih(dateStr) {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
-  if (isNaN(d)) return dateStr;
+  // "2026-03-05" veya "3/5/2026" formatlarını işle
+  const d = new Date(dateStr.replace(/-/g, "/"));
+  if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 }
 
@@ -489,9 +490,9 @@ export default function Izin() {
       </main>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+        
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Sora', sans-serif; }
+        body { font-family: Calibri, sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
@@ -626,19 +627,19 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
 }
 
 const styles = {
-  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative" },
+  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "Calibri, 'Sora', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
   headerInner: { maxWidth: "960px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
   headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   headerSep: { color: "#cbd5e1", fontSize: "16px" },
   headerTitle: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
   headerRight: { display: "flex", alignItems: "center", gap: "12px" },
-  adminBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", color: "#1d4ed8", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  adminBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", color: "#1d4ed8", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
   userDot: { width: "8px", height: "8px", borderRadius: "50%", background: "#22c55e" },
-  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   main: { maxWidth: "960px", margin: "0 auto", padding: "40px 24px 64px", position: "relative", zIndex: 1 },
   pageLayout: { display: "flex", flexDirection: "column", gap: "24px" },
   formLayout: { display: "grid", gridTemplateColumns: "280px 1fr", gap: "24px", animation: "fadeUp 0.4s ease-out" },
@@ -660,17 +661,17 @@ const styles = {
   fieldGroup: { display: "flex", flexDirection: "column", gap: "8px" },
   label: { fontSize: "12px", fontWeight: "600", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
   izinGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" },
-  izinBtn: { padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "'Sora', sans-serif", transition: "all 0.15s" },
+  izinBtn: { padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif", transition: "all 0.15s" },
   izinBtnActive: { background: "#eff6ff", borderColor: "#2563eb", color: "#1d4ed8", fontWeight: "600" },
   digerGrid: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px", animation: "slideDown 0.2s ease-out" },
-  digerBtn: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  digerBtn: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   digerBtnActive: { background: "#f5f3ff", borderColor: "#7c3aed", color: "#6d28d9" },
   digerSure: { fontSize: "11px", color: "#94a3b8", fontWeight: "600" },
   secilenEtiket: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "8px", fontSize: "13px", color: "#6d28d9" },
   etiketKapat: { background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "13px" },
   dateGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" },
-  input: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "'Sora', sans-serif" },
-  textarea: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "'Sora', sans-serif", resize: "vertical" },
+  input: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "Calibri, 'Sora', sans-serif" },
+  textarea: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "Calibri, 'Sora', sans-serif", resize: "vertical" },
   isGunuBox: { display: "flex", alignItems: "center", gap: "10px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px", padding: "12px 16px", fontSize: "14px", fontWeight: "600", color: "#1d4ed8" },
   hakedistenDusmeyen: { fontSize: "12px", color: "#94a3b8", fontWeight: "400" },
   uploadArea: { display: "block", border: "1.5px dashed #e2e8f0", borderRadius: "10px", padding: "16px", cursor: "pointer", background: "#f8fafc", transition: "border-color 0.2s" },
@@ -680,7 +681,7 @@ const styles = {
   statusBox: { padding: "12px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "500" },
   statusSuccess: { background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#059669" },
   statusError: { background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626" },
-  submitBtn: { padding: "13px", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "transform 0.15s", boxShadow: "0 4px 14px rgba(37,99,235,0.3)", fontFamily: "'Sora', sans-serif" },
+  submitBtn: { padding: "13px", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "transform 0.15s", boxShadow: "0 4px 14px rgba(37,99,235,0.3)", fontFamily: "Calibri, 'Sora', sans-serif" },
   yaklasanCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "28px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" },
   yaklasanTitle: { fontSize: "13px", fontWeight: "700", color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "16px" },
   yaklasanList: { display: "flex", flexDirection: "column", gap: "8px" },
@@ -692,11 +693,11 @@ const styles = {
   adminWrap: { animation: "fadeUp 0.4s ease-out" },
   adminHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" },
   adminTitle: { fontSize: "20px", fontWeight: "700", color: "#0f172a", letterSpacing: "-0.3px" },
-  refreshBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", fontWeight: "600", color: "#475569", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  refreshBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", fontWeight: "600", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   adminLoading: { textAlign: "center", padding: "60px", color: "#94a3b8", fontSize: "14px" },
   groupList: { display: "flex", flexDirection: "column", gap: "8px" },
   deptCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "14px", overflow: "hidden" },
-  deptHeader: { width: "100%", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  deptHeader: { width: "100%", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   deptLeft: { display: "flex", alignItems: "center", gap: "10px" },
   deptName: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
   deptCount: { fontSize: "11px", background: "#eff6ff", color: "#2563eb", padding: "2px 8px", borderRadius: "100px", fontWeight: "600" },
@@ -707,7 +708,7 @@ const styles = {
   kalanLabel: { fontSize: "11px", color: "#94a3b8", fontWeight: "500" },
   kalanBadge: { padding: "4px 12px", borderRadius: "100px", fontSize: "12px", fontWeight: "700" },
   editBtn: { display: "flex", alignItems: "center", padding: "6px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", cursor: "pointer", color: "#64748b" },
-  editInput: { width: "64px", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "7px", fontSize: "13px", fontWeight: "600", outline: "none", fontFamily: "'Sora', sans-serif", textAlign: "center" },
+  editInput: { width: "64px", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "7px", fontSize: "13px", fontWeight: "600", outline: "none", fontFamily: "Calibri, 'Sora', sans-serif", textAlign: "center" },
   saveBtn: { padding: "5px 10px", background: "#059669", border: "none", borderRadius: "7px", color: "#fff", fontSize: "13px", fontWeight: "700", cursor: "pointer" },
   cancelBtn: { padding: "5px 10px", background: "#f1f5f9", border: "none", borderRadius: "7px", color: "#64748b", fontSize: "13px", fontWeight: "700", cursor: "pointer" },
 };
