@@ -594,7 +594,7 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
  } catch (_) {
   setSaving(false);
 }
-
+}
   return (
     <div style={styles.empRow}>
       <div>
