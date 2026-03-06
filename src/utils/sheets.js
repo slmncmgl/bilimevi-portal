@@ -50,6 +50,7 @@ export async function loginWithCredentials(email, password) {
       email:   user["E-posta"],
       company: user["Şirket"],
       branch:  user["Şube"],
+      title:   (user["Title"] || "staff").toLowerCase(),
       modules,
     }
   };

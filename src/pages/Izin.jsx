@@ -191,13 +191,20 @@ export default function Izin() {
   async function loadAdminList() {
     setAdminLoading(true);
     try {
+      const userTitle = user?.title || "staff";
       const tumPersonel = await fetchTumPersonel();
-      const filtered = rol === "admin"
-        ? tumPersonel
-        : tumPersonel.filter(p =>
-            p["Şirket"] === personel?.["Şirket"] &&
-            p["Şube"] === personel?.["Şube"]
-          );
+      let filtered;
+      if (userTitle === "owner") {
+        filtered = tumPersonel;
+      } else if (userTitle === "director") {
+        filtered = tumPersonel.filter(p => p["Şirket"] === personel?.["Şirket"]);
+      } else {
+        // manager
+        filtered = tumPersonel.filter(p =>
+          p["Şirket"] === personel?.["Şirket"] &&
+          p["Şube"] === personel?.["Şube"]
+        );
+      }
       setAdminList(filtered);
     } catch (_) {}
     setAdminLoading(false);
@@ -510,6 +517,11 @@ export default function Izin() {
 }
 
 function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({ name: "", sirket: "", sube: "", girisTarihi: "", email: "", pass: "", title: "staff", crmId: "" });
+  const [formError, setFormError] = useState("");
+  const [formSaving, setFormSaving] = useState(false);
+
   const grouped = list.reduce((acc, emp) => {
     const key = `${emp["Şirket"]} - ${emp["Şube"]}`;
     if (!acc[key]) acc[key] = [];
@@ -517,17 +529,92 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
     return acc;
   }, {});
 
+  async function handleYeniKullanici(e) {
+    e.preventDefault();
+    setFormError("");
+    if (!formData.email.includes("@")) { setFormError("Geçerli bir e-posta adresi girin."); return; }
+    setFormSaving(true);
+    try {
+      await fetch(scriptUrl, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({ action: "addNewEmployee", ...formData }),
+      });
+      setShowModal(false);
+      setFormData({ name: "", sirket: "", sube: "", girisTarihi: "", email: "", pass: "", title: "staff", crmId: "" });
+      onRefresh();
+    } catch (_) {
+      setFormError("Kayıt sırasında hata oluştu.");
+    }
+    setFormSaving(false);
+  }
+
   return (
     <div style={styles.adminWrap}>
+      {showModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>Yeni Kullanıcı Ekle</h3>
+              <button onClick={() => setShowModal(false)} style={styles.modalClose}>✕</button>
+            </div>
+            <form onSubmit={handleYeniKullanici} style={styles.modalForm}>
+              {[
+                { label: "Ad Soyad", key: "name", type: "text", required: true },
+                { label: "Şirket", key: "sirket", type: "text", required: true },
+                { label: "Şube", key: "sube", type: "text", required: true },
+                { label: "Giriş Tarihi", key: "girisTarihi", type: "date", required: true },
+                { label: "E-posta", key: "email", type: "email", required: true },
+                { label: "Şifre", key: "pass", type: "text", required: true },
+                { label: "CRM ID (opsiyonel)", key: "crmId", type: "number", required: false },
+              ].map(({ label, key, type, required }) => (
+                <div key={key} style={styles.modalField}>
+                  <label style={styles.modalLabel}>{label}</label>
+                  <input
+                    type={type} required={required}
+                    value={formData[key]}
+                    onChange={e => setFormData(p => ({ ...p, [key]: e.target.value }))}
+                    style={styles.modalInput}
+                  />
+                </div>
+              ))}
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Title</label>
+                <select value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} style={styles.modalInput}>
+                  <option value="staff">Staff</option>
+                  <option value="manager">Manager</option>
+                  <option value="director">Director</option>
+                </select>
+              </div>
+              {formError && <div style={{ color: "#dc2626", fontSize: "13px" }}>{formError}</div>}
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "8px" }}>
+                <button type="button" onClick={() => setShowModal(false)} style={styles.cancelBtn}>İptal</button>
+                <button type="submit" disabled={formSaving} style={styles.saveBtn}>{formSaving ? "..." : "Kaydet"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <div style={styles.adminHeader}>
         <h2 style={styles.adminTitle}>Yönetici Paneli</h2>
-        <button onClick={onRefresh} style={styles.refreshBtn}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-          Yenile
-        </button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button onClick={() => setShowModal(true)} style={styles.newUserBtn}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="8.5" cy="7" r="4"/>
+              <line x1="20" y1="8" x2="20" y2="14"/>
+              <line x1="23" y1="11" x2="17" y2="11"/>
+            </svg>
+            Yeni Kullanıcı
+          </button>
+          <button onClick={onRefresh} style={styles.refreshBtn}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            Yenile
+          </button>
+        </div>
       </div>
       {loading ? <div style={styles.adminLoading}>Yükleniyor...</div> : (
         <div style={styles.groupList}>
@@ -707,6 +794,16 @@ const styles = {
   adminWrap: { animation: "fadeUp 0.4s ease-out" },
   adminHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" },
   adminTitle: { fontSize: "20px", fontWeight: "700", color: "#0f172a", letterSpacing: "-0.3px" },
+  newUserBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" },
+  modalBox: { background: "#fff", borderRadius: "16px", padding: "28px", width: "100%", maxWidth: "480px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 25px 60px rgba(0,0,0,0.2)" },
+  modalHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" },
+  modalTitle: { fontSize: "18px", fontWeight: "700", color: "#0f172a" },
+  modalClose: { background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#94a3b8", padding: "4px" },
+  modalForm: { display: "flex", flexDirection: "column", gap: "14px" },
+  modalField: { display: "flex", flexDirection: "column", gap: "6px" },
+  modalLabel: { fontSize: "12px", fontWeight: "600", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
+  modalInput: { padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", color: "#0f172a", outline: "none", fontFamily: "Calibri, sans-serif" },
   refreshBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", fontWeight: "600", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   adminLoading: { textAlign: "center", padding: "60px", color: "#94a3b8", fontSize: "14px" },
   groupList: { display: "flex", flexDirection: "column", gap: "8px" },
