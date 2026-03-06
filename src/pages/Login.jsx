@@ -68,27 +68,27 @@ export default function Login() {
       <div style={styles.bgGlow1} />
       <div style={styles.bgGlow2} />
 
-      <div style={styles.card}>
+      <div style={styles.card} className="login-card">
         {/* Sol panel */}
-        <div style={styles.leftPanel}>
-          <div style={styles.logoWrap}>
+        <div style={styles.leftPanel} className="login-left">
+          <div style={styles.logoWrap} className="login-logo-wrap">
             <img
               src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg"
               alt="Bilimevi"
               style={styles.logo}
             />
           </div>
-          <div style={styles.leftText}>
+          <div style={styles.leftText} className="login-left-text">
             <h2 style={styles.leftTitle}>Hoş Geldiniz</h2>
             <p style={styles.leftSub}>
               Bilimevi Personel Portalı'na erişmek için giriş yapın.
             </p>
           </div>
-          <p style={styles.leftFooter}>© {new Date().getFullYear()} Bilimevi Eğitim</p>
+          <p style={styles.leftFooter} className="login-left-footer">© {new Date().getFullYear()} Bilimevi Eğitim</p>
         </div>
 
         {/* Sağ panel */}
-        <div style={styles.rightPanel}>
+        <div style={styles.rightPanel} className="login-right">
           <div style={styles.formWrap}>
             <h1 style={styles.formTitle}>Giriş Yap</h1>
             <p style={styles.formSub}>Şirket e-posta adresinizi kullanın</p>
@@ -210,6 +210,14 @@ export default function Login() {
         body { font-family: 'Sora', sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 640px) {
+          .login-card { flex-direction: column !important; min-height: unset !important; }
+          .login-left { width: 100% !important; padding: 24px 20px !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 0 !important; min-height: unset !important; }
+          .login-left-text { display: none !important; }
+          .login-left-footer { display: none !important; }
+          .login-logo-wrap { padding: 14px 24px !important; }
+          .login-right { padding: 28px 20px 36px !important; }
+        }
       `}</style>
     </div>
   );
