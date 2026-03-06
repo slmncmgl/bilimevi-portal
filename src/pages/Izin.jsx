@@ -789,14 +789,35 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh }) {
   );
 }
 
+function ddmmyyyyToInput(val) {
+  if (!val) return "";
+  const p = val.split(".");
+  if (p.length === 3) return p[2] + "-" + p[1] + "-" + p[0];
+  return val;
+}
+function inputToDdmmyyyy(val) {
+  if (!val) return "";
+  const p = val.split("-");
+  if (p.length === 3) return p[2] + "." + p[1] + "." + p[0];
+  return val;
+}
+
 function PersonelEditRow({ row, scriptUrl, onRefresh }) {
   const [editing, setEditing] = useState(false);
-  const [vals, setVals] = useState({ sirket: row["Şirket"]||"", sube: row["Şube"]||"", email: row["E-posta"]||"", giris: row["Giriş Tarihi"]||"", title: (row["Title"]||"staff").toLowerCase() });
+  const rawGiris = row["Giriş Tarihi"] || "";
+  const [vals, setVals] = useState({
+    sirket: row["Şirket"] || "",
+    sube: row["Şube"] || "",
+    email: row["E-posta"] || "",
+    girisInput: ddmmyyyyToInput(rawGiris),
+    title: (row["Title"] || "staff").toLowerCase()
+  });
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
     setSaving(true);
-    await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "updatePersonelRow", name: row["Ad Soyad"], ...vals }) });
+    const giris = inputToDdmmyyyy(vals.girisInput);
+    await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "updatePersonelRow", name: row["Ad Soyad"], sirket: vals.sirket, sube: vals.sube, email: vals.email, giris, title: vals.title }) });
     setSaving(false); setEditing(false); onRefresh();
   }
 
@@ -806,7 +827,7 @@ function PersonelEditRow({ row, scriptUrl, onRefresh }) {
       <td style={{ padding: "8px 10px" }}>{vals.sirket}</td>
       <td style={{ padding: "8px 10px" }}>{vals.sube}</td>
       <td style={{ padding: "8px 10px" }}>{vals.email}</td>
-      <td style={{ padding: "8px 10px" }}>{vals.giris}</td>
+      <td style={{ padding: "8px 10px" }}>{inputToDdmmyyyy(vals.girisInput)}</td>
       <td style={{ padding: "8px 10px" }}><span style={{ padding: "2px 8px", borderRadius: "999px", background: "#eff6ff", color: "#1d4ed8", fontSize: "11px", fontWeight: "700" }}>{vals.title}</span></td>
       <td style={{ padding: "8px 10px" }}><button onClick={() => setEditing(true)} style={{ padding: "4px 10px", background: "#f1f5f9", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>Düzenle</button></td>
     </tr>
@@ -815,12 +836,16 @@ function PersonelEditRow({ row, scriptUrl, onRefresh }) {
   return (
     <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
       <td style={{ padding: "8px 10px", fontWeight: "600" }}>{row["Ad Soyad"]}</td>
-      {["sirket","sube","email","giris"].map(k => (
+      {["sirket","sube","email"].map(k => (
         <td key={k} style={{ padding: "4px 6px" }}>
           <input value={vals[k]} onChange={e => setVals(p => ({ ...p, [k]: e.target.value }))}
             style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }} />
         </td>
       ))}
+      <td style={{ padding: "4px 6px" }}>
+        <input type="date" value={vals.girisInput} onChange={e => setVals(p => ({ ...p, girisInput: e.target.value }))}
+          style={{ padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }} />
+      </td>
       <td style={{ padding: "4px 6px" }}>
         <select value={vals.title} onChange={e => setVals(p => ({ ...p, title: e.target.value }))}
           style={{ padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }}>
