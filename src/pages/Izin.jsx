@@ -768,7 +768,7 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         {editing ? (
           <>
-            <input type="number" value={newHakedis} onChange={e => setNewHakedis(e.target.value)} style={styles.editInput} autoFocus />
+            <input type="text" inputMode="decimal" value={newHakedis} onChange={e => setNewHakedis(e.target.value.replace(",", "."))} style={styles.editInput} autoFocus />
             <button onClick={handleSave} disabled={saving} style={styles.saveBtn}>{saving ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}</button>
             <button onClick={() => { setEditing(false); setNewHakedis(String(hakedis)); }} style={styles.cancelBtn}>✕</button>
           </>
