@@ -521,13 +521,20 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
   const [formData, setFormData] = useState({ name: "", sirket: "", sube: "", girisTarihi: "", email: "", pass: "", title: "staff", crmId: "" });
   const [formError, setFormError] = useState("");
   const [formSaving, setFormSaving] = useState(false);
+  const [subeler, setSubeler] = useState([]);
 
-  const grouped = list.reduce((acc, emp) => {
-    const key = `${emp["Şirket"]} - ${emp["Şube"]}`;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(emp);
-    return acc;
-  }, {});
+  async function fetchSubeler(sirket) {
+    try {
+      const csv = await fetchSheetCSV("Mail Grupları");
+      const rows = parseCSV(csv);
+      const filtered = rows
+        .filter(r => (r["Şirket"] || "").trim() === sirket)
+        .map(r => (r["Şube"] || "").trim())
+        .filter(Boolean)
+        .sort();
+      setSubeler(filtered);
+    } catch (_) { setSubeler([]); }
+  }
 
   async function handleYeniKullanici(e) {
     e.preventDefault();
@@ -542,6 +549,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
       });
       setShowModal(false);
       setFormData({ name: "", sirket: "", sube: "", girisTarihi: "", email: "", pass: "", title: "staff", crmId: "" });
+      setSubeler([]);
       onRefresh();
     } catch (_) {
       setFormError("Kayıt sırasında hata oluştu.");
@@ -549,11 +557,24 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
     setFormSaving(false);
   }
 
+  const grouped = list.reduce((acc, emp) => {
+    const key = `${emp["Şirket"]} - ${emp["Şube"]}`;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(emp);
+    return acc;
+  }, {});
+
   return (
     <div style={styles.adminWrap}>
       {showModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalBox}>
+            {formSaving && (
+              <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.85)", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", zIndex: 10 }}>
+                <div style={styles.loadingSpinner} />
+                <span style={{ fontSize: "14px", fontWeight: "600", color: "#0f172a" }}>Kaydediliyor...</span>
+              </div>
+            )}
             <div style={styles.modalHeader}>
               <h3 style={styles.modalTitle}>Yeni Kullanıcı Ekle</h3>
               <button onClick={() => setShowModal(false)} style={styles.modalClose}>✕</button>
@@ -562,12 +583,24 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
               {/* Ad Soyad */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>Ad Soyad</label>
-                <input type="text" required value={formData.name} onChange={e => setFormData(p => ({ ...p, name: e.target.value }))} style={styles.modalInput} />
+                <input type="text" required value={formData.name}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ\s]/g, "");
+                    setFormData(p => ({ ...p, name: val }));
+                  }}
+                  style={styles.modalInput} />
               </div>
               {/* Şirket dropdown */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>Şirket</label>
-                <select required value={formData.sirket} onChange={e => setFormData(p => ({ ...p, sirket: e.target.value }))} style={styles.modalInput}>
+                <select required value={formData.sirket}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(p => ({ ...p, sirket: val, sube: "" }));
+                    if (val) fetchSubeler(val);
+                    else setSubeler([]);
+                  }}
+                  style={styles.modalInput}>
                   <option value="">Seçiniz</option>
                   <option value="Bilimevi">Bilimevi</option>
                   <option value="Premium Vize">Premium Vize</option>
@@ -575,10 +608,16 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
                   <option value="Vagus">Vagus</option>
                 </select>
               </div>
-              {/* Şube */}
+              {/* Şube dropdown — şirkete göre dinamik */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>Şube</label>
-                <input type="text" required value={formData.sube} onChange={e => setFormData(p => ({ ...p, sube: e.target.value }))} style={styles.modalInput} />
+                <select required value={formData.sube}
+                  onChange={e => setFormData(p => ({ ...p, sube: e.target.value }))}
+                  style={styles.modalInput}
+                  disabled={!formData.sirket}>
+                  <option value="">{formData.sirket ? "Seçiniz" : "Önce şirket seçin"}</option>
+                  {subeler.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
               {/* Giriş Tarihi */}
               <div style={styles.modalField}>
