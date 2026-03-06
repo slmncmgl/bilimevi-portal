@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby719EJQPrWIJNb9bkfkyxHvgYFprv6mjSSvVP9RTofyz694nY-WF4Qdz9jNb198pCp/exec"; // Apps Script deploy URL buraya
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIIjGH_GJjMXUb6TUXX8dlJI0MmYU-tz52w6uiMvK6HCX6pB3xRYMVPLyRDJjASUau/exec"; // Apps Script deploy URL buraya
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -167,15 +167,15 @@ export default function Izin() {
       ]);
       setPersonel(data);
       setIzinSureleri(sureler);
-      const gorIzni = (session.title || "staff").toLowerCase().trim();
+      const currentSession = getSession();
+      const gorIzni = (currentSession?.title || "staff").toLowerCase().trim();
       setRol(gorIzni);
 
       const bugun = new Date();
       bugun.setHours(0, 0, 0, 0);
       const subePersonel = tumPersonel.filter(p =>
         p["Şirket"] === data?.["Şirket"] &&
-        p["Şube"] === data?.["Şube"] &&
-        (p["Görüntüleme İzni"] || "personel").toLowerCase().trim() === "personel"
+        p["Şube"] === data?.["Şube"]
       );
       const subeIsimler = subePersonel.map(p => p["Ad Soyad"]);
       const gelecek = islemler.filter(row => {
