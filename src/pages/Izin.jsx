@@ -411,11 +411,15 @@ export default function Izin() {
                       <div style={styles.fieldGroup}>
                         <label style={styles.label}>Bitiş</label>
                         <input type="date" value={bitis}
+                          min={baslangic || undefined}
                           onChange={e => setBitis(e.target.value)}
-                          required style={styles.input}
+                          required style={{ ...styles.input, borderColor: bitis && baslangic && bitis < baslangic ? "#dc2626" : "" }}
                           onFocus={e => e.target.style.borderColor = "#2563eb"}
-                          onBlur={e => e.target.style.borderColor = "#e2e8f0"}
+                          onBlur={e => e.target.style.borderColor = bitis && baslangic && bitis < baslangic ? "#dc2626" : "#e2e8f0"}
                         />
+                        {bitis && baslangic && bitis < baslangic && (
+                          <span style={{ fontSize: "12px", color: "#dc2626", marginTop: "4px" }}>Bitiş tarihi başlangıçtan önce olamaz.</span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -471,8 +475,8 @@ export default function Izin() {
                     </div>
                   )}
 
-                  <button type="submit" disabled={loading}
-                    style={{ ...styles.submitBtn, opacity: loading ? 0.7 : 1 }}
+                  <button type="submit" disabled={loading || (bitis && baslangic && bitis < baslangic)}
+                    style={{ ...styles.submitBtn, opacity: (loading || (bitis && baslangic && bitis < baslangic)) ? 0.5 : 1, cursor: (bitis && baslangic && bitis < baslangic) ? "not-allowed" : "pointer" }}
                     onMouseEnter={e => !loading && (e.currentTarget.style.transform = "translateY(-1px)")}
                     onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
                   >
