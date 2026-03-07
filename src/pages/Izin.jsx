@@ -812,7 +812,23 @@ function PersonelEditRow({ row, scriptUrl, onRefresh }) {
     girisInput: ddmmyyyyToInput(rawGiris),
     title: (row["Title"] || "staff").toLowerCase()
   });
+  const [subeList, setSubeList] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  async function loadSubeler(sirket) {
+    try {
+      const csv = await fetchSheetCSV("Mail Grupları");
+      const rows = parseCSV(csv);
+      const filtered = rows
+        .filter(r => (r["Şirket"] || "").trim() === sirket)
+        .map(r => (r["Şube"] || "").trim())
+        .filter(Boolean)
+        .sort();
+      setSubeList(filtered);
+    } catch (_) { setSubeList([]); }
+  }
+
+  useEffect(() => { if (editing && vals.sirket) loadSubeler(vals.sirket); }, [editing]);
 
   async function handleSave() {
     setSaving(true);
@@ -836,12 +852,27 @@ function PersonelEditRow({ row, scriptUrl, onRefresh }) {
   return (
     <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
       <td style={{ padding: "8px 10px", fontWeight: "600" }}>{row["Ad Soyad"]}</td>
-      {["sirket","sube","email"].map(k => (
-        <td key={k} style={{ padding: "4px 6px" }}>
-          <input value={vals[k]} onChange={e => setVals(p => ({ ...p, [k]: e.target.value }))}
-            style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }} />
-        </td>
-      ))}
+      {/* Şirket */}
+      <td style={{ padding: "4px 6px" }}>
+        <select value={vals.sirket}
+          onChange={e => { const v = e.target.value; setVals(p => ({ ...p, sirket: v, sube: "" })); loadSubeler(v); }}
+          style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }}>
+          {["Bilimevi","Premium Vize","Fortis","Vagus"].map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </td>
+      {/* Şube */}
+      <td style={{ padding: "4px 6px" }}>
+        <select value={vals.sube} onChange={e => setVals(p => ({ ...p, sube: e.target.value }))}
+          style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }}>
+          <option value={vals.sube}>{vals.sube || "Seçiniz"}</option>
+          {subeList.filter(s => s !== vals.sube).map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </td>
+      {/* Email */}
+      <td style={{ padding: "4px 6px" }}>
+        <input value={vals.email} onChange={e => setVals(p => ({ ...p, email: e.target.value }))}
+          style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }} />
+      </td>
       <td style={{ padding: "4px 6px" }}>
         <input type="date" value={vals.girisInput} onChange={e => setVals(p => ({ ...p, girisInput: e.target.value }))}
           style={{ padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }} />
