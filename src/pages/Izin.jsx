@@ -7,6 +7,13 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzSFWpTjeokyaccCZQEo
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
+async function fetchRoller() {
+  const csv = await fetchSheetCSV("Roller");
+  const lines = csv.trim().split("
+");
+  return lines.slice(1).map(l => l.replace(/^"|"$/g, "").trim()).filter(Boolean);
+}
+
 async function fetchSheetCSV(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   const res = await fetch(url);
@@ -521,6 +528,8 @@ export default function Izin() {
 }
 
 function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }) {
+  const [roller, setRoller] = useState([]);
+  useEffect(() => { fetchRoller().then(setRoller).catch(() => setRoller(["staff","manager","director","owner","admin"])); }, []);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ name: "", sirket: "", sube: "", girisTarihi: "", email: "", pass: "", title: "staff", crmId: "" });
   const [formError, setFormError] = useState("");
@@ -612,7 +621,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
               ))}
             </div>
             <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
-              {duzenleTab === "personel" && <DuzenlePersonel data={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} />}
+              {duzenleTab === "personel" && <DuzenlePersonel data={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} roller={roller} />}
               {duzenleTab === "moduller" && <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} />}
               {duzenleTab === "id" && <DuzenleID data={duzenleData.id} personelData={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} />}
             </div>
@@ -698,9 +707,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>TITLE</label>
                 <select value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} style={styles.modalInput}>
-                  <option value="staff">Staff</option>
-                  <option value="manager">Manager</option>
-                  <option value="director">Director</option>
+                  {roller.map(r => <option key={r} value={r.toLowerCase()}>{r}</option>)}
                 </select>
               </div>
               {/* CRM ID */}
@@ -748,7 +755,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
       {loading ? <div style={styles.adminLoading}>Yükleniyor...</div> : (
         <div style={styles.groupList}>
           {Object.entries(grouped).sort().map(([dept, emps]) => (
-            <DeptGroup key={dept} dept={dept} emps={emps} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} isAdmin={isAdmin} />
+            <DeptGroup key={dept} dept={dept} emps={emps} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} isAdmin={isAdmin} roller={roller} />
           ))}
         </div>
       )}
@@ -766,7 +773,7 @@ function groupByDept(rows) {
   }, {});
 }
 
-function DuzenlePersonel({ data, scriptUrl, onRefresh }) {
+function DuzenlePersonel({ data, scriptUrl, onRefresh, roller }) {
   const grouped = groupByDept(data);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -780,7 +787,7 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh }) {
               ))}
             </tr></thead>
             <tbody>
-              {rows.map((row, i) => <PersonelEditRow key={i} row={row} scriptUrl={scriptUrl} onRefresh={onRefresh} />)}
+              {rows.map((row, i) => <PersonelEditRow key={i} row={row} scriptUrl={scriptUrl} onRefresh={onRefresh} roller={roller} />)}
             </tbody>
           </table>
         </div>
@@ -802,7 +809,7 @@ function inputToDdmmyyyy(val) {
   return val;
 }
 
-function PersonelEditRow({ row, scriptUrl, onRefresh }) {
+function PersonelEditRow({ row, scriptUrl, onRefresh, roller }) {
   const [editing, setEditing] = useState(false);
   const rawGiris = row["Giriş Tarihi"] || "";
   const [vals, setVals] = useState({
@@ -880,10 +887,7 @@ function PersonelEditRow({ row, scriptUrl, onRefresh }) {
       <td style={{ padding: "4px 6px" }}>
         <select value={vals.title} onChange={e => setVals(p => ({ ...p, title: e.target.value }))}
           style={{ padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }}>
-          <option value="staff">staff</option>
-          <option value="manager">manager</option>
-          <option value="director">director</option>
-          <option value="owner">owner</option>
+          {(roller && roller.length > 0 ? roller : ["staff","manager","director","owner"]).map(r => <option key={r} value={r.toLowerCase()}>{r}</option>)}
         </select>
       </td>
       <td style={{ padding: "4px 6px", display: "flex", gap: "4px" }}>
@@ -994,7 +998,7 @@ function IDEditRow({ row, scriptUrl, onRefresh }) {
   );
 }
 
-function DeptGroup({ dept, emps, scriptUrl, onRefresh, adminEmail, isAdmin }) {
+function DeptGroup({ dept, emps, scriptUrl, onRefresh, adminEmail, isAdmin, roller }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={styles.deptCard}>
@@ -1014,7 +1018,7 @@ function DeptGroup({ dept, emps, scriptUrl, onRefresh, adminEmail, isAdmin }) {
       </button>
       {open && (
         <div style={styles.empList}>
-          {emps.map((emp, i) => <EmpRow key={i} emp={emp} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} isAdmin={isAdmin} />)}
+          {emps.map((emp, i) => <EmpRow key={i} emp={emp} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} isAdmin={isAdmin} roller={roller} />)}
         </div>
       )}
     </div>
