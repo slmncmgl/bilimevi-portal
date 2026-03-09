@@ -9,8 +9,7 @@ const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
 async function fetchRoller() {
   const csv = await fetchSheetCSV("Roller");
-  const lines = csv.trim().split("
-");
+  const lines = csv.trim().split("\n");
   return lines.slice(1).map(l => l.replace(/^"|"$/g, "").trim()).filter(Boolean);
 }
 
@@ -201,7 +200,7 @@ export default function Izin() {
       const userTitle = user?.title || "staff";
       const tumPersonel = await fetchTumPersonel();
       let filtered;
-      if (userTitle === "owner") {
+      if (userTitle === "owner" || userTitle === "admin") {
         filtered = tumPersonel;
       } else if (userTitle === "director") {
         filtered = tumPersonel.filter(p => p["Şirket"] === personel?.["Şirket"]);
@@ -307,7 +306,7 @@ export default function Izin() {
             <span style={styles.headerTitle}>İK İzin Yönetimi</span>
           </div>
           <div style={styles.headerRight}>
-            {(rol === "manager" || rol === "director" || rol === "owner") && !adminView && (
+            {(rol === "manager" || rol === "director" || rol === "owner" || rol === "admin") && !adminView && (
               <button onClick={() => { setAdminView(true); loadAdminList(); }} style={styles.adminBtn}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -329,7 +328,7 @@ export default function Izin() {
 
       <main style={styles.main}>
         {adminView ? (
-          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "owner"} />
+          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin"} />
         ) : (
           <div style={styles.pageLayout}>
             <div style={styles.formLayout}>
