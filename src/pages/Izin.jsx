@@ -544,6 +544,8 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
   const [subeLoading, setSubeLoading] = useState(false);
   const [yeniSube, setYeniSube] = useState({ sirket: "Bilimevi", sube: "" });
   const [subeKisiOnay, setSubeKisiOnay] = useState(null); // { sirket, sube, mod: "sil"|"duzenle" }
+  const [subeEkleSaving, setSubeEkleSaving] = useState(false);
+  const [subeSilSaving, setSubeSilSaving] = useState(false);
 
   async function fetchSubeListAll() {
     setSubeLoading(true);
@@ -557,13 +559,17 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
 
   async function handleSubeEkle() {
     if (!yeniSube.sube.trim()) return;
+    setSubeEkleSaving(true);
     await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "addSube", sirket: yeniSube.sirket, sube: yeniSube.sube.trim() }) });
     setYeniSube(p => ({ ...p, sube: "" }));
+    setSubeEkleSaving(false);
     fetchSubeListAll();
   }
 
   async function handleSubeSil(sirket, sube, kisiDahil) {
+    setSubeSilSaving(true);
     await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "deleteSube", sirket, sube, kisiDahil }) });
+    setSubeSilSaving(false);
     setSubeKisiOnay(null);
     fetchSubeListAll();
     onRefresh();
@@ -652,9 +658,10 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
                   <input value={yeniSube.sube} onChange={e => setYeniSube(p => ({ ...p, sube: e.target.value }))} placeholder="Şube adını girin"
                     style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", fontFamily: "Calibri, sans-serif" }} />
                 </div>
-                <button onClick={handleSubeEkle} disabled={!yeniSube.sube.trim()}
-                  style={{ padding: "9px", background: yeniSube.sube.trim() ? "#2563eb" : "#bfdbfe", color: "#fff", border: "none", borderRadius: "8px", cursor: yeniSube.sube.trim() ? "pointer" : "not-allowed", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
-                  Ekle
+                <button onClick={handleSubeEkle} disabled={!yeniSube.sube.trim() || subeEkleSaving}
+                  style={{ padding: "9px", background: yeniSube.sube.trim() && !subeEkleSaving ? "#2563eb" : "#bfdbfe", color: "#fff", border: "none", borderRadius: "8px", cursor: yeniSube.sube.trim() && !subeEkleSaving ? "pointer" : "not-allowed", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                  {subeEkleSaving ? <span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
+                  {subeEkleSaving ? "Ekleniyor..." : "Ekle"}
                 </button>
               </div>
             )}
@@ -684,16 +691,18 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
                     <b style={{ color: "#0f172a" }}>{subeKisiOnay.sube}</b> şubesi silinecek. Bu şubedeki kişiler de silinsin mi?
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <button onClick={() => handleSubeSil(subeKisiOnay.sirket, subeKisiOnay.sube, true)}
-                      style={{ padding: "9px", background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
-                      Evet, kişileri de sil
+                    <button onClick={() => handleSubeSil(subeKisiOnay.sirket, subeKisiOnay.sube, true)} disabled={subeSilSaving}
+                      style={{ padding: "9px", background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", cursor: subeSilSaving ? "not-allowed" : "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                      {subeSilSaving ? <span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
+                      {subeSilSaving ? "Siliniyor..." : "Evet, kişileri de sil"}
                     </button>
-                    <button onClick={() => handleSubeSil(subeKisiOnay.sirket, subeKisiOnay.sube, false)}
-                      style={{ padding: "9px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
-                      Hayır, kişileri koru (şube bilgisi boşalır)
+                    <button onClick={() => handleSubeSil(subeKisiOnay.sirket, subeKisiOnay.sube, false)} disabled={subeSilSaving}
+                      style={{ padding: "9px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "8px", cursor: subeSilSaving ? "not-allowed" : "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                      {subeSilSaving ? <span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
+                      {subeSilSaving ? "Siliniyor..." : "Hayır, kişileri koru (şube bilgisi boşalır)"}
                     </button>
-                    <button onClick={() => setSubeKisiOnay(null)}
-                      style={{ padding: "9px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
+                    <button onClick={() => setSubeKisiOnay(null)} disabled={subeSilSaving}
+                      style={{ padding: "9px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: subeSilSaving ? "not-allowed" : "pointer", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
                       İptal
                     </button>
                   </div>
