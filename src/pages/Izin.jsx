@@ -322,7 +322,7 @@ export default function Izin() {
 
       <main style={styles.main}>
         {adminView ? (
-          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} />
+          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "owner"} />
         ) : (
           <div style={styles.pageLayout}>
             <div style={styles.formLayout}>
@@ -520,7 +520,7 @@ export default function Izin() {
   );
 }
 
-function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
+function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }) {
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ name: "", sirket: "", sube: "", girisTarihi: "", email: "", pass: "", title: "staff", crmId: "" });
   const [formError, setFormError] = useState("");
@@ -720,14 +720,14 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
       <div style={styles.adminHeader}>
         <h2 style={styles.adminTitle}>Yönetici Paneli</h2>
         <div style={{ display: "flex", gap: "8px" }}>
-          <button onClick={() => { setShowDuzenle(true); fetchDuzenleData(); }} style={styles.duzenleBtn}>
+          {isAdmin && <button onClick={() => { setShowDuzenle(true); fetchDuzenleData(); }} style={styles.duzenleBtn}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
             Kullanıcıları Düzenle
-          </button>
-          <button onClick={() => setShowModal(true)} style={styles.newUserBtn}>
+          </button>}
+          {isAdmin && <button onClick={() => setShowModal(true)} style={styles.newUserBtn}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
               <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
               <circle cx="8.5" cy="7" r="4"/>
@@ -735,7 +735,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
               <line x1="23" y1="11" x2="17" y2="11"/>
             </svg>
             Yeni Kullanıcı
-          </button>
+          </button>}
           <button onClick={onRefresh} style={styles.refreshBtn}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
               <polyline points="23 4 23 10 17 10"/>
@@ -748,7 +748,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail }) {
       {loading ? <div style={styles.adminLoading}>Yükleniyor...</div> : (
         <div style={styles.groupList}>
           {Object.entries(grouped).sort().map(([dept, emps]) => (
-            <DeptGroup key={dept} dept={dept} emps={emps} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} />
+            <DeptGroup key={dept} dept={dept} emps={emps} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} isAdmin={isAdmin} />
           ))}
         </div>
       )}
@@ -994,7 +994,7 @@ function IDEditRow({ row, scriptUrl, onRefresh }) {
   );
 }
 
-function DeptGroup({ dept, emps, scriptUrl, onRefresh, adminEmail }) {
+function DeptGroup({ dept, emps, scriptUrl, onRefresh, adminEmail, isAdmin }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={styles.deptCard}>
@@ -1014,14 +1014,14 @@ function DeptGroup({ dept, emps, scriptUrl, onRefresh, adminEmail }) {
       </button>
       {open && (
         <div style={styles.empList}>
-          {emps.map((emp, i) => <EmpRow key={i} emp={emp} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} />)}
+          {emps.map((emp, i) => <EmpRow key={i} emp={emp} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} isAdmin={isAdmin} />)}
         </div>
       )}
     </div>
   );
 }
 
-function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
+function EmpRow({ emp, scriptUrl, onRefresh, adminEmail, isAdmin }) {
   const [editing, setEditing] = useState(false);
   const [displayHakedis, setDisplayHakedis] = useState(Number(emp["Hakediş"]) || 0);
   const [displayKalan, setDisplayKalan] = useState(Number(emp["Kalan İzin"]) || 0);
@@ -1076,12 +1076,12 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail }) {
             <div style={{ ...styles.kalanBadge, background: kalan <= 5 ? "#fef2f2" : "#ecfdf5", color: kalan <= 5 ? "#dc2626" : "#059669", border: `1px solid ${kalan <= 5 ? "#fecaca" : "#a7f3d0"}` }}>
               {kalan} gün
             </div>
-            <button onClick={() => setEditing(true)} style={styles.editBtn} title="Hakediş düzenle">
+            {isAdmin && <button onClick={() => setEditing(true)} style={styles.editBtn} title="Hakediş düzenle">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
-            </button>
+            </button>}
           </>
         )}
       </div>
