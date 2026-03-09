@@ -538,6 +538,36 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
   const [duzenleTab, setDuzenleTab] = useState("personel");
   const [duzenleData, setDuzenleData] = useState({ personel: [], moduller: [], id: [] });
   const [duzenleLoading, setDuzenleLoading] = useState(false);
+  const [showSubeler, setShowSubeler] = useState(false);
+  const [subeTab, setSubeTab] = useState("ekle");
+  const [subeListAll, setSubeListAll] = useState([]);
+  const [subeLoading, setSubeLoading] = useState(false);
+  const [yeniSube, setYeniSube] = useState({ sirket: "Bilimevi", sube: "" });
+  const [subeKisiOnay, setSubeKisiOnay] = useState(null); // { sirket, sube, mod: "sil"|"duzenle" }
+
+  async function fetchSubeListAll() {
+    setSubeLoading(true);
+    try {
+      const csv = await fetchSheetCSV("Mail Grupları");
+      const rows = parseCSV(csv);
+      setSubeListAll(rows.filter(r => r["Şube"]).map(r => ({ sirket: r["Şirket"] || "", sube: r["Şube"] || "" })));
+    } catch (_) { setSubeListAll([]); }
+    setSubeLoading(false);
+  }
+
+  async function handleSubeEkle() {
+    if (!yeniSube.sube.trim()) return;
+    await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "addSube", sirket: yeniSube.sirket, sube: yeniSube.sube.trim() }) });
+    setYeniSube(p => ({ ...p, sube: "" }));
+    fetchSubeListAll();
+  }
+
+  async function handleSubeSil(sirket, sube, kisiDahil) {
+    await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "deleteSube", sirket, sube, kisiDahil }) });
+    setSubeKisiOnay(null);
+    fetchSubeListAll();
+    onRefresh();
+  }
 
   async function fetchDuzenleData() {
     setDuzenleLoading(true);
@@ -595,6 +625,84 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
 
   return (
     <div style={styles.adminWrap}>
+      {showSubeler && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: "16px", padding: "28px", width: "480px", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 25px 60px rgba(0,0,0,0.2)", position: "relative" }}>
+            <button onClick={() => setShowSubeler(false)} style={{ position: "absolute", top: "16px", right: "16px", background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#94a3b8" }}>✕</button>
+            <h3 style={{ fontWeight: "700", fontSize: "16px", marginBottom: "20px", color: "#0f172a" }}>Şube Yönetimi</h3>
+            <div style={{ display: "flex", gap: "6px", marginBottom: "20px" }}>
+              {["ekle","listele"].map(t => (
+                <button key={t} onClick={() => setSubeTab(t)}
+                  style={{ padding: "6px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif", background: subeTab === t ? "#2563eb" : "#f1f5f9", color: subeTab === t ? "#fff" : "#475569" }}>
+                  {t === "ekle" ? "Şube Ekle" : "Şubeleri Gör / Sil"}
+                </button>
+              ))}
+            </div>
+            {subeTab === "ekle" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "4px" }}>Şirket</label>
+                  <select value={yeniSube.sirket} onChange={e => setYeniSube(p => ({ ...p, sirket: e.target.value }))}
+                    style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
+                    {["Bilimevi","Premium Vize","Fortis","Vagus"].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "4px" }}>Şube Adı</label>
+                  <input value={yeniSube.sube} onChange={e => setYeniSube(p => ({ ...p, sube: e.target.value }))} placeholder="Şube adını girin"
+                    style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", fontFamily: "Calibri, sans-serif" }} />
+                </div>
+                <button onClick={handleSubeEkle} disabled={!yeniSube.sube.trim()}
+                  style={{ padding: "9px", background: yeniSube.sube.trim() ? "#2563eb" : "#bfdbfe", color: "#fff", border: "none", borderRadius: "8px", cursor: yeniSube.sube.trim() ? "pointer" : "not-allowed", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
+                  Ekle
+                </button>
+              </div>
+            )}
+            {subeTab === "listele" && (
+              <div>
+                {subeLoading ? <div style={{ textAlign: "center", color: "#94a3b8", padding: "20px" }}>Yükleniyor...</div> : (
+                  Object.entries(subeListAll.reduce((acc, r) => { if (!acc[r.sirket]) acc[r.sirket] = []; acc[r.sirket].push(r.sube); return acc; }, {})).sort().map(([sirket, subeler]) => (
+                    <div key={sirket} style={{ marginBottom: "16px" }}>
+                      <div style={{ fontSize: "11px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", marginBottom: "6px", letterSpacing: "0.5px" }}>{sirket}</div>
+                      {subeler.sort().map(sube => (
+                        <div key={sube} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "7px 10px", borderRadius: "8px", background: "#f8fafc", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "13px" }}>{sube}</span>
+                          <button onClick={() => setSubeKisiOnay({ sirket, sube })}
+                            style={{ padding: "4px 8px", background: "#fef2f2", border: "none", borderRadius: "6px", cursor: "pointer", color: "#dc2626", fontSize: "12px" }}>Sil</button>
+                        </div>
+                      ))}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+            {subeKisiOnay && (
+              <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ background: "#fff", borderRadius: "14px", padding: "28px 32px", width: "340px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+                  <div style={{ fontWeight: "700", fontSize: "15px", marginBottom: "8px", color: "#0f172a" }}>Şubeyi Sil</div>
+                  <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px" }}>
+                    <b style={{ color: "#0f172a" }}>{subeKisiOnay.sube}</b> şubesi silinecek. Bu şubedeki kişiler de silinsin mi?
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <button onClick={() => handleSubeSil(subeKisiOnay.sirket, subeKisiOnay.sube, true)}
+                      style={{ padding: "9px", background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
+                      Evet, kişileri de sil
+                    </button>
+                    <button onClick={() => handleSubeSil(subeKisiOnay.sirket, subeKisiOnay.sube, false)}
+                      style={{ padding: "9px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
+                      Hayır, kişileri koru (şube bilgisi boşalır)
+                    </button>
+                    <button onClick={() => setSubeKisiOnay(null)}
+                      style={{ padding: "9px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
+                      İptal
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {showDuzenle && (
         <div style={styles.modalOverlay}>
           <div style={{ ...styles.modalBox, maxWidth: "860px", width: "95vw" }}>
@@ -726,6 +834,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
       <div style={styles.adminHeader}>
         <h2 style={styles.adminTitle}>Yönetici Paneli</h2>
         <div style={{ display: "flex", gap: "8px" }}>
+          {isAdmin && <button onClick={() => { setShowSubeler(true); fetchSubeListAll(); }} style={{ ...styles.duzenleBtn, background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            Şubeler
+          </button>}
           {isAdmin && <button onClick={() => { setShowDuzenle(true); fetchDuzenleData(); }} style={styles.duzenleBtn}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -779,10 +893,19 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh, roller }) {
       {Object.entries(grouped).sort().map(([dept, rows]) => (
         <div key={dept}>
           <div style={{ fontSize: "12px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.5px" }}>{dept}</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed" }}>
+            <colgroup>
+              <col style={{ width: "20%" }} />
+              <col style={{ width: "14%" }} />
+              <col style={{ width: "14%" }} />
+              <col style={{ width: "22%" }} />
+              <col style={{ width: "13%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "7%" }} />
+            </colgroup>
             <thead><tr style={{ background: "#f8fafc" }}>
               {["Ad Soyad","Şirket","Şube","E-posta","Giriş Tarihi","TITLE",""].map(h => (
-                <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: "600", color: "#475569", borderBottom: "1px solid #e2e8f0" }}>{h}</th>
+                <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: "600", color: "#475569", borderBottom: "1px solid #e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr></thead>
             <tbody>
@@ -810,6 +933,9 @@ function inputToDdmmyyyy(val) {
 
 function PersonelEditRow({ row, scriptUrl, onRefresh, roller }) {
   const [editing, setEditing] = useState(false);
+  const [showSil, setShowSil] = useState(false);
+  const [silOnay, setSilOnay] = useState("");
+  const [silSaving, setSilSaving] = useState(false);
   const rawGiris = row["Giriş Tarihi"] || "";
   const [vals, setVals] = useState({
     sirket: row["Şirket"] || "",
@@ -820,6 +946,12 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller }) {
   });
   const [subeList, setSubeList] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  async function handleSil() {
+    setSilSaving(true);
+    await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "deletePersonel", name: row["Ad Soyad"] }) });
+    setSilSaving(false); setShowSil(false); onRefresh();
+  }
 
   async function loadSubeler(sirket) {
     try {
@@ -851,7 +983,31 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller }) {
       <td style={{ padding: "8px 10px" }}>{vals.email}</td>
       <td style={{ padding: "8px 10px" }}>{inputToDdmmyyyy(vals.girisInput)}</td>
       <td style={{ padding: "8px 10px" }}><span style={{ padding: "2px 8px", borderRadius: "999px", background: "#eff6ff", color: "#1d4ed8", fontSize: "11px", fontWeight: "700" }}>{vals.title}</span></td>
-      <td style={{ padding: "8px 10px" }}><button onClick={() => setEditing(true)} style={{ padding: "4px 10px", background: "#f1f5f9", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>Düzenle</button></td>
+      <td style={{ padding: "8px 10px" }}>
+        {showSil ? (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.4)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ background: "#fff", borderRadius: "14px", padding: "28px 32px", width: "320px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+              <div style={{ fontWeight: "700", fontSize: "15px", marginBottom: "8px", color: "#0f172a" }}>Kullanıcıyı Sil</div>
+              <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "16px" }}>Onaylamak için <b style={{ color: "#0f172a" }}>{row["Ad Soyad"]} sil</b> yazın.</div>
+              <input value={silOnay} onChange={e => setSilOnay(e.target.value)} placeholder={`${row["Ad Soyad"]} sil`}
+                style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", fontFamily: "Calibri, sans-serif", marginBottom: "16px", boxSizing: "border-box" }} />
+              <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                <button onClick={() => { setShowSil(false); setSilOnay(""); }} style={{ padding: "7px 16px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px" }}>İptal</button>
+                <button onClick={handleSil} disabled={silOnay !== `${row["Ad Soyad"]} sil` || silSaving}
+                  style={{ padding: "7px 16px", background: silOnay === `${row["Ad Soyad"]} sil` ? "#dc2626" : "#fca5a5", color: "#fff", border: "none", borderRadius: "8px", cursor: silOnay === `${row["Ad Soyad"]} sil` ? "pointer" : "not-allowed", fontSize: "13px", fontWeight: "600" }}>
+                  {silSaving ? "..." : "Sil"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        <div style={{ display: "flex", gap: "4px" }}>
+          <button onClick={() => setEditing(true)} style={{ padding: "4px 10px", background: "#f1f5f9", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>Düzenle</button>
+          <button onClick={() => setShowSil(true)} style={{ padding: "4px 8px", background: "#fef2f2", border: "none", borderRadius: "6px", cursor: "pointer", color: "#dc2626" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+      </td>
     </tr>
   );
 
