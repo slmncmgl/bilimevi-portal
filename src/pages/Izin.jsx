@@ -821,7 +821,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
               </div>
               {/* TITLE */}
               <div style={styles.modalField}>
-                <label style={styles.modalLabel}>TITLE</label>
+                <label style={styles.modalLabel}>Title</label>
                 <select value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} style={styles.modalInput}>
                   {roller.map(r => <option key={r} value={r.toLowerCase()}>{r}</option>)}
                 </select>
@@ -902,7 +902,7 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh, roller }) {
       {Object.entries(grouped).sort().map(([dept, rows]) => (
         <div key={dept}>
           <div style={{ fontSize: "12px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.5px" }}>{dept}</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed" }}>
+          <div style={{ overflowX: "hidden" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: "18%" }} />
               <col style={{ width: "12%" }} />
@@ -913,14 +913,14 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh, roller }) {
               <col style={{ width: "12%" }} />
             </colgroup>
             <thead><tr style={{ background: "#f8fafc" }}>
-              {["Ad Soyad","Şirket","Şube","E-posta","Giriş Tarihi","TITLE",""].map(h => (
+              {["Ad Soyad","Şirket","Şube","E-posta","Giriş Tarihi","Title",""].map(h => (
                 <th key={h} style={{ padding: "8px 10px", textAlign: "left", fontWeight: "600", color: "#475569", borderBottom: "1px solid #e2e8f0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr></thead>
             <tbody>
               {rows.map((row, i) => <PersonelEditRow key={i} row={row} scriptUrl={scriptUrl} onRefresh={onRefresh} roller={roller} />)}
             </tbody>
-          </table>
+          </table></div>
         </div>
       ))}
     </div>
@@ -1024,39 +1024,41 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller }) {
     <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
       <td style={{ padding: "8px 10px", fontWeight: "600" }}>{row["Ad Soyad"]}</td>
       {/* Şirket */}
-      <td style={{ padding: "4px 6px" }}>
+      <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <select value={vals.sirket}
           onChange={e => { const v = e.target.value; setVals(p => ({ ...p, sirket: v, sube: "" })); loadSubeler(v); }}
-          style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }}>
+          style={{ width: "100%", padding: "4px 4px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "Calibri, sans-serif", boxSizing: "border-box" }}>
           {["Bilimevi","Premium Vize","Fortis","Vagus"].map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </td>
       {/* Şube */}
-      <td style={{ padding: "4px 6px" }}>
+      <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <select value={vals.sube} onChange={e => setVals(p => ({ ...p, sube: e.target.value }))}
-          style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }}>
+          style={{ width: "100%", padding: "4px 4px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "Calibri, sans-serif", boxSizing: "border-box" }}>
           <option value={vals.sube}>{vals.sube || "Seçiniz"}</option>
           {subeList.filter(s => s !== vals.sube).map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </td>
       {/* Email */}
-      <td style={{ padding: "4px 6px" }}>
+      <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <input value={vals.email} onChange={e => setVals(p => ({ ...p, email: e.target.value }))}
-          style={{ width: "100%", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }} />
+          style={{ width: "100%", padding: "4px 4px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "Calibri, sans-serif", boxSizing: "border-box" }} />
       </td>
-      <td style={{ padding: "4px 6px" }}>
+      <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <input type="date" value={vals.girisInput} onChange={e => setVals(p => ({ ...p, girisInput: e.target.value }))}
-          style={{ padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }} />
+          style={{ width: "100%", padding: "4px 2px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "Calibri, sans-serif", boxSizing: "border-box" }} />
       </td>
-      <td style={{ padding: "4px 6px" }}>
+      <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <select value={vals.title} onChange={e => setVals(p => ({ ...p, title: e.target.value }))}
-          style={{ padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "12px", fontFamily: "Calibri, sans-serif" }}>
+          style={{ width: "100%", padding: "4px 2px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "Calibri, sans-serif", boxSizing: "border-box" }}>
           {(roller && roller.length > 0 ? roller : ["staff","manager","director","owner"]).map(r => <option key={r} value={r.toLowerCase()}>{r}</option>)}
         </select>
       </td>
-      <td style={{ padding: "4px 6px", display: "flex", gap: "4px" }}>
-        <button onClick={handleSave} disabled={saving} style={{ padding: "5px 10px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>{saving ? "..." : "✓"}</button>
-        <button onClick={() => setEditing(false)} style={{ padding: "5px 10px", background: "#e2e8f0", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>✕</button>
+      <td style={{ padding: "2px 4px", overflow: "hidden" }}>
+        <div style={{ display: "flex", gap: "2px" }}>
+          <button onClick={handleSave} disabled={saving} style={{ padding: "4px 8px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>{saving ? "..." : "✓"}</button>
+          <button onClick={() => setEditing(false)} style={{ padding: "4px 8px", background: "#e2e8f0", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>✕</button>
+        </div>
       </td>
     </tr>
   );
