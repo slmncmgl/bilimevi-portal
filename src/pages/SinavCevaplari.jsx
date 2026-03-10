@@ -20,6 +20,7 @@ export default function SinavCevaplari() {
 
   const [imageBase64, setImageBase64] = useState(null);
   const [isMouseOver, setIsMouseOver] = useState(false);
+  const isMouseOverRef = useRef(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [status, setStatus] = useState(null); // { type: "success"|"error"|"info", msg: "" }
   const [submitting, setSubmitting] = useState(false);
@@ -37,7 +38,7 @@ export default function SinavCevaplari() {
   }, []);
 
   function handlePaste(e) {
-    if (!isMouseOver) return;
+    if (!isMouseOverRef.current) return;
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf("image") !== -1) {
@@ -189,8 +190,8 @@ export default function SinavCevaplari() {
             </div>
             <div
               ref={dropRef}
-              onMouseEnter={() => setIsMouseOver(true)}
-              onMouseLeave={() => setIsMouseOver(false)}
+              onMouseEnter={() => { isMouseOverRef.current = true; setIsMouseOver(true); }}
+              onMouseLeave={() => { isMouseOverRef.current = false; setIsMouseOver(false); }}
               style={{ ...s.dropZone, borderColor: isMouseOver ? "#2563eb" : "#e2e8f0", background: isMouseOver ? "#eff6ff" : "#f8fafc" }}
             >
               <input type="file" accept="image/*" onChange={onFileChange}
