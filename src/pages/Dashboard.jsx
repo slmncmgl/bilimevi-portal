@@ -39,7 +39,7 @@ const MODULE_CONFIG = [
   },
   {
     key: "quiz",
-    title: "Quiz Portalı",
+    title: "Sınav Cevapları",
     desc: "Sınav sonuçları ve raporlama",
     path: "/quiz",
     icon: (
