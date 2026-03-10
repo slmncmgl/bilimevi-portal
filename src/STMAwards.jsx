@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyq6jeIYrRCfWB4MrWmR-8_fvsbhxjvEmcwc_MV5WNtiCqj7qEJSKG4b_vrfH-5LPBbGA/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
-
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 function parseEmails(raw) {
   if (!raw) return [];
@@ -550,32 +549,35 @@ export default function STMAwards() {
     setSending(true);
     setSendProgress({ current: 0, total: 1, log: [] });
 
-    const res = await apiFetch("sendMail", {
-      to: r.email,
-      firstName: r.firstName,
-      schoolName: school.okul,
-      mailBody: body,
-      subject: MAIL_SUBJECT,
-      attachmentIds: attachments.map((a) => a.id),
-      sheetName: school.sheetName,
-      rowIndex: school.rowIndex,
-    });
+    try {
+      const res = await apiFetch("sendMail", {
+        to: r.email,
+        firstName: r.firstName,
+        schoolName: school.okul,
+        mailBody: body,
+        subject: MAIL_SUBJECT,
+        attachmentIds: attachments.map((a) => a.id),
+        sheetName: school.sheetName,
+        rowIndex: school.rowIndex,
+      });
 
-    // Yerel state güncelle
-    setSchools((prev) =>
-      prev.map((s) =>
-        s.id === school.id
-          ? { ...s, portalDurum: res.success ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
-          : s
-      )
-    );
-
-    setSendProgress({
-      current: 1,
-      total: 1,
-      log: [{ to: r.email, success: res.success, error: res.error }],
-    });
-    setSending(false);
+      setSchools((prev) =>
+        prev.map((s) =>
+          s.id === school.id
+            ? { ...s, portalDurum: res.success ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
+            : s
+        )
+      );
+      setSendProgress({
+        current: 1, total: 1,
+        log: [{ to: r.email, success: res.success, error: res.error }],
+      });
+    } catch (e) {
+      console.error("[STM] sendSingle hata:", e);
+      setSendProgress({ current: 1, total: 1, log: [{ to: r.email, success: false, error: e.message }] });
+    } finally {
+      setSending(false);
+    }
   };
 
   // ── SEND BULK ──
@@ -604,34 +606,36 @@ export default function STMAwards() {
     setSending(true);
     setSendProgress({ current: 0, total: mails.length, log: [] });
 
-    // 10'arlı batch gönder
-    const BATCH = 10;
-    const log = [];
-    for (let i = 0; i < mails.length; i += BATCH) {
-      const batch = mails.slice(i, i + BATCH);
-      const res = await apiFetch("sendBulk", { mails: batch });
-      const results = res.results || [];
-      log.push(...results);
+    try {
+      const BATCH = 10;
+      const log = [];
+      for (let i = 0; i < mails.length; i += BATCH) {
+        const batch = mails.slice(i, i + BATCH);
+        const res = await apiFetch("sendBulk", { mails: batch });
+        const results = res.results || [];
+        log.push(...results);
 
-      // State güncelle
-      for (const r of results) {
-        const school = toSend.find((s) => s.recipients.some((rec) => rec.email === r.to));
-        if (school) {
-          setSchools((prev) =>
-            prev.map((s) =>
-              s.id === school.id
-                ? { ...s, portalDurum: r.success ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
-                : s
-            )
-          );
+        for (const r of results) {
+          const school = toSend.find((s) => s.recipients.some((rec) => rec.email === r.to));
+          if (school) {
+            setSchools((prev) =>
+              prev.map((s) =>
+                s.id === school.id
+                  ? { ...s, portalDurum: r.success ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
+                  : s
+              )
+            );
+          }
         }
+
+        setSendProgress({ current: Math.min(i + BATCH, mails.length), total: mails.length, log });
       }
-
-      setSendProgress({ current: Math.min(i + BATCH, mails.length), total: mails.length, log });
+      setChecked(new Set());
+    } catch (e) {
+      console.error("[STM] sendBulk hata:", e);
+    } finally {
+      setSending(false);
     }
-
-    setSending(false);
-    setChecked(new Set());
   };
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
