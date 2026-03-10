@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZ-LuokF5h1qoQXo8Dhb0dDYjs9BvX2ROA--Q28RMVn1lWDmYqriINHSmrruJWbL-4/exec"; // Apps Script deploy URL buraya
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzSFWpTjeokyaccCZQEohmVj7f1ODRjYY60kjCEDA0DBmTKtUR7xfctWIJzKoF6eO-P/exec"; // Apps Script deploy URL buraya
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -904,13 +904,13 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh, roller }) {
           <div style={{ fontSize: "12px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.5px" }}>{dept}</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed" }}>
             <colgroup>
-              <col style={{ width: "20%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "14%" }} />
-              <col style={{ width: "22%" }} />
-              <col style={{ width: "13%" }} />
+              <col style={{ width: "18%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "24%" }} />
+              <col style={{ width: "12%" }} />
               <col style={{ width: "10%" }} />
-              <col style={{ width: "7%" }} />
+              <col style={{ width: "12%" }} />
             </colgroup>
             <thead><tr style={{ background: "#f8fafc" }}>
               {["Ad Soyad","Şirket","Şube","E-posta","Giriş Tarihi","TITLE",""].map(h => (
@@ -986,12 +986,12 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller }) {
 
   if (!editing) return (
     <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-      <td style={{ padding: "8px 10px", fontWeight: "600" }}>{row["Ad Soyad"]}</td>
-      <td style={{ padding: "8px 10px" }}>{vals.sirket}</td>
-      <td style={{ padding: "8px 10px" }}>{vals.sube}</td>
-      <td style={{ padding: "8px 10px" }}>{vals.email}</td>
-      <td style={{ padding: "8px 10px" }}>{inputToDdmmyyyy(vals.girisInput)}</td>
-      <td style={{ padding: "8px 10px" }}><span style={{ padding: "2px 8px", borderRadius: "999px", background: "#eff6ff", color: "#1d4ed8", fontSize: "11px", fontWeight: "700" }}>{vals.title}</span></td>
+      <td style={{ padding: "8px 10px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row["Ad Soyad"]}</td>
+      <td style={{ padding: "8px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{vals.sirket}</td>
+      <td style={{ padding: "8px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{vals.sube}</td>
+      <td style={{ padding: "8px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={vals.email}>{vals.email}</td>
+      <td style={{ padding: "8px 10px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inputToDdmmyyyy(vals.girisInput)}</td>
+      <td style={{ padding: "8px 10px", overflow: "hidden" }}><span style={{ padding: "2px 8px", borderRadius: "999px", background: "#eff6ff", color: "#1d4ed8", fontSize: "11px", fontWeight: "700" }}>{vals.title}</span></td>
       <td style={{ padding: "8px 10px" }}>
         {showSil ? (
           <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.4)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center" }}>
