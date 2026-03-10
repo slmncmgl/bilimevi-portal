@@ -714,7 +714,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
       )}
       {showDuzenle && (
         <div style={styles.modalOverlay}>
-          <div style={{ ...styles.modalBox, maxWidth: "860px", width: "95vw" }}>
+          <div style={{ ...styles.modalBox, maxWidth: "960px", width: "98vw" }}>
             {duzenleLoading && (
               <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.85)", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}>
                 <div style={styles.loadingSpinner} /><span style={{ marginLeft: 10, fontWeight: 600 }}>Yükleniyor...</span>
@@ -940,8 +940,8 @@ function inputToDdmmyyyy(val) {
   return val;
 }
 
-function PersonelEditRow({ row, scriptUrl, onRefresh, roller }) {
-  const [editing, setEditing] = useState(false);
+function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActivate, onDeactivate, onSaveStart, onSaveDone }) {
+  const editing = isActive;
   const [showSil, setShowSil] = useState(false);
   const [silOnay, setSilOnay] = useState("");
   const [silSaving, setSilSaving] = useState(false);
@@ -979,9 +979,13 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller }) {
 
   async function handleSave() {
     setSaving(true);
+    if (onSaveStart) onSaveStart();
     const giris = inputToDdmmyyyy(vals.girisInput);
     await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "updatePersonelRow", name: row["Ad Soyad"], sirket: vals.sirket, sube: vals.sube, email: vals.email, giris, title: vals.title }) });
-    setSaving(false); setEditing(false); onRefresh();
+    setSaving(false);
+    if (onDeactivate) onDeactivate();
+    if (onSaveDone) onSaveDone();
+    onRefresh();
   }
 
   if (!editing) return (
@@ -1011,7 +1015,7 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller }) {
           </div>
         ) : null}
         <div style={{ display: "flex", gap: "4px" }}>
-          <button onClick={() => setEditing(true)} style={{ padding: "4px 10px", background: "#f1f5f9", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>Düzenle</button>
+          <button onClick={() => onActivate && onActivate()} style={{ padding: "4px 10px", background: "#f1f5f9", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>Düzenle</button>
           <button onClick={() => setShowSil(true)} style={{ padding: "4px 8px", background: "#fef2f2", border: "none", borderRadius: "6px", cursor: "pointer", color: "#dc2626" }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
           </button>
@@ -1057,7 +1061,7 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller }) {
       <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <div style={{ display: "flex", gap: "2px" }}>
           <button onClick={handleSave} disabled={saving} style={{ padding: "4px 8px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>{saving ? "..." : "✓"}</button>
-          <button onClick={() => setEditing(false)} style={{ padding: "4px 8px", background: "#e2e8f0", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>✕</button>
+          <button onClick={() => onDeactivate && onDeactivate()} style={{ padding: "4px 8px", background: "#e2e8f0", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>✕</button>
         </div>
       </td>
     </tr>
