@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxxthdMz73LHeYFqkXORRf-o5T7V42HJBaU4ISl1-hNeyPp_KpbPBAn6EbXr9ek_nURZA/exec";
+const SCRIPT_URL = "BURAYA_APPS_SCRIPT_URL";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -109,66 +109,85 @@ const IconFilter = () => (
 
 // ─── STYLES ────────────────────────────────────────────────────────────────
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
 
   :root {
-    --bg: #0f1117;
-    --surface: #161b27;
-    --surface2: #1e2535;
-    --border: #2a3146;
-    --accent: #4f8ef7;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface2: #f1f5f9;
+    --border: #e2e8f0;
+    --accent: #2563eb;
     --accent2: #7c3aed;
-    --success: #22c55e;
-    --error: #ef4444;
-    --warn: #f59e0b;
-    --text: #e8eaf0;
-    --muted: #6b7a9d;
-    --font-display: 'DM Serif Display', serif;
-    --font-body: 'DM Sans', sans-serif;
+    --success: #059669;
+    --error: #dc2626;
+    --warn: #d97706;
+    --text: #0f172a;
+    --muted: #94a3b8;
+    --font-body: 'Sora', sans-serif;
   }
 
   .stm-root * { box-sizing: border-box; margin: 0; padding: 0; }
-  .stm-root { font-family: var(--font-body); background: var(--bg); color: var(--text); min-height: 100vh; }
+  .stm-root {
+    font-family: var(--font-body); background: var(--bg); color: var(--text);
+    min-height: 100vh; position: relative;
+  }
+  .stm-root::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px);
+    background-size: 40px 40px; z-index: 0; pointer-events: none;
+  }
 
   /* HEADER */
   .stm-header {
-    background: linear-gradient(135deg, #0f1117 0%, #161b27 100%);
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
-    padding: 20px 28px;
+    padding: 16px 24px;
     display: flex; align-items: center; justify-content: space-between;
   }
-  .stm-header-left h1 { font-family: var(--font-display); font-size: 22px; color: var(--text); letter-spacing: -0.3px; }
-  .stm-header-left p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stm-header-left { display: flex; align-items: center; gap: 12px; }
+  .stm-header-back {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); font-size: 12px; font-weight: 500;
+    cursor: pointer; font-family: var(--font-body); transition: all 0.15s;
+    text-decoration: none;
+  }
+  .stm-header-back:hover { border-color: var(--accent); color: var(--accent); }
+  .stm-header-title h1 { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.4px; }
+  .stm-header-title p { font-size: 11px; color: var(--muted); margin-top: 1px; }
   .stm-badge {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color: white; font-size: 11px; font-weight: 600;
-    padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 1px solid #fde68a;
+    color: var(--warn); font-size: 11px; font-weight: 700;
+    padding: 4px 10px; border-radius: 20px; letter-spacing: 0.3px;
   }
 
   /* STATS BAR */
   .stm-stats {
-    display: flex; gap: 0; border-bottom: 1px solid var(--border);
-    background: var(--surface);
+    display: flex; border-bottom: 1px solid var(--border);
+    background: var(--surface); position: relative; z-index: 1;
   }
   .stm-stat {
     flex: 1; padding: 12px 20px; border-right: 1px solid var(--border);
     display: flex; align-items: center; gap: 10px;
   }
   .stm-stat:last-child { border-right: none; }
-  .stm-stat-num { font-size: 20px; font-weight: 600; color: var(--text); }
+  .stm-stat-num { font-size: 20px; font-weight: 700; color: var(--text); }
   .stm-stat-label { font-size: 11px; color: var(--muted); margin-top: 1px; }
   .stm-stat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
   /* LAYOUT */
   .stm-layout {
     display: grid; grid-template-columns: 360px 1fr;
-    height: calc(100vh - 120px);
+    height: calc(100vh - 118px); position: relative; z-index: 1;
   }
 
   /* LEFT PANEL */
   .stm-left {
     border-right: 1px solid var(--border);
     display: flex; flex-direction: column; overflow: hidden;
+    background: var(--surface);
   }
 
   .stm-toolbar {
@@ -177,38 +196,40 @@ const styles = `
   }
   .stm-search-wrap {
     display: flex; align-items: center; gap: 8px;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 7px 12px;
+    background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 7px 12px;
+    transition: border-color 0.15s;
   }
+  .stm-search-wrap:focus-within { border-color: var(--accent); }
   .stm-search-wrap input {
     flex: 1; background: none; border: none; outline: none;
     color: var(--text); font-size: 13px; font-family: var(--font-body);
   }
   .stm-search-wrap input::placeholder { color: var(--muted); }
 
-  .stm-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .stm-filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .stm-filter-btn {
-    padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 500;
-    border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
-    cursor: pointer; transition: all 0.15s;
+    padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    border: 1.5px solid var(--border); background: var(--surface2); color: var(--muted);
+    cursor: pointer; transition: all 0.15s; font-family: var(--font-body);
   }
   .stm-filter-btn:hover { border-color: var(--accent); color: var(--accent); }
   .stm-filter-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
 
   .stm-tabs {
     display: flex; border-bottom: 1px solid var(--border);
-    background: var(--surface); overflow-x: auto;
+    background: var(--surface2); overflow-x: auto;
   }
   .stm-tab {
     padding: 8px 14px; font-size: 12px; font-weight: 500; color: var(--muted);
     cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent;
-    transition: all 0.15s; flex-shrink: 0;
+    transition: all 0.15s; flex-shrink: 0; font-family: var(--font-body);
   }
   .stm-tab:hover { color: var(--text); }
-  .stm-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .stm-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--surface); }
 
   /* SCHOOL LIST */
-  .stm-list { flex: 1; overflow-y: auto; }
+  .stm-list { flex: 1; overflow-y: auto; background: var(--bg); }
   .stm-list::-webkit-scrollbar { width: 4px; }
   .stm-list::-webkit-scrollbar-track { background: transparent; }
   .stm-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
@@ -217,20 +238,22 @@ const styles = `
     padding: 12px 16px; border-bottom: 1px solid var(--border);
     cursor: pointer; transition: background 0.1s;
     display: flex; gap: 10px; align-items: flex-start;
+    background: var(--surface);
+    border-left: 3px solid transparent;
   }
-  .stm-school-item:hover { background: var(--surface); }
-  .stm-school-item.selected { background: rgba(79,142,247,0.08); border-left: 3px solid var(--accent); }
-  .stm-school-item.sent { opacity: 0.6; }
+  .stm-school-item:hover { background: #eff6ff; }
+  .stm-school-item.selected { background: #eff6ff; border-left-color: var(--accent); }
+  .stm-school-item.sent { opacity: 0.55; }
 
   .stm-school-check {
-    width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid var(--border);
+    width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--border);
     flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s; cursor: pointer;
+    transition: all 0.15s; cursor: pointer; background: var(--surface);
   }
   .stm-school-check.checked { background: var(--accent); border-color: var(--accent); color: white; }
 
   .stm-school-info { flex: 1; min-width: 0; }
-  .stm-school-name { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stm-school-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .stm-school-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
   .stm-school-recipients { margin-top: 4px; display: flex; flex-direction: column; gap: 2px; }
   .stm-recipient-tag {
@@ -239,15 +262,15 @@ const styles = `
   .stm-recipient-tag span { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .stm-durum {
-    font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px;
+    font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
     flex-shrink: 0; margin-top: 2px;
   }
-  .stm-durum.gonderildi { background: rgba(34,197,94,0.15); color: var(--success); }
-  .stm-durum.hatali { background: rgba(239,68,68,0.15); color: var(--error); }
+  .stm-durum.gonderildi { background: #d1fae5; color: var(--success); }
+  .stm-durum.hatali { background: #fee2e2; color: var(--error); }
 
   /* RIGHT PANEL */
   .stm-right {
-    display: flex; flex-direction: column; overflow: hidden;
+    display: flex; flex-direction: column; overflow: hidden; background: var(--bg);
   }
 
   .stm-preview-header {
@@ -255,24 +278,24 @@ const styles = `
     background: var(--surface);
     display: flex; align-items: center; justify-content: space-between;
   }
-  .stm-preview-header h3 { font-size: 14px; font-weight: 600; color: var(--text); }
+  .stm-preview-header h3 { font-size: 14px; font-weight: 700; color: var(--text); }
   .stm-preview-header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
   .stm-actions { display: flex; gap: 8px; align-items: center; }
 
   .stm-btn {
     display: flex; align-items: center; gap: 6px;
-    padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    padding: 8px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;
     cursor: pointer; border: none; font-family: var(--font-body);
     transition: all 0.15s;
   }
   .stm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .stm-btn-primary { background: var(--accent); color: white; }
-  .stm-btn-primary:hover:not(:disabled) { background: #3a7de8; }
-  .stm-btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .stm-btn-primary { background: var(--accent); color: white; box-shadow: 0 1px 3px rgba(37,99,235,0.3); }
+  .stm-btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+  .stm-btn-secondary { background: var(--surface); color: var(--text); border: 1.5px solid var(--border); }
   .stm-btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
   .stm-btn-success { background: var(--success); color: white; }
-  .stm-btn-success:hover:not(:disabled) { background: #16a34a; }
+  .stm-btn-success:hover:not(:disabled) { background: #047857; }
   .stm-btn-danger { background: var(--error); color: white; }
 
   /* PREVIEW AREA */
@@ -284,14 +307,15 @@ const styles = `
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     height: 100%; gap: 12px; color: var(--muted);
   }
-  .stm-empty-state svg { opacity: 0.3; }
+  .stm-empty-state svg { opacity: 0.25; }
   .stm-empty-state p { font-size: 14px; }
 
   /* MAIL PREVIEW CARDS */
   .stm-mail-cards { display: flex; flex-direction: column; gap: 16px; }
   .stm-mail-card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; overflow: hidden;
+    background: var(--surface); border: 1.5px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   }
   .stm-mail-card-header {
     padding: 12px 16px; background: var(--surface2); border-bottom: 1px solid var(--border);
@@ -301,13 +325,13 @@ const styles = `
   .stm-mail-card-to strong { color: var(--text); }
   .stm-mail-card-status { font-size: 11px; }
   .stm-mail-body {
-    padding: 16px; font-size: 13px; line-height: 1.7; color: var(--text);
+    padding: 16px; font-size: 13px; line-height: 1.8; color: var(--text);
     white-space: pre-wrap; word-break: break-word;
   }
   .stm-mail-body-edit {
-    width: 100%; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--text); font-family: var(--font-body);
-    font-size: 13px; line-height: 1.7; padding: 12px; resize: vertical;
+    width: 100%; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 10px; color: var(--text); font-family: var(--font-body);
+    font-size: 13px; line-height: 1.8; padding: 12px; resize: vertical;
     min-height: 300px; outline: none;
   }
   .stm-mail-body-edit:focus { border-color: var(--accent); }
@@ -317,41 +341,45 @@ const styles = `
     padding: 14px 24px; border-top: 1px solid var(--border);
     background: var(--surface); display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   }
-  .stm-attachment-label { font-size: 12px; color: var(--muted); }
+  .stm-attachment-label { font-size: 12px; color: var(--muted); font-weight: 500; }
   .stm-attachment-input {
-    flex: 1; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; padding: 7px 12px; color: var(--text);
+    flex: 1; background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 7px 12px; color: var(--text);
     font-size: 12px; font-family: var(--font-body); outline: none;
-    min-width: 200px;
+    min-width: 200px; transition: border-color 0.15s;
   }
   .stm-attachment-input:focus { border-color: var(--accent); }
   .stm-attachment-tags { display: flex; gap: 6px; flex-wrap: wrap; }
   .stm-attachment-tag {
     display: flex; align-items: center; gap: 5px;
-    background: rgba(79,142,247,0.1); border: 1px solid rgba(79,142,247,0.3);
-    border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--accent);
+    background: #eff6ff; border: 1.5px solid #bfdbfe;
+    border-radius: 8px; padding: 3px 8px; font-size: 11px; color: var(--accent);
+    font-weight: 600;
   }
   .stm-attachment-tag button { background: none; border: none; cursor: pointer; color: var(--accent); padding: 0; display: flex; }
 
   /* BULK ACTIONS BAR */
   .stm-bulk-bar {
     padding: 10px 16px; border-top: 1px solid var(--border);
-    background: var(--surface2); display: flex; align-items: center; gap: 10px;
+    background: #eff6ff; display: flex; align-items: center; gap: 10px;
+    border-left: 3px solid var(--accent);
   }
-  .stm-bulk-info { font-size: 12px; color: var(--muted); flex: 1; }
+  .stm-bulk-info { font-size: 12px; color: var(--accent); font-weight: 600; flex: 1; }
 
   /* SENDING OVERLAY */
   .stm-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    position: fixed; inset: 0; background: rgba(15,23,42,0.5);
     display: flex; align-items: center; justify-content: center; z-index: 999;
+    backdrop-filter: blur(4px);
   }
   .stm-overlay-box {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 20px;
     padding: 32px 40px; text-align: center; min-width: 320px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
   }
-  .stm-overlay-box h3 { font-family: var(--font-display); font-size: 20px; margin-bottom: 8px; }
+  .stm-overlay-box h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
   .stm-overlay-box p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
-  .stm-progress-bar { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .stm-progress-bar { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
   .stm-progress-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; }
 
   /* LOADING */
@@ -597,9 +625,9 @@ export default function STMAwards() {
   if (error) return (
     <div className="stm-root">
       <style>{styles}</style>
-      <div className="stm-loading" style={{ height: "100vh", color: "var(--error)" }}>
+      <div className="stm-loading" style={{ height: "100vh", color: "#dc2626" }}>
         <p>Hata: {error}</p>
-        <p style={{ fontSize: 12, color: "var(--muted)" }}>SCRIPT_URL'yi kontrol edin</p>
+        <p style={{ fontSize: 12, color: "#94a3b8" }}>SCRIPT_URL'yi kontrol edin</p>
       </div>
     </div>
   );
@@ -631,10 +659,18 @@ export default function STMAwards() {
       {/* HEADER */}
       <div className="stm-header">
         <div className="stm-header-left">
-          <h1>STM Star Awards 2026</h1>
-          <p>Toplu E-posta Gönderim Sistemi · Gönderen: Memet Can Kılıç</p>
+          <a href="/dashboard" className="stm-header-back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            Dashboard
+          </a>
+          <div className="stm-header-title">
+            <h1>STM Star Awards 2026</h1>
+            <p>Toplu E-posta Gönderim · Gönderen: Memet Can Kılıç</p>
+          </div>
         </div>
-        <span className="stm-badge">EASTERN EUROPE</span>
+        <span className="stm-badge">⭐ EASTERN EUROPE</span>
       </div>
 
       {/* STATS */}
@@ -843,13 +879,13 @@ export default function STMAwards() {
                 <div className="stm-mail-cards">
                   {/* Konu satırı */}
                   <div style={{
-                    background: "var(--surface)", border: "1px solid var(--border)",
+                    background: "#f1f5f9", border: "1.5px solid #e2e8f0",
                     borderRadius: 10, padding: "10px 16px",
-                    fontSize: 12, color: "var(--muted)"
+                    fontSize: 12, color: "#94a3b8"
                   }}>
-                    <strong style={{ color: "var(--text)" }}>Konu:</strong> {MAIL_SUBJECT}
+                    <strong style={{ color: "#0f172a" }}>Konu:</strong> {MAIL_SUBJECT}
                     {attachments.length > 0 && (
-                      <span style={{ marginLeft: 12, color: "var(--accent)" }}>
+                      <span style={{ marginLeft: 12, color: "#2563eb", fontWeight: 600 }}>
                         📎 {attachments.length} ek
                       </span>
                     )}
@@ -864,7 +900,7 @@ export default function STMAwards() {
                         </div>
                         <div className="stm-mail-card-status">
                           {ri === selected.recipientIdx && (
-                            <span style={{ color: "var(--accent)", fontSize: 11 }}>● Aktif</span>
+                            <span style={{ color: "#2563eb", fontSize: 11, fontWeight: 600 }}>● Aktif</span>
                           )}
                         </div>
                       </div>
