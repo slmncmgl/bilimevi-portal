@@ -5,13 +5,14 @@ import Izin from "./pages/Izin";
 import AuthCallback from "./pages/AuthCallback";
 import SinavCevaplari from "./pages/SinavCevaplari";
 
-export default function App() {https://github.com/slmncmgl/bilimevi-portal/tree/main
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/izin" element={<Izin />} />
+        <Route path="/sinav-cevaplari" element={<SinavCevaplari />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         {/* Diğer modüller eklenecek */}
         <Route path="*" element={<Navigate to="/" />} />
