@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyrI8ZqmaAr2skgdaODAgf3ghYvMAym8sGanPRp70-9QV1GelWOfUItUfCXJVUPop8zJQ/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
+
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 function parseEmails(raw) {
   if (!raw) return [];
