@@ -3,8 +3,9 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Izin from "./pages/Izin";
 import AuthCallback from "./pages/AuthCallback";
+import SinavCevaplari from "./pages/SinavCevaplari";
 
-export default function App() {
+export default function App() {https://github.com/slmncmgl/bilimevi-portal/tree/main
   return (
     <BrowserRouter>
       <Routes>
