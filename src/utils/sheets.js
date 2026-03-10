@@ -41,6 +41,7 @@ export async function loginWithCredentials(email, password) {
     instagram: modulRow?.["İnstagram DM"] === "evet",
     quiz:      modulRow?.["Quiz Cevapları"] === "evet",
     bulten:    modulRow?.["Bülten Düzenleyici"] === "evet",
+    stm:       modulRow?.["STM"] === "evet",
   };
 
   return {
