@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyq6jeIYrRCfWB4MrWmR-8_fvsbhxjvEmcwc_MV5WNtiCqj7qEJSKG4b_vrfH-5LPBbGA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby0rUvLxFAO_uDga77vQxuzV3Nxwe0cSW64sQPp3bGOFW6XFgUARSSJ8h2FPgEXel_I/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -70,14 +70,16 @@ function normalizeKategori(kat) {
 
 // ─── API ───────────────────────────────────────────────────────────────────
 async function apiFetch(action, postData = null) {
+  // Apps Script CORS: POST + Content-Type preflight tetikler.
+  // Çözüm: form-urlencoded POST kullan (preflight gerektirmez)
   const url = `${SCRIPT_URL}?action=${action}`;
   const opts = postData
     ? {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // Content-Type yok → preflight yok → CORS sorunu yok
         body: JSON.stringify(postData),
       }
-    : {};
+    : { method: "GET" };
   const res = await fetch(url, opts);
   return res.json();
 }
