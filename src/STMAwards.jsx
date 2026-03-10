@@ -35,9 +35,15 @@ function getFirstName(fullName) {
 
 function buildMailBody(template, firstName, countryCode, paragraphs) {
   const para = paragraphs[countryCode] || paragraphs["INT"] || "";
+  // Template zaten HTML (Apps Script RichText ile geliyor)
+  // Sadece placeholder'ları replace et
   return template
     .replace("[firstName]", firstName || "")
-    .replace("[countryCode]", para);
+    .replace("[countryCode]", para)
+    .replace(
+      /click here/gi,
+      '<a href="https://studytravel.network/star-awards/vote" style="color:#2563eb;font-weight:600;">click here</a>'
+    );
 }
 
 function normalizeKategori(kat) {
@@ -180,7 +186,7 @@ const styles = `
   /* LAYOUT */
   .stm-layout {
     display: grid; grid-template-columns: 360px 1fr;
-    height: calc(100vh - 118px); position: relative; z-index: 1;
+    height: calc(100vh - 57px - 53px - 47px); position: relative; z-index: 1; overflow: hidden;
   }
 
   /* LEFT PANEL */
@@ -913,9 +919,10 @@ export default function STMAwards() {
                           />
                         </div>
                       ) : (
-                        <div className="stm-mail-body">
-                          {getBodyForRecipient(selected.school, ri)}
-                        </div>
+                        <div
+                          className="stm-mail-body"
+                          dangerouslySetInnerHTML={{ __html: getBodyForRecipient(selected.school, ri) }}
+                        />
                       )}
                     </div>
                   ))}
