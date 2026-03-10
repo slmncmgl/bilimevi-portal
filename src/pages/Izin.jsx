@@ -10,7 +10,7 @@ const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 async function fetchRoller() {
   const csv = await fetchSheetCSV("Roller");
   const lines = csv.trim().split("\n");
-  return lines.slice(1).map(l => l.replace(/^"|"$/g, "").trim()).filter(Boolean);
+  return lines.slice(0).map(l => l.replace(/^"|"$/g, "").trim()).filter(Boolean);
 }
 
 async function fetchSheetCSV(sheetName) {
@@ -158,6 +158,7 @@ export default function Izin() {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
+    setRol((session.title || "personel").toLowerCase().trim());
     loadData(session.name);
   }, []);
 
