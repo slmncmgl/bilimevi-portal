@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxae7R2uG_o2YyJ9f7_FB7oFxIvMeITEF4gkyJYAcLkVdCCyiut4eW-778uhao1cmZk4g/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyrI8ZqmaAr2skgdaODAgf3ghYvMAym8sGanPRp70-9QV1GelWOfUItUfCXJVUPop8zJQ/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
