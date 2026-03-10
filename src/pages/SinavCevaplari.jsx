@@ -33,12 +33,10 @@ export default function SinavCevaplari() {
     setUser(session);
     fetchApiKey();
 
-    window.addEventListener("paste", handlePaste);
-    return () => window.removeEventListener("paste", handlePaste);
   }, []);
 
   function handlePaste(e) {
-    const items = e.clipboardData?.items;
+    const items = (e.nativeEvent || e).clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf("image") !== -1) {
@@ -154,7 +152,7 @@ export default function SinavCevaplari() {
   };
 
   return (
-    <div style={s.root}>
+    <div style={s.root} onPaste={handlePaste}>
       <div style={s.bgGrid} />
 
       <header style={s.header}>
