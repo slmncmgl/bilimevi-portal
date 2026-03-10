@@ -39,9 +39,9 @@ const MODULE_CONFIG = [
   },
   {
     key: "quiz",
-    title: "Quiz Portalı",
+    title: "Sınav Cevapları",
     desc: "Sınav sonuçları ve raporlama",
-    path: "/quiz",
+    path: "/sinav-cevaplari",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
         <path d="M9 11l3 3L22 4"/>
