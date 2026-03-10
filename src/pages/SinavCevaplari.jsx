@@ -36,7 +36,7 @@ export default function SinavCevaplari() {
   }, []);
 
   function handlePaste(e) {
-    const items = e.clipboardData?.items;
+    const items = (e.nativeEvent || e).clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf("image") !== -1) {
