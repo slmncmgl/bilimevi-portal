@@ -33,8 +33,6 @@ export default function SinavCevaplari() {
     setUser(session);
     fetchApiKey();
 
-    window.addEventListener("paste", handlePaste);
-    return () => window.removeEventListener("paste", handlePaste);
   }, []);
 
   function handlePaste(e) {
@@ -154,7 +152,7 @@ export default function SinavCevaplari() {
   };
 
   return (
-    <div style={s.root}>
+    <div style={s.root} onPaste={handlePaste}>
       <div style={s.bgGrid} />
 
       <header style={s.header}>
