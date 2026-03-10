@@ -67,6 +67,20 @@ const MODULE_CONFIG = [
     bg: "#f5f3ff",
     border: "#ddd6fe",
   },
+  {
+    key: "stm",
+    title: "STM Star Awards",
+    desc: "Toplu e-posta gönderim sistemi",
+    path: "/stm-awards",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+    ),
+    color: "#d97706",
+    bg: "#fffbeb",
+    border: "#fde68a",
+  },
 ];
 
 export default function Dashboard() {
