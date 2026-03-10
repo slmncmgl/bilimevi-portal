@@ -34,16 +34,22 @@ function getFirstName(fullName) {
 }
 
 function buildMailBody(template, firstName, countryCode, paragraphs) {
+  if (!template) return "";
   const para = paragraphs[countryCode] || paragraphs["INT"] || "";
-  // Template zaten HTML (Apps Script RichText ile geliyor)
-  // Sadece placeholder'ları replace et
-  return template
+  // Template düz metin veya HTML olabilir (Apps Script versiyonuna göre)
+  // Düz metin ise \n -> <br> çevir, HTML ise olduğu gibi bırak
+  const isHtml = template.includes("<br>") || template.includes("<strong>") || template.includes("<a ");
+  let body = template
     .replace("[firstName]", firstName || "")
     .replace("[countryCode]", para)
     .replace(
       /click here/gi,
       '<a href="https://studytravel.network/star-awards/vote" style="color:#2563eb;font-weight:600;">click here</a>'
     );
+  if (!isHtml) {
+    body = body.replace(/\n/g, "<br>");
+  }
+  return body;
 }
 
 function normalizeKategori(kat) {
@@ -439,9 +445,13 @@ export default function STMAwards() {
           apiFetch("getCountryParagraphs"),
         ]);
         if (schoolsRes.error) throw new Error(schoolsRes.error);
+        if (bodyRes.error) throw new Error("Mail Body hatası: " + bodyRes.error);
+        if (countryRes.error) throw new Error("Country hatası: " + countryRes.error);
         setSchools(schoolsRes.schools || []);
         setMailTemplate(bodyRes.body || "");
         setParagraphs(countryRes.paragraphs || {});
+        console.log("[STM] mailTemplate:", bodyRes.body?.slice(0, 100));
+        console.log("[STM] paragraphs:", Object.keys(countryRes.paragraphs || {}));
       } catch (e) {
         setError(e.message);
       } finally {
