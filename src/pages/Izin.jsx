@@ -895,8 +895,9 @@ function groupByDept(rows) {
   }, {});
 }
 
-function DuzenlePersonel({ data, scriptUrl, onRefresh, roller }) {
+function DuzenlePersonel({ data, scriptUrl, onRefresh, roller, onSaveStart, onSaveDone }) {
   const grouped = groupByDept(data);
+  const [activeKey, setActiveKey] = useState(null);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {Object.entries(grouped).sort().map(([dept, rows]) => (
@@ -918,7 +919,16 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh, roller }) {
               ))}
             </tr></thead>
             <tbody>
-              {rows.map((row, i) => <PersonelEditRow key={i} row={row} scriptUrl={scriptUrl} onRefresh={onRefresh} roller={roller} />)}
+              {rows.map((row, i) => {
+                const rowKey = dept + "_" + i;
+                return <PersonelEditRow key={rowKey} row={row} scriptUrl={scriptUrl} onRefresh={onRefresh} roller={roller}
+                  isActive={activeKey === rowKey}
+                  onActivate={() => setActiveKey(rowKey)}
+                  onDeactivate={() => setActiveKey(null)}
+                  onSaveStart={onSaveStart}
+                  onSaveDone={onSaveDone}
+                />;
+              })}
             </tbody>
           </table></div>
         </div>
