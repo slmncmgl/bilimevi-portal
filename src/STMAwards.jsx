@@ -70,17 +70,13 @@ function normalizeKategori(kat) {
 
 // ─── API ───────────────────────────────────────────────────────────────────
 async function apiFetch(action, postData = null) {
-  // Apps Script CORS: POST + Content-Type preflight tetikler.
-  // Çözüm: form-urlencoded POST kullan (preflight gerektirmez)
-  const url = `${SCRIPT_URL}?action=${action}`;
-  const opts = postData
-    ? {
-        method: "POST",
-        // Content-Type yok → preflight yok → CORS sorunu yok
-        body: JSON.stringify(postData),
-      }
-    : { method: "GET" };
-  const res = await fetch(url, opts);
+  // Apps Script CORS: POST redirect'i CORS engeller.
+  // Çözüm: tüm istekleri GET ile gönder, data'yı URL'e ekle.
+  let url = `${SCRIPT_URL}?action=${action}`;
+  if (postData) {
+    url += `&data=${encodeURIComponent(JSON.stringify(postData))}`;
+  }
+  const res = await fetch(url);
   return res.json();
 }
 
