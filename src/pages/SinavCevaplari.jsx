@@ -38,8 +38,8 @@ export default function SinavCevaplari() {
   }, []);
 
   function handlePaste(e) {
-    if (!isMouseOverRef.current) return;
-    const items = e.clipboardData.items;
+    const items = e.clipboardData?.items;
+    if (!items) return;
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf("image") !== -1) {
         const blob = items[i].getAsFile();
