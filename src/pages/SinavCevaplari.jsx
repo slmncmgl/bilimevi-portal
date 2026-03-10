@@ -43,8 +43,9 @@ export default function SinavCevaplari() {
     for (let i = 0; i < items.length; i++) {
       if (items[i].type.indexOf("image") !== -1) {
         const blob = items[i].getAsFile();
+        const mimeType = blob.type || "image/png";
         const reader = new FileReader();
-        reader.onload = (ev) => processImage(ev.target.result);
+        reader.onload = (ev) => processImage(ev.target.result, mimeType);
         reader.readAsDataURL(blob);
       }
     }
@@ -73,12 +74,13 @@ export default function SinavCevaplari() {
   function onFileChange(e) {
     const file = e.target.files[0];
     if (!file) return;
+    const mimeType = file.type || "image/png";
     const reader = new FileReader();
-    reader.onload = () => processImage(reader.result);
+    reader.onload = () => processImage(reader.result, mimeType);
     reader.readAsDataURL(file);
   }
 
-  async function processImage(base64) {
+  async function processImage(base64, mimeType = "image/png") {
     setImageBase64(base64);
     if (!apiKey) { setStatus({ type: "error", msg: "Sınav sonuçlarını manuel olarak giriniz." }); return; }
     setAiLoading(true);
@@ -94,7 +96,7 @@ export default function SinavCevaplari() {
             contents: [{
               parts: [
                 { text: 'Analyze this quiz screenshot. Extract JSON: {"quizTitle": "", "right": 0, "wrong": 0, "skipped": 0, "totalQuestions": 0, "accuracy": ""}' },
-                { inlineData: { mimeType: "image/png", data: cleanBase64 } }
+                { inlineData: { mimeType: mimeType, data: cleanBase64 } }
               ]
             }]
           })
