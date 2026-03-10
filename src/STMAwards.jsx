@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxae7R2uG_o2YyJ9f7_FB7oFxIvMeITEF4gkyJYAcLkVdCCyiut4eW-778uhao1cmZk4g/exec";
+const SCRIPT_URL = "BURAYA_APPS_SCRIPT_URL";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -490,8 +490,14 @@ export default function STMAwards() {
   const handleSelectSchool = (school, recipIdx = 0) => {
     setSelected({ school, recipientIdx: recipIdx });
     setEditMode(false);
-    setEditedBody(getBodyForRecipient(school, recipIdx));
   };
+
+  // editedBody'i selected veya template değişince güncelle
+  useEffect(() => {
+    if (selected && mailTemplate) {
+      setEditedBody(getBodyForRecipient(selected.school, selected.recipientIdx));
+    }
+  }, [selected, mailTemplate, paragraphs]);
 
   // ── CHECK TOGGLE ──
   const toggleCheck = (e, id) => {
