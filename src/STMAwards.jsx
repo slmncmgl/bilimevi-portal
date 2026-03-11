@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMf0ZCSx9YPSJkoQDAOTwBd_bpGIZWSS8ZZRR5toTXgmwR3weIRd3hjilZHjLSBguEww/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
+
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 function parseEmails(raw) {
   if (!raw) return [];
@@ -970,7 +971,7 @@ export default function STMAwards() {
                           )}
                         </div>
                       </div>
-                      {ri === selected.recipientIdx && editMode ? (
+                      {editMode ? (
                         <div style={{ padding: 12 }}>
                           <textarea
                             className="stm-mail-body-edit"
@@ -981,7 +982,7 @@ export default function STMAwards() {
                       ) : (
                         <div
                           className="stm-mail-body"
-                          dangerouslySetInnerHTML={{ __html: getBodyForRecipient(selected.school, ri) }}
+                          dangerouslySetInnerHTML={{ __html: savedBody || getBodyForRecipient(selected.school, ri) }}
                         />
                       )}
                     </div>
