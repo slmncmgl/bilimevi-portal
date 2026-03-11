@@ -90,8 +90,6 @@ export default function Login() {
         {/* Sağ panel */}
         <div style={styles.rightPanel} className="login-right">
           <div style={styles.formWrap}>
-            <p style={styles.formSub}>Kullanıcı Adınızla Giriş Yapın</p>
-
             <form onSubmit={handleLogin} style={styles.form}>
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Kullanıcı Adı</label>
