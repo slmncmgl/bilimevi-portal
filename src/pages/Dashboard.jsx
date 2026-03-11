@@ -121,7 +121,7 @@ export default function Dashboard() {
           />
           <div style={styles.headerRight}>
             {user.rol === "admin" && (
-              <button onClick={() => navigate("/izin")}
+              <button onClick={() => navigate("/izin?panel=admin")}
                 style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#2563eb"}
                 onMouseLeave={e => e.currentTarget.style.background = "#1e3a5f"}>

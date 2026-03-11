@@ -162,8 +162,9 @@ export default function Izin() {
     setRol(r);
     loadData(session.name);
     if (r === "admin") {
-      setAdminView(true);
       loadAdminList(session);
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("panel") === "admin") setAdminView(true);
     }
   }, []);
 
