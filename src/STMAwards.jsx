@@ -513,6 +513,8 @@ export default function STMAwards() {
   // ── CHECK TOGGLE ──
   const toggleCheck = (e, id) => {
     e.stopPropagation();
+    const school = schools.find(s => s.id === id);
+    if (school?.portalDurum === "Gönderildi ✓") return; // gönderilmişleri seçtirme
     setChecked((prev) => {
       const n = new Set(prev);
       n.has(id) ? n.delete(id) : n.add(id);
@@ -521,10 +523,11 @@ export default function STMAwards() {
   };
 
   const toggleCheckAll = () => {
-    if (checked.size === filtered.length) {
+    const pending = filtered.filter(s => s.portalDurum !== "Gönderildi ✓");
+    if (checked.size === pending.length && pending.every(s => checked.has(s.id))) {
       setChecked(new Set());
     } else {
-      setChecked(new Set(filtered.map((s) => s.id)));
+      setChecked(new Set(pending.map((s) => s.id)));
     }
   };
 
@@ -829,6 +832,7 @@ export default function STMAwards() {
                   <div
                     className={`stm-school-check ${isChecked ? "checked" : ""}`}
                     onClick={(e) => toggleCheck(e, school.id)}
+                    style={school.portalDurum === "Gönderildi ✓" ? { opacity: 0.3, cursor: "not-allowed", pointerEvents: "none" } : {}}
                   >
                     {isChecked && <IconCheck />}
                   </div>
