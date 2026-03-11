@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlPHZ0SNvLfogs762bhIMYZDUUPwhZcQUl2aZPqvmbWlDgPiHdoenkCtlHV3NzFtQw/exec"; // Apps Script deploy URL buraya
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlPHZ0SNvLfogs762bhIMYZDUUPwhZcQUl2aZPqvmbWlDgPiHdoenkCtlHV3NzFtQw/exec"; //
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -158,8 +158,13 @@ export default function Izin() {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
-    setRol((session.title || "personel").toLowerCase().trim());
+    const r = (session.title || "personel").toLowerCase().trim();
+    setRol(r);
     loadData(session.name);
+    if (r === "admin") {
+      setAdminView(true);
+      loadAdminList();
+    }
   }, []);
 
   async function loadData(name) {
@@ -307,17 +312,6 @@ export default function Izin() {
             <span style={styles.headerTitle}>İK İzin Yönetimi</span>
           </div>
           <div style={styles.headerRight}>
-            {(rol === "manager" || rol === "director" || rol === "owner" || rol === "admin") && !adminView && (
-              <button onClick={() => { setAdminView(true); loadAdminList(); }} style={styles.adminBtn}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                  <circle cx="9" cy="7" r="4"/>
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                </svg>
-                Yönetici Paneli
-              </button>
-            )}
             {adminView && (
               <button onClick={() => setAdminView(false)} style={styles.adminBtn}>← Kendi İznim</button>
             )}
