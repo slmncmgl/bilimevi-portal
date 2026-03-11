@@ -51,7 +51,6 @@ export default function AuthCallback() {
 
     (async () => {
       try {
-        // Serverless function üzerinden token al
         const res = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -65,7 +64,6 @@ export default function AuthCallback() {
           return;
         }
 
-        // Sheet'te kullanıcıyı bul
         const personel = await findPersonel(data.email);
         if (!personel) {
           setMsg("Bu Google hesabı sistemde kayıtlı değil.");
@@ -75,13 +73,17 @@ export default function AuthCallback() {
 
         const moduller = await findModuller(personel["Ad Soyad"]);
         const user = {
-          name: personel["Ad Soyad"],
-          email: data.email,
+          name:    personel["Ad Soyad"],
+          email:   data.email,
+          company: personel["Şirket"],
+          branch:  personel["Şube"],
+          title:   (personel["Title"] || "staff").toLowerCase(),
           modules: {
-            izin: moduller?.["İzin Yönetimi"]?.toLowerCase() === "evet",
+            izin:      moduller?.["İzin Yönetimi"]?.toLowerCase() === "evet",
             instagram: moduller?.["İnstagram DM"]?.toLowerCase() === "evet",
-            quiz: moduller?.["Quiz Cevapları"]?.toLowerCase() === "evet",
-            bulten: moduller?.["Bülten Düzenleyici"]?.toLowerCase() === "evet",
+            quiz:      moduller?.["Quiz Cevapları"]?.toLowerCase() === "evet",
+            bulten:    moduller?.["Bülten Düzenleyici"]?.toLowerCase() === "evet",
+            stm:       moduller?.["STM"]?.toLowerCase() === "evet",
           },
         };
         saveSession(user);
