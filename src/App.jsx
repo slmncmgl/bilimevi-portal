@@ -4,7 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import Izin from "./pages/Izin";
 import AuthCallback from "./pages/AuthCallback";
 import SinavCevaplari from "./pages/SinavCevaplari";
-import STM from "./pages/STM";
+import STMAwards from "../STMAwards";
 
 export default function App() {
   return (
@@ -14,7 +14,7 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/izin" element={<Izin />} />
         <Route path="/sinav-cevaplari" element={<SinavCevaplari />} />
-        <Route path="/stm" element={<STM />} />
+        <Route path="/stm" element={<STMAwards />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         {/* Diğer modüller eklenecek */}
         <Route path="*" element={<Navigate to="/" />} />
