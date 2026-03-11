@@ -611,28 +611,25 @@ export default function STMAwards() {
     setSendProgress({ current: 0, total: mails.length, log: [] });
 
     try {
-      const BATCH = 10;
       const log = [];
-      for (let i = 0; i < mails.length; i += BATCH) {
-        const batch = mails.slice(i, i + BATCH);
-        const res = await apiFetch("sendBulk", { mails: batch });
-        const results = res.results || [];
-        log.push(...results);
+      for (let i = 0; i < mails.length; i++) {
+        const mail = mails[i];
+        const res = await apiFetch("sendMail", mail);
+        const entry = { to: mail.to, success: res.success, error: res.error };
+        log.push(entry);
 
-        for (const r of results) {
-          const school = toSend.find((s) => s.recipients.some((rec) => rec.email === r.to));
-          if (school) {
-            setSchools((prev) =>
-              prev.map((s) =>
-                s.id === school.id
-                  ? { ...s, portalDurum: r.success ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
-                  : s
-              )
-            );
-          }
+        const school = toSend.find((s) => s.recipients.some((rec) => rec.email === mail.to));
+        if (school) {
+          setSchools((prev) =>
+            prev.map((s) =>
+              s.id === school.id
+                ? { ...s, portalDurum: res.success ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
+                : s
+            )
+          );
         }
 
-        setSendProgress({ current: Math.min(i + BATCH, mails.length), total: mails.length, log });
+        setSendProgress({ current: i + 1, total: mails.length, log: [...log] });
       }
       setChecked(new Set());
     } catch (e) {
