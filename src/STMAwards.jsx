@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyvjEdM4HhjzAsz34RWK-kbctmLcphKV5Vi8BZTso27FwWnuZuY8PMo-ItwFmHkuMG41w/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx1W43qc-M6dFaq5FNmt-R4JTzP5fjO4-tkYyivbZXQ8Qub_jOwF6GrKlS-zJzFSI2wAg/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -70,13 +70,15 @@ function normalizeKategori(kat) {
 
 // ─── API ───────────────────────────────────────────────────────────────────
 async function apiFetch(action, postData = null) {
-  // Apps Script CORS: POST redirect'i CORS engeller.
-  // Çözüm: tüm istekleri GET ile gönder, data'yı URL'e ekle.
-  let url = `${SCRIPT_URL}?action=${action}`;
-  if (postData) {
-    url += `&data=${encodeURIComponent(JSON.stringify(postData))}`;
-  }
-  const res = await fetch(url);
+  const url = `${SCRIPT_URL}?action=${action}`;
+  const opts = postData
+    ? {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(postData),
+      }
+    : { method: "GET" };
+  const res = await fetch(url, opts);
   return res.json();
 }
 
