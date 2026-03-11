@@ -19,7 +19,7 @@ function handleGoogleLogin() {
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -31,22 +31,22 @@ export default function Login() {
     const saved = localStorage.getItem("bilimevi_remember");
     if (saved) {
       try {
-        const { email: e, password: p } = JSON.parse(saved);
-        setEmail(e); setPassword(p); setRemember(true);
+        const { username: u, password: p } = JSON.parse(saved);
+        setUsername(u); setPassword(p); setRemember(true);
       } catch (_) {}
     }
   }, []);
 
   async function handleLogin(e) {
     e.preventDefault();
-    if (!email || !password) return;
+    if (!username || !password) return;
     setLoading(true);
     setError("");
     try {
-      const res = await loginWithCredentials(email, password);
+      const res = await loginWithCredentials(username, password);
       if (res.success) {
         if (remember) {
-          localStorage.setItem("bilimevi_remember", JSON.stringify({ email, password }));
+          localStorage.setItem("bilimevi_remember", JSON.stringify({ username, password }));
         } else {
           localStorage.removeItem("bilimevi_remember");
         }
@@ -91,20 +91,20 @@ export default function Login() {
         <div style={styles.rightPanel} className="login-right">
           <div style={styles.formWrap}>
             <h1 style={styles.formTitle}>Giriş Yap</h1>
-            <p style={styles.formSub}>Şirket e-posta adresinizi kullanın</p>
+            <p style={styles.formSub}>Kullanıcı Adınızla Giriş Yapın</p>
 
             <form onSubmit={handleLogin} style={styles.form}>
               <div style={styles.fieldGroup}>
-                <label style={styles.label}>E-Posta</label>
+                <label style={styles.label}>Kullanıcı Adı</label>
                 <div style={styles.inputWrap}>
                   <svg style={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                    <polyline points="22,6 12,13 2,6"/>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
                   </svg>
                   <input
-                    type="email" value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="ad@bilimevi.com" required
+                    type="text" value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    placeholder="kullanıcı adı" required
                     style={styles.input}
                     onFocus={e => e.target.style.borderColor = "#2563eb"}
                     onBlur={e => e.target.style.borderColor = "#e2e8f0"}
@@ -181,7 +181,7 @@ export default function Login() {
 
               <div style={styles.divider}>
                 <span style={styles.dividerLine} />
-                <span style={styles.dividerText}>veya</span>
+                <span style={styles.dividerText}>Şirket Mail Adresinizle Giriş Yapın</span>
                 <span style={styles.dividerLine} />
               </div>
 
