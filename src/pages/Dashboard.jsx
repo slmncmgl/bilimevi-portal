@@ -67,20 +67,6 @@ const MODULE_CONFIG = [
     bg: "#f5f3ff",
     border: "#ddd6fe",
   },
-  {
-    key: "stm",
-    title: "STM Star Awards",
-    desc: "Toplu e-posta gönderim sistemi",
-    path: "/stm-awards",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-      </svg>
-    ),
-    color: "#d97706",
-    bg: "#fffbeb",
-    border: "#fde68a",
-  },
 ];
 
 export default function Dashboard() {
@@ -120,6 +106,18 @@ export default function Dashboard() {
             style={styles.headerLogo}
           />
           <div style={styles.headerRight}>
+            {user.rol === "admin" && (
+              <button onClick={() => navigate("/izin")}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#2563eb"}
+                onMouseLeave={e => e.currentTarget.style.background = "#1e3a5f"}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                  <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
+                Yönetici Paneli
+              </button>
+            )}
             <div style={styles.userInfo}>
               <div style={styles.avatar}>
                 {user.name?.charAt(0).toUpperCase()}

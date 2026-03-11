@@ -21,16 +21,25 @@ function parseCSV(csv) {
   });
 }
 
-export async function loginWithCredentials(email, password) {
+export async function loginWithCredentials(username, password) {
+  const loginRows = await fetchSheet("Login");
   const personel = await fetchSheet("Personel");
   const moduller = await fetchSheet("Modüller");
 
-  const user = personel.find(
-    p => p["E-posta"]?.toLowerCase() === email.toLowerCase() &&
-         p["Şifre"]?.toString() === password.toString()
+  // Login sekmesi: A=E-posta, B=Kullanıcı Adı, C=Şifre
+  const loginRow = loginRows.find(
+    r => r["Kullanıcı Adı"]?.toLowerCase() === username.toLowerCase() &&
+         r["Şifre"]?.toString() === password.toString()
   );
 
-  if (!user) return { success: false, msg: "Hatalı e-posta veya şifre." };
+  if (!loginRow) return { success: false, msg: "Hatalı kullanıcı adı veya şifre." };
+
+  // Login satırındaki e-posta ile Personel'den bilgileri bul
+  const user = personel.find(
+    p => p["E-posta"]?.toLowerCase() === loginRow["E-posta"]?.toLowerCase()
+  );
+
+  if (!user) return { success: false, msg: "Kullanıcı personel listesinde bulunamadı." };
 
   const modulRow = moduller.find(
     m => m["Ad Soyad"]?.toLowerCase() === user["Ad Soyad"]?.toLowerCase()

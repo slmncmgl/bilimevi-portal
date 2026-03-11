@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "BURAYA_APPS_SCRIPT_URL";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMf0ZCSx9YPSJkoQDAOTwBd_bpGIZWSS8ZZRR5toTXgmwR3weIRd3hjilZHjLSBguEww/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -34,16 +34,22 @@ function getFirstName(fullName) {
 }
 
 function buildMailBody(template, firstName, countryCode, paragraphs) {
+  if (!template) return "";
   const para = paragraphs[countryCode] || paragraphs["INT"] || "";
-  // Template zaten HTML (Apps Script RichText ile geliyor)
-  // Sadece placeholder'ları replace et
-  return template
+  // Template düz metin veya HTML olabilir (Apps Script versiyonuna göre)
+  // Düz metin ise \n -> <br> çevir, HTML ise olduğu gibi bırak
+  const isHtml = template.includes("<br>") || template.includes("<strong>") || template.includes("<a ");
+  let body = template
     .replace("[firstName]", firstName || "")
     .replace("[countryCode]", para)
     .replace(
       /click here/gi,
       '<a href="https://studytravel.network/star-awards/vote" style="color:#2563eb;font-weight:600;">click here</a>'
     );
+  if (!isHtml) {
+    body = body.replace(/\n/g, "<br>");
+  }
+  return body;
 }
 
 function normalizeKategori(kat) {
@@ -68,10 +74,10 @@ async function apiFetch(action, postData = null) {
   const opts = postData
     ? {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(postData),
       }
-    : {};
+    : { method: "GET" };
   const res = await fetch(url, opts);
   return res.json();
 }
@@ -422,12 +428,14 @@ export default function STMAwards() {
 
   const [editMode, setEditMode] = useState(false);
   const [editedBody, setEditedBody] = useState("");
+  const [savedBody, setSavedBody] = useState(null); // edit kaydedilince buraya
 
   const [attachmentInput, setAttachmentInput] = useState("");
   const [attachments, setAttachments] = useState([]); // [{id, name}]
 
   const [sending, setSending] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, log: [] });
+  const [sendDone, setSendDone] = useState(false);
 
   // ── LOAD DATA ──
   useEffect(() => {
@@ -439,9 +447,13 @@ export default function STMAwards() {
           apiFetch("getCountryParagraphs"),
         ]);
         if (schoolsRes.error) throw new Error(schoolsRes.error);
+        if (bodyRes.error) throw new Error("Mail Body hatası: " + bodyRes.error);
+        if (countryRes.error) throw new Error("Country hatası: " + countryRes.error);
         setSchools(schoolsRes.schools || []);
         setMailTemplate(bodyRes.body || "");
         setParagraphs(countryRes.paragraphs || {});
+        console.log("[STM] mailTemplate:", bodyRes.body?.slice(0, 100));
+        console.log("[STM] paragraphs:", Object.keys(countryRes.paragraphs || {}));
       } catch (e) {
         setError(e.message);
       } finally {
@@ -495,6 +507,7 @@ export default function STMAwards() {
   // editedBody'i selected veya template değişince güncelle
   useEffect(() => {
     if (selected && mailTemplate) {
+      setSavedBody(null); // okul değişince kaydı sıfırla
       setEditedBody(getBodyForRecipient(selected.school, selected.recipientIdx));
     }
   }, [selected, mailTemplate, paragraphs]);
@@ -502,6 +515,8 @@ export default function STMAwards() {
   // ── CHECK TOGGLE ──
   const toggleCheck = (e, id) => {
     e.stopPropagation();
+    const school = schools.find(s => s.id === id);
+    if (school?.portalDurum === "Gönderildi ✓") return; // gönderilmişleri seçtirme
     setChecked((prev) => {
       const n = new Set(prev);
       n.has(id) ? n.delete(id) : n.add(id);
@@ -510,10 +525,11 @@ export default function STMAwards() {
   };
 
   const toggleCheckAll = () => {
-    if (checked.size === filtered.length) {
+    const pending = filtered.filter(s => s.portalDurum !== "Gönderildi ✓");
+    if (checked.size === pending.length && pending.every(s => checked.has(s.id))) {
       setChecked(new Set());
     } else {
-      setChecked(new Set(filtered.map((s) => s.id)));
+      setChecked(new Set(pending.map((s) => s.id)));
     }
   };
 
@@ -532,39 +548,46 @@ export default function STMAwards() {
   // ── SEND SINGLE ──
   const sendSingle = async () => {
     if (!selected) return;
-    const { school, recipientIdx } = selected;
-    const r = school.recipients[recipientIdx];
-    const body = editMode ? editedBody : getBodyForRecipient(school, recipientIdx);
+    const { school } = selected;
+    // Edit modunda sadece seçili recipient'a gönder, normal modda tüm recipients'a
+    const recipients = editMode
+      ? [school.recipients[selected.recipientIdx]]
+      : school.recipients;
+    const total = recipients.length;
 
     setSending(true);
-    setSendProgress({ current: 0, total: 1, log: [] });
+    setSendProgress({ current: 0, total, log: [] });
 
-    const res = await apiFetch("sendMail", {
-      to: r.email,
-      firstName: r.firstName,
-      schoolName: school.okul,
-      mailBody: body,
-      subject: MAIL_SUBJECT,
-      attachmentIds: attachments.map((a) => a.id),
-      sheetName: school.sheetName,
-      rowIndex: school.rowIndex,
-    });
-
-    // Yerel state güncelle
-    setSchools((prev) =>
-      prev.map((s) =>
-        s.id === school.id
-          ? { ...s, portalDurum: res.success ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
-          : s
-      )
-    );
-
-    setSendProgress({
-      current: 1,
-      total: 1,
-      log: [{ to: r.email, success: res.success, error: res.error }],
-    });
-    setSending(false);
+    try {
+      const log = [];
+      for (let i = 0; i < recipients.length; i++) {
+        const r = recipients[i];
+        const body = editMode ? editedBody : (savedBody || getBodyForRecipient(school, i));
+        const res = await apiFetch("sendMail", {
+          to: r.email,
+          firstName: r.firstName,
+          schoolName: school.okul,
+          mailBody: body,
+          subject: MAIL_SUBJECT,
+          attachmentIds: attachments.map((a) => a.id),
+          sheetName: school.sheetName,
+          rowIndex: school.rowIndex,
+        });
+        log.push({ to: r.email, success: res.success, error: res.error });
+        setSendProgress({ current: i + 1, total, log: [...log] });
+      }
+      setSchools((prev) =>
+        prev.map((s) =>
+          s.id === school.id
+            ? { ...s, portalDurum: log.every(l => l.success) ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
+            : s
+        )
+      );
+    } catch (e) {
+      console.error("[STM] sendSingle hata:", e);
+    } finally {
+      setSendDone(true);
+    }
   };
 
   // ── SEND BULK ──
@@ -593,34 +616,33 @@ export default function STMAwards() {
     setSending(true);
     setSendProgress({ current: 0, total: mails.length, log: [] });
 
-    // 10'arlı batch gönder
-    const BATCH = 10;
-    const log = [];
-    for (let i = 0; i < mails.length; i += BATCH) {
-      const batch = mails.slice(i, i + BATCH);
-      const res = await apiFetch("sendBulk", { mails: batch });
-      const results = res.results || [];
-      log.push(...results);
+    try {
+      const log = [];
+      for (let i = 0; i < mails.length; i++) {
+        const mail = mails[i];
+        const res = await apiFetch("sendMail", mail);
+        const entry = { to: mail.to, success: res.success, error: res.error };
+        log.push(entry);
 
-      // State güncelle
-      for (const r of results) {
-        const school = toSend.find((s) => s.recipients.some((rec) => rec.email === r.to));
+        const school = toSend.find((s) => s.recipients.some((rec) => rec.email === mail.to));
         if (school) {
           setSchools((prev) =>
             prev.map((s) =>
               s.id === school.id
-                ? { ...s, portalDurum: r.success ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
+                ? { ...s, portalDurum: res.success ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
                 : s
             )
           );
         }
+
+        setSendProgress({ current: i + 1, total: mails.length, log: [...log] });
       }
-
-      setSendProgress({ current: Math.min(i + BATCH, mails.length), total: mails.length, log });
+      setChecked(new Set());
+    } catch (e) {
+      console.error("[STM] sendBulk hata:", e);
+    } finally {
+      setSendDone(true);
     }
-
-    setSending(false);
-    setChecked(new Set());
   };
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
@@ -645,7 +667,7 @@ export default function STMAwards() {
   );
 
   const selectedBody = selected
-    ? (editMode ? editedBody : getBodyForRecipient(selected.school, selected.recipientIdx))
+    ? (editMode ? editedBody : (savedBody || getBodyForRecipient(selected.school, selected.recipientIdx)))
     : "";
 
   return (
@@ -653,17 +675,42 @@ export default function STMAwards() {
       <style>{styles}</style>
 
       {/* SENDING OVERLAY */}
-      {sending && (
+      {(sending || sendDone) && (
         <div className="stm-overlay">
           <div className="stm-overlay-box">
-            <h3>Mailler Gönderiliyor</h3>
-            <p>{sendProgress.current} / {sendProgress.total} tamamlandı</p>
-            <div className="stm-progress-bar">
-              <div
-                className="stm-progress-fill"
-                style={{ width: `${sendProgress.total ? (sendProgress.current / sendProgress.total) * 100 : 0}%` }}
-              />
-            </div>
+            {sendDone ? (
+              <>
+                <h3 style={{ color: "var(--success)" }}>✓ Gönderim Tamamlandı</h3>
+                <p style={{ marginBottom: 12 }}>
+                  {sendProgress.log.filter(l => l.success).length} başarılı
+                  {sendProgress.log.filter(l => !l.success).length > 0 && (
+                    <span style={{ color: "var(--error)", marginLeft: 8 }}>
+                      · {sendProgress.log.filter(l => !l.success).length} hatalı
+                    </span>
+                  )}
+                </p>
+                <div className="stm-progress-bar" style={{ marginBottom: 16 }}>
+                  <div className="stm-progress-fill" style={{ width: "100%", background: "var(--success)" }} />
+                </div>
+                <button
+                  onClick={() => { setSendDone(false); setSending(false); }}
+                  style={{ padding: "8px 24px", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}
+                >
+                  Kapat
+                </button>
+              </>
+            ) : (
+              <>
+                <h3>Mailler Gönderiliyor</h3>
+                <p>{sendProgress.current} / {sendProgress.total} tamamlandı</p>
+                <div className="stm-progress-bar">
+                  <div
+                    className="stm-progress-fill"
+                    style={{ width: `${sendProgress.total ? (sendProgress.current / sendProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -788,6 +835,7 @@ export default function STMAwards() {
                   <div
                     className={`stm-school-check ${isChecked ? "checked" : ""}`}
                     onClick={(e) => toggleCheck(e, school.id)}
+                    style={school.portalDurum === "Gönderildi ✓" ? { opacity: 0.3, cursor: "not-allowed", pointerEvents: "none" } : {}}
                   >
                     {isChecked && <IconCheck />}
                   </div>
@@ -869,11 +917,18 @@ export default function STMAwards() {
                   <button
                     className={`stm-btn stm-btn-secondary`}
                     onClick={() => {
-                      setEditMode(!editMode);
-                      if (!editMode) setEditedBody(selectedBody);
+                      if (editMode) {
+                        // Kaydet: editedBody'i savedBody'e yaz, edit modundan çık
+                        setSavedBody(editedBody);
+                        setEditMode(false);
+                      } else {
+                        // Düzenle: savedBody varsa onu yükle, yoksa mevcut body'i
+                        setEditedBody(savedBody || selectedBody);
+                        setEditMode(true);
+                      }
                     }}
                   >
-                    {editMode ? "Önizleme" : "Düzenle"}
+                    {editMode ? "Kaydet" : "Düzenle"}
                   </button>
                   <button
                     className="stm-btn stm-btn-primary"
@@ -916,7 +971,7 @@ export default function STMAwards() {
                           )}
                         </div>
                       </div>
-                      {ri === selected.recipientIdx && editMode ? (
+                      {editMode ? (
                         <div style={{ padding: 12 }}>
                           <textarea
                             className="stm-mail-body-edit"
@@ -927,7 +982,7 @@ export default function STMAwards() {
                       ) : (
                         <div
                           className="stm-mail-body"
-                          dangerouslySetInnerHTML={{ __html: getBodyForRecipient(selected.school, ri) }}
+                          dangerouslySetInnerHTML={{ __html: savedBody || getBodyForRecipient(selected.school, ri) }}
                         />
                       )}
                     </div>
