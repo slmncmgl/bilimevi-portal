@@ -427,6 +427,7 @@ export default function STMAwards() {
 
   const [editMode, setEditMode] = useState(false);
   const [editedBody, setEditedBody] = useState("");
+  const [savedBody, setSavedBody] = useState(null); // edit kaydedilince buraya
 
   const [attachmentInput, setAttachmentInput] = useState("");
   const [attachments, setAttachments] = useState([]); // [{id, name}]
@@ -504,7 +505,8 @@ export default function STMAwards() {
 
   // editedBody'i selected veya template değişince güncelle
   useEffect(() => {
-    if (selected && mailTemplate && !editMode) {
+    if (selected && mailTemplate) {
+      setSavedBody(null); // okul değişince kaydı sıfırla
       setEditedBody(getBodyForRecipient(selected.school, selected.recipientIdx));
     }
   }, [selected, mailTemplate, paragraphs]);
@@ -559,7 +561,7 @@ export default function STMAwards() {
       const log = [];
       for (let i = 0; i < recipients.length; i++) {
         const r = recipients[i];
-        const body = editMode ? editedBody : getBodyForRecipient(school, i);
+        const body = editMode ? editedBody : (savedBody || getBodyForRecipient(school, i));
         const res = await apiFetch("sendMail", {
           to: r.email,
           firstName: r.firstName,
@@ -664,7 +666,7 @@ export default function STMAwards() {
   );
 
   const selectedBody = selected
-    ? (editMode ? editedBody : getBodyForRecipient(selected.school, selected.recipientIdx))
+    ? (editMode ? editedBody : (savedBody || getBodyForRecipient(selected.school, selected.recipientIdx)))
     : "";
 
   return (
@@ -914,11 +916,18 @@ export default function STMAwards() {
                   <button
                     className={`stm-btn stm-btn-secondary`}
                     onClick={() => {
-                      setEditMode(!editMode);
-                      if (!editMode) setEditedBody(selectedBody);
+                      if (editMode) {
+                        // Kaydet: editedBody'i savedBody'e yaz, edit modundan çık
+                        setSavedBody(editedBody);
+                        setEditMode(false);
+                      } else {
+                        // Düzenle: savedBody varsa onu yükle, yoksa mevcut body'i
+                        setEditedBody(savedBody || selectedBody);
+                        setEditMode(true);
+                      }
                     }}
                   >
-                    {editMode ? "Önizleme" : "Düzenle"}
+                    {editMode ? "Kaydet" : "Düzenle"}
                   </button>
                   <button
                     className="stm-btn stm-btn-primary"
