@@ -78,6 +78,7 @@ export default function AuthCallback() {
           company: personel["Şirket"],
           branch:  personel["Şube"],
           title:   (personel["Title"] || "staff").toLowerCase(),
+          rol:     (personel["Title"] || "staff").toLowerCase(),
           modules: {
             izin:      moduller?.["İzin Yönetimi"]?.toLowerCase() === "evet",
             instagram: moduller?.["İnstagram DM"]?.toLowerCase() === "evet",

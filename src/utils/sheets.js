@@ -61,6 +61,7 @@ export async function loginWithCredentials(username, password) {
       company: user["Şirket"],
       branch:  user["Şube"],
       title:   (user["Title"] || "staff").toLowerCase(),
+      rol:     (user["Title"] || "staff").toLowerCase(),
       modules,
     }
   };
