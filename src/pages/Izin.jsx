@@ -163,7 +163,7 @@ export default function Izin() {
     loadData(session.name);
     if (r === "admin") {
       setAdminView(true);
-      loadAdminList();
+      loadAdminList(session);
     }
   }, []);
 
@@ -200,21 +200,20 @@ export default function Izin() {
     setDataLoading(false);
   }
 
-  async function loadAdminList() {
+  async function loadAdminList(sessionOverride) {
     setAdminLoading(true);
     try {
-      const userTitle = user?.title || "staff";
+      const userTitle = (sessionOverride?.title || sessionOverride?.rol || user?.title || "staff");
       const tumPersonel = await fetchTumPersonel();
       let filtered;
       if (userTitle === "owner" || userTitle === "admin") {
         filtered = tumPersonel;
       } else if (userTitle === "director") {
-        filtered = tumPersonel.filter(p => p["Şirket"] === personel?.["Şirket"]);
+        filtered = tumPersonel.filter(p => p["Şirket"] === (sessionOverride?.company || personel?.["Şirket"]));
       } else {
-        // manager
         filtered = tumPersonel.filter(p =>
-          p["Şirket"] === personel?.["Şirket"] &&
-          p["Şube"] === personel?.["Şube"]
+          p["Şirket"] === (sessionOverride?.company || personel?.["Şirket"]) &&
+          p["Şube"] === (sessionOverride?.branch || personel?.["Şube"])
         );
       }
       setAdminList(filtered);
