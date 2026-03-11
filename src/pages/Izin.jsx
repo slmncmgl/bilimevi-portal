@@ -7,7 +7,6 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlPHZ0SNvLfogs762bh
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
-
 async function fetchRoller() {
   const csv = await fetchSheetCSV("Roller");
   const lines = csv.trim().split("\n");
@@ -1096,64 +1095,122 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
 
 function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
   const [moduller, setModuller] = useState([]);
+  const [globalVals, setGlobalVals] = useState({});
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     fetchSheetCSV("Modüller").then(csv => {
       const lines = csv.trim().split("\n");
       const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
-      // Ad Soyad hariç tüm sütunlar modül
-      setModuller(headers.filter(h => h && h !== "Ad Soyad"));
-    }).catch(() => setModuller(["İzin Yönetimi","İnstagram DM","Quiz Cevapları","Bülten Düzenleyici","STM"]));
-  }, []);
-  return (
-    <div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-        <thead><tr style={{ background: "#f8fafc" }}>
-          <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: "600", color: "#475569", borderBottom: "1px solid #e2e8f0" }}>Ad Soyad</th>
-          {moduller.map(m => <th key={m} style={{ padding: "8px 10px", textAlign: "center", fontWeight: "600", color: "#475569", borderBottom: "1px solid #e2e8f0", fontSize: "11px" }}>{m}</th>)}
-          <th style={{ borderBottom: "1px solid #e2e8f0" }}></th>
-        </tr></thead>
-        <tbody>
-          {data.map((row, i) => <ModulEditRow key={i} row={row} moduller={moduller} scriptUrl={scriptUrl} onRefresh={onRefresh} onSaveDone={onSaveDone} />)}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+      const mods = headers.filter(h => h && h !== "Ad Soyad");
+      setModuller(mods);
+      const init = {};
+      data.forEach(row => {
+        init[row["Ad Soyad"]] = {};
+        mods.forEach(m => { init[row["Ad Soyad"]][m] = (row[m] || "hayır") === "evet"; });
+      });
+      setGlobalVals(init);
+    }).catch(() => {
+      const mods = ["İzin Yönetimi","İnstagram DM","Quiz Cevapları","Bülten Düzenleyici","STM"];
+      setModuller(mods);
+      const init = {};
+      data.forEach(row => {
+        init[row["Ad Soyad"]] = {};
+        mods.forEach(m => { init[row["Ad Soyad"]][m] = (row[m] || "hayır") === "evet"; });
+      });
+      setGlobalVals(init);
+    });
+  }, [data]);
 
-function ModulEditRow({ row, moduller, scriptUrl, onRefresh, onSaveDone }) {
-  const [vals, setVals] = useState({});
-  useEffect(() => {
-    const v = {};
-    moduller.forEach(m => { v[m] = (row[m] || "hayır") === "evet"; });
-    setVals(v);
-  }, [moduller]);
-  const [saving, setSaving] = useState(false);
+  function toggleVal(name, modul) {
+    setGlobalVals(prev => ({
+      ...prev,
+      [name]: { ...prev[name], [modul]: !prev[name]?.[modul] }
+    }));
+  }
 
-  async function handleSave() {
+  function toggleAll(modul) {
+    const allChecked = data.length > 0 && data.every(row => globalVals[row["Ad Soyad"]]?.[modul]);
+    setGlobalVals(prev => {
+      const next = { ...prev };
+      data.forEach(row => {
+        next[row["Ad Soyad"]] = { ...next[row["Ad Soyad"]], [modul]: !allChecked };
+      });
+      return next;
+    });
+  }
+
+  async function handleSaveAll() {
     setSaving(true);
-    const payload = { action: "updateModulRow", name: row["Ad Soyad"] };
-    moduller.forEach(m => { payload[m] = vals[m] ? "evet" : "hayır"; });
-    await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+    for (const row of data) {
+      const name = row["Ad Soyad"];
+      const payload = { action: "updateModulRow", name };
+      moduller.forEach(m => { payload[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
+      await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+    }
     setSaving(false);
     if (onSaveDone) onSaveDone();
     onRefresh();
   }
 
+  const adColW = "20%";
+  const modColW = moduller.length > 0 ? (80 / moduller.length).toFixed(1) + "%" : "10%";
+
   return (
-    <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-      <td style={{ padding: "8px 10px", fontWeight: "600" }}>{row["Ad Soyad"]}</td>
-      {moduller.map(m => (
-        <td key={m} style={{ padding: "8px 10px", textAlign: "center" }}>
-          <input type="checkbox" checked={vals[m]} onChange={e => setVals(p => ({ ...p, [m]: e.target.checked }))}
-            style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "#2563eb" }} />
-        </td>
-      ))}
-      <td style={{ padding: "8px 10px" }}>
-        <button onClick={handleSave} disabled={saving} style={{ padding: "4px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: saving ? "not-allowed" : "pointer", fontSize: "12px", minWidth: "52px", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
-          {saving ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "Kaydet"}
+    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "10px" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed" }}>
+          <colgroup>
+            <col style={{ width: adColW }} />
+            {moduller.map((_, i) => <col key={i} style={{ width: modColW }} />)}
+          </colgroup>
+          <thead>
+            <tr style={{ background: "#f1f5f9" }}>
+              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "12px", borderRadius: "10px 0 0 0" }}>Ad Soyad</th>
+              {moduller.map((m, i) => (
+                <th key={m} style={{ padding: "8px 4px", textAlign: "center", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "11px", wordBreak: "break-word", lineHeight: "1.3", borderLeft: "1px solid #e2e8f0", borderRadius: i === moduller.length - 1 ? "0 10px 0 0" : "0" }}>
+                  <div style={{ marginBottom: "4px" }}>{m}</div>
+                  <div>
+                    <input type="checkbox"
+                      checked={data.length > 0 && data.every(row => globalVals[row["Ad Soyad"]]?.[m])}
+                      onChange={() => toggleAll(m)}
+                      title="Tümünü seç/kaldır"
+                      style={{ width: "13px", height: "13px", cursor: "pointer", accentColor: "#2563eb" }} />
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row, i) => {
+              const name = row["Ad Soyad"];
+              return (
+                <tr key={i} style={{ borderBottom: i < data.length - 1 ? "1px solid #f1f5f9" : "none", background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
+                  <td style={{ padding: "9px 12px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#1e293b" }}>{name}</td>
+                  {moduller.map(m => (
+                    <td key={m} style={{ padding: "9px 4px", textAlign: "center", borderLeft: "1px solid #f1f5f9" }}>
+                      <input type="checkbox"
+                        checked={globalVals[name]?.[m] || false}
+                        onChange={() => toggleVal(name, m)}
+                        style={{ width: "15px", height: "15px", cursor: "pointer", accentColor: "#2563eb" }} />
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <button onClick={handleSaveAll} disabled={saving}
+          style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
+          {saving
+            ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Kaydediliyor...</>
+            : "Tüm Değişiklikleri Kaydet"
+          }
         </button>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }
 
