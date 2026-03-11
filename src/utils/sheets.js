@@ -47,9 +47,9 @@ export async function loginWithCredentials(username, password) {
 
   const modules = {
     izin:      modulRow?.["İzin Yönetimi"] === "evet",
-    instagram: modulRow?.["İnstagram DM"] === "evet",
-    quiz:      modulRow?.["Quiz Cevapları"] === "evet",
-    bulten:    modulRow?.["Bülten Düzenleyici"] === "evet",
+    instagram: modulRow?.["Instagram"] === "evet",
+    quiz:      modulRow?.["Quiz"] === "evet",
+    bulten:    modulRow?.["Bülten"] === "evet",
     stm:       modulRow?.["STM"] === "evet",
   };
 
