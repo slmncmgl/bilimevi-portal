@@ -3,7 +3,6 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMf0ZCSx9YPSJkoQDAOTwBd_bpGIZWSS8ZZRR5toTXgmwR3weIRd3hjilZHjLSBguEww/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
-
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 function parseEmails(raw) {
   if (!raw) return [];
@@ -505,7 +504,7 @@ export default function STMAwards() {
 
   // editedBody'i selected veya template değişince güncelle
   useEffect(() => {
-    if (selected && mailTemplate) {
+    if (selected && mailTemplate && !editMode) {
       setEditedBody(getBodyForRecipient(selected.school, selected.recipientIdx));
     }
   }, [selected, mailTemplate, paragraphs]);
@@ -546,39 +545,43 @@ export default function STMAwards() {
   // ── SEND SINGLE ──
   const sendSingle = async () => {
     if (!selected) return;
-    const { school, recipientIdx } = selected;
-    const r = school.recipients[recipientIdx];
-    const body = editMode ? editedBody : getBodyForRecipient(school, recipientIdx);
+    const { school } = selected;
+    // Edit modunda sadece seçili recipient'a gönder, normal modda tüm recipients'a
+    const recipients = editMode
+      ? [school.recipients[selected.recipientIdx]]
+      : school.recipients;
+    const total = recipients.length;
 
     setSending(true);
-    setSendProgress({ current: 0, total: 1, log: [] });
+    setSendProgress({ current: 0, total, log: [] });
 
     try {
-      const res = await apiFetch("sendMail", {
-        to: r.email,
-        firstName: r.firstName,
-        schoolName: school.okul,
-        mailBody: body,
-        subject: MAIL_SUBJECT,
-        attachmentIds: attachments.map((a) => a.id),
-        sheetName: school.sheetName,
-        rowIndex: school.rowIndex,
-      });
-
+      const log = [];
+      for (let i = 0; i < recipients.length; i++) {
+        const r = recipients[i];
+        const body = editMode ? editedBody : getBodyForRecipient(school, i);
+        const res = await apiFetch("sendMail", {
+          to: r.email,
+          firstName: r.firstName,
+          schoolName: school.okul,
+          mailBody: body,
+          subject: MAIL_SUBJECT,
+          attachmentIds: attachments.map((a) => a.id),
+          sheetName: school.sheetName,
+          rowIndex: school.rowIndex,
+        });
+        log.push({ to: r.email, success: res.success, error: res.error });
+        setSendProgress({ current: i + 1, total, log: [...log] });
+      }
       setSchools((prev) =>
         prev.map((s) =>
           s.id === school.id
-            ? { ...s, portalDurum: res.success ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
+            ? { ...s, portalDurum: log.every(l => l.success) ? "Gönderildi ✓" : "Hatalı Gönderim ✗" }
             : s
         )
       );
-      setSendProgress({
-        current: 1, total: 1,
-        log: [{ to: r.email, success: res.success, error: res.error }],
-      });
     } catch (e) {
       console.error("[STM] sendSingle hata:", e);
-      setSendProgress({ current: 1, total: 1, log: [{ to: r.email, success: false, error: e.message }] });
     } finally {
       setSendDone(true);
     }
