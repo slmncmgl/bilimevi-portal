@@ -7,6 +7,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlPHZ0SNvLfogs762bh
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
+
 async function fetchRoller() {
   const csv = await fetchSheetCSV("Roller");
   const lines = csv.trim().split("\n");
@@ -1120,11 +1121,12 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
 }
 
 function ModulEditRow({ row, moduller, scriptUrl, onRefresh, onSaveDone }) {
-  const [vals, setVals] = useState(() => {
+  const [vals, setVals] = useState({});
+  useEffect(() => {
     const v = {};
     moduller.forEach(m => { v[m] = (row[m] || "hayır") === "evet"; });
-    return v;
-  });
+    setVals(v);
+  }, [moduller]);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
