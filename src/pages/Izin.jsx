@@ -547,6 +547,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
   const [subeKisiOnay, setSubeKisiOnay] = useState(null); // { sirket, sube, mod: "sil"|"duzenle" }
   const [subeEkleSaving, setSubeEkleSaving] = useState(false);
   const [subeSilSaving, setSubeSilSaving] = useState(false);
+  const [saveOverlay, setSaveOverlay] = useState(false);
 
   async function fetchSubeListAll() {
     setSubeLoading(true);
@@ -632,6 +633,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
 
   return (
     <div style={styles.adminWrap}>
+      {saveOverlay && (
+        <div style={{ position: "fixed", bottom: "32px", left: "50%", transform: "translateX(-50%)", background: "#0f172a", color: "#fff", padding: "12px 24px", borderRadius: "12px", fontSize: "14px", fontWeight: "600", zIndex: 9999, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: "10px" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+          Drive Güncellendi
+        </div>
+      )}
       {showSubeler && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: "#fff", borderRadius: "16px", padding: "28px", width: "480px", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 25px 60px rgba(0,0,0,0.2)", position: "relative" }}>
@@ -738,7 +745,10 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
               ))}
             </div>
             <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
-              {duzenleTab === "personel" && <DuzenlePersonel data={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} roller={roller} />}
+              {duzenleTab === "personel" && <DuzenlePersonel data={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} roller={roller}
+                onSaveStart={() => {}}
+                onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }}
+              />}
               {duzenleTab === "moduller" && <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} />}
               {duzenleTab === "id" && <DuzenleID data={duzenleData.id} personelData={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} />}
             </div>
@@ -1071,7 +1081,9 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
       </td>
       <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <div style={{ display: "flex", gap: "2px" }}>
-          <button onClick={handleSave} disabled={saving} style={{ padding: "4px 8px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>{saving ? "..." : "✓"}</button>
+          <button onClick={handleSave} disabled={saving} style={{ padding: "4px 8px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: saving ? "not-allowed" : "pointer", fontSize: "12px", minWidth: "28px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {saving ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
+          </button>
           <button onClick={() => onDeactivate && onDeactivate()} style={{ padding: "4px 8px", background: "#e2e8f0", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>✕</button>
         </div>
       </td>
