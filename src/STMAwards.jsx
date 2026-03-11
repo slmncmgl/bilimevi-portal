@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx1W43qc-M6dFaq5FNmt-R4JTzP5fjO4-tkYyivbZXQ8Qub_jOwF6GrKlS-zJzFSI2wAg/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMf0ZCSx9YPSJkoQDAOTwBd_bpGIZWSS8ZZRR5toTXgmwR3weIRd3hjilZHjLSBguEww/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -434,6 +434,7 @@ export default function STMAwards() {
 
   const [sending, setSending] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, log: [] });
+  const [sendDone, setSendDone] = useState(false);
 
   // ── LOAD DATA ──
   useEffect(() => {
@@ -576,7 +577,7 @@ export default function STMAwards() {
       console.error("[STM] sendSingle hata:", e);
       setSendProgress({ current: 1, total: 1, log: [{ to: r.email, success: false, error: e.message }] });
     } finally {
-      setSending(false);
+      setSendDone(true);
     }
   };
 
@@ -634,7 +635,7 @@ export default function STMAwards() {
     } catch (e) {
       console.error("[STM] sendBulk hata:", e);
     } finally {
-      setSending(false);
+      setSendDone(true);
     }
   };
 
@@ -668,17 +669,42 @@ export default function STMAwards() {
       <style>{styles}</style>
 
       {/* SENDING OVERLAY */}
-      {sending && (
+      {(sending || sendDone) && (
         <div className="stm-overlay">
           <div className="stm-overlay-box">
-            <h3>Mailler Gönderiliyor</h3>
-            <p>{sendProgress.current} / {sendProgress.total} tamamlandı</p>
-            <div className="stm-progress-bar">
-              <div
-                className="stm-progress-fill"
-                style={{ width: `${sendProgress.total ? (sendProgress.current / sendProgress.total) * 100 : 0}%` }}
-              />
-            </div>
+            {sendDone ? (
+              <>
+                <h3 style={{ color: "var(--success)" }}>✓ Gönderim Tamamlandı</h3>
+                <p style={{ marginBottom: 12 }}>
+                  {sendProgress.log.filter(l => l.success).length} başarılı
+                  {sendProgress.log.filter(l => !l.success).length > 0 && (
+                    <span style={{ color: "var(--error)", marginLeft: 8 }}>
+                      · {sendProgress.log.filter(l => !l.success).length} hatalı
+                    </span>
+                  )}
+                </p>
+                <div className="stm-progress-bar" style={{ marginBottom: 16 }}>
+                  <div className="stm-progress-fill" style={{ width: "100%", background: "var(--success)" }} />
+                </div>
+                <button
+                  onClick={() => { setSendDone(false); setSending(false); }}
+                  style={{ padding: "8px 24px", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}
+                >
+                  Kapat
+                </button>
+              </>
+            ) : (
+              <>
+                <h3>Mailler Gönderiliyor</h3>
+                <p>{sendProgress.current} / {sendProgress.total} tamamlandı</p>
+                <div className="stm-progress-bar">
+                  <div
+                    className="stm-progress-fill"
+                    style={{ width: `${sendProgress.total ? (sendProgress.current / sendProgress.total) * 100 : 0}%` }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
