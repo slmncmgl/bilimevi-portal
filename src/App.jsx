@@ -4,7 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import Izin from "./pages/Izin";
 import AuthCallback from "./pages/AuthCallback";
 import SinavCevaplari from "./pages/SinavCevaplari";
-import STMAwards from "../STMAwards";
+import STMAwards from "./STMAwards";
 
 export default function App() {
   return (
