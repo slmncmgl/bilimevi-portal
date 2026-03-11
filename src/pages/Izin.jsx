@@ -634,9 +634,11 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
   return (
     <div style={styles.adminWrap}>
       {saveOverlay && (
-        <div style={{ position: "fixed", bottom: "32px", left: "50%", transform: "translateX(-50%)", background: "#0f172a", color: "#fff", padding: "12px 24px", borderRadius: "12px", fontSize: "14px", fontWeight: "600", zIndex: 9999, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: "10px" }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
-          Drive Güncellendi
+        <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, pointerEvents: "none" }}>
+          <div style={{ background: "#fff", border: "1.5px solid #bbf7d0", color: "#15803d", padding: "16px 28px", borderRadius: "14px", fontSize: "14px", fontWeight: "600", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", gap: "10px" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+            Drive Güncellendi
+          </div>
         </div>
       )}
       {showSubeler && (
@@ -749,8 +751,8 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
                 onSaveStart={() => {}}
                 onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }}
               />}
-              {duzenleTab === "moduller" && <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} />}
-              {duzenleTab === "id" && <DuzenleID data={duzenleData.id} personelData={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} />}
+              {duzenleTab === "moduller" && <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />}
+              {duzenleTab === "id" && <DuzenleID data={duzenleData.id} personelData={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />}
             </div>
           </div>
         </div>
@@ -1091,25 +1093,33 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
   );
 }
 
-function DuzenleModuller({ data, scriptUrl, onRefresh }) {
-  const MODULLER = ["İzin Yönetimi","İnstagram DM","Quiz Cevapları","Bülten Düzenleyici"];
+function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
+  const [moduller, setModuller] = useState([]);
+  useEffect(() => {
+    fetchSheetCSV("Modüller").then(csv => {
+      const lines = csv.trim().split("\n");
+      const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
+      // Ad Soyad hariç tüm sütunlar modül
+      setModuller(headers.filter(h => h && h !== "Ad Soyad"));
+    }).catch(() => setModuller(["İzin Yönetimi","İnstagram DM","Quiz Cevapları","Bülten Düzenleyici","STM"]));
+  }, []);
   return (
     <div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead><tr style={{ background: "#f8fafc" }}>
           <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: "600", color: "#475569", borderBottom: "1px solid #e2e8f0" }}>Ad Soyad</th>
-          {MODULLER.map(m => <th key={m} style={{ padding: "8px 10px", textAlign: "center", fontWeight: "600", color: "#475569", borderBottom: "1px solid #e2e8f0", fontSize: "11px" }}>{m}</th>)}
+          {moduller.map(m => <th key={m} style={{ padding: "8px 10px", textAlign: "center", fontWeight: "600", color: "#475569", borderBottom: "1px solid #e2e8f0", fontSize: "11px" }}>{m}</th>)}
           <th style={{ borderBottom: "1px solid #e2e8f0" }}></th>
         </tr></thead>
         <tbody>
-          {data.map((row, i) => <ModulEditRow key={i} row={row} moduller={MODULLER} scriptUrl={scriptUrl} onRefresh={onRefresh} />)}
+          {data.map((row, i) => <ModulEditRow key={i} row={row} moduller={moduller} scriptUrl={scriptUrl} onRefresh={onRefresh} onSaveDone={onSaveDone} />)}
         </tbody>
       </table>
     </div>
   );
 }
 
-function ModulEditRow({ row, moduller, scriptUrl, onRefresh }) {
+function ModulEditRow({ row, moduller, scriptUrl, onRefresh, onSaveDone }) {
   const [vals, setVals] = useState(() => {
     const v = {};
     moduller.forEach(m => { v[m] = (row[m] || "hayır") === "evet"; });
@@ -1122,7 +1132,9 @@ function ModulEditRow({ row, moduller, scriptUrl, onRefresh }) {
     const payload = { action: "updateModulRow", name: row["Ad Soyad"] };
     moduller.forEach(m => { payload[m] = vals[m] ? "evet" : "hayır"; });
     await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
-    setSaving(false); onRefresh();
+    setSaving(false);
+    if (onSaveDone) onSaveDone();
+    onRefresh();
   }
 
   return (
@@ -1135,13 +1147,15 @@ function ModulEditRow({ row, moduller, scriptUrl, onRefresh }) {
         </td>
       ))}
       <td style={{ padding: "8px 10px" }}>
-        <button onClick={handleSave} disabled={saving} style={{ padding: "4px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>{saving ? "..." : "Kaydet"}</button>
+        <button onClick={handleSave} disabled={saving} style={{ padding: "4px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: saving ? "not-allowed" : "pointer", fontSize: "12px", minWidth: "52px", display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+          {saving ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "Kaydet"}
+        </button>
       </td>
     </tr>
   );
 }
 
-function DuzenleID({ data, personelData, scriptUrl, onRefresh }) {
+function DuzenleID({ data, personelData, scriptUrl, onRefresh, onSaveDone }) {
   return (
     <div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -1151,14 +1165,14 @@ function DuzenleID({ data, personelData, scriptUrl, onRefresh }) {
           ))}
         </tr></thead>
         <tbody>
-          {data.filter(r => r["Email"]).map((row, i) => <IDEditRow key={i} row={row} scriptUrl={scriptUrl} onRefresh={onRefresh} />)}
+          {data.filter(r => r["Email"]).map((row, i) => <IDEditRow key={i} row={row} scriptUrl={scriptUrl} onRefresh={onRefresh} onSaveDone={onSaveDone} />)}
         </tbody>
       </table>
     </div>
   );
 }
 
-function IDEditRow({ row, scriptUrl, onRefresh }) {
+function IDEditRow({ row, scriptUrl, onRefresh, onSaveDone }) {
   const [editing, setEditing] = useState(false);
   const [crmId, setCrmId] = useState(row["ID"] || "");
   const [saving, setSaving] = useState(false);
@@ -1166,7 +1180,9 @@ function IDEditRow({ row, scriptUrl, onRefresh }) {
   async function handleSave() {
     setSaving(true);
     await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "updateIdRow", email: row["Email"], id: crmId }) });
-    setSaving(false); setEditing(false); onRefresh();
+    setSaving(false); setEditing(false);
+    if (onSaveDone) onSaveDone();
+    onRefresh();
   }
 
   return (
@@ -1181,7 +1197,9 @@ function IDEditRow({ row, scriptUrl, onRefresh }) {
       <td style={{ padding: "8px 10px" }}>
         {editing
           ? <span style={{ display: "flex", gap: "4px" }}>
-              <button onClick={handleSave} disabled={saving} style={{ padding: "4px 10px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>{saving ? "..." : "✓"}</button>
+              <button onClick={handleSave} disabled={saving} style={{ padding: "4px 10px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", cursor: saving ? "not-allowed" : "pointer", fontSize: "12px", minWidth: "28px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {saving ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
+              </button>
               <button onClick={() => setEditing(false)} style={{ padding: "4px 10px", background: "#e2e8f0", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>✕</button>
             </span>
           : <button onClick={() => setEditing(true)} style={{ padding: "4px 10px", background: "#f1f5f9", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px" }}>Düzenle</button>
