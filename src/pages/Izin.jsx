@@ -162,7 +162,6 @@ export default function Izin() {
     setRol(r);
     loadData(session.name);
     if (r === "admin") {
-      setAdminView(true);
       loadAdminList(session);
     }
   }, []);
