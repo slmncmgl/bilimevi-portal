@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlPHZ0SNvLfogs762bhIMYZDUUPwhZcQUl2aZPqvmbWlDgPiHdoenkCtlHV3NzFtQw/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAjuJMQJyrNdwh2HuhwjFSw3c1kuIMExtHgVSeODc-D_gCtYjZS_vRy8TAp1h0m90E/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -1141,12 +1141,13 @@ const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefre
   async function handleSaveAll() {
     setSaving(true);
     try {
-      for (const row of data) {
+      const rows = data.map(row => {
         const name = row["Ad Soyad"];
-        const payload = { action: "updateModulRow", name };
-        moduller.forEach(m => { payload[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
-        await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
-      }
+        const rowData = { name };
+        moduller.forEach(m => { rowData[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
+        return rowData;
+      });
+      await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "updateModullerBulk", rows }) });
     } catch(e) {
       console.error(e);
     }
