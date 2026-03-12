@@ -740,13 +740,13 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
                 }}>{label}</button>
               ))}
             </div>
-            <div style={duzenleTab === "moduller" ? {} : { maxHeight: "60vh", overflowY: "auto" }}>
+            <div style={duzenleTab === "moduller" ? { maxHeight: "60vh", overflowY: "auto" } : { maxHeight: "60vh", overflowY: "auto" }}>
               {duzenleTab === "personel" && <DuzenlePersonel data={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} roller={roller}
                 onSaveStart={() => {}}
                 onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }}
               />}
               {duzenleTab === "moduller" && (
-                <ModullerWrapper data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData}
+                <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData}
                   onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />
               )}
               {duzenleTab === "id" && <DuzenleID data={duzenleData.id} personelData={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />}
@@ -1090,42 +1090,11 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
   );
 }
 
-function ModullerWrapper({ data, scriptUrl, onRefresh, onSaveDone }) {
-  const saveRef = useRef(null);
-  const [saving, setSaving] = useState(false);
 
-  async function handleSaveAll() {
-    setSaving(true);
-    try {
-      if (saveRef.current?.doSave) await saveRef.current.doSave();
-    } finally {
-      setSaving(false);
-      if (onSaveDone) onSaveDone();
-    }
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
-      <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
-        <DuzenleModuller data={data} scriptUrl={scriptUrl} onRefresh={onRefresh} saveRef={saveRef} onSaveDone={onSaveDone} />
-      </div>
-      <div style={{ borderTop: "1px solid #e2e8f0", padding: "12px 0 0 0", display: "flex", justifyContent: "flex-end" }}>
-        <button onClick={handleSaveAll} disabled={saving}
-          style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
-          {saving
-            ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Kaydediliyor...</>
-            : "Tüm Değişiklikleri Kaydet"
-          }
-        </button>
-      </div>
-    </div>
-  );
-}
-
-
-function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone, saveRef }) {
+function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
   const [moduller, setModuller] = useState([]);
   const [globalVals, setGlobalVals] = useState({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchSheetCSV("Modüller").then(csv => {
@@ -1170,15 +1139,20 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone, saveRef }) {
   }
 
   async function handleSaveAll() {
-    for (const row of data) {
-      const name = row["Ad Soyad"];
-      const payload = { action: "updateModulRow", name };
-      moduller.forEach(m => { payload[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
-      await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+    setSaving(true);
+    try {
+      for (const row of data) {
+        const name = row["Ad Soyad"];
+        const payload = { action: "updateModulRow", name };
+        moduller.forEach(m => { payload[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
+        await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+      }
+    } catch(e) {
+      console.error(e);
     }
+    setSaving(false);
+    if (onSaveDone) onSaveDone();
   }
-
-  if (saveRef) saveRef.current = { doSave: handleSaveAll };
 
   const adColW = "20%";
   const modColW = moduller.length > 0 ? (80 / moduller.length).toFixed(1) + "%" : "10%";
@@ -1194,7 +1168,7 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone, saveRef }) {
           <thead>
             <tr style={{ background: "#f1f5f9" }}>
               <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "12px", position: "sticky", top: 0, background: "#f1f5f9", zIndex: 1 }}>Ad Soyad</th>
-              {moduller.map((m, i) => (
+              {moduller.map((m) => (
                 <th key={m} style={{ padding: "8px 4px", textAlign: "center", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "11px", wordBreak: "break-word", lineHeight: "1.3", borderLeft: "1px solid #e2e8f0", position: "sticky", top: 0, background: "#f1f5f9", zIndex: 1 }}>
                   <div style={{ marginBottom: "4px" }}>{m}</div>
                   <div>
@@ -1227,6 +1201,15 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone, saveRef }) {
             })}
           </tbody>
         </table>
+      </div>
+      <div style={{ position: "sticky", bottom: 0, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 0", display: "flex", justifyContent: "flex-end" }}>
+        <button onClick={handleSaveAll} disabled={saving}
+          style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
+          {saving
+            ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Kaydediliyor...</>
+            : "Tüm Değişiklikleri Kaydet"
+          }
+        </button>
       </div>
     </div>
   );
