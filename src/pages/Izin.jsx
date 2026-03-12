@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
@@ -1091,7 +1091,7 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
 }
 
 function ModullerWrapper({ data, scriptUrl, onRefresh, onSaveDone }) {
-  const saveRef = { current: null };
+  const saveRef = useRef(null);
   const [saving, setSaving] = useState(false);
 
   async function handleSaveAll() {
