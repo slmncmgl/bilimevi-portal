@@ -746,11 +746,8 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
                 onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }}
               />}
               {duzenleTab === "moduller" && (
-                <div style={{ display: "flex", flexDirection: "column", height: "55vh" }}>
-                  <div style={{ flex: 1, overflowY: "auto" }}>
-                    <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />
-                  </div>
-                </div>
+                <ModullerWrapper data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData}
+                  onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />
               )}
               {duzenleTab === "id" && <DuzenleID data={duzenleData.id} personelData={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />}
             </div>
@@ -1093,10 +1090,43 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
   );
 }
 
-function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
+function ModullerWrapper({ data, scriptUrl, onRefresh, onSaveDone }) {
+  const saveRef = { current: null };
+  const [saving, setSaving] = useState(false);
+
+  async function handleSaveAll() {
+    setSaving(true);
+    try {
+      if (saveRef.current?.doSave) await saveRef.current.doSave();
+    } finally {
+      setSaving(false);
+      if (onSaveDone) onSaveDone();
+      setTimeout(() => onRefresh(), 300);
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <div style={{ maxHeight: "50vh", overflowY: "auto" }}>
+        <DuzenleModuller data={data} scriptUrl={scriptUrl} onRefresh={onRefresh} saveRef={saveRef} onSaveDone={onSaveDone} />
+      </div>
+      <div style={{ borderTop: "1px solid #e2e8f0", padding: "12px 0 0 0", display: "flex", justifyContent: "flex-end" }}>
+        <button onClick={handleSaveAll} disabled={saving}
+          style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
+          {saving
+            ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Kaydediliyor...</>
+            : "Tüm Değişiklikleri Kaydet"
+          }
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
+function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone, saveRef }) {
   const [moduller, setModuller] = useState([]);
   const [globalVals, setGlobalVals] = useState({});
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchSheetCSV("Modüller").then(csv => {
@@ -1141,20 +1171,15 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
   }
 
   async function handleSaveAll() {
-    setSaving(true);
-    try {
-      for (const row of data) {
-        const name = row["Ad Soyad"];
-        const payload = { action: "updateModulRow", name };
-        moduller.forEach(m => { payload[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
-        await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
-      }
-    } finally {
-      setSaving(false);
-      if (onSaveDone) onSaveDone();
-      setTimeout(() => onRefresh(), 300);
+    for (const row of data) {
+      const name = row["Ad Soyad"];
+      const payload = { action: "updateModulRow", name };
+      moduller.forEach(m => { payload[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
+      await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
     }
   }
+
+  if (saveRef) saveRef.current = { doSave: handleSaveAll };
 
   const adColW = "20%";
   const modColW = moduller.length > 0 ? (80 / moduller.length).toFixed(1) + "%" : "10%";
@@ -1203,15 +1228,6 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
             })}
           </tbody>
         </table>
-      </div>
-      <div style={{ borderTop: "1px solid #e2e8f0", borderLeft: "1px solid #e2e8f0", borderRight: "1px solid #e2e8f0", borderRadius: "0 0 10px 10px", background: "#f8fafc", padding: "12px 16px", display: "flex", justifyContent: "flex-end" }}>
-        <button onClick={handleSaveAll} disabled={saving}
-          style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
-          {saving
-            ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Kaydediliyor...</>
-            : "Tüm Değişiklikleri Kaydet"
-          }
-        </button>
       </div>
     </div>
   );
