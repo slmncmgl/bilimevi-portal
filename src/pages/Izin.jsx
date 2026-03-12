@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzlPHZ0SNvLfogs762bhIMYZDUUPwhZcQUl2aZPqvmbWlDgPiHdoenkCtlHV3NzFtQw/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAjuJMQJyrNdwh2HuhwjFSw3c1kuIMExtHgVSeODc-D_gCtYjZS_vRy8TAp1h0m90E/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -516,6 +516,7 @@ export default function Izin() {
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
       `}</style>
     </div>
   );
@@ -629,9 +630,9 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
     <div style={styles.adminWrap}>
       {saveOverlay && (
         <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, pointerEvents: "none" }}>
-          <div style={{ background: "#fff", border: "1.5px solid #bbf7d0", color: "#15803d", padding: "16px 28px", borderRadius: "14px", fontSize: "14px", fontWeight: "600", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", gap: "10px" }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
-            Drive Güncellendi
+          <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", color: "#1e3a5f", padding: "16px 32px", borderRadius: "14px", fontSize: "14px", fontWeight: "600", boxShadow: "0 4px 24px rgba(30,58,95,0.13)", display: "flex", alignItems: "center", gap: "10px", fontFamily: "inherit", animation: "fadeUp 0.2s ease" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
+            Kaydedildi
           </div>
         </div>
       )}
@@ -740,12 +741,14 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
                 }}>{label}</button>
               ))}
             </div>
-            <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+            <div style={duzenleTab === "moduller" ? { maxHeight: "60vh", overflowY: "auto" } : { maxHeight: "60vh", overflowY: "auto" }}>
               {duzenleTab === "personel" && <DuzenlePersonel data={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} roller={roller}
                 onSaveStart={() => {}}
                 onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }}
               />}
-              {duzenleTab === "moduller" && <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />}
+              {duzenleTab === "moduller" && (
+                <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2500); }} />
+              )}
               {duzenleTab === "id" && <DuzenleID data={duzenleData.id} personelData={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />}
             </div>
           </div>
@@ -1087,7 +1090,8 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
   );
 }
 
-function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
+
+const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
   const [moduller, setModuller] = useState([]);
   const [globalVals, setGlobalVals] = useState({});
   const [saving, setSaving] = useState(false);
@@ -1136,23 +1140,27 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
 
   async function handleSaveAll() {
     setSaving(true);
-    for (const row of data) {
-      const name = row["Ad Soyad"];
-      const payload = { action: "updateModulRow", name };
-      moduller.forEach(m => { payload[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
-      await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+    try {
+      const rows = data.map(row => {
+        const name = row["Ad Soyad"];
+        const rowData = { name };
+        moduller.forEach(m => { rowData[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
+        return rowData;
+      });
+      await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "updateModullerBulk", rows }) });
+    } catch(e) {
+      console.error(e);
     }
     setSaving(false);
     if (onSaveDone) onSaveDone();
-    onRefresh();
   }
 
   const adColW = "20%";
   const modColW = moduller.length > 0 ? (80 / moduller.length).toFixed(1) + "%" : "10%";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "10px" }}>
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "10px 10px 0 0" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: adColW }} />
@@ -1160,9 +1168,9 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
           </colgroup>
           <thead>
             <tr style={{ background: "#f1f5f9" }}>
-              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "12px", borderRadius: "10px 0 0 0" }}>Ad Soyad</th>
-              {moduller.map((m, i) => (
-                <th key={m} style={{ padding: "8px 4px", textAlign: "center", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "11px", wordBreak: "break-word", lineHeight: "1.3", borderLeft: "1px solid #e2e8f0", borderRadius: i === moduller.length - 1 ? "0 10px 0 0" : "0" }}>
+              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "12px", position: "sticky", top: 0, background: "#f1f5f9", zIndex: 1 }}>Ad Soyad</th>
+              {moduller.map((m) => (
+                <th key={m} style={{ padding: "8px 4px", textAlign: "center", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "11px", wordBreak: "break-word", lineHeight: "1.3", borderLeft: "1px solid #e2e8f0", position: "sticky", top: 0, background: "#f1f5f9", zIndex: 1 }}>
                   <div style={{ marginBottom: "4px" }}>{m}</div>
                   <div>
                     <input type="checkbox"
@@ -1195,7 +1203,8 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
           </tbody>
         </table>
       </div>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ position: "sticky", bottom: 0, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 0", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "12px" }}>
+
         <button onClick={handleSaveAll} disabled={saving}
           style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
           {saving
@@ -1206,7 +1215,7 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
       </div>
     </div>
   );
-}
+});
 
 function DuzenleID({ data, personelData, scriptUrl, onRefresh, onSaveDone }) {
   return (

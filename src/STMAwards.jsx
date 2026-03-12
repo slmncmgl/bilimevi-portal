@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxiBUSNe1pr_0VjPpfeAVX29xZUbO0qX6o2mN_pS81Se5pFdspXYh5dYjunVNJFe46_MA/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxchiWMsvCSAHrvm-m9fURpOz7a18EFNLtO78WF7wjs1zmXHxlflJQ4sh-ZTdujv6tAOg/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -70,15 +70,11 @@ function normalizeKategori(kat) {
 
 // ─── API ───────────────────────────────────────────────────────────────────
 async function apiFetch(action, postData = null) {
-  const url = `${SCRIPT_URL}?action=${action}`;
-  const opts = postData
-    ? {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(postData),
-      }
-    : { method: "GET" };
-  const res = await fetch(url, opts);
+  let url = `${SCRIPT_URL}?action=${action}`;
+  if (postData) {
+    url += `&data=${encodeURIComponent(JSON.stringify(postData))}`;
+  }
+  const res = await fetch(url);
   return res.json();
 }
 
