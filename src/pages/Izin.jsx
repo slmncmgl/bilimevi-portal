@@ -629,9 +629,9 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
   return (
     <div style={styles.adminWrap}>
       {saveOverlay && (
-        <div style={{ position: "fixed", top: "24px", right: "24px", zIndex: 9999, pointerEvents: "none", animation: "slideInRight 0.25s ease" }}>
-          <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", color: "#1e3a5f", padding: "12px 20px", borderRadius: "12px", fontSize: "13px", fontWeight: "600", boxShadow: "0 4px 20px rgba(30,58,95,0.12)", display: "flex", alignItems: "center", gap: "8px", fontFamily: "inherit" }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+        <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, pointerEvents: "none" }}>
+          <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", color: "#1e3a5f", padding: "16px 32px", borderRadius: "14px", fontSize: "14px", fontWeight: "600", boxShadow: "0 4px 24px rgba(30,58,95,0.13)", display: "flex", alignItems: "center", gap: "10px", fontFamily: "inherit", animation: "fadeUp 0.2s ease" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
             Kaydedildi
           </div>
         </div>
