@@ -740,12 +740,18 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
                 }}>{label}</button>
               ))}
             </div>
-            <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+            <div style={duzenleTab === "moduller" ? {} : { maxHeight: "60vh", overflowY: "auto" }}>
               {duzenleTab === "personel" && <DuzenlePersonel data={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} roller={roller}
                 onSaveStart={() => {}}
                 onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }}
               />}
-              {duzenleTab === "moduller" && <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />}
+              {duzenleTab === "moduller" && (
+                <div style={{ display: "flex", flexDirection: "column", height: "55vh" }}>
+                  <div style={{ flex: 1, overflowY: "auto" }}>
+                    <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />
+                  </div>
+                </div>
+              )}
               {duzenleTab === "id" && <DuzenleID data={duzenleData.id} personelData={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />}
             </div>
           </div>
@@ -1154,8 +1160,8 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
   const modColW = moduller.length > 0 ? (80 / moduller.length).toFixed(1) + "%" : "10%";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "10px 10px 0 0" }}>
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "10px 10px 0 0" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: adColW }} />
