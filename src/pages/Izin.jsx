@@ -1151,7 +1151,6 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
       console.error(e);
     }
     setSaving(false);
-    if (onSaveDone) onSaveDone();
   }
 
   const adColW = "20%";
