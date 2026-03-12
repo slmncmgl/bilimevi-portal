@@ -5,6 +5,7 @@ import Izin from "./pages/Izin";
 import AuthCallback from "./pages/AuthCallback";
 import SinavCevaplari from "./pages/SinavCevaplari";
 import STMAwards from "./STMAwards";
+import InstagramDM from "./pages/InstagramDM";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/izin" element={<Izin />} />
         <Route path="/sinav-cevaplari" element={<SinavCevaplari />} />
         <Route path="/stm" element={<STMAwards />} />
+        <Route path="/instagram" element={<InstagramDM />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         {/* Diğer modüller eklenecek */}
         <Route path="*" element={<Navigate to="/" />} />
