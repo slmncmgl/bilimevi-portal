@@ -1205,7 +1205,7 @@ const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefre
         </table>
       </div>
       <div style={{ position: "sticky", bottom: 0, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 0", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "12px" }}>
-        {saved && <span style={{ fontSize: "13px", color: "#059669", fontWeight: "600" }}>✓ Kaydedildi</span>}
+
         <button onClick={handleSaveAll} disabled={saving}
           style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : saved ? "#059669" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
           {saving
