@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
@@ -746,8 +746,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
                 onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }}
               />}
               {duzenleTab === "moduller" && (
-                <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData}
-                  onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />
+                <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} />
               )}
               {duzenleTab === "id" && <DuzenleID data={duzenleData.id} personelData={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />}
             </div>
@@ -1091,10 +1090,11 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
 }
 
 
-function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
+const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefresh }) {
   const [moduller, setModuller] = useState([]);
   const [globalVals, setGlobalVals] = useState({});
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     fetchSheetCSV("Modüller").then(csv => {
@@ -1151,6 +1151,8 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
       console.error(e);
     }
     setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   }
 
   const adColW = "20%";
@@ -1201,18 +1203,19 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
           </tbody>
         </table>
       </div>
-      <div style={{ position: "sticky", bottom: 0, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 0", display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ position: "sticky", bottom: 0, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 0", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "12px" }}>
+        {saved && <span style={{ fontSize: "13px", color: "#059669", fontWeight: "600" }}>✓ Kaydedildi</span>}
         <button onClick={handleSaveAll} disabled={saving}
-          style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
+          style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : saved ? "#059669" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
           {saving
             ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Kaydediliyor...</>
-            : "Tüm Değişiklikleri Kaydet"
+            : saved ? "✓ Kaydedildi" : "Tüm Değişiklikleri Kaydet"
           }
         </button>
       </div>
     </div>
   );
-}
+});
 
 function DuzenleID({ data, personelData, scriptUrl, onRefresh, onSaveDone }) {
   return (
