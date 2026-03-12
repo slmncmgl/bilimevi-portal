@@ -1136,23 +1136,26 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
 
   async function handleSaveAll() {
     setSaving(true);
-    for (const row of data) {
-      const name = row["Ad Soyad"];
-      const payload = { action: "updateModulRow", name };
-      moduller.forEach(m => { payload[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
-      await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+    try {
+      for (const row of data) {
+        const name = row["Ad Soyad"];
+        const payload = { action: "updateModulRow", name };
+        moduller.forEach(m => { payload[m] = globalVals[name]?.[m] ? "evet" : "hayır"; });
+        await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+      }
+    } finally {
+      setSaving(false);
+      if (onSaveDone) onSaveDone();
+      setTimeout(() => onRefresh(), 300);
     }
-    setSaving(false);
-    if (onSaveDone) onSaveDone();
-    onRefresh();
   }
 
   const adColW = "20%";
   const modColW = moduller.length > 0 ? (80 / moduller.length).toFixed(1) + "%" : "10%";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "10px" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "10px 10px 0 0" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed" }}>
           <colgroup>
             <col style={{ width: adColW }} />
@@ -1160,9 +1163,9 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
           </colgroup>
           <thead>
             <tr style={{ background: "#f1f5f9" }}>
-              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "12px", borderRadius: "10px 0 0 0" }}>Ad Soyad</th>
+              <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "12px", position: "sticky", top: 0, background: "#f1f5f9", zIndex: 1 }}>Ad Soyad</th>
               {moduller.map((m, i) => (
-                <th key={m} style={{ padding: "8px 4px", textAlign: "center", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "11px", wordBreak: "break-word", lineHeight: "1.3", borderLeft: "1px solid #e2e8f0", borderRadius: i === moduller.length - 1 ? "0 10px 0 0" : "0" }}>
+                <th key={m} style={{ padding: "8px 4px", textAlign: "center", fontWeight: "700", color: "#475569", borderBottom: "2px solid #e2e8f0", fontSize: "11px", wordBreak: "break-word", lineHeight: "1.3", borderLeft: "1px solid #e2e8f0", position: "sticky", top: 0, background: "#f1f5f9", zIndex: 1 }}>
                   <div style={{ marginBottom: "4px" }}>{m}</div>
                   <div>
                     <input type="checkbox"
@@ -1195,7 +1198,7 @@ function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
           </tbody>
         </table>
       </div>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ borderTop: "1px solid #e2e8f0", borderLeft: "1px solid #e2e8f0", borderRight: "1px solid #e2e8f0", borderRadius: "0 0 10px 10px", background: "#f8fafc", padding: "12px 16px", display: "flex", justifyContent: "flex-end" }}>
         <button onClick={handleSaveAll} disabled={saving}
           style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
           {saving
