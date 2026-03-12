@@ -516,6 +516,7 @@ export default function Izin() {
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
       `}</style>
     </div>
   );
@@ -628,10 +629,10 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
   return (
     <div style={styles.adminWrap}>
       {saveOverlay && (
-        <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, pointerEvents: "none" }}>
-          <div style={{ background: "#fff", border: "1.5px solid #bbf7d0", color: "#15803d", padding: "16px 28px", borderRadius: "14px", fontSize: "14px", fontWeight: "600", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", gap: "10px" }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
-            Drive Güncellendi
+        <div style={{ position: "fixed", top: "24px", right: "24px", zIndex: 9999, pointerEvents: "none", animation: "slideInRight 0.25s ease" }}>
+          <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", color: "#1e3a5f", padding: "12px 20px", borderRadius: "12px", fontSize: "13px", fontWeight: "600", boxShadow: "0 4px 20px rgba(30,58,95,0.12)", display: "flex", alignItems: "center", gap: "8px", fontFamily: "inherit" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>
+            Kaydedildi
           </div>
         </div>
       )}
@@ -746,7 +747,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
                 onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }}
               />}
               {duzenleTab === "moduller" && (
-                <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} />
+                <DuzenleModuller data={duzenleData.moduller} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2500); }} />
               )}
               {duzenleTab === "id" && <DuzenleID data={duzenleData.id} personelData={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }} />}
             </div>
@@ -1090,11 +1091,10 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
 }
 
 
-const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefresh }) {
+const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
   const [moduller, setModuller] = useState([]);
   const [globalVals, setGlobalVals] = useState({});
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     fetchSheetCSV("Modüller").then(csv => {
@@ -1152,8 +1152,7 @@ const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefre
       console.error(e);
     }
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    if (onSaveDone) onSaveDone();
   }
 
   const adColW = "20%";
@@ -1207,10 +1206,10 @@ const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefre
       <div style={{ position: "sticky", bottom: 0, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 0", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "12px" }}>
 
         <button onClick={handleSaveAll} disabled={saving}
-          style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : saved ? "#059669" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
+          style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
           {saving
             ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Kaydediliyor...</>
-            : saved ? "✓ Kaydedildi" : "Tüm Değişiklikleri Kaydet"
+            : "Tüm Değişiklikleri Kaydet"
           }
         </button>
       </div>
