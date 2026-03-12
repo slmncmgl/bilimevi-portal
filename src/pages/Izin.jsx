@@ -1101,7 +1101,6 @@ function ModullerWrapper({ data, scriptUrl, onRefresh, onSaveDone }) {
     } finally {
       setSaving(false);
       if (onSaveDone) onSaveDone();
-      setTimeout(() => onRefresh(), 300);
     }
   }
 
