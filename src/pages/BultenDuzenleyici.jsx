@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyODqIaFa-E8i0A5eDaBBYZ9y3PSLGvqzGG-4oh-6ZSXYf7TOlLuY71kYKEReqa7DSw/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbl0DwuWJ4mjkEImqNnji46WpzY-xpZlYWscSWXbi9y2wIHm2ktn_wEWspF7wjaYoG/exec";
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 const extractUrls = (text) => text.match(URL_REGEX) || [];
@@ -54,8 +54,10 @@ export default function BultenDuzenleyici() {
     setActiveChannel(null);
     try {
       const textOnly = stripUrls(input) || input;
-      const encoded = encodeURIComponent(JSON.stringify({ action: "bultenOzetle", metin: textOnly }));
-      const res = await fetch(`${SCRIPT_URL}?data=${encoded}`);
+      const res = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "bultenOzetle", metin: textOnly })
+      });
       const json = await res.json();
       if (!json.success) throw new Error(json.msg || "Hata");
       const { title, content } = json.data;
@@ -73,8 +75,10 @@ export default function BultenDuzenleyici() {
     setRegenLoading(r => ({ ...r, [field]: true }));
     try {
       const textOnly = stripUrls(input) || input;
-      const encoded = encodeURIComponent(JSON.stringify({ action: "bultenOzetle", metin: textOnly }));
-      const res = await fetch(`${SCRIPT_URL}?data=${encoded}`);
+      const res = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "bultenOzetle", metin: textOnly })
+      });
       const json = await res.json();
       if (!json.success) throw new Error(json.msg);
       if (field === "title" && json.data.title) setResult(r => ({ ...r, title: json.data.title }));
@@ -95,8 +99,10 @@ export default function BultenDuzenleyici() {
         ozet: result.content,
         url: result.urls?.[0] || ""
       };
-      const encoded = encodeURIComponent(JSON.stringify(payload));
-      const res = await fetch(`${SCRIPT_URL}?data=${encoded}`);
+      const res = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
       const json = await res.json();
       if (!json.success) throw new Error(json.msg || "Kayıt hatası");
       setStatus({ type: "success", msg: `Sheet'e kaydedildi (satır ${json.satir})` });
