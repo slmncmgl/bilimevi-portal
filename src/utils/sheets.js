@@ -46,11 +46,11 @@ export async function loginWithCredentials(username, password) {
   );
 
   const modules = {
-    izin:      modulRow?.["İzin Yönetimi"] === "evet",
-    instagram: modulRow?.["Instagram"] === "evet",
-    quiz:      modulRow?.["Quiz Cevapları"] === "evet",
-    bulten:    modulRow?.["Bülten Düzenleyici"] === "evet",
-    stm:       modulRow?.["STM"] === "evet",
+    izin:      modulRow?.["İzin Yönetimi"]?.toLowerCase() === "evet",
+    instagram: modulRow?.["İnstagram DM"]?.toLowerCase() === "evet",
+    quiz:      modulRow?.["Quiz Cevapları"]?.toLowerCase() === "evet",
+    bulten:    modulRow?.["Bülten Düzenleyici"]?.toLowerCase() === "evet",
+    stm:       modulRow?.["STM"]?.toLowerCase() === "evet",
   };
 
   return {
