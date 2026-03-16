@@ -1,3 +1,5 @@
+ 
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -35,38 +37,38 @@ export default function BultenDuzenleyici() {
     if (!session) { navigate("/"); return; }
     setUser(session);
 
-    // Sheet'teki mevcut haberleri çek
-    fetch(SCRIPT_URL, {
-      method: "POST",
-      body: JSON.stringify({ action: "bultenHaberleriGetir" })
-    })
-    .then(r => r.json())
-    .then(json => {
-      if (!json.success || !json.data) return;
-      // Haber-1..8 → K1..K8 (satır 2 = index 0)
-      const updated = Array(8).fill(null);
-      json.data.forEach(h => {
-        const idx = h.row - 2; // satır 2 = index 0
-        if (idx >= 0 && idx < 8) {
-          updated[idx] = {
-            title: h.title,
-            content: h.content,
-            urls: h.url ? [h.url] : [],
-            date: "",
-            fromSheet: true
-          };
+    // requestAnimationFrame ile skeleton'ın DOM'a yansımasını bekle, sonra fetch başlat
+    requestAnimationFrame(() => {
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "bultenHaberleriGetir" })
+      })
+      .then(r => r.json())
+      .then(json => {
+        if (!json.success || !json.data) return;
+        const updated = Array(8).fill(null);
+        json.data.forEach(h => {
+          const idx = h.row - 2;
+          if (idx >= 0 && idx < 8) {
+            updated[idx] = {
+              title: h.title,
+              content: h.content,
+              urls: h.url ? [h.url] : [],
+              date: "",
+              fromSheet: true
+            };
+          }
+        });
+        setChannels(updated);
+        const ilkDolu = updated.findIndex(ch => ch !== null);
+        if (ilkDolu !== -1) {
+          setResult({ title: updated[ilkDolu].title, content: updated[ilkDolu].content, urls: updated[ilkDolu].urls || [] });
+          setActiveChannel(ilkDolu);
         }
-      });
-      setChannels(updated);
-      // İlk dolu kanalı otomatik yükle
-      const ilkDolu = updated.findIndex(ch => ch !== null);
-      if (ilkDolu !== -1) {
-        setResult({ title: updated[ilkDolu].title, content: updated[ilkDolu].content, urls: updated[ilkDolu].urls || [] });
-        setActiveChannel(ilkDolu);
-      }
-    })
-    .catch(() => {})
-    .finally(() => setChannelsLoading(false));
+      })
+      .catch(() => {})
+      .finally(() => setChannelsLoading(false));
+    });
   }, []);
 
   useEffect(() => {
