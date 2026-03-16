@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5OvhjAnhT8j14FmrPubbWFNNCbpccoNQpsCS6hZw_V7q2u8z_kO0Ykg96SJ85XD4z/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwueCJrClXEVORShyqVCJ-Qo8hA4Qv0w5VP1ub-S7nPJLEdponzpKRepdEfUEW9Nfev/exec";
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 const extractUrls = (text) => text.match(URL_REGEX) || [];
@@ -49,7 +49,7 @@ export default function BultenDuzenleyici() {
   }
 
   // ── URL'den Özetle ────────────────────────────────────────────
-  const URL_FETCH_SCRIPT = "https://script.google.com/macros/s/AKfycbzm7BSdtvWUG_GXzz0tlXIzrgUKJfFDKxzbbbqnRalmybPONcagKxMOallJaBJFS4u_/exec";
+  const URL_FETCH_SCRIPT = "https://script.google.com/macros/s/AKfycby5OvhjAnhT8j14FmrPubbWFNNCbpccoNQpsCS6hZw_V7q2u8z_kO0Ykg96SJ85XD4z/exec";
 
   async function summarizeFromUrl() {
     if (!urlInput.trim()) return;
@@ -64,13 +64,15 @@ export default function BultenDuzenleyici() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.msg || "Hata");
+      if (!json.data || !json.data.title) throw new Error("Geçersiz yanıt: " + JSON.stringify(json));
       const { title, content } = json.data;
       setResult({ title, content, urls: [urlInput.trim()] });
       setStatus({ type: "success", msg: "Özet hazır" });
     } catch (err) {
       setStatus({ type: "error", msg: "Hata: " + err.message });
+    } finally {
+      setUrlLoading(false);
     }
-    setUrlLoading(false);
   }
 
   // ── Özetle (Apps Script üzerinden) ────────────────────────────
