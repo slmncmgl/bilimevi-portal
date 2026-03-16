@@ -15,6 +15,7 @@ export default function BultenDuzenleyici() {
   const [input, setInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
+  const [channelsLoading, setChannelsLoading] = useState(true);
   const [detectedUrls, setDetectedUrls] = useState([]);
   const [result, setResult] = useState(null); // { title, content, urls }
   const [loading, setLoading] = useState(false);
@@ -64,7 +65,8 @@ export default function BultenDuzenleyici() {
         setActiveChannel(ilkDolu);
       }
     })
-    .catch(() => {});
+    .catch(() => {})
+    .finally(() => setChannelsLoading(false));
   }, []);
 
   useEffect(() => {
@@ -328,7 +330,18 @@ export default function BultenDuzenleyici() {
                 Hafıza (8 Kanal)
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }}>
-                {channels.map((ch, i) => (
+                {channelsLoading
+                  ? Array(8).fill(null).map((_, i) => (
+                      <div key={i} style={{
+                        ...s.channelBtn,
+                        background: "linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%)",
+                        backgroundSize: "200% 100%",
+                        animation: "shimmer 1.4s infinite",
+                        border: "1.5px solid #e2e8f0",
+                        height: "56px"
+                      }} />
+                    ))
+                  : channels.map((ch, i) => (
                   <button key={i} onClick={() => loadChannel(i)}
                     style={{
                       ...s.channelBtn,
@@ -535,6 +548,7 @@ export default function BultenDuzenleyici() {
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         textarea:focus, input:focus { outline: none; border-color: #2563eb !important; }
       `}</style>
     </div>
