@@ -60,11 +60,6 @@ export default function BultenDuzenleyici() {
           }
         });
         setChannels(updated);
-        const ilkDolu = updated.findIndex(ch => ch !== null);
-        if (ilkDolu !== -1) {
-          setResult({ title: updated[ilkDolu].title, content: updated[ilkDolu].content, urls: updated[ilkDolu].urls || [] });
-          setActiveChannel(ilkDolu);
-        }
       })
       .catch(() => {})
       .finally(() => setChannelsLoading(false));
@@ -209,7 +204,12 @@ export default function BultenDuzenleyici() {
 
   // ── Kanal hafıza ─────────────────────────────────────────────
   function loadChannel(idx) {
-    if (!channels[idx]) return;
+    if (!channels[idx]) {
+      // Boş kanal — eğer mevcut sonuç varsa oraya kaydet
+      if (result) saveToChannel(idx);
+      return;
+    }
+    // Dolu kanal — aktif olarak işaretle, içeriği yükle
     setResult({ title: channels[idx].title, content: channels[idx].content, urls: channels[idx].urls || [] });
     setActiveChannel(idx);
     setCopied({ title: false, content: false, link: false });
@@ -370,11 +370,10 @@ export default function BultenDuzenleyici() {
                       <span onClick={(e) => clearChannel(i, e)}
                         style={{ position: "absolute", top: "3px", right: "4px", fontSize: "9px", color: "#94a3b8", lineHeight: 1 }}>✕</span>
                     )}
-                    <div style={{ fontSize: "10px", fontWeight: "700", color: ch ? "#2563eb" : "#94a3b8", marginBottom: "2px" }}>K{i + 1}</div>
-                    <div style={{ fontSize: "9px", color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
-                      {ch ? ch.title.slice(0, 12) + (ch.title.length > 12 ? "…" : "") : "Boş"}
+                    <div style={{ fontSize: "10px", fontWeight: "700", color: ch ? "#2563eb" : "#94a3b8" }}>{i + 1}. Haber</div>
+                    <div style={{ fontSize: "9px", color: ch?.fromSheet ? "#16a34a" : ch ? "#64748b" : "#cbd5e1", marginTop: "2px" }}>
+                      {ch?.fromSheet ? "Kayıtlı" : ch ? "Hafızada" : "Boş"}
                     </div>
-                    {ch && <div style={{ fontSize: "8px", color: "#94a3b8", marginTop: "2px" }}>{ch.date}</div>}
                   </button>
                 ))}
               </div>
@@ -385,25 +384,14 @@ export default function BultenDuzenleyici() {
           {/* SAĞ — Sonuçlar */}
           <div style={s.rightCol}>
 
-            {!result && !loading && (
-              <div style={{ ...s.card, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "300px", flexDirection: "column", gap: "12px" }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" width="40" height="40">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                </svg>
-                <p style={{ fontSize: "13px", color: "#94a3b8", margin: 0 }}>Metni yapıştırıp "Özetle"ye basın</p>
+            {activeChannel !== null && (
+              <div style={{ fontSize: "11px", color: "#2563eb", fontWeight: "600", textAlign: "right", marginBottom: "4px" }}>
+                ← Kanal {activeChannel + 1}
               </div>
             )}
 
-            {result && (
-              <>
-                {activeChannel !== null && (
-                  <div style={{ fontSize: "11px", color: "#2563eb", fontWeight: "600", textAlign: "right", marginBottom: "4px" }}>
-                    ← Kanal {activeChannel + 1}
-                  </div>
-                )}
-
-                {/* Başlık */}
-                <div style={{ ...s.card, borderColor: result.title.length > 50 ? "#fca5a5" : "#e2e8f0" }}>
+            {/* Başlık */}
+            <div style={{ ...s.card, borderColor: result && result.title.length > 50 ? "#fca5a5" : "#e2e8f0" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <div style={s.sectionLabel}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
@@ -412,21 +400,21 @@ export default function BultenDuzenleyici() {
                       Başlık
                     </div>
                     <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => regenField("title")} disabled={regenLoading.title} style={s.regenBtn}>
+                      <button onClick={() => regenField("title")} disabled={regenLoading.title || !result} style={s.regenBtn}>
                         {regenLoading.title ? <div style={{ ...s.spinner, width: "11px", height: "11px", border: "1.5px solid #e2e8f0", borderTopColor: "#2563eb" }} /> : "↻ Yenile"}
                       </button>
-                      <button onClick={() => copyField("title", result.title)} style={{ ...s.miniCopyBtn, background: copied.title ? "#dcfce7" : "#eff6ff", color: copied.title ? "#16a34a" : "#2563eb" }}>
+                      <button onClick={() => copyField("title", result?.title || "")} style={{ ...s.miniCopyBtn, background: copied.title ? "#dcfce7" : "#eff6ff", color: copied.title ? "#16a34a" : "#2563eb" }}>
                         {copied.title ? "✓ Kopyalandı" : "Kopyala"}
                       </button>
                     </div>
                   </div>
-                  <textarea value={result.title} onChange={e => setResult(r => ({ ...r, title: e.target.value }))}
-                    rows={2} style={s.textarea} />
-                  <CharBar value={result.title} max={50} />
+              <textarea value={result?.title || ""} onChange={e => result && setResult(r => ({ ...r, title: e.target.value }))}
+                rows={2} style={{ ...s.textarea, color: result ? "#0f172a" : "#94a3b8" }} />
+              {result && <CharBar value={result.title} max={50} />}
                 </div>
 
-                {/* Haber Özeti */}
-                <div style={{ ...s.card, borderColor: result.content.length > 200 ? "#fca5a5" : "#e2e8f0" }}>
+            {/* Haber Özeti */}
+            <div style={{ ...s.card, borderColor: result.content.length > 200 ? "#fca5a5" : "#e2e8f0" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <div style={s.sectionLabel}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
@@ -435,21 +423,21 @@ export default function BultenDuzenleyici() {
                       Haber Özeti
                     </div>
                     <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => regenField("content")} disabled={regenLoading.content} style={s.regenBtn}>
+                      <button onClick={() => regenField("content")} disabled={regenLoading.content || !result} style={s.regenBtn}>
                         {regenLoading.content ? <div style={{ ...s.spinner, width: "11px", height: "11px", border: "1.5px solid #e2e8f0", borderTopColor: "#2563eb" }} /> : "↻ Yenile"}
                       </button>
-                      <button onClick={() => copyField("content", result.content)} style={{ ...s.miniCopyBtn, background: copied.content ? "#dcfce7" : "#eff6ff", color: copied.content ? "#16a34a" : "#2563eb" }}>
+                      <button onClick={() => copyField("content", result?.content || "")} style={{ ...s.miniCopyBtn, background: copied.content ? "#dcfce7" : "#eff6ff", color: copied.content ? "#16a34a" : "#2563eb" }}>
                         {copied.content ? "✓ Kopyalandı" : "Kopyala"}
                       </button>
                     </div>
                   </div>
-                  <textarea value={result.content} onChange={e => setResult(r => ({ ...r, content: e.target.value }))}
-                    rows={4} style={s.textarea} />
-                  <CharBar value={result.content} max={200} />
+              <textarea value={result?.content || ""} onChange={e => result && setResult(r => ({ ...r, content: e.target.value }))}
+                rows={4} style={{ ...s.textarea, color: result ? "#0f172a" : "#94a3b8" }} />
+              {result && <CharBar value={result.content} max={200} />}
                 </div>
 
-                {/* Linkler */}
-                {result.urls && result.urls.length > 0 && (
+            {/* Linkler */}
+            {result && result.urls && result.urls.length > 0 && (
                   <div style={s.card}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                       <div style={s.sectionLabel}>
@@ -479,34 +467,33 @@ export default function BultenDuzenleyici() {
                   </div>
                 )}
 
-                {/* Aksiyon butonları */}
-                <div style={{ display: "flex", gap: "10px" }}>
-                  {activeChannel === null && (
-                    <button onClick={handleSaveClick} style={{ ...s.secondaryBtn, flex: 1 }}>
+            {/* Aksiyon butonları */}
+            <div style={{ display: "flex", gap: "10px" }}>
+              {result && activeChannel === null && (
+                <button onClick={handleSaveClick} style={{ ...s.secondaryBtn, flex: 1 }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  Hafızaya Kaydet
+                </button>
+              )}
+              <button onClick={saveToSheet} disabled={saving || activeChannel === null} style={{
+                ...s.primaryBtn, flex: 1,
+                opacity: (saving || activeChannel === null) ? 0.4 : 1,
+                cursor: (saving || activeChannel === null) ? "not-allowed" : "pointer"
+              }}>
+                {saving
+                  ? <><div style={s.spinner} /> Kaydediliyor...</>
+                  : <>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
                       </svg>
-                      Hafızaya Kaydet
-                    </button>
-                  )}
-                  <button onClick={saveToSheet} disabled={saving || activeChannel === null} style={{
-                    ...s.primaryBtn, flex: 1,
-                    opacity: (saving || activeChannel === null) ? 0.4 : 1,
-                    cursor: (saving || activeChannel === null) ? "not-allowed" : "pointer"
-                  }}>
-                    {saving
-                      ? <><div style={s.spinner} /> Kaydediliyor...</>
-                      : <>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
-                          </svg>
-                          Sheet'e Kaydet
-                        </>
-                    }
-                  </button>
-                </div>
-              </>
-            )}
+                      Sheet'e Kaydet
+                    </>
+                }
+              </button>
+            </div>
+
           </div>
         </div>
       </main>
@@ -535,8 +522,8 @@ export default function BultenDuzenleyici() {
                   {channels.map((ch, i) => (
                     <button key={i} onClick={() => handleChannelSelect(i)}
                       style={{ ...s.channelBtn, borderColor: ch?.fromSheet ? "#86efac" : ch ? "#bfdbfe" : "#e2e8f0", background: ch?.fromSheet ? "#f0fdf4" : "#fff" }}>
-                      <div style={{ fontSize: "10px", fontWeight: "700", color: ch ? "#2563eb" : "#94a3b8", marginBottom: "2px" }}>K{i + 1}</div>
-                      <div style={{ fontSize: "9px", color: "#64748b" }}>{ch ? ch.title.slice(0, 10) + "…" : "Boş"}</div>
+                      <div style={{ fontSize: "10px", fontWeight: "700", color: ch ? "#2563eb" : "#94a3b8" }}>{i + 1}. Haber</div>
+                      <div style={{ fontSize: "9px", color: ch?.fromSheet ? "#16a34a" : ch ? "#64748b" : "#cbd5e1" }}>{ch?.fromSheet ? "Kayıtlı" : ch ? "Hafızada" : "Boş"}</div>
                     </button>
                   ))}
                 </div>
