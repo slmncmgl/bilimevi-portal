@@ -5,7 +5,7 @@ import { getSession, clearSession } from "../utils/sheets";
 const MODULE_CONFIG = [
   {
     key: "izin",
-    title: "İK İzin Yönetimi",
+    title: "İzin Yönetimi",
     desc: "İzin talepleri ve personel takibi",
     path: "/izin",
     icon: (
