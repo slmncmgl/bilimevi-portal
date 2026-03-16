@@ -1,5 +1,6 @@
  
 
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -414,7 +415,7 @@ export default function BultenDuzenleyici() {
                 </div>
 
             {/* Haber Özeti */}
-            <div style={{ ...s.card, borderColor: result.content.length > 200 ? "#fca5a5" : "#e2e8f0" }}>
+            <div style={{ ...s.card, borderColor: result && result.content.length > 200 ? "#fca5a5" : "#e2e8f0" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <div style={s.sectionLabel}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
