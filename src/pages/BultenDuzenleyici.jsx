@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwueCJrClXEVORShyqVCJ-Qo8hA4Qv0w5VP1ub-S7nPJLEdponzpKRepdEfUEW9Nfev/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxFE2HP-e8qRc_01_5rKAOX8UEoUZTkBYdEnHpJyCXszLxxYqLU-qU0RNV4vu7n7Mlq/exec";
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 const extractUrls = (text) => text.match(URL_REGEX) || [];
@@ -33,6 +33,32 @@ export default function BultenDuzenleyici() {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
+
+    // Sheet'teki mevcut haberleri çek
+    fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "bultenHaberleriGetir" })
+    })
+    .then(r => r.json())
+    .then(json => {
+      if (!json.success || !json.data) return;
+      // Haber-1..8 → K1..K8 (satır 2 = index 0)
+      const updated = Array(8).fill(null);
+      json.data.forEach(h => {
+        const idx = h.row - 2; // satır 2 = index 0
+        if (idx >= 0 && idx < 8) {
+          updated[idx] = {
+            title: h.title,
+            content: h.content,
+            urls: h.url ? [h.url] : [],
+            date: "",
+            fromSheet: true
+          };
+        }
+      });
+      setChannels(updated);
+    })
+    .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -126,7 +152,8 @@ export default function BultenDuzenleyici() {
         action: "bultenKaydet",
         baslik: result.title,
         ozet: result.content,
-        url: result.urls?.[0] || ""
+        url: result.urls?.[0] || "",
+        slot: activeChannel !== null ? activeChannel : undefined
       };
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
@@ -299,8 +326,8 @@ export default function BultenDuzenleyici() {
                   <button key={i} onClick={() => loadChannel(i)}
                     style={{
                       ...s.channelBtn,
-                      borderColor: activeChannel === i ? "#2563eb" : ch ? "#bfdbfe" : "#e2e8f0",
-                      background: activeChannel === i ? "#eff6ff" : ch ? "#f8fafc" : "#fff",
+                      borderColor: activeChannel === i ? "#2563eb" : ch?.fromSheet ? "#86efac" : ch ? "#bfdbfe" : "#e2e8f0",
+                      background: activeChannel === i ? "#eff6ff" : ch?.fromSheet ? "#f0fdf4" : ch ? "#f8fafc" : "#fff",
                       position: "relative"
                     }}>
                     {ch && (
@@ -471,7 +498,7 @@ export default function BultenDuzenleyici() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
                   {channels.map((ch, i) => (
                     <button key={i} onClick={() => handleChannelSelect(i)}
-                      style={{ ...s.channelBtn, borderColor: ch ? "#bfdbfe" : "#e2e8f0" }}>
+                      style={{ ...s.channelBtn, borderColor: ch?.fromSheet ? "#86efac" : ch ? "#bfdbfe" : "#e2e8f0", background: ch?.fromSheet ? "#f0fdf4" : "#fff" }}>
                       <div style={{ fontSize: "10px", fontWeight: "700", color: ch ? "#2563eb" : "#94a3b8", marginBottom: "2px" }}>K{i + 1}</div>
                       <div style={{ fontSize: "9px", color: "#64748b" }}>{ch ? ch.title.slice(0, 10) + "…" : "Boş"}</div>
                     </button>
@@ -524,7 +551,7 @@ const s = {
   logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
 
   main: { maxWidth: "960px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
-  grid: { display: "grid", gridTemplateColumns: "360px 1fr", gap: "20px", alignItems: "start" },
+  grid: { display: "flex", flexDirection: "column", gap: "20px" },
   leftCol: { display: "flex", flexDirection: "column", gap: "16px" },
   rightCol: { display: "flex", flexDirection: "column", gap: "16px" },
 
