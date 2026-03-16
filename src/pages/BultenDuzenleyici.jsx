@@ -1,6 +1,5 @@
  
 
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -137,16 +136,31 @@ export default function BultenDuzenleyici() {
 
   // ── Tek alan yenile ───────────────────────────────────────────
   async function regenField(field) {
-    if (!input.trim()) return;
+    if (!result) return;
     setRegenLoading(r => ({ ...r, [field]: true }));
     try {
-      const textOnly = stripUrls(input) || input;
-      const res = await fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "bultenOzetle", metin: textOnly })
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.msg);
+      const sourceUrl = result.urls?.[0] || "";
+      let res, json;
+
+      if (sourceUrl) {
+        // URL varsa URL'den yeniden çek
+        res = await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: "bultenUrlOzetle", url: sourceUrl })
+        });
+        json = await res.json();
+        if (!json.success || !json.data) throw new Error(json.msg || "Hata");
+      } else {
+        // URL yoksa mevcut title+content'i metin olarak gönder
+        const metin = result.title + " " + result.content;
+        res = await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: "bultenOzetle", metin })
+        });
+        json = await res.json();
+        if (!json.success) throw new Error(json.msg || "Hata");
+      }
+
       if (field === "title" && json.data.title) setResult(r => ({ ...r, title: json.data.title }));
       if (field === "content" && json.data.content) setResult(r => ({ ...r, content: json.data.content }));
     } catch (_) {}
