@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAS5zZX86LVOQuXKbVAJuQGlHHKSKdIJ1CNY8VqZM1svfkSBngw5ZkhecI62cIY7Vn/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5OvhjAnhT8j14FmrPubbWFNNCbpccoNQpsCS6hZw_V7q2u8z_kO0Ykg96SJ85XD4z/exec";
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 const extractUrls = (text) => text.match(URL_REGEX) || [];
@@ -13,6 +14,8 @@ export default function BultenDuzenleyici() {
   const [user, setUser] = useState(null);
 
   const [input, setInput] = useState("");
+  const [urlInput, setUrlInput] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
   const [detectedUrls, setDetectedUrls] = useState([]);
   const [result, setResult] = useState(null); // { title, content, urls }
   const [loading, setLoading] = useState(false);
@@ -43,6 +46,31 @@ export default function BultenDuzenleyici() {
   function handleInput(e) {
     setInput(e.target.value);
     setDetectedUrls(extractUrls(e.target.value));
+  }
+
+  // ── URL'den Özetle ────────────────────────────────────────────
+  const URL_FETCH_SCRIPT = "https://script.google.com/macros/s/AKfycbzm7BSdtvWUG_GXzz0tlXIzrgUKJfFDKxzbbbqnRalmybPONcagKxMOallJaBJFS4u_/exec";
+
+  async function summarizeFromUrl() {
+    if (!urlInput.trim()) return;
+    setUrlLoading(true);
+    setStatus({ type: "info", msg: "Sayfa çekiliyor..." });
+    setResult(null);
+    setActiveChannel(null);
+    try {
+      const res = await fetch(URL_FETCH_SCRIPT, {
+        method: "POST",
+        body: JSON.stringify({ action: "bultenUrlOzetle", url: urlInput.trim() })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.msg || "Hata");
+      const { title, content } = json.data;
+      setResult({ title, content, urls: [urlInput.trim()] });
+      setStatus({ type: "success", msg: "Özet hazır" });
+    } catch (err) {
+      setStatus({ type: "error", msg: "Hata: " + err.message });
+    }
+    setUrlLoading(false);
   }
 
   // ── Özetle (Apps Script üzerinden) ────────────────────────────
@@ -204,6 +232,57 @@ export default function BultenDuzenleyici() {
 
           {/* SOL — Giriş */}
           <div style={s.leftCol}>
+
+            {/* URL'den Özetle */}
+            <div style={s.card}>
+              <div style={s.sectionLabel}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
+                  <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                Haber Bülteni Linkini Gir
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <input
+                  type="url"
+                  value={urlInput}
+                  onChange={e => setUrlInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && summarizeFromUrl()}
+                  placeholder="https://..."
+                  style={{
+                    flex: 1,
+                    padding: "9px 12px",
+                    border: "1.5px solid #e2e8f0",
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    color: "#1e3a5f",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    background: "#fff"
+                  }}
+                />
+                <button
+                  onClick={summarizeFromUrl}
+                  disabled={urlLoading || !urlInput.trim()}
+                  style={{
+                    ...s.primaryBtn,
+                    opacity: (urlLoading || !urlInput.trim()) ? 0.6 : 1,
+                    cursor: (urlLoading || !urlInput.trim()) ? "not-allowed" : "pointer",
+                    whiteSpace: "nowrap"
+                  }}
+                >
+                  {urlLoading
+                    ? <><div style={s.spinner} /> Çekiliyor...</>
+                    : <>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                        </svg>
+                        Özetle
+                      </>
+                  }
+                </button>
+              </div>
+            </div>
 
             {/* Kaynak Metin */}
             <div style={s.card}>
