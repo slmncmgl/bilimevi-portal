@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz96gL7QZz320KebQO1eg6g6Gf_v2jv-BbzFaeZuQjEaB2sYeadYyoaWpM4sNzoZsLu/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwueCJrClXEVORShyqVCJ-Qo8hA4Qv0w5VP1ub-S7nPJLEdponzpKRepdEfUEW9Nfev/exec";
 
 const MODULE_CONFIG = [
   {
@@ -157,7 +157,7 @@ export default function Dashboard() {
             style={styles.headerLogo}
           />
           <div style={styles.headerRight}>
-            {user.rol === "admin" && (
+            {["admin", "owner", "director", "manager"].includes(user.rol) && (
               <button onClick={() => navigate("/izin?panel=admin")}
                 style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
                 onMouseEnter={e => e.currentTarget.style.background = "#2563eb"}
@@ -178,7 +178,7 @@ export default function Dashboard() {
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                 </svg>
-                {sozlesmeLoading ? "Açılıyor..." : "Sözleşmelerim"}
+                {sozlesmeLoading ? "Açılıyor..." : "Sözleşmem"}
               </button>
             )}
             <div style={styles.userInfo}>
