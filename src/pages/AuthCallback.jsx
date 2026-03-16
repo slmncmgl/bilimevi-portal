@@ -85,6 +85,7 @@ export default function AuthCallback() {
             quiz:      moduller?.["Quiz Cevapları"]?.toLowerCase() === "evet",
             bulten:    moduller?.["Bülten Düzenleyici"]?.toLowerCase() === "evet",
             stm:       moduller?.["STM"]?.toLowerCase() === "evet",
+            sozlesme:  moduller?.["Sözleşme"]?.toLowerCase() === "evet",
           },
         };
         saveSession(user);

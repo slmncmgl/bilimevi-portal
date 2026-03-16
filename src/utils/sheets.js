@@ -51,6 +51,7 @@ export async function loginWithCredentials(username, password) {
     quiz:      modulRow?.["Quiz Cevapları"]?.toLowerCase() === "evet",
     bulten:    modulRow?.["Bülten Düzenleyici"]?.toLowerCase() === "evet",
     stm:       modulRow?.["STM"]?.toLowerCase() === "evet",
+    sozlesme:  modulRow?.["Sözleşme"]?.toLowerCase() === "evet",
   };
 
   return {

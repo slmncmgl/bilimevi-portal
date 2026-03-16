@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwueCJrClXEVORShyqVCJ-Qo8hA4Qv0w5VP1ub-S7nPJLEdponzpKRepdEfUEW9Nfev/exec";
+
 const MODULE_CONFIG = [
   {
     key: "izin",
@@ -87,14 +89,49 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [time, setTime] = useState(new Date());
+  const [sozlesmeLoading, setSozlesmeLoading] = useState(false);
+  const [sozlesmeHata, setSozlesmeHata] = useState(null);
 
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
     const timer = setInterval(() => setTime(new Date()), 60000);
-    return () => clearInterval(timer);
+        return () => clearInterval(timer);
   }, []);
+
+  async function sozlesmeAc() {
+    setSozlesmeLoading(true);
+    setSozlesmeHata(null);
+    try {
+      const res = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "danismanSozlesmeBul",
+          sirket: user.company,
+          sube: user.branch,
+          ad: user.name
+        })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.msg || "Hata");
+      window.open(json.url, "_blank");
+    } catch (err) {
+      setSozlesmeHata(err.message);
+      // IT'ye hata maili gönder
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "sozlesmeHataMailAt",
+          kullanici: user.name,
+          sirket: user.company,
+          sube: user.branch,
+          hata: err.message
+        })
+      }).catch(() => {});
+    }
+    setSozlesmeLoading(false);
+  }
 
   function logout() {
     clearSession();
@@ -219,7 +256,58 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+
+        {/* Danışman Sözleşmeleri kartı */}
+        {user?.modules?.sozlesme && <div style={{ marginTop: "16px" }}>
+          <button
+            onClick={sozlesmeAc}
+            className="dash-module-card"
+            style={{ ...styles.moduleCard, width: "100%", borderColor: "#e2e8f0", animationDelay: "0.4s" }}
+            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = "#f59e0b66"; e.currentTarget.style.boxShadow = "0 20px 40px -12px #f59e0b22"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)"; }}
+          >
+            <div className="dash-module-icon" style={{ ...styles.moduleIcon, background: "#fffbeb", color: "#d97706", border: "1px solid #fde68a" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <div style={styles.moduleContent}>
+              <h3 style={styles.moduleTitle}>Danışman Sözleşmeleri</h3>
+              <p style={styles.moduleDesc}>Drive'daki sözleşme klasörünü aç veya oluştur</p>
+            </div>
+            <div style={{ ...styles.moduleArrow, color: "#d97706" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+          </button>
+        </div>}
       </main>
+
+
+      {/* Danışman Sözleşme Popup */}
+      {sozlesmeHata && (
+        <div onClick={() => setSozlesmeHata(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: "20px", padding: "28px", maxWidth: "400px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>Bir hata oluştu</h3>
+            </div>
+            <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "8px", lineHeight: 1.6 }}>{sozlesmeHata}</p>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "20px" }}>IT ekibine bildirim gönderildi.</p>
+            <button onClick={() => setSozlesmeHata(null)}
+              style={{ width: "100%", padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "inherit" }}>
+              Kapat
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
