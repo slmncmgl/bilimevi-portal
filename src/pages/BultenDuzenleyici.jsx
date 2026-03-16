@@ -1,8 +1,11 @@
+ 
+
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbl0DwuWJ4mjkEImqNnji46WpzY-xpZlYWscSWXbi9y2wIHm2ktn_wEWspF7wjaYoG/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz96gL7QZz320KebQO1eg6g6Gf_v2jv-BbzFaeZuQjEaB2sYeadYyoaWpM4sNzoZsLu/exec";
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 const extractUrls = (text) => text.match(URL_REGEX) || [];
@@ -13,6 +16,10 @@ export default function BultenDuzenleyici() {
   const [user, setUser] = useState(null);
 
   const [input, setInput] = useState("");
+  const [urlInput, setUrlInput] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [channelsLoading, setChannelsLoading] = useState(true);
+  const [fromSheetPreview, setFromSheetPreview] = useState(false);
   const [detectedUrls, setDetectedUrls] = useState([]);
   const [result, setResult] = useState(null); // { title, content, urls }
   const [loading, setLoading] = useState(false);
@@ -31,6 +38,34 @@ export default function BultenDuzenleyici() {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
+
+    // requestAnimationFrame ile skeleton'ın DOM'a yansımasını bekle, sonra fetch başlat
+    requestAnimationFrame(() => {
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "bultenHaberleriGetir" })
+      })
+      .then(r => r.json())
+      .then(json => {
+        if (!json.success || !json.data) return;
+        const updated = Array(8).fill(null);
+        json.data.forEach(h => {
+          const idx = h.row - 2;
+          if (idx >= 0 && idx < 8) {
+            updated[idx] = {
+              title: h.title,
+              content: h.content,
+              urls: h.url ? [h.url] : [],
+              date: "",
+              fromSheet: true
+            };
+          }
+        });
+        setChannels(updated);
+      })
+      .catch(() => {})
+      .finally(() => setChannelsLoading(false));
+    });
   }, []);
 
   useEffect(() => {
@@ -45,6 +80,34 @@ export default function BultenDuzenleyici() {
     setDetectedUrls(extractUrls(e.target.value));
   }
 
+  // ── URL'den Özetle ────────────────────────────────────────────
+  const URL_FETCH_SCRIPT = "https://script.google.com/macros/s/AKfycbwueCJrClXEVORShyqVCJ-Qo8hA4Qv0w5VP1ub-S7nPJLEdponzpKRepdEfUEW9Nfev/exec";
+
+  async function summarizeFromUrl() {
+    if (!urlInput.trim()) return;
+    setUrlLoading(true);
+    setStatus({ type: "info", msg: "Sayfa çekiliyor..." });
+    setResult(null);
+    setActiveChannel(null);
+    setFromSheetPreview(false);
+    try {
+      const res = await fetch(URL_FETCH_SCRIPT, {
+        method: "POST",
+        body: JSON.stringify({ action: "bultenUrlOzetle", url: urlInput.trim() })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.msg || "Hata");
+      if (!json.data || !json.data.title) throw new Error("Geçersiz yanıt: " + JSON.stringify(json));
+      const { title, content } = json.data;
+      setResult({ title, content, urls: [urlInput.trim()] });
+      setStatus({ type: "success", msg: "Özet hazır" });
+    } catch (err) {
+      setStatus({ type: "error", msg: "Hata: " + err.message });
+    } finally {
+      setUrlLoading(false);
+    }
+  }
+
   // ── Özetle (Apps Script üzerinden) ────────────────────────────
   async function summarize() {
     if (!input.trim()) return;
@@ -52,6 +115,7 @@ export default function BultenDuzenleyici() {
     setStatus({ type: "info", msg: "Özetleniyor..." });
     setResult(null);
     setActiveChannel(null);
+    setFromSheetPreview(false);
     try {
       const textOnly = stripUrls(input) || input;
       const res = await fetch(SCRIPT_URL, {
@@ -71,16 +135,31 @@ export default function BultenDuzenleyici() {
 
   // ── Tek alan yenile ───────────────────────────────────────────
   async function regenField(field) {
-    if (!input.trim()) return;
+    if (!result) return;
     setRegenLoading(r => ({ ...r, [field]: true }));
     try {
-      const textOnly = stripUrls(input) || input;
-      const res = await fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "bultenOzetle", metin: textOnly })
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.msg);
+      const sourceUrl = result.urls?.[0] || "";
+      let res, json;
+
+      if (sourceUrl) {
+        // URL varsa URL'den yeniden çek
+        res = await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: "bultenUrlOzetle", url: sourceUrl })
+        });
+        json = await res.json();
+        if (!json.success || !json.data) throw new Error(json.msg || "Hata");
+      } else {
+        // URL yoksa mevcut title+content'i metin olarak gönder
+        const metin = result.title + " " + result.content;
+        res = await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: "bultenOzetle", metin })
+        });
+        json = await res.json();
+        if (!json.success) throw new Error(json.msg || "Hata");
+      }
+
       if (field === "title" && json.data.title) setResult(r => ({ ...r, title: json.data.title }));
       if (field === "content" && json.data.content) setResult(r => ({ ...r, content: json.data.content }));
     } catch (_) {}
@@ -97,7 +176,8 @@ export default function BultenDuzenleyici() {
         action: "bultenKaydet",
         baslik: result.title,
         ozet: result.content,
-        url: result.urls?.[0] || ""
+        url: result.urls?.[0] || "",
+        slot: activeChannel !== null ? activeChannel : undefined
       };
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
@@ -128,23 +208,58 @@ export default function BultenDuzenleyici() {
 
   // ── Kanal hafıza ─────────────────────────────────────────────
   function loadChannel(idx) {
-    if (!channels[idx]) return;
+    if (!channels[idx]) {
+      // Boş kanal — eğer mevcut sonuç varsa oraya kaydet
+      if (result) {
+        const errors = karakterKontrol();
+        if (errors.length > 0) { setStatus({ type: "error", msg: errors.join(" | ") }); return; }
+        saveToChannel(idx);
+      }
+      return;
+    }
+    if (channels[idx].fromSheet) {
+      // Sheet'ten gelen — sadece görüntüle, activeChannel set etme
+      setResult({ title: channels[idx].title, content: channels[idx].content, urls: channels[idx].urls || [] });
+      setActiveChannel(null);
+      setFromSheetPreview(true);
+      setCopied({ title: false, content: false, link: false });
+      return;
+    }
+    // Hafızaya kaydedilmiş kanal — aktif olarak işaretle
     setResult({ title: channels[idx].title, content: channels[idx].content, urls: channels[idx].urls || [] });
     setActiveChannel(idx);
+    setFromSheetPreview(false);
     setCopied({ title: false, content: false, link: false });
   }
 
-  function handleSaveClick() { setOverwriteConfirm(null); setShowModal(true); }
+  function karakterKontrol() {
+    const errors = [];
+    if (result?.title && result.title.length > 50)
+      errors.push("Başlık 50 karakteri aşıyor (" + result.title.length + "/50). Yenile butonunu kullanın.");
+    if (result?.content && result.content.length > 200)
+      errors.push("Haber Özeti 200 karakteri aşıyor (" + result.content.length + "/200). Yenile butonunu kullanın.");
+    return errors;
+  }
+
+  function handleSaveClick() {
+    const errors = karakterKontrol();
+    if (errors.length > 0) { setStatus({ type: "error", msg: errors.join(" | ") }); return; }
+    setOverwriteConfirm(null); setShowModal(true);
+  }
 
   function handleChannelSelect(idx) {
+    if (channels[idx]?.fromSheet) return; // Sheet'ten gelen — dokunulamaz
     if (channels[idx]) { setOverwriteConfirm(idx); return; }
     saveToChannel(idx);
   }
 
   function saveToChannel(idx) {
+    const errors = karakterKontrol();
+    if (errors.length > 0) { setStatus({ type: "error", msg: errors.join(" | ") }); setShowModal(false); setOverwriteConfirm(null); return; }
     const entry = {
       title: result.title, content: result.content, urls: result.urls || [],
       date: new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "short", year: "numeric" }),
+      fromSheet: false
     };
     const updated = [...channels]; updated[idx] = entry;
     setChannels(updated); setActiveChannel(idx);
@@ -153,6 +268,7 @@ export default function BultenDuzenleyici() {
 
   function clearChannel(idx, e) {
     e.stopPropagation();
+    if (channels[idx]?.fromSheet) return; // Sheet'ten gelen — silinemez
     const updated = [...channels]; updated[idx] = null;
     setChannels(updated);
     if (activeChannel === idx) setActiveChannel(null);
@@ -205,38 +321,47 @@ export default function BultenDuzenleyici() {
           {/* SOL — Giriş */}
           <div style={s.leftCol}>
 
-            {/* Kaynak Metin */}
+            {/* URL'den Özetle */}
             <div style={s.card}>
               <div style={s.sectionLabel}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                  <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
                 </svg>
-                Kaynak Metin
+                Haber Bülteni Linkini Gir
               </div>
-              <textarea
-                value={input} onChange={handleInput}
-                placeholder="Özetlenecek metni buraya yapıştırın. Linkler otomatik tespit edilir."
-                style={{ ...s.textarea, height: "220px" }}
-              />
-              {detectedUrls.length > 0 && (
-                <div style={{ marginTop: "10px", padding: "10px 12px", background: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
-                  <p style={{ fontSize: "11px", fontWeight: "700", color: "#2563eb", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    {detectedUrls.length} link tespit edildi
-                  </p>
-                  {detectedUrls.map((u, i) => (
-                    <p key={i} style={{ fontSize: "11px", color: "#475569", margin: "2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u}</p>
-                  ))}
-                </div>
-              )}
-              <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-                <button onClick={summarize} disabled={loading || !input.trim()} style={{
-                  ...s.primaryBtn,
-                  opacity: (loading || !input.trim()) ? 0.6 : 1,
-                  cursor: (loading || !input.trim()) ? "not-allowed" : "pointer",
-                  flex: 1
-                }}>
-                  {loading
-                    ? <><div style={s.spinner} /> Özetleniyor...</>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <input
+                  type="url"
+                  value={urlInput}
+                  onChange={e => setUrlInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && summarizeFromUrl()}
+                  placeholder="https://..."
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    padding: "9px 12px",
+                    border: "1.5px solid #e2e8f0",
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    color: "#1e3a5f",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    background: "#fff"
+                  }}
+                />
+                <button
+                  onClick={summarizeFromUrl}
+                  disabled={urlLoading || !urlInput.trim()}
+                  style={{
+                    ...s.primaryBtn,
+                    opacity: (urlLoading || !urlInput.trim()) ? 0.6 : 1,
+                    cursor: (urlLoading || !urlInput.trim()) ? "not-allowed" : "pointer",
+                    width: "100%"
+                  }}
+                >
+                  {urlLoading
+                    ? <><div style={s.spinner} /> Çekiliyor...</>
                     : <>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
@@ -245,9 +370,6 @@ export default function BultenDuzenleyici() {
                       </>
                   }
                 </button>
-                {(input || result) && (
-                  <button onClick={clearAll} style={s.clearBtn}>Temizle</button>
-                )}
               </div>
             </div>
 
@@ -260,23 +382,33 @@ export default function BultenDuzenleyici() {
                 Hafıza (8 Kanal)
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }}>
-                {channels.map((ch, i) => (
+                {channelsLoading
+                  ? Array(8).fill(null).map((_, i) => (
+                      <div key={i} style={{
+                        ...s.channelBtn,
+                        background: "linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%)",
+                        backgroundSize: "200% 100%",
+                        animation: "shimmer 1.4s infinite",
+                        border: "1.5px solid #e2e8f0",
+                        height: "56px"
+                      }} />
+                    ))
+                  : channels.map((ch, i) => (
                   <button key={i} onClick={() => loadChannel(i)}
                     style={{
                       ...s.channelBtn,
-                      borderColor: activeChannel === i ? "#2563eb" : ch ? "#bfdbfe" : "#e2e8f0",
-                      background: activeChannel === i ? "#eff6ff" : ch ? "#f8fafc" : "#fff",
+                      borderColor: activeChannel === i ? "#2563eb" : ch?.fromSheet ? "#86efac" : ch ? "#bfdbfe" : "#e2e8f0",
+                      background: activeChannel === i ? "#eff6ff" : ch?.fromSheet ? "#f0fdf4" : ch ? "#f8fafc" : "#fff",
                       position: "relative"
                     }}>
-                    {ch && (
+                    {ch && !ch.fromSheet && (
                       <span onClick={(e) => clearChannel(i, e)}
                         style={{ position: "absolute", top: "3px", right: "4px", fontSize: "9px", color: "#94a3b8", lineHeight: 1 }}>✕</span>
                     )}
-                    <div style={{ fontSize: "10px", fontWeight: "700", color: ch ? "#2563eb" : "#94a3b8", marginBottom: "2px" }}>K{i + 1}</div>
-                    <div style={{ fontSize: "9px", color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
-                      {ch ? ch.title.slice(0, 12) + (ch.title.length > 12 ? "…" : "") : "Boş"}
+                    <div style={{ fontSize: "10px", fontWeight: "700", color: ch ? "#2563eb" : "#94a3b8" }}>{i + 1}. Haber</div>
+                    <div style={{ fontSize: "9px", color: ch?.fromSheet ? "#16a34a" : ch ? "#64748b" : "#cbd5e1", marginTop: "2px" }}>
+                      {ch?.fromSheet ? "Kayıtlı" : ch ? "Hafızada" : "Boş"}
                     </div>
-                    {ch && <div style={{ fontSize: "8px", color: "#94a3b8", marginTop: "2px" }}>{ch.date}</div>}
                   </button>
                 ))}
               </div>
@@ -287,25 +419,14 @@ export default function BultenDuzenleyici() {
           {/* SAĞ — Sonuçlar */}
           <div style={s.rightCol}>
 
-            {!result && !loading && (
-              <div style={{ ...s.card, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "300px", flexDirection: "column", gap: "12px" }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" width="40" height="40">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                </svg>
-                <p style={{ fontSize: "13px", color: "#94a3b8", margin: 0 }}>Metni yapıştırıp "Özetle"ye basın</p>
+            {activeChannel !== null && (
+              <div style={{ fontSize: "11px", color: "#2563eb", fontWeight: "600", textAlign: "right", marginBottom: "4px" }}>
+                ← Kanal {activeChannel + 1}
               </div>
             )}
 
-            {result && (
-              <>
-                {activeChannel !== null && (
-                  <div style={{ fontSize: "11px", color: "#2563eb", fontWeight: "600", textAlign: "right", marginBottom: "4px" }}>
-                    ← Kanal {activeChannel + 1}
-                  </div>
-                )}
-
-                {/* Başlık */}
-                <div style={{ ...s.card, borderColor: result.title.length > 50 ? "#fca5a5" : "#e2e8f0" }}>
+            {/* Başlık */}
+            <div style={{ ...s.card, borderColor: result && result.title.length > 50 ? "#fca5a5" : "#e2e8f0" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <div style={s.sectionLabel}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
@@ -314,44 +435,44 @@ export default function BultenDuzenleyici() {
                       Başlık
                     </div>
                     <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => regenField("title")} disabled={regenLoading.title} style={s.regenBtn}>
+                      <button onClick={() => regenField("title")} disabled={regenLoading.title || !result} style={s.regenBtn}>
                         {regenLoading.title ? <div style={{ ...s.spinner, width: "11px", height: "11px", border: "1.5px solid #e2e8f0", borderTopColor: "#2563eb" }} /> : "↻ Yenile"}
                       </button>
-                      <button onClick={() => copyField("title", result.title)} style={{ ...s.miniCopyBtn, background: copied.title ? "#dcfce7" : "#eff6ff", color: copied.title ? "#16a34a" : "#2563eb" }}>
+                      <button onClick={() => copyField("title", result?.title || "")} style={{ ...s.miniCopyBtn, background: copied.title ? "#dcfce7" : "#eff6ff", color: copied.title ? "#16a34a" : "#2563eb" }}>
                         {copied.title ? "✓ Kopyalandı" : "Kopyala"}
                       </button>
                     </div>
                   </div>
-                  <textarea value={result.title} onChange={e => setResult(r => ({ ...r, title: e.target.value }))}
-                    rows={2} style={s.textarea} />
-                  <CharBar value={result.title} max={50} />
+              <textarea value={result?.title || ""} onChange={e => result && setResult(r => ({ ...r, title: e.target.value }))}
+                rows={2} style={{ ...s.textarea, color: result ? "#0f172a" : "#94a3b8" }} />
+              {result && <CharBar value={result.title} max={50} />}
                 </div>
 
-                {/* Öz Bilgi */}
-                <div style={{ ...s.card, borderColor: result.content.length > 200 ? "#fca5a5" : "#e2e8f0" }}>
+            {/* Haber Özeti */}
+            <div style={{ ...s.card, borderColor: result && result.content.length > 200 ? "#fca5a5" : "#e2e8f0" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <div style={s.sectionLabel}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
                         <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/>
                       </svg>
-                      Öz Bilgi
+                      Haber Özeti
                     </div>
                     <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => regenField("content")} disabled={regenLoading.content} style={s.regenBtn}>
+                      <button onClick={() => regenField("content")} disabled={regenLoading.content || !result} style={s.regenBtn}>
                         {regenLoading.content ? <div style={{ ...s.spinner, width: "11px", height: "11px", border: "1.5px solid #e2e8f0", borderTopColor: "#2563eb" }} /> : "↻ Yenile"}
                       </button>
-                      <button onClick={() => copyField("content", result.content)} style={{ ...s.miniCopyBtn, background: copied.content ? "#dcfce7" : "#eff6ff", color: copied.content ? "#16a34a" : "#2563eb" }}>
+                      <button onClick={() => copyField("content", result?.content || "")} style={{ ...s.miniCopyBtn, background: copied.content ? "#dcfce7" : "#eff6ff", color: copied.content ? "#16a34a" : "#2563eb" }}>
                         {copied.content ? "✓ Kopyalandı" : "Kopyala"}
                       </button>
                     </div>
                   </div>
-                  <textarea value={result.content} onChange={e => setResult(r => ({ ...r, content: e.target.value }))}
-                    rows={4} style={s.textarea} />
-                  <CharBar value={result.content} max={200} />
+              <textarea value={result?.content || ""} onChange={e => result && setResult(r => ({ ...r, content: e.target.value }))}
+                rows={4} style={{ ...s.textarea, color: result ? "#0f172a" : "#94a3b8" }} />
+              {result && <CharBar value={result.content} max={200} />}
                 </div>
 
-                {/* Linkler */}
-                {result.urls && result.urls.length > 0 && (
+            {/* Linkler */}
+            {result && result.urls && result.urls.length > 0 && (
                   <div style={s.card}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                       <div style={s.sectionLabel}>
@@ -381,34 +502,33 @@ export default function BultenDuzenleyici() {
                   </div>
                 )}
 
-                {/* Aksiyon butonları */}
-                <div style={{ display: "flex", gap: "10px" }}>
-                  {activeChannel === null && (
-                    <button onClick={handleSaveClick} style={{ ...s.secondaryBtn, flex: 1 }}>
+            {/* Aksiyon butonları */}
+            <div style={{ display: "flex", gap: "10px" }}>
+              {result && activeChannel === null && !fromSheetPreview && (
+                <button onClick={handleSaveClick} style={{ ...s.secondaryBtn, flex: 1 }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  Hafızaya Kaydet
+                </button>
+              )}
+              <button onClick={saveToSheet} disabled={saving || activeChannel === null} style={{
+                ...s.primaryBtn, flex: 1,
+                opacity: (saving || activeChannel === null) ? 0.4 : 1,
+                cursor: (saving || activeChannel === null) ? "not-allowed" : "pointer"
+              }}>
+                {saving
+                  ? <><div style={s.spinner} /> Kaydediliyor...</>
+                  : <>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
                       </svg>
-                      Hafızaya Kaydet
-                    </button>
-                  )}
-                  <button onClick={saveToSheet} disabled={saving} style={{
-                    ...s.primaryBtn, flex: 1,
-                    opacity: saving ? 0.7 : 1,
-                    cursor: saving ? "not-allowed" : "pointer"
-                  }}>
-                    {saving
-                      ? <><div style={s.spinner} /> Kaydediliyor...</>
-                      : <>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
-                          </svg>
-                          Sheet'e Kaydet
-                        </>
-                    }
-                  </button>
-                </div>
-              </>
-            )}
+                      Sheet'e Kaydet
+                    </>
+                }
+              </button>
+            </div>
+
           </div>
         </div>
       </main>
@@ -436,9 +556,9 @@ export default function BultenDuzenleyici() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
                   {channels.map((ch, i) => (
                     <button key={i} onClick={() => handleChannelSelect(i)}
-                      style={{ ...s.channelBtn, borderColor: ch ? "#bfdbfe" : "#e2e8f0" }}>
-                      <div style={{ fontSize: "10px", fontWeight: "700", color: ch ? "#2563eb" : "#94a3b8", marginBottom: "2px" }}>K{i + 1}</div>
-                      <div style={{ fontSize: "9px", color: "#64748b" }}>{ch ? ch.title.slice(0, 10) + "…" : "Boş"}</div>
+                      style={{ ...s.channelBtn, borderColor: ch?.fromSheet ? "#86efac" : ch ? "#bfdbfe" : "#e2e8f0", background: ch?.fromSheet ? "#f0fdf4" : "#fff", opacity: ch?.fromSheet ? 0.5 : 1, cursor: ch?.fromSheet ? "not-allowed" : "pointer" }}>
+                      <div style={{ fontSize: "10px", fontWeight: "700", color: ch ? "#2563eb" : "#94a3b8" }}>{i + 1}. Haber</div>
+                      <div style={{ fontSize: "9px", color: ch?.fromSheet ? "#16a34a" : ch ? "#64748b" : "#cbd5e1" }}>{ch?.fromSheet ? "Kayıtlı" : ch ? "Hafızada" : "Boş"}</div>
                     </button>
                   ))}
                 </div>
@@ -467,6 +587,7 @@ export default function BultenDuzenleyici() {
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         textarea:focus, input:focus { outline: none; border-color: #2563eb !important; }
       `}</style>
     </div>
@@ -489,7 +610,7 @@ const s = {
   logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
 
   main: { maxWidth: "960px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
-  grid: { display: "grid", gridTemplateColumns: "360px 1fr", gap: "20px", alignItems: "start" },
+  grid: { display: "flex", flexDirection: "column", gap: "20px" },
   leftCol: { display: "flex", flexDirection: "column", gap: "16px" },
   rightCol: { display: "flex", flexDirection: "column", gap: "16px" },
 

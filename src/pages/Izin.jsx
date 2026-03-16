@@ -1,9 +1,11 @@
+ 
+
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbl0DwuWJ4mjkEImqNnji46WpzY-xpZlYWscSWXbi9y2wIHm2ktn_wEWspF7wjaYoG/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz96gL7QZz320KebQO1eg6g6Gf_v2jv-BbzFaeZuQjEaB2sYeadYyoaWpM4sNzoZsLu/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -142,6 +144,8 @@ export default function Izin() {
   const [adminLoading, setAdminLoading] = useState(false);
   const [yaklasanIzinler, setYaklasanIzinler] = useState([]);
   const [izinSureleri, setIzinSureleri] = useState({});
+  const [islemlerCache, setIslemlerCache] = useState([]);
+  const [cakismaPopup, setCakismaPopup] = useState(null); // { kisiler, alternatifler }
 
   const yarimGun = izinTuru === "Yarım Gün İzin";
   const digerIzin = DIGER_IZINLER.includes(izinTuru);
@@ -197,8 +201,112 @@ export default function Izin() {
         return subeIsimler.includes(row["Personel"]) && b >= bugun && !izinTipi.includes("yarım gün");
       });
       setYaklasanIzinler(gelecek);
+      setIslemlerCache(islemler);
     } catch (_) {}
     setDataLoading(false);
+  }
+
+
+  function isTarihiMi(d) {
+    const gun = d.getDay();
+    return gun !== 0 && gun !== 6;
+  }
+
+  function sonrakiIsGunuTarih(dateStr, delta) {
+    const d = new Date(dateStr);
+    let adim = delta > 0 ? 1 : -1;
+    let kalan = Math.abs(delta);
+    while (kalan > 0) {
+      d.setDate(d.getDate() + adim);
+      if (isTarihiMi(d)) kalan--;
+    }
+    return d.toISOString().split("T")[0];
+  }
+
+  function tarihToDate(str) {
+    if (!str) return null;
+    // DD.MM.YYYY veya YYYY-MM-DD veya M/D/YYYY
+    if (str.includes(".")) {
+      const [d, m, y] = str.split(".");
+      return new Date(`${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`);
+    }
+    if (str.includes("/")) {
+      const parts = str.split("/");
+      if (parts[2]?.length === 4) {
+        return new Date(`${parts[2]}-${parts[0].padStart(2,"0")}-${parts[1].padStart(2,"0")}`);
+      }
+    }
+    return new Date(str);
+  }
+
+  function cakismaKontrol(bas, bit) {
+    if (!bas || !bit || !personel) return; // iki tarih de dolu olmalı
+    const bitStr = bit || bas;
+    const yeniBas = new Date(bas);
+    const yeniBit = new Date(bitStr);
+    yeniBas.setHours(0,0,0,0);
+    yeniBit.setHours(23,59,59,0);
+
+    const subeSirket = personel["Şirket"];
+    const subeSube = personel["Şube"];
+    const benimAd = personel["Ad Soyad"];
+
+    const cakisanlar = islemlerCache.filter(row => {
+      if (row["Personel"] === benimAd) return false;
+      // Aynı şube mi?
+      // İşlemler sheet'inde şube bilgisi yok, personelCache gerek
+      // Ama yaklasanIzinler zaten şube filtreli — ondan bakalım
+      return true;
+    });
+
+    // yaklasanIzinler zaten aynı şubedeki izinler
+    const subeIzinler = yaklasanIzinler.filter(row => row["Personel"] !== benimAd);
+
+    const cakisan = subeIzinler.filter(row => {
+      const rowBas = tarihToDate(row["Başlangıç"]);
+      const rowBit = tarihToDate(row["Bitiş"]);
+      if (!rowBas || !rowBit) return false;
+      rowBas.setHours(0,0,0,0);
+      rowBit.setHours(23,59,59,0);
+      return yeniBas <= rowBit && yeniBit >= rowBas;
+    });
+
+    if (cakisan.length === 0) { setCakismaPopup(null); return; }
+
+    const kisiler = cakisan.map(r => ({
+      ad: r["Personel"],
+      bas: formatTarih(r["Başlangıç"]),
+      bit: formatTarih(r["Bitiş"])
+    }));
+
+    // Gün sayısını koru, izin bloğunu kaydır
+    // İzin süresi (takvim günü)
+    const gunSayisi = Math.round((yeniBit - yeniBas) / (1000 * 60 * 60 * 24));
+
+    // En erken çakışan iznin başlangıcından 1 iş günü önce bitecek şekilde önceki blok
+    const enErkenCakisan = cakisan.reduce((en, row) => {
+      const d = tarihToDate(row["Başlangıç"]);
+      return !en || d < en ? d : en;
+    }, null);
+    const enGecCakisan = cakisan.reduce((en, row) => {
+      const d = tarihToDate(row["Bitiş"]);
+      return !en || d > en ? d : en;
+    }, null);
+
+    // Önceki blok: çakışan iznin başından 1 iş günü önce biter, geriye doğru günSayisi gün gider
+    const oncekiBit = sonrakiIsGunuTarih(enErkenCakisan.toISOString().split("T")[0], -1);
+    const oncekiBas = sonrakiIsGunuTarih(oncekiBit, -gunSayisi);
+
+    // Sonraki blok: çakışan iznin bitişinden 1 iş günü sonra başlar
+    const sonrakiBas = sonrakiIsGunuTarih(enGecCakisan.toISOString().split("T")[0], 1);
+    const sonrakiBit = sonrakiIsGunuTarih(sonrakiBas, gunSayisi);
+
+    const alternatifler = [
+      { label: "Öncesinde izne çık", aciklama: "Çakışmadan önce bitiyor", bas: oncekiBas, bit: oncekiBit },
+      { label: "Sonrasında izne çık", aciklama: "Çakışma bitince başlıyor", bas: sonrakiBas, bit: sonrakiBit },
+    ];
+
+    setCakismaPopup({ kisiler, alternatifler });
   }
 
   async function loadAdminList(sessionOverride) {
@@ -327,29 +435,40 @@ export default function Izin() {
         ) : (
           <div style={styles.pageLayout}>
             <div style={styles.formLayout}>
-              {/* Bilgi kartı */}
+              {/* Bilgi kartı — yatay */}
               <div style={styles.infoCard}>
-                <h3 style={styles.infoTitle}>İzin Durumu</h3>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+                  <h3 style={{ ...styles.infoTitle, marginBottom: 0 }}>İzin Durumu</h3>
+                  {personel && <span style={{ fontSize: "13px", color: "#64748b" }}>{personel["Ad Soyad"]} · {personel["Şube"]}</span>}
+                </div>
                 {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : personel ? (
                   <>
-                    <div style={styles.infoRow}><span style={styles.infoLabel}>Ad Soyad</span><span style={styles.infoValue}>{personel["Ad Soyad"]}</span></div>
-                    <div style={styles.infoRow}><span style={styles.infoLabel}>Şube</span><span style={styles.infoValue}>{personel["Şube"]}</span></div>
-                    <div style={styles.infoDivider} />
-                    <div style={styles.infoRow}><span style={styles.infoLabel}>Toplam Hak</span><span style={styles.infoValue}>{personel["Hakediş"]} gün</span></div>
-                    <div style={styles.infoRow}><span style={styles.infoLabel}>Kullanılan</span><span style={{ ...styles.infoValue, color: "#dc2626" }}>{personel["Kullanılan İzin"] || 0} gün</span></div>
-                    <div style={styles.infoRow}><span style={styles.infoLabel}>Kalan</span><span style={{ ...styles.infoValue, color: "#059669", fontWeight: "700", fontSize: "18px" }}>{personel["Kalan İzin"]} gün</span></div>
-                    <div style={styles.progressWrap}>
-                      <div style={styles.progressBg}>
-                        <div style={{ ...styles.progressFill, width: `${Math.min((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100, 100)}%` }} />
+                    <div style={{ display: "flex", gap: "12px", alignItems: "stretch" }}>
+                      <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>Toplam Hak</span>
+                        <span style={styles.infoValue}>{personel["Hakediş"]} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>gün</span></span>
                       </div>
-                      <span style={styles.progressText}>{Math.round((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100)}% kullanıldı</span>
+                      <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>Kullanılan</span>
+                        <span style={{ ...styles.infoValue, color: "#dc2626" }}>{personel["Kullanılan İzin"] || 0} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>gün</span></span>
+                      </div>
+                      <div style={{ ...styles.infoRow, background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+                        <span style={styles.infoLabel}>Kalan</span>
+                        <span style={{ ...styles.infoValue, color: "#059669" }}>{personel["Kalan İzin"]} <span style={{ fontSize: "13px", fontWeight: "500", color: "#86efac" }}>gün</span></span>
+                      </div>
+                      <div style={{ flex: 2, display: "flex", flexDirection: "column", justifyContent: "center", gap: "6px" }}>
+                        <div style={styles.progressBg}>
+                          <div style={{ ...styles.progressFill, width: `${Math.min((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100, 100)}%` }} />
+                        </div>
+                        <span style={styles.progressText}>{Math.round((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100)}% kullanıldı</span>
+                        {personel["Giriş Tarihi"] && sonrakiHakedis(personel["Giriş Tarihi"]) && (
+                          <div style={styles.hakedisBox}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <span>Sonraki hakediş: <strong>{sonrakiHakedis(personel["Giriş Tarihi"])}</strong></span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {personel["Giriş Tarihi"] && sonrakiHakedis(personel["Giriş Tarihi"]) && (
-                      <div style={styles.hakedisBox}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        <span>Sonraki hakediş: <strong>{sonrakiHakedis(personel["Giriş Tarihi"])}</strong></span>
-                      </div>
-                    )}
                   </>
                 ) : <div style={styles.infoLoading}>Personel verisi bulunamadı.</div>}
               </div>
@@ -402,7 +521,7 @@ export default function Izin() {
                     <div style={styles.fieldGroup}>
                       <label style={styles.label}>Başlangıç</label>
                       <input type="date" value={baslangic}
-                        onChange={e => setBaslangic(e.target.value)}
+                        onChange={e => { setBaslangic(e.target.value); cakismaKontrol(e.target.value, bitis); }}
                         required style={styles.input}
                         onFocus={e => e.target.style.borderColor = "#2563eb"}
                         onBlur={e => e.target.style.borderColor = "#e2e8f0"}
@@ -413,7 +532,7 @@ export default function Izin() {
                         <label style={styles.label}>Bitiş</label>
                         <input type="date" value={bitis}
                           min={baslangic || undefined}
-                          onChange={e => setBitis(e.target.value)}
+                          onChange={e => { setBitis(e.target.value); cakismaKontrol(baslangic, e.target.value); }}
                           required style={{ ...styles.input, borderColor: bitis && baslangic && bitis < baslangic ? "#dc2626" : "" }}
                           onFocus={e => e.target.style.borderColor = "#2563eb"}
                           onBlur={e => e.target.style.borderColor = bitis && baslangic && bitis < baslangic ? "#dc2626" : "#e2e8f0"}
@@ -508,6 +627,51 @@ export default function Izin() {
           </div>
         )}
       </main>
+
+
+      {/* Çakışma Popup */}
+      {cakismaPopup && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div style={{ background: "#fff", borderRadius: "20px", padding: "28px", maxWidth: "480px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", animation: "fadeUp 0.2s ease" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>İzin Çakışması Var</h3>
+            </div>
+            <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "14px", lineHeight: 1.6 }}>
+              Seçtiğiniz tarihlerde aynı şubeden izinli personel bulunuyor:
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
+              {cakismaPopup.kisiler.map((k, i) => (
+                <div key={i} style={{ padding: "10px 14px", background: "#fef2f2", borderRadius: "10px", border: "1px solid #fecaca" }}>
+                  <span style={{ fontWeight: "600", color: "#0f172a", fontSize: "13px" }}>{k.ad}</span>
+                  <span style={{ color: "#94a3b8", fontSize: "12px", marginLeft: "8px" }}>{k.bas} – {k.bit}</span>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: "12px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>Alternatif Tarihler</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
+              {cakismaPopup.alternatifler.map((a, i) => (
+                <button key={i} onClick={() => { setBaslangic(a.bas); setBitis(a.bit); setCakismaPopup(null); }}
+                  style={{ padding: "12px 16px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "10px", cursor: "pointer", textAlign: "left", fontFamily: "Calibri, sans-serif", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: "12px", color: "#059669", fontWeight: "700", marginBottom: "3px" }}>{a.label}</div>
+                    <div style={{ fontSize: "11px", color: "#64748b" }}>{a.aciklama}</div>
+                  </div>
+                  <div style={{ fontSize: "13px", color: "#0f172a", fontWeight: "600" }}>{a.bas} → {a.bit}</div>
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setCakismaPopup(null)}
+                style={{ flex: 1, padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "Calibri, sans-serif" }}>
+                Devam Et (Çakışmayı Yoksay)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         
@@ -1387,13 +1551,13 @@ const styles = {
   logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   main: { maxWidth: "960px", margin: "0 auto", padding: "40px 24px 64px", position: "relative", zIndex: 1 },
   pageLayout: { display: "flex", flexDirection: "column", gap: "24px" },
-  formLayout: { display: "grid", gridTemplateColumns: "280px 1fr", gap: "24px", animation: "fadeUp 0.4s ease-out" },
-  infoCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "28px", height: "fit-content", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" },
+  formLayout: { display: "flex", flexDirection: "column", gap: "24px", animation: "fadeUp 0.4s ease-out" },
+  infoCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "24px 28px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" },
   infoTitle: { fontSize: "13px", fontWeight: "700", color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "20px" },
   infoLoading: { fontSize: "13px", color: "#94a3b8" },
-  infoRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" },
-  infoLabel: { fontSize: "12px", color: "#94a3b8", fontWeight: "500" },
-  infoValue: { fontSize: "14px", color: "#0f172a", fontWeight: "600" },
+  infoRow: { display: "flex", flexDirection: "column", alignItems: "center", background: "#f8fafc", borderRadius: "12px", padding: "14px 10px", flex: 1, minWidth: 0 },
+  infoLabel: { fontSize: "11px", color: "#94a3b8", fontWeight: "500", marginBottom: "4px", textAlign: "center" },
+  infoValue: { fontSize: "18px", color: "#0f172a", fontWeight: "700", textAlign: "center" },
   infoDivider: { height: "1px", background: "#f1f5f9", margin: "16px 0" },
   progressWrap: { marginTop: "20px" },
   progressBg: { height: "6px", background: "#f1f5f9", borderRadius: "3px", overflow: "hidden", marginBottom: "6px" },
