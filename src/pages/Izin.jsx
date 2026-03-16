@@ -1,4 +1,5 @@
  
+
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
@@ -239,7 +240,7 @@ export default function Izin() {
   }
 
   function cakismaKontrol(bas, bit) {
-    if (!bas || !personel) return;
+    if (!bas || !bit || !personel) return; // iki tarih de dolu olmalı
     const bitStr = bit || bas;
     const yeniBas = new Date(bas);
     const yeniBit = new Date(bitStr);
@@ -278,12 +279,31 @@ export default function Izin() {
       bit: formatTarih(r["Bitiş"])
     }));
 
-    // Alternatif: önceki 2 iş günü, sonraki 2 iş günü
+    // Gün sayısını koru, izin bloğunu kaydır
+    // İzin süresi (takvim günü)
+    const gunSayisi = Math.round((yeniBit - yeniBas) / (1000 * 60 * 60 * 24));
+
+    // En erken çakışan iznin başlangıcından 1 iş günü önce bitecek şekilde önceki blok
+    const enErkenCakisan = cakisan.reduce((en, row) => {
+      const d = tarihToDate(row["Başlangıç"]);
+      return !en || d < en ? d : en;
+    }, null);
+    const enGecCakisan = cakisan.reduce((en, row) => {
+      const d = tarihToDate(row["Bitiş"]);
+      return !en || d > en ? d : en;
+    }, null);
+
+    // Önceki blok: çakışan iznin başından 1 iş günü önce biter, geriye doğru günSayisi gün gider
+    const oncekiBit = sonrakiIsGunuTarih(enErkenCakisan.toISOString().split("T")[0], -1);
+    const oncekiBas = sonrakiIsGunuTarih(oncekiBit, -gunSayisi);
+
+    // Sonraki blok: çakışan iznin bitişinden 1 iş günü sonra başlar
+    const sonrakiBas = sonrakiIsGunuTarih(enGecCakisan.toISOString().split("T")[0], 1);
+    const sonrakiBit = sonrakiIsGunuTarih(sonrakiBas, gunSayisi);
+
     const alternatifler = [
-      { label: "2 iş günü önce başla", bas: sonrakiIsGunuTarih(bas, -2), bit: sonrakiIsGunuTarih(bitStr, -2) },
-      { label: "1 iş günü önce başla", bas: sonrakiIsGunuTarih(bas, -1), bit: sonrakiIsGunuTarih(bitStr, -1) },
-      { label: "1 iş günü sonra başla", bas: sonrakiIsGunuTarih(bas, 1), bit: sonrakiIsGunuTarih(bitStr, 1) },
-      { label: "2 iş günü sonra başla", bas: sonrakiIsGunuTarih(bas, 2), bit: sonrakiIsGunuTarih(bitStr, 2) },
+      { label: "Öncesinde izne çık", aciklama: "Çakışmadan önce bitiyor", bas: oncekiBas, bit: oncekiBit },
+      { label: "Sonrasında izne çık", aciklama: "Çakışma bitince başlıyor", bas: sonrakiBas, bit: sonrakiBit },
     ];
 
     setCakismaPopup({ kisiler, alternatifler });
@@ -631,12 +651,15 @@ export default function Izin() {
               ))}
             </div>
             <p style={{ fontSize: "12px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>Alternatif Tarihler</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "20px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
               {cakismaPopup.alternatifler.map((a, i) => (
                 <button key={i} onClick={() => { setBaslangic(a.bas); setBitis(a.bit); setCakismaPopup(null); }}
-                  style={{ padding: "10px 12px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "10px", cursor: "pointer", textAlign: "left", fontFamily: "Calibri, sans-serif" }}>
-                  <div style={{ fontSize: "11px", color: "#059669", fontWeight: "600", marginBottom: "3px" }}>{a.label}</div>
-                  <div style={{ fontSize: "12px", color: "#0f172a", fontWeight: "600" }}>{a.bas} → {a.bit}</div>
+                  style={{ padding: "12px 16px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "10px", cursor: "pointer", textAlign: "left", fontFamily: "Calibri, sans-serif", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: "12px", color: "#059669", fontWeight: "700", marginBottom: "3px" }}>{a.label}</div>
+                    <div style={{ fontSize: "11px", color: "#64748b" }}>{a.aciklama}</div>
+                  </div>
+                  <div style={{ fontSize: "13px", color: "#0f172a", fontWeight: "600" }}>{a.bas} → {a.bit}</div>
                 </button>
               ))}
             </div>
