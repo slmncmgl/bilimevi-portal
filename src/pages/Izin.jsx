@@ -1,5 +1,5 @@
  
-
+ 
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
@@ -165,7 +165,7 @@ export default function Izin() {
     const r = (session.rol || session.title || "personel").toLowerCase().trim();
     setRol(r);
     loadData(session.name);
-    if (r === "admin") {
+    if (["admin", "owner", "director", "manager"].includes(r)) {
       loadAdminList(session);
       const params = new URLSearchParams(window.location.search);
       if (params.get("panel") === "admin") setAdminView(true);
@@ -420,6 +420,16 @@ export default function Izin() {
             <span style={styles.headerTitle}>İK İzin Yönetimi</span>
           </div>
           <div style={styles.headerRight}>
+            {["admin","owner","director","manager"].includes(rol) && !adminView && (
+              <button onClick={() => { setAdminView(true); loadAdminList(getSession()); }}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                  <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
+                Yönetici Paneli
+              </button>
+            )}
             {adminView && (
               <button onClick={() => setAdminView(false)} style={styles.adminBtn}>← Kendi İznim</button>
             )}
@@ -431,7 +441,7 @@ export default function Izin() {
 
       <main style={styles.main}>
         {adminView ? (
-          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin"} />
+          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin" || rol === "owner"} />
         ) : (
           <div style={styles.pageLayout}>
             <div style={styles.formLayout}>
