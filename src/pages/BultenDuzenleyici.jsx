@@ -243,7 +243,7 @@ export default function BultenDuzenleyici() {
                 </svg>
                 Haber Bülteni Linkini Gir
               </div>
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 <input
                   type="url"
                   value={urlInput}
@@ -251,7 +251,8 @@ export default function BultenDuzenleyici() {
                   onKeyDown={e => e.key === "Enter" && summarizeFromUrl()}
                   placeholder="https://..."
                   style={{
-                    flex: 1,
+                    width: "100%",
+                    boxSizing: "border-box",
                     padding: "9px 12px",
                     border: "1.5px solid #e2e8f0",
                     borderRadius: "8px",
@@ -269,7 +270,7 @@ export default function BultenDuzenleyici() {
                     ...s.primaryBtn,
                     opacity: (urlLoading || !urlInput.trim()) ? 0.6 : 1,
                     cursor: (urlLoading || !urlInput.trim()) ? "not-allowed" : "pointer",
-                    whiteSpace: "nowrap"
+                    width: "100%"
                   }}
                 >
                   {urlLoading
@@ -282,52 +283,6 @@ export default function BultenDuzenleyici() {
                       </>
                   }
                 </button>
-              </div>
-            </div>
-
-            {/* Kaynak Metin */}
-            <div style={s.card}>
-              <div style={s.sectionLabel}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                </svg>
-                Kaynak Metin
-              </div>
-              <textarea
-                value={input} onChange={handleInput}
-                placeholder="Özetlenecek metni buraya yapıştırın. Linkler otomatik tespit edilir."
-                style={{ ...s.textarea, height: "220px" }}
-              />
-              {detectedUrls.length > 0 && (
-                <div style={{ marginTop: "10px", padding: "10px 12px", background: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
-                  <p style={{ fontSize: "11px", fontWeight: "700", color: "#2563eb", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    {detectedUrls.length} link tespit edildi
-                  </p>
-                  {detectedUrls.map((u, i) => (
-                    <p key={i} style={{ fontSize: "11px", color: "#475569", margin: "2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u}</p>
-                  ))}
-                </div>
-              )}
-              <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
-                <button onClick={summarize} disabled={loading || !input.trim()} style={{
-                  ...s.primaryBtn,
-                  opacity: (loading || !input.trim()) ? 0.6 : 1,
-                  cursor: (loading || !input.trim()) ? "not-allowed" : "pointer",
-                  flex: 1
-                }}>
-                  {loading
-                    ? <><div style={s.spinner} /> Özetleniyor...</>
-                    : <>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                        </svg>
-                        Özetle
-                      </>
-                  }
-                </button>
-                {(input || result) && (
-                  <button onClick={clearAll} style={s.clearBtn}>Temizle</button>
-                )}
               </div>
             </div>
 
@@ -407,14 +362,14 @@ export default function BultenDuzenleyici() {
                   <CharBar value={result.title} max={50} />
                 </div>
 
-                {/* Öz Bilgi */}
+                {/* Haber Özeti */}
                 <div style={{ ...s.card, borderColor: result.content.length > 200 ? "#fca5a5" : "#e2e8f0" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <div style={s.sectionLabel}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
                         <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/>
                       </svg>
-                      Öz Bilgi
+                      Haber Özeti
                     </div>
                     <div style={{ display: "flex", gap: "6px" }}>
                       <button onClick={() => regenField("content")} disabled={regenLoading.content} style={s.regenBtn}>
