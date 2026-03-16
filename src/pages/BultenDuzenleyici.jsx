@@ -207,26 +207,54 @@ export default function BultenDuzenleyici() {
   function loadChannel(idx) {
     if (!channels[idx]) {
       // Boş kanal — eğer mevcut sonuç varsa oraya kaydet
-      if (result) saveToChannel(idx);
+      if (result) {
+        const errors = karakterKontrol();
+        if (errors.length > 0) { setStatus({ type: "error", msg: errors.join(" | ") }); return; }
+        saveToChannel(idx);
+      }
       return;
     }
-    // Dolu kanal — aktif olarak işaretle, içeriği yükle
+    if (channels[idx].fromSheet) {
+      // Sheet'ten gelen — sadece görüntüle, activeChannel set etme (sheet'e kaydetilemez)
+      setResult({ title: channels[idx].title, content: channels[idx].content, urls: channels[idx].urls || [] });
+      setActiveChannel(null);
+      setCopied({ title: false, content: false, link: false });
+      return;
+    }
+    // Hafızaya kaydedilmiş kanal — aktif olarak işaretle
     setResult({ title: channels[idx].title, content: channels[idx].content, urls: channels[idx].urls || [] });
     setActiveChannel(idx);
     setCopied({ title: false, content: false, link: false });
   }
 
-  function handleSaveClick() { setOverwriteConfirm(null); setShowModal(true); }
+  function karakterKontrol() {
+    const errors = [];
+    if (result?.title && result.title.length > 50)
+      errors.push("Başlık 50 karakteri aşıyor (" + result.title.length + "/50). Yenile butonunu kullanın.");
+    if (result?.content && result.content.length > 200)
+      errors.push("Haber Özeti 200 karakteri aşıyor (" + result.content.length + "/200). Yenile butonunu kullanın.");
+    return errors;
+  }
+
+  function handleSaveClick() {
+    const errors = karakterKontrol();
+    if (errors.length > 0) { setStatus({ type: "error", msg: errors.join(" | ") }); return; }
+    setOverwriteConfirm(null); setShowModal(true);
+  }
 
   function handleChannelSelect(idx) {
+    if (channels[idx]?.fromSheet) return; // Sheet'ten gelen — dokunulamaz
     if (channels[idx]) { setOverwriteConfirm(idx); return; }
     saveToChannel(idx);
   }
 
   function saveToChannel(idx) {
+    const errors = karakterKontrol();
+    if (errors.length > 0) { setStatus({ type: "error", msg: errors.join(" | ") }); setShowModal(false); setOverwriteConfirm(null); return; }
     const entry = {
       title: result.title, content: result.content, urls: result.urls || [],
       date: new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "short", year: "numeric" }),
+      fromSheet: false
     };
     const updated = [...channels]; updated[idx] = entry;
     setChannels(updated); setActiveChannel(idx);
@@ -235,6 +263,7 @@ export default function BultenDuzenleyici() {
 
   function clearChannel(idx, e) {
     e.stopPropagation();
+    if (channels[idx]?.fromSheet) return; // Sheet'ten gelen — silinemez
     const updated = [...channels]; updated[idx] = null;
     setChannels(updated);
     if (activeChannel === idx) setActiveChannel(null);
@@ -367,7 +396,7 @@ export default function BultenDuzenleyici() {
                       background: activeChannel === i ? "#eff6ff" : ch?.fromSheet ? "#f0fdf4" : ch ? "#f8fafc" : "#fff",
                       position: "relative"
                     }}>
-                    {ch && (
+                    {ch && !ch.fromSheet && (
                       <span onClick={(e) => clearChannel(i, e)}
                         style={{ position: "absolute", top: "3px", right: "4px", fontSize: "9px", color: "#94a3b8", lineHeight: 1 }}>✕</span>
                     )}
@@ -522,7 +551,7 @@ export default function BultenDuzenleyici() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
                   {channels.map((ch, i) => (
                     <button key={i} onClick={() => handleChannelSelect(i)}
-                      style={{ ...s.channelBtn, borderColor: ch?.fromSheet ? "#86efac" : ch ? "#bfdbfe" : "#e2e8f0", background: ch?.fromSheet ? "#f0fdf4" : "#fff" }}>
+                      style={{ ...s.channelBtn, borderColor: ch?.fromSheet ? "#86efac" : ch ? "#bfdbfe" : "#e2e8f0", background: ch?.fromSheet ? "#f0fdf4" : "#fff", opacity: ch?.fromSheet ? 0.5 : 1, cursor: ch?.fromSheet ? "not-allowed" : "pointer" }}>
                       <div style={{ fontSize: "10px", fontWeight: "700", color: ch ? "#2563eb" : "#94a3b8" }}>{i + 1}. Haber</div>
                       <div style={{ fontSize: "9px", color: ch?.fromSheet ? "#16a34a" : ch ? "#64748b" : "#cbd5e1" }}>{ch?.fromSheet ? "Kayıtlı" : ch ? "Hafızada" : "Boş"}</div>
                     </button>
