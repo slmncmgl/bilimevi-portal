@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwueCJrClXEVORShyqVCJ-Qo8hA4Qv0w5VP1ub-S7nPJLEdponzpKRepdEfUEW9Nfev/exec";
+
 const MODULE_CONFIG = [
   {
     key: "izin",
-    title: "İzin Yönetimi",
+    title: "İK İzin Yönetimi",
     desc: "İzin talepleri ve personel takibi",
     path: "/izin",
     icon: (
@@ -87,14 +89,58 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [time, setTime] = useState(new Date());
+  const [sozlesmePopup, setSozlesmePopup] = useState(false);
+  const [sozlesmeLoading, setSozlesmeLoading] = useState(false);
+  const [sozlesmeSirket, setSozlesmeSirket] = useState("");
+  const [sozlesmeSube, setSozlesmeSube] = useState("");
+  const [sozlesmeAd, setSozlesmeAd] = useState("");
+  const [sozlesmePersonelList, setSozlesmePersonelList] = useState([]);
 
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
     const timer = setInterval(() => setTime(new Date()), 60000);
+    // Personel listesini çek (sözleşme kartı için)
+    fetch(`https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent("Personel")}`)
+      .then(r => r.text())
+      .then(csv => {
+        const lines = csv.trim().split("\n");
+        const rows = lines.slice(1).map(line => {
+          const cols = []; let cur = "", inQ = false;
+          for (const ch of line) {
+            if (ch === '"') inQ = !inQ;
+            else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ""; }
+            else cur += ch;
+          }
+          cols.push(cur.trim());
+          return { ad: (cols[0]||"").replace(/"/g,"").trim(), sirket: (cols[1]||"").replace(/"/g,"").trim(), sube: (cols[2]||"").replace(/"/g,"").trim() };
+        }).filter(r => r.ad);
+        setSozlesmePersonelList(rows);
+        // Default: kullanıcının şirketi ve şubesi
+        if (session.company) setSozlesmeSirket(session.company);
+        if (session.branch) setSozlesmeSube(session.branch);
+      }).catch(() => {});
     return () => clearInterval(timer);
   }, []);
+
+  async function sozlesmeAc() {
+    if (!sozlesmeSirket || !sozlesmeSube || !sozlesmeAd) return;
+    setSozlesmeLoading(true);
+    try {
+      const res = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "danismanSozlesmeBul", sirket: sozlesmeSirket, sube: sozlesmeSube, ad: sozlesmeAd })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.msg || "Hata");
+      window.open(json.url, "_blank");
+      setSozlesmePopup(false);
+    } catch (err) {
+      alert("Hata: " + err.message);
+    }
+    setSozlesmeLoading(false);
+  }
 
   function logout() {
     clearSession();
@@ -219,7 +265,102 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+
+        {/* Danışman Sözleşmeleri kartı */}
+        <div style={{ marginTop: "16px" }}>
+          <button
+            onClick={() => { setSozlesmePopup(true); if (user.company) setSozlesmeSirket(user.company); if (user.branch) setSozlesmeSube(user.branch); }}
+            className="dash-module-card"
+            style={{ ...styles.moduleCard, width: "100%", borderColor: "#e2e8f0", animationDelay: "0.4s" }}
+            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = "#f59e0b66"; e.currentTarget.style.boxShadow = "0 20px 40px -12px #f59e0b22"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)"; }}
+          >
+            <div className="dash-module-icon" style={{ ...styles.moduleIcon, background: "#fffbeb", color: "#d97706", border: "1px solid #fde68a" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <div style={styles.moduleContent}>
+              <h3 style={styles.moduleTitle}>Danışman Sözleşmeleri</h3>
+              <p style={styles.moduleDesc}>Drive'daki sözleşme klasörünü aç veya oluştur</p>
+            </div>
+            <div style={{ ...styles.moduleArrow, color: "#d97706" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+          </button>
+        </div>
       </main>
+
+
+      {/* Danışman Sözleşme Popup */}
+      {sozlesmePopup && (
+        <div onClick={() => setSozlesmePopup(false)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: "20px", padding: "28px", maxWidth: "440px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#fffbeb", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" width="18" height="18">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+              </div>
+              <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>Danışman Sözleşmeleri</h3>
+            </div>
+
+            {/* Şirket */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>Şirket</label>
+              <select value={sozlesmeSirket} onChange={e => { setSozlesmeSirket(e.target.value); setSozlesmeSube(""); setSozlesmeAd(""); }}
+                style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", color: "#0f172a", fontFamily: "inherit", background: "#fff" }}>
+                <option value="">Seçin...</option>
+                {[...new Set(sozlesmePersonelList.map(p => p.sirket))].filter(Boolean).sort().map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Şube */}
+            <div style={{ marginBottom: "14px" }}>
+              <label style={{ fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>Şube</label>
+              <select value={sozlesmeSube} onChange={e => { setSozlesmeSube(e.target.value); setSozlesmeAd(""); }}
+                style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", color: "#0f172a", fontFamily: "inherit", background: "#fff" }}>
+                <option value="">Seçin...</option>
+                {[...new Set(sozlesmePersonelList.filter(p => p.sirket === sozlesmeSirket).map(p => p.sube))].filter(Boolean).sort().map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Danışman */}
+            <div style={{ marginBottom: "20px" }}>
+              <label style={{ fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>Danışman</label>
+              <select value={sozlesmeAd} onChange={e => setSozlesmeAd(e.target.value)}
+                style={{ width: "100%", padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", color: "#0f172a", fontFamily: "inherit", background: "#fff" }}>
+                <option value="">Seçin...</option>
+                {sozlesmePersonelList.filter(p => p.sirket === sozlesmeSirket && p.sube === sozlesmeSube).map(p => (
+                  <option key={p.ad} value={p.ad}>{p.ad}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setSozlesmePopup(false)}
+                style={{ flex: 1, padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "inherit" }}>
+                İptal
+              </button>
+              <button onClick={sozlesmeAc} disabled={sozlesmeLoading || !sozlesmeSirket || !sozlesmeSube || !sozlesmeAd}
+                style={{ flex: 2, padding: "10px", background: sozlesmeLoading || !sozlesmeAd ? "#e2e8f0" : "#d97706", border: "none", borderRadius: "10px", cursor: sozlesmeAd ? "pointer" : "not-allowed", fontSize: "13px", fontWeight: "700", color: sozlesmeAd ? "#fff" : "#94a3b8", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                {sozlesmeLoading ? "Açılıyor..." : "Drive'da Aç →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
