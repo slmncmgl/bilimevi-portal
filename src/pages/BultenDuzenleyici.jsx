@@ -1,3 +1,6 @@
+ 
+
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -15,6 +18,7 @@ export default function BultenDuzenleyici() {
   const [input, setInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
+  const [channelsLoading, setChannelsLoading] = useState(true);
   const [detectedUrls, setDetectedUrls] = useState([]);
   const [result, setResult] = useState(null); // { title, content, urls }
   const [loading, setLoading] = useState(false);
@@ -34,31 +38,38 @@ export default function BultenDuzenleyici() {
     if (!session) { navigate("/"); return; }
     setUser(session);
 
-    // Sheet'teki mevcut haberleri çek
-    fetch(SCRIPT_URL, {
-      method: "POST",
-      body: JSON.stringify({ action: "bultenHaberleriGetir" })
-    })
-    .then(r => r.json())
-    .then(json => {
-      if (!json.success || !json.data) return;
-      // Haber-1..8 → K1..K8 (satır 2 = index 0)
-      const updated = Array(8).fill(null);
-      json.data.forEach(h => {
-        const idx = h.row - 2; // satır 2 = index 0
-        if (idx >= 0 && idx < 8) {
-          updated[idx] = {
-            title: h.title,
-            content: h.content,
-            urls: h.url ? [h.url] : [],
-            date: "",
-            fromSheet: true
-          };
+    // requestAnimationFrame ile skeleton'ın DOM'a yansımasını bekle, sonra fetch başlat
+    requestAnimationFrame(() => {
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "bultenHaberleriGetir" })
+      })
+      .then(r => r.json())
+      .then(json => {
+        if (!json.success || !json.data) return;
+        const updated = Array(8).fill(null);
+        json.data.forEach(h => {
+          const idx = h.row - 2;
+          if (idx >= 0 && idx < 8) {
+            updated[idx] = {
+              title: h.title,
+              content: h.content,
+              urls: h.url ? [h.url] : [],
+              date: "",
+              fromSheet: true
+            };
+          }
+        });
+        setChannels(updated);
+        const ilkDolu = updated.findIndex(ch => ch !== null);
+        if (ilkDolu !== -1) {
+          setResult({ title: updated[ilkDolu].title, content: updated[ilkDolu].content, urls: updated[ilkDolu].urls || [] });
+          setActiveChannel(ilkDolu);
         }
-      });
-      setChannels(updated);
-    })
-    .catch(() => {});
+      })
+      .catch(() => {})
+      .finally(() => setChannelsLoading(false));
+    });
   }, []);
 
   useEffect(() => {
@@ -322,7 +333,18 @@ export default function BultenDuzenleyici() {
                 Hafıza (8 Kanal)
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }}>
-                {channels.map((ch, i) => (
+                {channelsLoading
+                  ? Array(8).fill(null).map((_, i) => (
+                      <div key={i} style={{
+                        ...s.channelBtn,
+                        background: "linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%)",
+                        backgroundSize: "200% 100%",
+                        animation: "shimmer 1.4s infinite",
+                        border: "1.5px solid #e2e8f0",
+                        height: "56px"
+                      }} />
+                    ))
+                  : channels.map((ch, i) => (
                   <button key={i} onClick={() => loadChannel(i)}
                     style={{
                       ...s.channelBtn,
@@ -453,10 +475,10 @@ export default function BultenDuzenleyici() {
                       Hafızaya Kaydet
                     </button>
                   )}
-                  <button onClick={saveToSheet} disabled={saving} style={{
+                  <button onClick={saveToSheet} disabled={saving || activeChannel === null} style={{
                     ...s.primaryBtn, flex: 1,
-                    opacity: saving ? 0.7 : 1,
-                    cursor: saving ? "not-allowed" : "pointer"
+                    opacity: (saving || activeChannel === null) ? 0.4 : 1,
+                    cursor: (saving || activeChannel === null) ? "not-allowed" : "pointer"
                   }}>
                     {saving
                       ? <><div style={s.spinner} /> Kaydediliyor...</>
@@ -529,6 +551,7 @@ export default function BultenDuzenleyici() {
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         textarea:focus, input:focus { outline: none; border-color: #2563eb !important; }
       `}</style>
     </div>
