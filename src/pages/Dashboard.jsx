@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz96gL7QZz320KebQO1eg6g6Gf_v2jv-BbzFaeZuQjEaB2sYeadYyoaWpM4sNzoZsLu/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwueCJrClXEVORShyqVCJ-Qo8hA4Qv0w5VP1ub-S7nPJLEdponzpKRepdEfUEW9Nfev/exec";
 
 const MODULE_CONFIG = [
   {
@@ -169,6 +169,18 @@ export default function Dashboard() {
                 Yönetici Paneli
               </button>
             )}
+            {user?.modules?.sozlesme && (
+              <button onClick={sozlesmeAc} disabled={sozlesmeLoading}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: sozlesmeLoading ? "#64748b" : "#d97706", color: "#fff", border: "none", borderRadius: "8px", cursor: sozlesmeLoading ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                onMouseEnter={e => { if (!sozlesmeLoading) e.currentTarget.style.background = "#b45309"; }}
+                onMouseLeave={e => { if (!sozlesmeLoading) e.currentTarget.style.background = "#d97706"; }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                {sozlesmeLoading ? "Açılıyor..." : "Sözleşmem"}
+              </button>
+            )}
             <div style={styles.userInfo}>
               <div style={styles.avatar}>
                 {user.name?.charAt(0).toUpperCase()}
@@ -257,35 +269,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Danışman Sözleşmeleri kartı */}
-        {user?.modules?.sozlesme && <div style={{ marginTop: "16px" }}>
-          <button
-            onClick={sozlesmeAc}
-            className="dash-module-card"
-            style={{ ...styles.moduleCard, width: "100%", borderColor: "#e2e8f0", animationDelay: "0.4s" }}
-            onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = "#f59e0b66"; e.currentTarget.style.boxShadow = "0 20px 40px -12px #f59e0b22"; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)"; }}
-          >
-            <div className="dash-module-icon" style={{ ...styles.moduleIcon, background: "#fffbeb", color: "#d97706", border: "1px solid #fde68a" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
-              </svg>
-            </div>
-            <div style={styles.moduleContent}>
-              <h3 style={styles.moduleTitle}>Danışman Sözleşmeleri</h3>
-              <p style={styles.moduleDesc}>Drive'daki sözleşme klasörünü aç veya oluştur</p>
-            </div>
-            <div style={{ ...styles.moduleArrow, color: "#d97706" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </div>
-          </button>
-        </div>}
+
       </main>
 
 
