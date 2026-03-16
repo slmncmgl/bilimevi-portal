@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxFE2HP-e8qRc_01_5rKAOX8UEoUZTkBYdEnHpJyCXszLxxYqLU-qU0RNV4vu7n7Mlq/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDHTg89Ei08ZfwWCNcRiNlxKBknH7DNNou7Ki2AifUz3IqkQ7YPrVR2wBcvTrlYmQ8/exec";
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 const extractUrls = (text) => text.match(URL_REGEX) || [];
