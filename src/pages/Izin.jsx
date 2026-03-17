@@ -406,7 +406,7 @@ export default function Izin() {
       )}
       
       <header style={styles.header}>
-        <div style={styles.headerInner}>
+        <div style={styles.headerInner} className="izin-header-inner">
           <div style={styles.headerLeft}>
             <button onClick={() => navigate("/dashboard")} style={styles.backBtn}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -417,7 +417,7 @@ export default function Izin() {
             <span style={styles.headerSep}>·</span>
             <span style={styles.headerTitle}>İK İzin Yönetimi</span>
           </div>
-          <div style={styles.headerRight}>
+          <div style={styles.headerRight} className="izin-header-right">
             {["admin","owner","director","manager"].includes(rol) && !adminView && (
               <button onClick={() => { setAdminView(true); loadAdminList(getSession()); }}
                 style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif" }}>
@@ -437,7 +437,7 @@ export default function Izin() {
         </div>
       </header>
 
-      <main style={styles.main}>
+      <main style={styles.main} className="izin-main">
         {adminView ? (
           <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin" || rol === "owner"} />
         ) : (
@@ -451,7 +451,7 @@ export default function Izin() {
                 </div>
                 {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : personel ? (
                   <>
-                    <div style={{ display: "flex", gap: "12px", alignItems: "stretch" }}>
+                    <div style={{ display: "flex", gap: "12px", alignItems: "stretch" }} className="izin-info-row-wrap">
                       <div style={styles.infoRow}>
                         <span style={styles.infoLabel}>Toplam Hak</span>
                         <span style={styles.infoValue}>{personel["Hakediş"]} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>gün</span></span>
@@ -482,7 +482,7 @@ export default function Izin() {
               </div>
 
               {/* Form */}
-              <div style={styles.formCard}>
+              <div style={styles.formCard} className="izin-form-card">
                 <h2 style={styles.formCardTitle}>İzin Talep Formu</h2>
                 <form onSubmit={handleSubmit} style={styles.form}>
 
@@ -620,7 +620,7 @@ export default function Izin() {
                 <h3 style={styles.yaklasanTitle}>Şubenizdeki Yaklaşan İzinler</h3>
                 <div style={styles.yaklasanList}>
                   {yaklasanIzinler.map((iz, i) => (
-                    <div key={i} style={styles.yaklasanRow}>
+                    <div key={i} style={styles.yaklasanRow} className="izin-yaklasan-row">
                       <div>
                         <div style={styles.yaklasanIsim}>{iz["Personel"]}</div>
                         <div style={styles.yaklasanTur}>{(iz["Mazeret"] || "").split(" - ")[0]}</div>    
@@ -682,13 +682,35 @@ export default function Izin() {
       )}
 
       <style>{`
-        
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Calibri, sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes slideInRight { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+        @media (max-width: 640px) {
+          /* Header */
+          .izin-header-inner { padding: 10px 14px !important; flex-wrap: wrap; gap: 6px; }
+          .izin-header-right { gap: 6px !important; flex-wrap: wrap; }
+          .izin-header-right button { padding: 6px 10px !important; font-size: 11px !important; }
+          /* Info kart — yatay yerine 2x2 grid */
+          .izin-info-row-wrap { flex-wrap: wrap !important; }
+          .izin-info-row-wrap > div { min-width: calc(50% - 6px) !important; flex: 1 1 calc(50% - 6px) !important; }
+          /* Form kart */
+          .izin-form-card { padding: 20px 16px !important; }
+          /* Main padding */
+          .izin-main { padding: 20px 12px 48px !important; }
+          /* Yaklaşan izinler */
+          .izin-yaklasan-row { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+          /* Admin panel */
+          .izin-admin-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+          .izin-admin-btns { flex-wrap: wrap !important; }
+          .izin-admin-btns button { font-size: 11px !important; padding: 6px 10px !important; }
+          /* Modal */
+          .izin-modal-box { padding: 20px 16px !important; margin: 12px !important; }
+          /* Tablo overflow */
+          .izin-table-wrap { overflow-x: auto !important; }
+        }
       `}</style>
     </div>
   );
@@ -928,7 +950,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
       )}
       {showModal && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modalBox}>
+          <div style={styles.modalBox} className="izin-modal-box">
             {formSaving && (
               <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.85)", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", zIndex: 10 }}>
                 <div style={styles.loadingSpinner} />
@@ -1022,9 +1044,9 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin }
           </div>
         </div>
       )}
-      <div style={styles.adminHeader}>
+      <div style={styles.adminHeader} className="izin-admin-header">
         <h2 style={styles.adminTitle}>Yönetici Paneli</h2>
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px" }} className="izin-admin-btns">
           {isAdmin && <button onClick={() => { setShowSubeler(true); fetchSubeListAll(); }} style={{ ...styles.duzenleBtn, background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0" }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
@@ -1085,7 +1107,7 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh, roller, onSaveStart, onSa
       {Object.entries(grouped).sort().map(([dept, rows]) => (
         <div key={dept}>
           <div style={{ fontSize: "12px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.5px" }}>{dept}</div>
-          <div style={{ overflowX: "hidden" }}><table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed" }}>
+          <div style={{ overflowX: "hidden" }} className="izin-table-wrap"><table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: "18%" }} />
               <col style={{ width: "12%" }} />

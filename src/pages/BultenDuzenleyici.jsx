@@ -1,11 +1,8 @@
- 
-
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz96gL7QZz320KebQO1eg6g6Gf_v2jv-BbzFaeZuQjEaB2sYeadYyoaWpM4sNzoZsLu/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwueCJrClXEVORShyqVCJ-Qo8hA4Qv0w5VP1ub-S7nPJLEdponzpKRepdEfUEW9Nfev/exec";
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 const extractUrls = (text) => text.match(URL_REGEX) || [];
@@ -297,7 +294,7 @@ export default function BultenDuzenleyici() {
 
       {/* Header */}
       <header style={s.header}>
-        <div style={s.headerInner}>
+        <div style={s.headerInner} className="bulten-header-inner">
           <div style={s.headerLeft}>
             <button onClick={() => navigate("/dashboard")} style={s.backBtn}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -308,15 +305,15 @@ export default function BultenDuzenleyici() {
             <span style={s.headerSep}>·</span>
             <span style={s.headerTitle}>Bülten Düzenleyici</span>
           </div>
-          <div style={s.headerRight}>
+          <div style={s.headerRight} className="bulten-header-right">
             <div style={s.userChip}><div style={s.userDot} />{user?.name}</div>
             <button onClick={() => navigate("/")} style={s.logoutBtn}>Çıkış</button>
           </div>
         </div>
       </header>
 
-      <main style={s.main}>
-        <div style={s.grid}>
+      <main style={s.main} className="bulten-main">
+        <div style={s.grid} className="bulten-grid">
 
           {/* SOL — Giriş */}
           <div style={s.leftCol}>
@@ -381,7 +378,7 @@ export default function BultenDuzenleyici() {
                 </svg>
                 Hafıza (8 Kanal)
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }} className="bulten-channel-grid">
                 {channelsLoading
                   ? Array(8).fill(null).map((_, i) => (
                       <div key={i} style={{
@@ -503,7 +500,7 @@ export default function BultenDuzenleyici() {
                 )}
 
             {/* Aksiyon butonları */}
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div style={{ display: "flex", gap: "10px" }} className="bulten-action-btns">
               {result && activeChannel === null && !fromSheetPreview && (
                 <button onClick={handleSaveClick} style={{ ...s.secondaryBtn, flex: 1 }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
@@ -589,6 +586,14 @@ export default function BultenDuzenleyici() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         textarea:focus, input:focus { outline: none; border-color: #2563eb !important; }
+        @media (max-width: 640px) {
+          .bulten-header-inner { padding: 10px 14px !important; flex-wrap: wrap; gap: 6px; }
+          .bulten-header-right { gap: 6px !important; flex-wrap: wrap; }
+          .bulten-main { padding: 16px 12px 48px !important; max-width: 100% !important; }
+          .bulten-grid { grid-template-columns: 1fr !important; display: flex !important; flex-direction: column !important; }
+          .bulten-channel-grid { grid-template-columns: repeat(4, 1fr) !important; }
+          .bulten-action-btns { flex-direction: column !important; }
+        }
       `}</style>
     </div>
   );

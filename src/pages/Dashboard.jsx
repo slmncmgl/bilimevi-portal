@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz96gL7QZz320KebQO1eg6g6Gf_v2jv-BbzFaeZuQjEaB2sYeadYyoaWpM4sNzoZsLu/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwueCJrClXEVORShyqVCJ-Qo8hA4Qv0w5VP1ub-S7nPJLEdponzpKRepdEfUEW9Nfev/exec";
 
 const MODULE_CONFIG = [
   {
@@ -156,7 +156,7 @@ export default function Dashboard() {
             alt="Bilimevi"
             style={styles.headerLogo}
           />
-          <div style={styles.headerRight}>
+          <div style={styles.headerRight} className="dash-header-right">
             {["admin", "owner", "director", "manager"].includes(user.rol) && (
               <button onClick={() => navigate("/izin?panel=admin")}
                 style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
@@ -301,15 +301,17 @@ export default function Dashboard() {
           to { opacity: 1; transform: translateY(0); }
         }
         @media (max-width: 640px) {
-          .dash-header-inner { padding: 12px 16px !important; }
+          .dash-header-inner { padding: 12px 16px !important; flex-wrap: wrap; gap: 8px; }
           .dash-user-name { display: none !important; }
           .dash-user-meta { display: none !important; }
-          .dash-greeting-title { font-size: 24px !important; }
-          .dash-main { padding: 28px 16px 48px !important; }
+          .dash-greeting-title { font-size: 22px !important; }
+          .dash-main { padding: 20px 12px 48px !important; }
           .dash-grid { grid-template-columns: 1fr !important; }
-          .dash-module-card { padding: 18px 20px !important; gap: 14px !important; }
-          .dash-module-icon { width: 48px !important; height: 48px !important; border-radius: 12px !important; }
-          .dash-module-icon svg { width: 24px !important; height: 24px !important; }
+          .dash-module-card { padding: 16px !important; gap: 12px !important; }
+          .dash-module-icon { width: 44px !important; height: 44px !important; border-radius: 10px !important; }
+          .dash-module-icon svg { width: 22px !important; height: 22px !important; }
+          .dash-header-right { gap: 6px !important; flex-wrap: wrap; }
+          .dash-header-right button { padding: 6px 10px !important; font-size: 11px !important; }
         }
       `}</style>
     </div>
