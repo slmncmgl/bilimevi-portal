@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
@@ -36,33 +36,31 @@ export default function BultenDuzenleyici() {
     if (!session) { navigate("/"); return; }
     setUser(session);
 
-    // requestAnimationFrame ile skeleton'ın DOM'a yansımasını bekle, sonra fetch başlat
-    requestAnimationFrame(() => {
-      fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "bultenHaberleriGetir" })
-      })
-      .then(r => r.json())
-      .then(json => {
-        if (!json.success || !json.data) return;
-        const updated = Array(8).fill(null);
-        json.data.forEach(h => {
-          const idx = h.row - 2;
-          if (idx >= 0 && idx < 8) {
-            updated[idx] = {
-              title: h.title,
-              content: h.content,
-              urls: h.url ? [h.url] : [],
-              date: "",
-              fromSheet: true
-            };
-          }
-        });
-        setChannels(updated);
-      })
-      .catch(() => {})
-      .finally(() => setChannelsLoading(false));
-    });
+    // Sheet'teki mevcut haberleri çek
+    fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "bultenHaberleriGetir" })
+    })
+    .then(r => r.json())
+    .then(json => {
+      if (!json.success || !json.data) return;
+      const updated = Array(8).fill(null);
+      json.data.forEach(h => {
+        const idx = h.row - 2;
+        if (idx >= 0 && idx < 8) {
+          updated[idx] = {
+            title: h.title,
+            content: h.content,
+            urls: h.url ? [h.url] : [],
+            date: "",
+            fromSheet: true
+          };
+        }
+      });
+      setChannels(updated);
+    })
+    .catch(() => {})
+    .finally(() => setChannelsLoading(false));
   }, []);
 
   useEffect(() => {
@@ -78,7 +76,7 @@ export default function BultenDuzenleyici() {
   }
 
   // ── URL'den Özetle ────────────────────────────────────────────
-  const URL_FETCH_SCRIPT = "https://script.google.com/macros/s/AKfycbwueCJrClXEVORShyqVCJ-Qo8hA4Qv0w5VP1ub-S7nPJLEdponzpKRepdEfUEW9Nfev/exec";
+  const URL_FETCH_SCRIPT = "https://script.google.com/macros/s/AKfycbyhEpYKU6xGlzyr-JNocqhVsaxKkZHTTRYoC5siYB0lOhesTzX3vI-ab50qWdLnLDwM/exec";
 
   async function summarizeFromUrl() {
     if (!urlInput.trim()) return;
