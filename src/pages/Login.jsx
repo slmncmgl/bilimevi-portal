@@ -25,6 +25,10 @@ export default function Login() {
   const [error, setError] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [remember, setRemember] = useState(false);
+  const [sifrePopup, setSifrePopup] = useState(false);
+  const [sifreUsername, setSifreUsername] = useState("");
+  const [sifreLoading, setSifreLoading] = useState(false);
+  const [sifreMesaj, setSifreMesaj] = useState(null); // { type, msg }
 
   useEffect(() => {
     if (getSession()) { navigate("/dashboard"); return; }
@@ -36,6 +40,25 @@ export default function Login() {
       } catch (_) {}
     }
   }, []);
+
+  async function sifreyiGonder() {
+    if (!sifreUsername.trim()) return;
+    setSifreLoading(true);
+    setSifreMesaj(null);
+    try {
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhEpYKU6xGlzyr-JNocqhVsaxKkZHTTRYoC5siYB0lOhesTzX3vI-ab50qWdLnLDwM/exec";
+      const res = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "sifreyiGonder", kullaniciAdi: sifreUsername.trim() })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.msg || "Kullanıcı bulunamadı");
+      setSifreMesaj({ type: "success", msg: "Şifreniz kayıtlı mail adresinize gönderildi." });
+    } catch (err) {
+      setSifreMesaj({ type: "error", msg: err.message });
+    }
+    setSifreLoading(false);
+  }
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -90,6 +113,9 @@ export default function Login() {
         {/* Sağ panel */}
         <div style={styles.rightPanel} className="login-right">
           <div style={styles.formWrap}>
+            <h1 style={styles.formTitle}>Giriş Yap</h1>
+            <p style={styles.formSub}>Kullanıcı Adınızla Giriş Yapın</p>
+
             <form onSubmit={handleLogin} style={styles.form}>
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Kullanıcı Adı</label>
@@ -151,6 +177,15 @@ export default function Login() {
                 <span style={styles.rememberText}>Beni Hatırla</span>
               </label>
 
+              {/* Şifremi Gönder */}
+              <button
+                type="button"
+                onClick={() => { setSifrePopup(true); setSifreUsername(username); setSifreMesaj(null); }}
+                style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "12px", cursor: "pointer", textAlign: "left", padding: "0", fontFamily: "'Sora', sans-serif", textDecoration: "underline" }}
+              >
+                Kayıtlı Şifremi Gönder
+              </button>
+
               {error && (
                 <div style={styles.errorBox}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -200,6 +235,41 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      {/* Şifre Gönder Popup */}
+      {sifrePopup && (
+        <div onClick={() => { setSifrePopup(false); setSifreMesaj(null); }} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: "20px", padding: "28px", maxWidth: "360px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#0f172a", marginBottom: "8px" }}>Şifreni Hatırlat</h3>
+            <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px", lineHeight: 1.6 }}>
+              Kullanıcı adınızı girin, şifrenizi kayıtlı mail adresinize gönderelim.
+            </p>
+            <input
+              type="text"
+              value={sifreUsername}
+              onChange={e => setSifreUsername(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && sifreyiGonder()}
+              placeholder="Kullanıcı adınız"
+              style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "'Sora', sans-serif", outline: "none", marginBottom: "12px", boxSizing: "border-box" }}
+            />
+            {sifreMesaj && (
+              <div style={{ padding: "10px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: "500", marginBottom: "12px", background: sifreMesaj.type === "success" ? "#ecfdf5" : "#fef2f2", border: `1px solid ${sifreMesaj.type === "success" ? "#a7f3d0" : "#fecaca"}`, color: sifreMesaj.type === "success" ? "#059669" : "#dc2626" }}>
+                {sifreMesaj.msg}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => { setSifrePopup(false); setSifreMesaj(null); }}
+                style={{ flex: 1, padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "'Sora', sans-serif" }}>
+                İptal
+              </button>
+              <button onClick={sifreyiGonder} disabled={sifreLoading || !sifreUsername.trim()}
+                style={{ flex: 2, padding: "10px", background: sifreLoading || !sifreUsername.trim() ? "#bfdbfe" : "#2563eb", border: "none", borderRadius: "10px", cursor: sifreUsername.trim() && !sifreLoading ? "pointer" : "not-allowed", fontSize: "13px", fontWeight: "600", color: "#fff", fontFamily: "'Sora', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                {sifreLoading ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Gönderiliyor...</> : "Gönder"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
