@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
@@ -35,11 +34,11 @@ function getFirstName(fullName) {
 }
 
 const HEADER_DRIVE_ID = "10cGbTMyWigaw36-oB7Gh12ucLuIrVdt-";
-const BANNER_HTML = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0;padding:0;"><tr><td><img src="https://drive.google.com/uc?export=view&id=${HEADER_DRIVE_ID}" width="100%" style="display:block;max-width:600px;" alt="ST Star Awards 2026 - Bilimevi" /></td></tr></table>`;
+const BANNER_HTML = `<tr><td style="padding:0;"><img src="https://drive.google.com/uc?export=view&id=${HEADER_DRIVE_ID}" width="600" style="display:block;width:100%;max-width:600px;" alt="ST Star Awards 2026 - Bilimevi" /></td></tr>`;
 
-const IMZA_HTML = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;"><tr><td style="background:#2d0a4e;padding:16px 24px;text-align:center;font-family:Arial,sans-serif;line-height:1.5;"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:14px;font-weight:700;">Memet C. Kilic</span></td></tr><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:11px;">Corporate Communications Specialist</span></td></tr><tr><td style="text-align:center;padding-bottom:10px;"><span style="color:#ffffff;font-size:11px;">Kadikoy Office</span></td></tr><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:11px;">Phone : (+90) 216 700 14 35</span></td></tr><tr><td style="text-align:center;padding-bottom:10px;"><span style="color:#ffffff;font-size:11px;">Email: memetcan@bilimevi.com</span></td></tr><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:11px;font-weight:700;letter-spacing:1px;">BILIMEVI, Study Abroad Consultancy</span></td></tr><tr><td style="text-align:center;"><span style="color:#ffffff;font-size:11px;">www.bilimevi.com</span></td></tr></table></td></tr></table>`;
+const IMZA_HTML = `<tr><td style="background:#2d0a4e;padding:16px 24px;text-align:center;font-family:Arial,sans-serif;line-height:1.5;"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:14px;font-weight:700;">Memet C. Kilic</span></td></tr><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:11px;">Corporate Communications Specialist</span></td></tr><tr><td style="text-align:center;padding-bottom:10px;"><span style="color:#ffffff;font-size:11px;">Kadikoy Office</span></td></tr><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:11px;">Phone : (+90) 216 700 14 35</span></td></tr><tr><td style="text-align:center;padding-bottom:10px;"><span style="color:#ffffff;font-size:11px;">Email: memetcan@bilimevi.com</span></td></tr><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:11px;font-weight:700;letter-spacing:1px;">BILIMEVI, Study Abroad Consultancy</span></td></tr><tr><td style="text-align:center;"><span style="color:#ffffff;font-size:11px;">www.bilimevi.com</span></td></tr></table></td></tr>`;
 
-function buildMailBody(template, firstName, countryCode, paragraphs) {
+function buildMailBody(template, firstName, countryCode, paragraphs, showHeader = false) {
   if (!template) return "";
   const para = paragraphs[countryCode] || paragraphs["INT"] || "";
   const isHtml = template.includes("<br>") || template.includes("<strong>") || template.includes("<a ");
@@ -62,11 +61,17 @@ function buildMailBody(template, firstName, countryCode, paragraphs) {
   for (const pattern of cutPatterns) {
     body = body.replace(pattern, "");
   }
-  // Banner + body (gri arka plan) + imza
-  const bodyHtml = `<div style="background:#f4f4f4;padding:8px 0;">
-    <div style="background:#fff;max-width:600px;margin:0;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#222;padding:20px 20px 20px 16px;">${body}</div>
-  </div>`;
-  return bodyHtml + IMZA_HTML;
+  // Tüm bölümler tek wrapper table içinde — hizalanmış 600px
+  const bannerRow = showHeader ? BANNER_HTML : '';
+  return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f0f0;">
+    <tr><td align="center" style="padding:16px 0;">
+      <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
+        ${bannerRow}
+        <tr><td style="background:#ffffff;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#222;padding:24px 28px;">${body}</td></tr>
+        ${IMZA_HTML}
+      </table>
+    </td></tr>
+  </table>`;
 }
 
 function normalizeKategori(kat) {
@@ -523,7 +528,7 @@ export default function STMAwards() {
     if (!school) return "";
     const r = school.recipients[recipientIdx] || school.recipients[0];
     const code = normalizeKategori(school.kategori);
-    return buildMailBody(mailTemplate, r?.firstName || "", code, paragraphs);
+    return buildMailBody(mailTemplate, r?.firstName || "", code, paragraphs, showHeader);
   }, [mailTemplate, paragraphs]);
 
   // ── SELECT SCHOOL ──
@@ -590,8 +595,7 @@ export default function STMAwards() {
       const log = [];
       for (let i = 0; i < recipients.length; i++) {
         const r = recipients[i];
-        const baseBody = editMode ? editedBody : (savedBody || getBodyForRecipient(school, i));
-        const body = showHeader ? BANNER_HTML + baseBody : baseBody;
+        const body = editMode ? editedBody : (savedBody || getBodyForRecipient(school, i));
         const res = await apiFetch("sendMail", {
           to: r.email,
           firstName: r.firstName,
@@ -633,7 +637,7 @@ export default function STMAwards() {
           to: r.email,
           firstName: r.firstName,
           schoolName: school.okul,
-          mailBody: showHeader ? BANNER_HTML + getBodyForRecipient(school, ri) : getBodyForRecipient(school, ri),
+          mailBody: getBodyForRecipient(school, ri),
           subject: MAIL_SUBJECT,
           attachmentIds: attachments.map((a) => a.id),
           sheetName: school.sheetName,
@@ -1011,7 +1015,7 @@ export default function STMAwards() {
                       ) : (
                         <div
                           className="stm-mail-body"
-                          dangerouslySetInnerHTML={{ __html: (showHeader ? BANNER_HTML : '') + (savedBody || getBodyForRecipient(selected.school, ri)) }}
+                          dangerouslySetInnerHTML={{ __html: savedBody || getBodyForRecipient(selected.school, ri) }}
                         />
                       )}
                     </div>
