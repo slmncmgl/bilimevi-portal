@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxchiWMsvCSAHrvm-m9fURpOz7a18EFNLtO78WF7wjs1zmXHxlflJQ4sh-ZTdujv6tAOg/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxiBUSNe1pr_0VjPpfeAVX29xZUbO0qX6o2mN_pS81Se5pFdspXYh5dYjunVNJFe46_MA/exec";
 const MAIL_SUBJECT = "Vote for Bilimevi – ST Star Awards 2026";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -33,11 +33,67 @@ function getFirstName(fullName) {
   return capitalizeFirst(fullName.trim().split(/\s+/)[0]);
 }
 
+const BANNER_HTML = `
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0;padding:0;">
+  <tr>
+    <td style="background:linear-gradient(135deg,#2d0a4e 0%,#5b1a8a 50%,#7c2fa0 100%);padding:0;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:28px 32px 8px 32px;">
+            <span style="display:inline-block;background:#fff;color:#2d0a4e;font-size:9px;font-weight:900;letter-spacing:3px;padding:4px 10px;border-radius:2px;text-transform:uppercase;margin-bottom:12px;">ST STAR AWARDS</span>
+          </td>
+          <td style="padding:28px 32px 8px 0;text-align:right;vertical-align:top;">
+            <span style="color:#fff;font-size:18px;font-weight:900;letter-spacing:1px;">Bilimevi</span><br>
+            <span style="color:rgba(255,255,255,0.7);font-size:9px;letter-spacing:1px;">Study Abroad Consultancy</span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding:4px 32px 8px 32px;">
+            <div style="color:#fff;font-size:32px;font-weight:900;line-height:1.1;letter-spacing:-0.5px;">VOTING IS<br>STILL OPEN!</div>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding:4px 32px 24px 32px;">
+            <div style="color:#f0c000;font-size:36px;font-weight:900;line-height:1.1;">VOTE<br>FOR US</div>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding:0 32px 12px 32px;">
+            <div style="background:rgba(255,255,255,0.15);border-radius:4px;padding:8px 12px;display:inline-block;">
+              <span style="color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;">ST STAR AGENCY EASTERN EUROPE CATEGORY 2026</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding:4px 32px 20px 32px;">
+            <span style="color:rgba(255,255,255,0.6);font-size:9px;">2023 – 2024 – 2025 Eastern Europe ST Star Agency Category Finalist</span>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+`;
+
+const IMZA_HTML = `
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:32px;">
+  <tr>
+    <td style="background:#2d0a4e;padding:24px 32px;text-align:center;">
+      <div style="color:#fff;font-size:15px;font-weight:700;margin-bottom:4px;">Memet C. Kilic</div>
+      <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-bottom:2px;">Corporate Communications Specialist</div>
+      <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-bottom:16px;">Kadikoy Office</div>
+      <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-bottom:2px;">Phone : (+90) 216 700 14 35</div>
+      <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-bottom:16px;">Email: memetcan@bilimevi.com</div>
+      <div style="color:#fff;font-size:12px;font-weight:700;letter-spacing:1px;">BILIMEVI, Study Abroad Consultancy</div>
+      <div style="color:rgba(255,255,255,0.6);font-size:11px;">www.bilimevi.com</div>
+    </td>
+  </tr>
+</table>
+`;
+
 function buildMailBody(template, firstName, countryCode, paragraphs) {
   if (!template) return "";
   const para = paragraphs[countryCode] || paragraphs["INT"] || "";
-  // Template düz metin veya HTML olabilir (Apps Script versiyonuna göre)
-  // Düz metin ise \n -> <br> çevir, HTML ise olduğu gibi bırak
   const isHtml = template.includes("<br>") || template.includes("<strong>") || template.includes("<a ");
   let body = template
     .replace("[firstName]", firstName || "")
@@ -49,7 +105,9 @@ function buildMailBody(template, firstName, countryCode, paragraphs) {
   if (!isHtml) {
     body = body.replace(/\n/g, "<br>");
   }
-  return body;
+  // Banner + body + imza
+  const bodyHtml = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#222;padding:24px 32px;">${body}</div>`;
+  return BANNER_HTML + bodyHtml + IMZA_HTML;
 }
 
 function normalizeKategori(kat) {
