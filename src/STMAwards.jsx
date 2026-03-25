@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ function buildMailBody(template, firstName, countryCode, paragraphs) {
   }
   // Banner + body (gri arka plan) + imza
   const bodyHtml = `<div style="background:#f4f4f4;padding:8px 0;">
-    <div style="background:#fff;max-width:600px;margin:0 auto;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#222;padding:28px 32px;">${body}</div>
+    <div style="background:#fff;max-width:600px;margin:0;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#222;padding:20px 20px 20px 16px;">${body}</div>
   </div>`;
   return bodyHtml + IMZA_HTML;
 }
