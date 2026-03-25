@@ -39,7 +39,11 @@ export async function loginWithCredentials(username, password) {
       else cur += ch;
     }
     cols.push(cur.trim());
-    return { mail: cols[0] || "", kullaniciAdi: cols[1] || "", sifre: cols[2] || "" };
+    return {
+      mail: cols[0]?.replace(/"/g, "").trim() || "",
+      kullaniciAdi: cols[1]?.replace(/"/g, "").trim() || "",
+      sifre: cols[2]?.replace(/"/g, "").trim() || ""
+    };
   }).find(
     r => r.kullaniciAdi.toLowerCase() === username.toLowerCase() &&
          r.sifre === password.toString()
