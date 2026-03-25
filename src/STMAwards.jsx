@@ -39,34 +39,32 @@ const BANNER_HTML = `
     <td style="background:linear-gradient(135deg,#2d0a4e 0%,#5b1a8a 50%,#7c2fa0 100%);padding:0;">
       <table width="100%" cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td style="padding:28px 32px 8px 32px;">
-            <span style="display:inline-block;background:#fff;color:#2d0a4e;font-size:9px;font-weight:900;letter-spacing:3px;padding:4px 10px;border-radius:2px;text-transform:uppercase;margin-bottom:12px;">ST STAR AWARDS</span>
+          <td style="padding:16px 24px 6px 24px;vertical-align:middle;">
+            <span style="display:inline-block;background:#fff;color:#2d0a4e;font-size:8px;font-weight:900;letter-spacing:2px;padding:3px 8px;border-radius:2px;text-transform:uppercase;">ST STAR AWARDS</span>
           </td>
-          <td style="padding:28px 32px 8px 0;text-align:right;vertical-align:top;">
-            <span style="color:#fff;font-size:18px;font-weight:900;letter-spacing:1px;">Bilimevi</span><br>
-            <span style="color:rgba(255,255,255,0.7);font-size:9px;letter-spacing:1px;">Study Abroad Consultancy</span>
-          </td>
-        </tr>
-        <tr>
-          <td colspan="2" style="padding:4px 32px 8px 32px;">
-            <div style="color:#fff;font-size:32px;font-weight:900;line-height:1.1;letter-spacing:-0.5px;">VOTING IS<br>STILL OPEN!</div>
+          <td style="padding:16px 24px 6px 0;text-align:right;vertical-align:middle;">
+            <span style="color:#fff;font-size:15px;font-weight:900;letter-spacing:1px;">Bilimevi</span><br>
+            <span style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">Study Abroad Consultancy</span>
           </td>
         </tr>
         <tr>
-          <td colspan="2" style="padding:4px 32px 24px 32px;">
-            <div style="color:#f0c000;font-size:36px;font-weight:900;line-height:1.1;">VOTE<br>FOR US</div>
+          <td colspan="2" style="padding:4px 24px 2px 24px;">
+            <div style="color:#fff;font-size:22px;font-weight:900;line-height:1.15;">VOTING IS STILL OPEN!</div>
           </td>
         </tr>
         <tr>
-          <td colspan="2" style="padding:0 32px 12px 32px;">
-            <div style="background:rgba(255,255,255,0.15);border-radius:4px;padding:8px 12px;display:inline-block;">
-              <span style="color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;">ST STAR AGENCY EASTERN EUROPE CATEGORY 2026</span>
-            </div>
+          <td colspan="2" style="padding:2px 24px 10px 24px;">
+            <div style="color:#f0c000;font-size:26px;font-weight:900;line-height:1.15;">VOTE FOR US</div>
           </td>
         </tr>
         <tr>
-          <td colspan="2" style="padding:4px 32px 20px 32px;">
-            <span style="color:rgba(255,255,255,0.6);font-size:9px;">2023 – 2024 – 2025 Eastern Europe ST Star Agency Category Finalist</span>
+          <td colspan="2" style="padding:0 24px 6px 24px;">
+            <span style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:3px;padding:5px 10px;color:#fff;font-size:9px;font-weight:700;letter-spacing:1px;">ST STAR AGENCY EASTERN EUROPE CATEGORY 2026</span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding:3px 24px 14px 24px;">
+            <span style="color:rgba(255,255,255,0.6);font-size:8px;">2023 – 2024 – 2025 Eastern Europe ST Star Agency Category Finalist</span>
           </td>
         </tr>
       </table>
@@ -76,16 +74,16 @@ const BANNER_HTML = `
 `;
 
 const IMZA_HTML = `
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:32px;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
   <tr>
-    <td style="background:#2d0a4e;padding:24px 32px;text-align:center;">
-      <div style="color:#fff;font-size:15px;font-weight:700;margin-bottom:4px;">Memet C. Kilic</div>
-      <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-bottom:2px;">Corporate Communications Specialist</div>
-      <div style="color:rgba(255,255,255,0.75);font-size:12px;margin-bottom:16px;">Kadikoy Office</div>
-      <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-bottom:2px;">Phone : (+90) 216 700 14 35</div>
-      <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-bottom:16px;">Email: memetcan@bilimevi.com</div>
-      <div style="color:#fff;font-size:12px;font-weight:700;letter-spacing:1px;">BILIMEVI, Study Abroad Consultancy</div>
-      <div style="color:rgba(255,255,255,0.6);font-size:11px;">www.bilimevi.com</div>
+    <td style="background:#2d0a4e;padding:16px 24px;text-align:center;">
+      <p style="margin:0 0 2px 0;color:#fff;font-size:14px;font-weight:700;">Memet C. Kilic</p>
+      <p style="margin:0 0 2px 0;color:rgba(255,255,255,0.75);font-size:11px;">Corporate Communications Specialist</p>
+      <p style="margin:0 0 10px 0;color:rgba(255,255,255,0.75);font-size:11px;">Kadikoy Office</p>
+      <p style="margin:0 0 2px 0;color:rgba(255,255,255,0.6);font-size:11px;">Phone : (+90) 216 700 14 35</p>
+      <p style="margin:0 0 10px 0;color:rgba(255,255,255,0.6);font-size:11px;">Email: memetcan@bilimevi.com</p>
+      <p style="margin:0 0 2px 0;color:#fff;font-size:11px;font-weight:700;letter-spacing:1px;">BILIMEVI, Study Abroad Consultancy</p>
+      <p style="margin:0;color:rgba(255,255,255,0.6);font-size:11px;">www.bilimevi.com</p>
     </td>
   </tr>
 </table>
@@ -105,8 +103,19 @@ function buildMailBody(template, firstName, countryCode, paragraphs) {
   if (!isHtml) {
     body = body.replace(/\n/g, "<br>");
   }
-  // Banner + body + imza
-  const bodyHtml = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#222;padding:24px 32px;">${body}</div>`;
+  // Sheet'ten gelen imzayı kes — "Best Regards" veya "Memet C. Kilic" satırından itibaren
+  const cutPatterns = [
+    /<br><br>Best Regards[\s\S]*/i,
+    /<br>Best Regards[\s\S]*/i,
+    /Best Regards,<br>[\s\S]*/i,
+  ];
+  for (const pattern of cutPatterns) {
+    body = body.replace(pattern, "");
+  }
+  // Banner + body (gri arka plan) + imza
+  const bodyHtml = `<div style="background:#f4f4f4;padding:8px 0;">
+    <div style="background:#fff;max-width:600px;margin:0 auto;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#222;padding:28px 32px;">${body}</div>
+  </div>`;
   return BANNER_HTML + bodyHtml + IMZA_HTML;
 }
 
@@ -128,11 +137,25 @@ function normalizeKategori(kat) {
 
 // ─── API ───────────────────────────────────────────────────────────────────
 async function apiFetch(action, postData = null) {
-  let url = `${SCRIPT_URL}?action=${action}`;
-  if (postData) {
-    url += `&data=${encodeURIComponent(JSON.stringify(postData))}`;
+  const url = `${SCRIPT_URL}?action=${action}`;
+  if (!postData) {
+    const res = await fetch(url);
+    return res.json();
   }
-  const res = await fetch(url);
+  // sendMail/sendBulk: body büyük, GET URL'ye sığmaz → no-cors POST
+  // Apps Script redirect'ini takip etmek için no-redirect trick:
+  // önce GET ile dene, büyük data için form-encoded POST
+  const encoded = encodeURIComponent(JSON.stringify(postData));
+  if (encoded.length < 4000) {
+    // Kısa payload: GET ile gönder
+    const res = await fetch(`${url}&data=${encoded}`);
+    return res.json();
+  }
+  // Uzun payload: POST + no Content-Type (Apps Script kabul eder)
+  const res = await fetch(url, {
+    method: "POST",
+    body: JSON.stringify(postData),
+  });
   return res.json();
 }
 
