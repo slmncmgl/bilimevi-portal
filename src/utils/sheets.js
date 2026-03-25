@@ -22,41 +22,24 @@ function parseCSV(csv) {
 }
 
 export async function loginWithCredentials(username, password) {
-  // Login sekmesi: A=E-posta, B=Kullanıcı Adı, C=Şifre
-  // Header satırı bozuk olabileceğinden raw CSV ile index bazlı okuyoruz
-  const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-  const csv = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Login`)
-    .then(r => r.text());
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxEnPEGsZMg2CAmt7mAWAQBVAI935OWRnxi5_k0s8oavls1jG66bqaNRzJAAl-cRp9r/exec";
 
-  const lines = csv.trim().split("\n");
-  // Satır 1 (index 0) header — atla, index 1'den itibaren veri
-  const loginRow = lines.slice(1).map(line => {
-    const cols = [];
-    let cur = "", inQ = false;
-    for (const ch of line) {
-      if (ch === '"') inQ = !inQ;
-      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ""; }
-      else cur += ch;
-    }
-    cols.push(cur.trim());
-    return {
-      mail: cols[0]?.replace(/"/g, "").trim() || "",
-      kullaniciAdi: cols[1]?.replace(/"/g, "").trim() || "",
-      sifre: cols[2]?.replace(/"/g, "").trim() || ""
-    };
-  }).find(
-    r => r.kullaniciAdi.toLowerCase() === username.toLowerCase() &&
-         r.sifre === password.toString()
-  );
+  // Apps Script üzerinden login — gviz CSV sıralama sorununu aşmak için
+  const res = await fetch(SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({ action: "loginWithKullaniciAdi", username, password })
+  });
+  const json = await res.json();
 
-  if (!loginRow) return { success: false, msg: "Hatalı kullanıcı adı veya şifre." };
+  if (!json.success) return { success: false, msg: json.msg || "Hatalı kullanıcı adı veya şifre." };
 
+  // Personel ve modül bilgilerini gviz'den çek
   const personel = await fetchSheet("Personel");
   const moduller = await fetchSheet("Modüller");
 
-  // Login satırındaki e-posta ile Personel'den bilgileri bul
   const user = personel.find(
-    p => p["E-posta"]?.toLowerCase() === loginRow.mail.toLowerCase()
+    p => p["E-posta"]?.toLowerCase() === (json.email || "").toLowerCase()
+      || p["Ad Soyad"]?.toLowerCase() === (json.userName || "").toLowerCase()
   );
 
   if (!user) return { success: false, msg: "Kullanıcı personel listesinde bulunamadı." };
