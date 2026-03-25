@@ -529,7 +529,7 @@ export default function STMAwards() {
     const r = school.recipients[recipientIdx] || school.recipients[0];
     const code = normalizeKategori(school.kategori);
     return buildMailBody(mailTemplate, r?.firstName || "", code, paragraphs, showHeader);
-  }, [mailTemplate, paragraphs]);
+  }, [mailTemplate, paragraphs, showHeader]);
 
   // ── SELECT SCHOOL ──
   const handleSelectSchool = (school, recipIdx = 0) => {
