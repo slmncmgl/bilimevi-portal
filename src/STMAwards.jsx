@@ -33,61 +33,10 @@ function getFirstName(fullName) {
   return capitalizeFirst(fullName.trim().split(/\s+/)[0]);
 }
 
-const BANNER_HTML = `
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0;padding:0;">
-  <tr>
-    <td style="background:linear-gradient(135deg,#2d0a4e 0%,#5b1a8a 50%,#7c2fa0 100%);padding:0;">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td style="padding:16px 24px 6px 24px;vertical-align:middle;">
-            <span style="display:inline-block;background:#fff;color:#2d0a4e;font-size:8px;font-weight:900;letter-spacing:2px;padding:3px 8px;border-radius:2px;text-transform:uppercase;">ST STAR AWARDS</span>
-          </td>
-          <td style="padding:16px 24px 6px 0;text-align:right;vertical-align:middle;">
-            <span style="color:#fff;font-size:15px;font-weight:900;letter-spacing:1px;">Bilimevi</span><br>
-            <span style="color:rgba(255,255,255,0.7);font-size:8px;letter-spacing:1px;">Study Abroad Consultancy</span>
-          </td>
-        </tr>
-        <tr>
-          <td colspan="2" style="padding:4px 24px 2px 24px;">
-            <div style="color:#fff;font-size:22px;font-weight:900;line-height:1.15;">VOTING IS STILL OPEN!</div>
-          </td>
-        </tr>
-        <tr>
-          <td colspan="2" style="padding:2px 24px 10px 24px;">
-            <div style="color:#f0c000;font-size:26px;font-weight:900;line-height:1.15;">VOTE FOR US</div>
-          </td>
-        </tr>
-        <tr>
-          <td colspan="2" style="padding:0 24px 6px 24px;">
-            <span style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:3px;padding:5px 10px;color:#fff;font-size:9px;font-weight:700;letter-spacing:1px;">ST STAR AGENCY EASTERN EUROPE CATEGORY 2026</span>
-          </td>
-        </tr>
-        <tr>
-          <td colspan="2" style="padding:3px 24px 14px 24px;">
-            <span style="color:rgba(255,255,255,0.6);font-size:8px;">2023 – 2024 – 2025 Eastern Europe ST Star Agency Category Finalist</span>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-`;
+const HEADER_DRIVE_ID = "10cGbTMyWigaw36-oB7Gh12ucLuIrVdt-";
+const BANNER_HTML = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0;padding:0;"><tr><td><img src="https://drive.google.com/uc?export=view&id=${HEADER_DRIVE_ID}" width="100%" style="display:block;max-width:600px;" alt="ST Star Awards 2026 - Bilimevi" /></td></tr></table>`;
 
-const IMZA_HTML = `
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
-  <tr>
-    <td style="background:#2d0a4e;padding:16px 24px;text-align:center;">
-      <p style="margin:0 0 2px 0;color:#fff;font-size:14px;font-weight:700;">Memet C. Kilic</p>
-      <p style="margin:0 0 2px 0;color:rgba(255,255,255,0.75);font-size:11px;">Corporate Communications Specialist</p>
-      <p style="margin:0 0 10px 0;color:rgba(255,255,255,0.75);font-size:11px;">Kadikoy Office</p>
-      <p style="margin:0 0 2px 0;color:rgba(255,255,255,0.6);font-size:11px;">Phone : (+90) 216 700 14 35</p>
-      <p style="margin:0 0 10px 0;color:rgba(255,255,255,0.6);font-size:11px;">Email: memetcan@bilimevi.com</p>
-      <p style="margin:0 0 2px 0;color:#fff;font-size:11px;font-weight:700;letter-spacing:1px;">BILIMEVI, Study Abroad Consultancy</p>
-      <p style="margin:0;color:rgba(255,255,255,0.6);font-size:11px;">www.bilimevi.com</p>
-    </td>
-  </tr>
-</table>
-`;
+const IMZA_HTML = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;"><tr><td style="background:#2d0a4e;padding:16px 24px;text-align:center;font-family:Arial,sans-serif;line-height:1.5;"><table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:14px;font-weight:700;">Memet C. Kilic</span></td></tr><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:11px;">Corporate Communications Specialist</span></td></tr><tr><td style="text-align:center;padding-bottom:10px;"><span style="color:#ffffff;font-size:11px;">Kadikoy Office</span></td></tr><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:11px;">Phone : (+90) 216 700 14 35</span></td></tr><tr><td style="text-align:center;padding-bottom:10px;"><span style="color:#ffffff;font-size:11px;">Email: memetcan@bilimevi.com</span></td></tr><tr><td style="text-align:center;padding-bottom:2px;"><span style="color:#ffffff;font-size:11px;font-weight:700;letter-spacing:1px;">BILIMEVI, Study Abroad Consultancy</span></td></tr><tr><td style="text-align:center;"><span style="color:#ffffff;font-size:11px;">www.bilimevi.com</span></td></tr></table></td></tr></table>`;
 
 function buildMailBody(template, firstName, countryCode, paragraphs) {
   if (!template) return "";
@@ -116,7 +65,7 @@ function buildMailBody(template, firstName, countryCode, paragraphs) {
   const bodyHtml = `<div style="background:#f4f4f4;padding:8px 0;">
     <div style="background:#fff;max-width:600px;margin:0 auto;font-family:Arial,sans-serif;font-size:14px;line-height:1.7;color:#222;padding:28px 32px;">${body}</div>
   </div>`;
-  return BANNER_HTML + bodyHtml + IMZA_HTML;
+  return bodyHtml + IMZA_HTML;
 }
 
 function normalizeKategori(kat) {
@@ -509,6 +458,7 @@ export default function STMAwards() {
 
   const [attachmentInput, setAttachmentInput] = useState("");
   const [attachments, setAttachments] = useState([]); // [{id, name}]
+  const [showHeader, setShowHeader] = useState(false);
 
   const [sending, setSending] = useState(false);
   const [sendProgress, setSendProgress] = useState({ current: 0, total: 0, log: [] });
@@ -639,7 +589,8 @@ export default function STMAwards() {
       const log = [];
       for (let i = 0; i < recipients.length; i++) {
         const r = recipients[i];
-        const body = editMode ? editedBody : (savedBody || getBodyForRecipient(school, i));
+        const baseBody = editMode ? editedBody : (savedBody || getBodyForRecipient(school, i));
+        const body = showHeader ? BANNER_HTML + baseBody : baseBody;
         const res = await apiFetch("sendMail", {
           to: r.email,
           firstName: r.firstName,
@@ -681,7 +632,7 @@ export default function STMAwards() {
           to: r.email,
           firstName: r.firstName,
           schoolName: school.okul,
-          mailBody: getBodyForRecipient(school, ri),
+          mailBody: showHeader ? BANNER_HTML + getBodyForRecipient(school, ri) : getBodyForRecipient(school, ri),
           subject: MAIL_SUBJECT,
           attachmentIds: attachments.map((a) => a.id),
           sheetName: school.sheetName,
@@ -1059,12 +1010,32 @@ export default function STMAwards() {
                       ) : (
                         <div
                           className="stm-mail-body"
-                          dangerouslySetInnerHTML={{ __html: savedBody || getBodyForRecipient(selected.school, ri) }}
+                          dangerouslySetInnerHTML={{ __html: (showHeader ? BANNER_HTML : '') + (savedBody || getBodyForRecipient(selected.school, ri)) }}
                         />
                       )}
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* Header Toggle */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 16px", borderBottom: "1px solid #e2e8f0" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "#374151", userSelect: "none" }}>
+                  <div
+                    onClick={() => setShowHeader(h => !h)}
+                    style={{
+                      width: 36, height: 20, borderRadius: 10, background: showHeader ? "#2563eb" : "#cbd5e1",
+                      position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0
+                    }}
+                  >
+                    <div style={{
+                      position: "absolute", top: 2, left: showHeader ? 18 : 2, width: 16, height: 16,
+                      borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)"
+                    }} />
+                  </div>
+                  Header Görseli Ekle
+                </label>
+                {showHeader && <span style={{ fontSize: 11, color: "#6b7280" }}>Drive ID: {HEADER_DRIVE_ID.slice(0, 12)}...</span>}
               </div>
 
               {/* Attachment Area */}
