@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxei-C8MZQsvXTsqYJpOJ8ud42i-kUms8riAYVIqa_Dyylnozi_VFtlXS6Y7VwFAeOngQ/exec";
-const MAIL_SUBJECT = "Voting is Still Open! Vote for Bilimevi in the ST Star Awards";
+const MAIL_SUBJECT = "Only 3 Days Left! - Vote for Bilimevi";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 function parseEmails(raw) {
