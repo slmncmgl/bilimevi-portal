@@ -196,7 +196,7 @@ export default function KayitGuncelle() {
       });
 
       if (!res.ok) throw new Error("Sunucu hatası");
-      setSuccessModal(true);
+      setTimeout(() => setSuccessModal(true), 2500);
     } catch {
       showToast("Gönderim başarısız, tekrar deneyin", "error");
     } finally {
