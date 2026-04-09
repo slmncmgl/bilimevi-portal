@@ -5,16 +5,21 @@ import { getSession } from "../utils/sheets";
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
 
-const TABS = ["Öğrenci", "Okul", "Konaklama", "Taksit", "Diğer"];
+const TABS = ["Öğrenci", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
 
 const DROPDOWN_OPTIONS = {
   "İmzalayacak Ebeveyn": ["Anne", "Baba"],
   "Ödeme Velisi": ["Anne", "Baba"],
   "Eğitim Dili": ["İngilizce", "Almanca", "İspanyolca"],
-  "Kalkış Şehri": ["İstanbul", "Ankara", "İzmir", "Ardahan", "Bursa", "Antalya", "Adana", "Gaziantep", "Konya", "Mersin"],
   "Vize Harcı Dahil Mi?": ["Evet", "Hayır"],
   "Öğle Yemeği": ["Dahil", "Hariç"],
   "Konaklama Tipi": ["Öğrenci Yurdu", "Aile Yanı"],
+  "Para Birimi": ["USD", "GBP", "EUR", "TL", "CAD", "AUD"],
+  "Şube Adı": [
+    "Bilimevi - Taksim", "Bilimevi - Ankara", "Bilimevi - Kadıköy",
+    "Bilimevi - İzmir", "Bilimevi - Bahçeşehir",
+    "Premium Vize - Taksim", "Premium Vize - Kadıköy", "Fortis - Ireland",
+  ],
 };
 
 const READONLY_FIELDS = ["TC Kimlik No", "Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi"];
@@ -28,6 +33,8 @@ const HIDDEN_FIELDS = [
 const TAB_FIELDS = {
   "Öğrenci": [
     "TC Kimlik No", "Öğrenci Adı Soyadı", "Doğum Tarihi", "Adres",
+  ],
+  "Ebeveyn": [
     "Anne Adı Soyadı", "Anne TC", "Anne Telefon", "Anne Mail",
     "Baba Adı Soyadı", "Baba TC", "Baba Telefon", "Baba Mail",
     "İmzalayacak Ebeveyn", "Ödeme Velisi",
@@ -71,11 +78,22 @@ function Toast({ toast }) {
   );
 }
 
-function FieldInput({ label, value, onChange, readonly }) {
+const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı"];
+const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti"];
+const TAKSIT_TUTAR = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Tutarı`);
+const TAKSIT_DONEM = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Dönemi`);
+
+function FieldInput({ label, value, onChange }) {
   const isDropdown = !!DROPDOWN_OPTIONS[label];
-  const isDate = label.includes("Tarih") || label === "Doğum Tarihi";
+  const isReadonly = READONLY_FIELDS.includes(label);
+  const isOnlyLetters = ONLY_LETTERS.includes(label);
+  const isOnlyNumbers = ONLY_NUMBERS.includes(label) || TAKSIT_TUTAR.includes(label);
+  const isDate = ["Doğum Tarihi", "Program Başlangıç Tarihi", "Program Bitiş Tarihi"].includes(label) || TAKSIT_DONEM.includes(label);
   const isEmail = label.includes("Mail");
-  const isReadonly = readonly || READONLY_FIELDS.includes(label);
+  const isTextarea = label === "Adres";
+
+  // Dropdown mismatch kontrolü
+  const hasMismatch = isDropdown && !isReadonly && value && !DROPDOWN_OPTIONS[label].includes(value);
 
   const baseStyle = {
     width: "100%", padding: "9px 12px",
@@ -89,14 +107,21 @@ function FieldInput({ label, value, onChange, readonly }) {
 
   if (isDropdown && !isReadonly) {
     return (
-      <select value={value || ""} onChange={e => onChange(e.target.value)} style={{ ...baseStyle, cursor: "pointer" }}>
-        <option value="">Seçiniz</option>
-        {DROPDOWN_OPTIONS[label].map(opt => <option key={opt} value={opt}>{opt}</option>)}
-      </select>
+      <div>
+        <select value={DROPDOWN_OPTIONS[label].includes(value) ? value : ""} onChange={e => onChange(e.target.value)} style={{ ...baseStyle, cursor: "pointer" }}>
+          <option value="">Seçiniz</option>
+          {DROPDOWN_OPTIONS[label].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+        </select>
+        {hasMismatch && (
+          <div style={{ fontSize: "11px", color: "#b45309", marginTop: "4px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "6px", padding: "4px 8px" }}>
+            ⚠ Mevcut değer: <strong>{value}</strong> — listeden seçiniz
+          </div>
+        )}
+      </div>
     );
   }
 
-  if (label === "Adres") {
+  if (isTextarea) {
     return (
       <textarea
         value={value || ""} onChange={e => onChange(e.target.value)}
@@ -109,7 +134,13 @@ function FieldInput({ label, value, onChange, readonly }) {
   return (
     <input
       type={isDate ? "date" : isEmail ? "email" : "text"}
-      value={value || ""} onChange={e => onChange(e.target.value)}
+      value={value || ""}
+      onChange={e => {
+        let val = e.target.value;
+        if (isOnlyLetters) val = val.replace(/[^a-zA-ZğüşıöçĞÜŞİÖÇ\s]/g, "");
+        if (isOnlyNumbers) val = val.replace(/\D/g, "");
+        onChange(val);
+      }}
       readOnly={isReadonly}
       style={baseStyle}
       onFocus={e => { if (!isReadonly) e.target.style.borderColor = "#0891b2"; }}
@@ -195,15 +226,12 @@ export default function KayitGuncelle() {
         body: JSON.stringify(payload),
       });
 
-     if (!res.ok) throw new Error("Sunucu hatası");
-      setTimeout(() => {
-        setSubmitting(false);
-        setSuccessModal(true);
-      }, 2500);
+      if (!res.ok) throw new Error("Sunucu hatası");
+      setSuccessModal(true);
     } catch {
       showToast("Gönderim başarısız, tekrar deneyin", "error");
-      setSubmitting(false);
     } finally {
+      setSubmitting(false);
     }
   }
 
