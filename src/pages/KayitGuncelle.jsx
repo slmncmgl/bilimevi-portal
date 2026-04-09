@@ -157,9 +157,25 @@ export default function KayitGuncelle() {
   async function gonder() {
     setSubmitting(true);
     try {
+      const LABEL_MAP = {
+        "Danışman Adı": "Kayıt Danışmanı",
+        "TC Kimlik No": "Öğrenci TC Kimlik No",
+        "Okul Adı": "Seçtiği Okul Adı (The School Name)",
+        "Hedef Ülke": "Okulun Bulunduğu Ülke (Country)",
+        "Okul Lokasyonu": "Okul Lokasyonu (Location)",
+        "Program Adı": "Program Adı (Name of the course)",
+        "Haftalık Ders Saati": "Haftalık Ders Saati (Hours per week)",
+        "Kurs Süresi": "Kurs Süresi (Duration)",
+        "Program Başlangıç Tarihi": "Kurs Başlangıç Tarihi (Start date)",
+        "Program Bitiş Tarihi": "Kurs Bitiş Tarihi (End date)",
+        "Konaklama Tipi": "Konaklama Tipi (Accommodation type)",
+        "Oda Tipi": "Oda Tipi (Room Type)",
+        "Depozito Miktarı": "Depozito Tutarı",
+      };
+
       const fields = Object.entries(data)
         .filter(([k]) => !HIDDEN_FIELDS.includes(k) && k !== "row_number")
-        .map(([label, value]) => ({ label, value: value ?? "" }));
+        .map(([label, value]) => ({ label: LABEL_MAP[label] || label, value: value ?? "" }));
 
       const payload = {
         eventType: "FORM_RESPONSE",
