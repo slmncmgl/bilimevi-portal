@@ -195,12 +195,15 @@ export default function KayitGuncelle() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Sunucu hatası");
-      setTimeout(() => setSuccessModal(true), 2500);
+     if (!res.ok) throw new Error("Sunucu hatası");
+      setTimeout(() => {
+        setSubmitting(false);
+        setSuccessModal(true);
+      }, 2500);
     } catch {
       showToast("Gönderim başarısız, tekrar deneyin", "error");
-    } finally {
       setSubmitting(false);
+    } finally {
     }
   }
 
