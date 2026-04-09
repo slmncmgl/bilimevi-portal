@@ -128,6 +128,7 @@ export default function KayitGuncelle() {
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState("Öğrenci");
   const [toast, setToast] = useState(null);
+  const [successModal, setSuccessModal] = useState(false);
 
   function showToast(msg, type = "success") {
     setToast({ msg, type });
@@ -195,8 +196,7 @@ export default function KayitGuncelle() {
       });
 
       if (!res.ok) throw new Error("Sunucu hatası");
-      showToast("Güncellenmiş Sözleşme Öğrenciye / Veliye Tekrar Gönderildi!");
-      setTimeout(() => setData(null), 3000);
+      setSuccessModal(true);
     } catch {
       showToast("Gönderim başarısız, tekrar deneyin", "error");
     } finally {
@@ -378,6 +378,28 @@ export default function KayitGuncelle() {
       </main>
 
       <Toast toast={toast} />
+
+      {/* Başarı Modal */}
+      {successModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "#fff", borderRadius: "24px", padding: "40px 36px", maxWidth: "380px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", textAlign: "center", animation: "fadeUp 0.3s ease-out" }}>
+            <div style={{ fontSize: "48px", marginBottom: "16px" }}>🎉</div>
+            <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#0e7490", marginBottom: "10px", fontFamily: "'Sora', sans-serif" }}>
+              Güncellenmiş Sözleşme Öğrenciye / Veliye Tekrar Gönderildi!
+            </h3>
+            <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "28px", fontFamily: "'Sora', sans-serif", lineHeight: 1.6 }}>
+              Sözleşme yeniden oluşturuldu ve iletildi.
+            </p>
+            <button
+              onClick={() => { setSuccessModal(false); setData(null); setTc(""); }}
+              style={{ width: "100%", padding: "12px", background: "linear-gradient(135deg, #0891b2, #0e7490)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "700", cursor: "pointer", fontFamily: "'Sora', sans-serif" }}
+              onMouseEnter={e => e.currentTarget.style.opacity = "0.9"}
+              onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+              Tamam
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
