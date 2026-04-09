@@ -83,16 +83,21 @@ const MODULE_CONFIG = [
     bg: "#ecfeff",
     border: "#a5f3fc",
   },
-  {
+{
   key: "kayitguncelle",
   title: "Kayıt Güncelle",
   desc: "Öğrenci kaydını düzelt ve sözleşmeyi yeniden gönder",
   path: "/kayit-guncelle",
-  icon: /* kalem SVG */,
+  icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  ),
   color: "#0891b2",
   bg: "#ecfeff",
   border: "#a5f3fc",
-}
+},
 ];
 
 export default function Dashboard() {
