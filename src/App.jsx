@@ -7,6 +7,7 @@ import SinavCevaplari from "./pages/SinavCevaplari";
 import STMAwards from "./STMAwards";
 import InstagramDM from "./pages/InstagramDM";
 import BultenDuzenleyici from "./pages/BultenDuzenleyici";
+import KayitGuncelle from "./pages/KayitGuncelle";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/stm" element={<STMAwards />} />
         <Route path="/instagram" element={<InstagramDM />} />
         <Route path="/bulten" element={<BultenDuzenleyici />} />
+        <Route path="/kayit-guncelle" element={<KayitGuncelle />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         {/* Diğer modüller eklenecek */}
         <Route path="*" element={<Navigate to="/" />} />
