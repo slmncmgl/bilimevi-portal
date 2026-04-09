@@ -195,7 +195,7 @@ export default function KayitGuncelle() {
       });
 
       if (!res.ok) throw new Error("Sunucu hatası");
-      showToast("Kayıt güncellendi, sözleşme yeniden oluşturuluyor...");
+      showToast("Güncellenmiş Sözleşme Öğrenciye / Veliye Tekrar Gönderildi!");
       setTimeout(() => setData(null), 3000);
     } catch {
       showToast("Gönderim başarısız, tekrar deneyin", "error");
