@@ -285,7 +285,7 @@ export default function KayitGuncelle() {
       setTimeout(() => {
         setSubmitting(false);
         setSuccessModal(true);
-      }, 2500);
+      }, 4500);
     } catch {
       showToast("Gönderim başarısız, tekrar deneyin", "error");
       setSubmitting(false);
