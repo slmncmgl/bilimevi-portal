@@ -2,7 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhEpYKU6xGlzyr-JNocqhVsaxKkZHTTRYoC5siYB0lOhesTzX3vI-ab50qWdLnLDwM/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwl7PcvG3pt6RFtoixFu7kBkY3UBWWPhDZgZslsF87Wz_U8x3EqVZ7d9TthTmcIoStF/exec";
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 const extractUrls = (text) => text.match(URL_REGEX) || [];
