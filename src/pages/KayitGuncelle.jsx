@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
-const PERSONEL_URL = "https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=Personel";
 
 const TABS = ["Öğrenci", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
 
@@ -16,6 +15,11 @@ const DROPDOWN_OPTIONS = {
   "Öğle Yemeği": ["Dahil", "Hariç"],
   "Konaklama Tipi": ["Öğrenci Yurdu", "Aile Yanı"],
   "Para Birimi": ["USD", "GBP", "EUR", "TL", "CAD", "AUD"],
+  "Şube Adı": [
+    "Bilimevi - Taksim", "Bilimevi - Ankara", "Bilimevi - Kadıköy",
+    "Bilimevi - İzmir", "Bilimevi - Bahçeşehir",
+    "Premium Vize - Taksim", "Premium Vize - Kadıköy", "Fortis - Ireland",
+  ],
 };
 
 const READONLY_FIELDS = ["TC Kimlik No", "Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi"];
@@ -79,7 +83,7 @@ const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Tak
 const TAKSIT_TUTAR = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Tutarı`);
 const TAKSIT_DONEM = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Dönemi`);
 
-function FieldInput({ label, value, onChange, personelList = [] }) {
+function FieldInput({ label, value, onChange }) {
   const isDropdown = !!DROPDOWN_OPTIONS[label];
   const isReadonly = READONLY_FIELDS.includes(label);
   const isOnlyLetters = ONLY_LETTERS.includes(label);
@@ -88,19 +92,8 @@ function FieldInput({ label, value, onChange, personelList = [] }) {
   const isEmail = label.includes("Mail");
   const isTextarea = label === "Adres";
 
-  // Personel listesinden dinamik dropdown'lar
-  const isDynamicDropdown = ["Şube Adı", "Danışman Adı", "Şirket Adı"].includes(label);
-  let dynamicOptions = [];
-  if (label === "Şube Adı") {
-    dynamicOptions = [...new Set(personelList.map(p => `${p["Şirket"]} - ${p["Şube"]}`).filter(Boolean))].sort();
-  } else if (label === "Danışman Adı") {
-    dynamicOptions = [...new Set(personelList.map(p => p["Ad Soyad"]).filter(Boolean))].sort();
-  } else if (label === "Şirket Adı") {
-    dynamicOptions = [...new Set(personelList.map(p => p["Şirket"]).filter(Boolean))].sort();
-  }
-
+  // Dropdown mismatch kontrolü
   const hasMismatch = isDropdown && !isReadonly && value && !DROPDOWN_OPTIONS[label].includes(value);
-  const hasDynamicMismatch = isDynamicDropdown && !isReadonly && value && dynamicOptions.length > 0 && !dynamicOptions.includes(value);
 
   const baseStyle = {
     width: "100%", padding: "9px 12px",
@@ -111,22 +104,6 @@ function FieldInput({ label, value, onChange, personelList = [] }) {
     outline: "none", boxSizing: "border-box",
     transition: "border-color 0.2s",
   };
-
-  if (isDynamicDropdown && !isReadonly) {
-    return (
-      <div>
-        <select value={dynamicOptions.includes(value) ? value : ""} onChange={e => onChange(e.target.value)} style={{ ...baseStyle, cursor: "pointer" }}>
-          <option value="">Seçiniz</option>
-          {dynamicOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-        </select>
-        {hasDynamicMismatch && (
-          <div style={{ fontSize: "11px", color: "#b45309", marginTop: "4px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "6px", padding: "4px 8px" }}>
-            ⚠ Mevcut değer: <strong>{value}</strong> — listeden seçiniz
-          </div>
-        )}
-      </div>
-    );
-  }
 
   if (isDropdown && !isReadonly) {
     return (
@@ -183,23 +160,17 @@ export default function KayitGuncelle() {
   const [activeTab, setActiveTab] = useState("Öğrenci");
   const [toast, setToast] = useState(null);
   const [successModal, setSuccessModal] = useState(false);
-  const [personelList, setPersonelList] = useState([]);
+  const [ogrencilerim, setOgrencilerim] = useState([]);
+  const [ogrencilerLoading, setOgrencilerLoading] = useState(false);
 
   useEffect(() => {
-    fetch(PERSONEL_URL)
-      .then(r => r.text())
-      .then(csv => {
-        const lines = csv.trim().split("\n");
-        const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
-        const rows = lines.slice(1).map(line => {
-          const vals = line.match(/(".*?"|[^",]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || [];
-          const row = {};
-          headers.forEach((h, i) => { row[h] = (vals[i] || "").replace(/"/g, "").trim(); });
-          return row;
-        });
-        setPersonelList(rows);
-      })
-      .catch(() => {});
+    if (!user?.name) return;
+    setOgrencilerLoading(true);
+    fetch(`${FETCH_URL}?danisman=${encodeURIComponent(user.name)}`)
+      .then(r => r.json())
+      .then(json => { if (json.found && json.list) setOgrencilerim(json.list); })
+      .catch(() => {})
+      .finally(() => setOgrencilerLoading(false));
   }, []);
 
   function showToast(msg, type = "success") {
@@ -207,11 +178,13 @@ export default function KayitGuncelle() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  async function sorgula() {
-    if (!tc || tc.length !== 11) return showToast("Geçerli bir TC Kimlik No girin (11 hane)", "error");
+  async function sorgula(tcParam) {
+    const sorguTC = tcParam || tc;
+    if (!sorguTC || String(sorguTC).length !== 11) return showToast("Geçerli bir TC Kimlik No girin (11 hane)", "error");
+    if (tcParam) setTc(String(tcParam));
     setLoading(true);
     try {
-      const res = await fetch(`${FETCH_URL}?tc=${tc}`);
+      const res = await fetch(`${FETCH_URL}?tc=${sorguTC}`);
       const json = await res.json();
       if (!json.found) return showToast("Bu TC ile kayıt bulunamadı", "error");
       setData(json.data);
@@ -228,19 +201,6 @@ export default function KayitGuncelle() {
   }
 
   async function gonder() {
-    // Taksit validasyonu
-    const taksitSayisi = parseInt(data["Taksit Sayısı"] || "0", 10);
-    if (taksitSayisi > 0) {
-      for (let i = 1; i <= taksitSayisi; i++) {
-        const donem = data[`${i}. Taksit Dönemi`];
-        const tutar = data[`${i}. Taksit Tutarı`];
-        if (!donem || !tutar) {
-          showToast(`${i}. taksit için dönem ve tutar bilgisi eksik`, "error");
-          return;
-        }
-      }
-    }
-
     setSubmitting(true);
     try {
       const LABEL_MAP = {
@@ -281,13 +241,10 @@ export default function KayitGuncelle() {
       });
 
       if (!res.ok) throw new Error("Sunucu hatası");
-
-      setTimeout(() => {
-        setSubmitting(false);
-        setSuccessModal(true);
-      }, 2500);
+      setSuccessModal(true);
     } catch {
       showToast("Gönderim başarısız, tekrar deneyin", "error");
+    } finally {
       setSubmitting(false);
     }
   }
@@ -368,47 +325,77 @@ export default function KayitGuncelle() {
           </div>
         </div>
 
+        {/* Öğrencilerim Tablosu */}
+        {(ogrencilerLoading || ogrencilerim.length > 0) && !data && (
+          <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "24px 28px", marginBottom: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", animation: "fadeUp 0.4s ease-out" }}>
+            <div style={{ fontSize: "13px", fontWeight: "600", color: "#475569", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" width="16" height="16">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              Öğrencilerim
+              {ogrencilerim.length > 0 && <span style={{ background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "20px", padding: "1px 8px", fontSize: "11px", fontWeight: "700" }}>{ogrencilerim.length}</span>}
+            </div>
+            {ogrencilerLoading ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#94a3b8", fontSize: "13px" }}>
+                <span style={s.spinner2} /> Öğrenciler yükleniyor...
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
+                      <th style={{ textAlign: "left", padding: "8px 12px", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ad Soyad</th>
+                      <th style={{ textAlign: "left", padding: "8px 12px", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>TC</th>
+                      <th style={{ textAlign: "left", padding: "8px 12px", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Grup</th>
+                      <th style={{ padding: "8px 12px" }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ogrencilerim.map((ogr, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}
+                        onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        <td style={{ padding: "10px 12px", fontWeight: "600", color: "#0f172a" }}>{ogr["Öğrenci Adı Soyadı"]}</td>
+                        <td style={{ padding: "10px 12px", color: "#64748b", fontFamily: "monospace" }}>{ogr["TC Kimlik No"]}</td>
+                        <td style={{ padding: "10px 12px", color: "#64748b", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ogr["Öğrenci Hangi Gruba Kayıtlı"]}</td>
+                        <td style={{ padding: "10px 12px", textAlign: "right" }}>
+                          <button
+                            onClick={() => sorgula(String(ogr["TC Kimlik No"]))}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'Sora', sans-serif", transition: "all 0.15s" }}
+                            onMouseEnter={e => { e.currentTarget.style.background = "#0891b2"; e.currentTarget.style.color = "#fff"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = "#ecfeff"; e.currentTarget.style.color = "#0891b2"; }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                            Düzenle
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Öğrenci Bilgi Kartı */}
         {data && (
           <>
-            <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
-              {/* Öğrenci & Danışman Kartı */}
-              <div style={{ ...s.infoCard, flex: 1, minWidth: "260px", marginBottom: 0, flexDirection: "column", alignItems: "flex-start", gap: "6px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" width="15" height="15">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
-                  <span style={{ ...s.infoText, fontWeight: "700" }}>{data["Öğrenci Adı Soyadı"]}</span>
-                </div>
-                <div style={{ ...s.infoText, fontSize: "12px", color: "#0e7490", paddingLeft: "23px" }}>
-                  Danışman: <strong>{data["Danışman Adı"]}</strong>
-                </div>
-                <div style={{ ...s.infoText, fontSize: "12px", color: "#0e7490", paddingLeft: "23px" }}>
-                  Şube: <strong>{data["Şube Adı"]}</strong>
-                </div>
+            <div style={s.infoCard}>
+              <div style={s.infoIcon}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" width="16" height="16">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
               </div>
-
-              {/* Sözleşme Durumu Kartı */}
-              {(() => {
-                const durum = (data["Onay Durumu"] || "").toUpperCase();
-                const isOnaylandi = durum === "ONAYLANDI";
-                const isBeklemede = durum === "BEKLEMEDE";
-                const bg = isOnaylandi ? "#f0fdf4" : isBeklemede ? "#fffbeb" : "#f8fafc";
-                const border = isOnaylandi ? "#86efac" : isBeklemede ? "#fde68a" : "#e2e8f0";
-                const color = isOnaylandi ? "#166534" : isBeklemede ? "#92400e" : "#64748b";
-                const icon = isOnaylandi ? "✓" : isBeklemede ? "⏳" : "—";
-                return (
-                  <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: "12px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px", minWidth: "180px" }}>
-                    <span style={{ fontSize: "18px" }}>{icon}</span>
-                    <div>
-                      <div style={{ fontSize: "11px", fontWeight: "600", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "2px" }}>Sözleşme Durumu</div>
-                      <div style={{ fontSize: "14px", fontWeight: "700", color }}>{data["Onay Durumu"] || "—"}</div>
-                    </div>
-                  </div>
-                );
-              })()}
+              <div style={s.infoText}>
+                <strong>{data["Öğrenci Adı Soyadı"]}</strong> adlı öğrencinin kaydı görüntüleniyor.
+                {" "}Danışman: <strong>{data["Danışman Adı"]}</strong> · Şube: <strong>{data["Şube Adı"]}</strong>
+              </div>
             </div>
 
             {/* Sekmeler */}
@@ -433,7 +420,7 @@ export default function KayitGuncelle() {
                     {taksitTopFields.map(key => (
                       <div key={key} style={s.fieldGroup}>
                         <label style={s.fieldLabel}>{key}</label>
-                        <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} personelList={personelList} />
+                        <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} />
                       </div>
                     ))}
                   </div>
@@ -446,10 +433,10 @@ export default function KayitGuncelle() {
                       <div key={i} style={s.taksitRow}>
                         <div style={s.taksitNum}>{i + 1}.</div>
                         <div style={{ flex: 1 }}>
-                          <FieldInput label={donem} value={data[donem]} onChange={val => updateField(donem, val)} personelList={personelList} />
+                          <FieldInput label={donem} value={data[donem]} onChange={val => updateField(donem, val)} />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <FieldInput label={tutar} value={data[tutar]} onChange={val => updateField(tutar, val)} personelList={personelList} />
+                          <FieldInput label={tutar} value={data[tutar]} onChange={val => updateField(tutar, val)} />
                         </div>
                       </div>
                     ))}
@@ -463,7 +450,7 @@ export default function KayitGuncelle() {
                         {key}
                         {READONLY_FIELDS.includes(key) && <span style={s.readonlyBadge}>salt okunur</span>}
                       </label>
-                      <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} personelList={personelList} />
+                      <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} />
                     </div>
                   ))}
                 </div>
@@ -572,4 +559,5 @@ const s = {
   submitRow: { marginTop: "16px", display: "flex", justifyContent: "flex-end" },
   submitBtn: { display: "flex", alignItems: "center", gap: "10px", padding: "14px 28px", color: "#fff", border: "none", borderRadius: "14px", fontSize: "14px", fontWeight: "700", fontFamily: "'Sora', sans-serif", transition: "opacity 0.2s", boxShadow: "0 4px 12px rgba(8,145,178,0.3)" },
   spinner: { display: "inline-block", width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
+  spinner2: { display: "inline-block", width: "14px", height: "14px", border: "2px solid #e2e8f0", borderTopColor: "#0891b2", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
 };
