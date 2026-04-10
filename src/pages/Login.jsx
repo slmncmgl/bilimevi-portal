@@ -50,7 +50,7 @@ export default function Login() {
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ action: "sifreyiGonder", email: sifreUsername.trim() })
-    
+      });
       const json = await res.json();
       if (!json.success) throw new Error(json.msg || "Kullanıcı bulunamadı");
       setSifreMesaj({ type: "success", msg: "Şifreniz kayıtlı mail adresinize gönderildi." });
