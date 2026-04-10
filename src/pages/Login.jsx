@@ -49,8 +49,8 @@ export default function Login() {
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhEpYKU6xGlzyr-JNocqhVsaxKkZHTTRYoC5siYB0lOhesTzX3vI-ab50qWdLnLDwM/exec";
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
-        body: JSON.stringify({ action: "sifreyiGonder", kullaniciAdi: sifreUsername.trim() })
-      });
+        body: JSON.stringify({ action: "sifreyiGonder", email: sifreUsername.trim() })
+    
       const json = await res.json();
       if (!json.success) throw new Error(json.msg || "Kullanıcı bulunamadı");
       setSifreMesaj({ type: "success", msg: "Şifreniz kayıtlı mail adresinize gönderildi." });
@@ -249,7 +249,7 @@ export default function Login() {
               value={sifreUsername}
               onChange={e => setSifreUsername(e.target.value)}
               onKeyDown={e => e.key === "Enter" && sifreyiGonder()}
-              placeholder="Kullanıcı adınız"
+              placeholder="...@bilimevi.com"
               style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "'Sora', sans-serif", outline: "none", marginBottom: "12px", boxSizing: "border-box" }}
             />
             {sifreMesaj && (
