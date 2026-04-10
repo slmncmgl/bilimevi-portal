@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
+const PERSONEL_URL = "https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=Personel";
 
 const TABS = ["Öğrenci", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
 
@@ -15,11 +16,6 @@ const DROPDOWN_OPTIONS = {
   "Öğle Yemeği": ["Dahil", "Hariç"],
   "Konaklama Tipi": ["Öğrenci Yurdu", "Aile Yanı"],
   "Para Birimi": ["USD", "GBP", "EUR", "TL", "CAD", "AUD"],
-  "Şube Adı": [
-    "Bilimevi - Taksim", "Bilimevi - Ankara", "Bilimevi - Kadıköy",
-    "Bilimevi - İzmir", "Bilimevi - Bahçeşehir",
-    "Premium Vize - Taksim", "Premium Vize - Kadıköy", "Fortis - Ireland",
-  ],
 };
 
 const READONLY_FIELDS = ["TC Kimlik No", "Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi"];
@@ -83,7 +79,7 @@ const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Tak
 const TAKSIT_TUTAR = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Tutarı`);
 const TAKSIT_DONEM = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Dönemi`);
 
-function FieldInput({ label, value, onChange }) {
+function FieldInput({ label, value, onChange, personelList = [] }) {
   const isDropdown = !!DROPDOWN_OPTIONS[label];
   const isReadonly = READONLY_FIELDS.includes(label);
   const isOnlyLetters = ONLY_LETTERS.includes(label);
@@ -92,8 +88,19 @@ function FieldInput({ label, value, onChange }) {
   const isEmail = label.includes("Mail");
   const isTextarea = label === "Adres";
 
-  // Dropdown mismatch kontrolü
+  // Personel listesinden dinamik dropdown'lar
+  const isDynamicDropdown = ["Şube Adı", "Danışman Adı", "Şirket Adı"].includes(label);
+  let dynamicOptions = [];
+  if (label === "Şube Adı") {
+    dynamicOptions = [...new Set(personelList.map(p => `${p["Şirket"]} - ${p["Şube"]}`).filter(Boolean))].sort();
+  } else if (label === "Danışman Adı") {
+    dynamicOptions = [...new Set(personelList.map(p => p["Ad Soyad"]).filter(Boolean))].sort();
+  } else if (label === "Şirket Adı") {
+    dynamicOptions = [...new Set(personelList.map(p => p["Şirket"]).filter(Boolean))].sort();
+  }
+
   const hasMismatch = isDropdown && !isReadonly && value && !DROPDOWN_OPTIONS[label].includes(value);
+  const hasDynamicMismatch = isDynamicDropdown && !isReadonly && value && dynamicOptions.length > 0 && !dynamicOptions.includes(value);
 
   const baseStyle = {
     width: "100%", padding: "9px 12px",
@@ -104,6 +111,22 @@ function FieldInput({ label, value, onChange }) {
     outline: "none", boxSizing: "border-box",
     transition: "border-color 0.2s",
   };
+
+  if (isDynamicDropdown && !isReadonly) {
+    return (
+      <div>
+        <select value={dynamicOptions.includes(value) ? value : ""} onChange={e => onChange(e.target.value)} style={{ ...baseStyle, cursor: "pointer" }}>
+          <option value="">Seçiniz</option>
+          {dynamicOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+        </select>
+        {hasDynamicMismatch && (
+          <div style={{ fontSize: "11px", color: "#b45309", marginTop: "4px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "6px", padding: "4px 8px" }}>
+            ⚠ Mevcut değer: <strong>{value}</strong> — listeden seçiniz
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (isDropdown && !isReadonly) {
     return (
@@ -160,6 +183,24 @@ export default function KayitGuncelle() {
   const [activeTab, setActiveTab] = useState("Öğrenci");
   const [toast, setToast] = useState(null);
   const [successModal, setSuccessModal] = useState(false);
+  const [personelList, setPersonelList] = useState([]);
+
+  useEffect(() => {
+    fetch(PERSONEL_URL)
+      .then(r => r.text())
+      .then(csv => {
+        const lines = csv.trim().split("\n");
+        const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
+        const rows = lines.slice(1).map(line => {
+          const vals = line.match(/(".*?"|[^",]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || [];
+          const row = {};
+          headers.forEach((h, i) => { row[h] = (vals[i] || "").replace(/"/g, "").trim(); });
+          return row;
+        });
+        setPersonelList(rows);
+      })
+      .catch(() => {});
+  }, []);
 
   function showToast(msg, type = "success") {
     setToast({ msg, type });
@@ -187,6 +228,19 @@ export default function KayitGuncelle() {
   }
 
   async function gonder() {
+    // Taksit validasyonu
+    const taksitSayisi = parseInt(data["Taksit Sayısı"] || "0", 10);
+    if (taksitSayisi > 0) {
+      for (let i = 1; i <= taksitSayisi; i++) {
+        const donem = data[`${i}. Taksit Dönemi`];
+        const tutar = data[`${i}. Taksit Tutarı`];
+        if (!donem || !tutar) {
+          showToast(`${i}. taksit için dönem ve tutar bilgisi eksik`, "error");
+          return;
+        }
+      }
+    }
+
     setSubmitting(true);
     try {
       const LABEL_MAP = {
@@ -227,10 +281,13 @@ export default function KayitGuncelle() {
       });
 
       if (!res.ok) throw new Error("Sunucu hatası");
-      setSuccessModal(true);
+
+      setTimeout(() => {
+        setSubmitting(false);
+        setSuccessModal(true);
+      }, 2500);
     } catch {
       showToast("Gönderim başarısız, tekrar deneyin", "error");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -350,7 +407,7 @@ export default function KayitGuncelle() {
                     {taksitTopFields.map(key => (
                       <div key={key} style={s.fieldGroup}>
                         <label style={s.fieldLabel}>{key}</label>
-                        <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} />
+                        <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} personelList={personelList} />
                       </div>
                     ))}
                   </div>
@@ -363,10 +420,10 @@ export default function KayitGuncelle() {
                       <div key={i} style={s.taksitRow}>
                         <div style={s.taksitNum}>{i + 1}.</div>
                         <div style={{ flex: 1 }}>
-                          <FieldInput label={donem} value={data[donem]} onChange={val => updateField(donem, val)} />
+                          <FieldInput label={donem} value={data[donem]} onChange={val => updateField(donem, val)} personelList={personelList} />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <FieldInput label={tutar} value={data[tutar]} onChange={val => updateField(tutar, val)} />
+                          <FieldInput label={tutar} value={data[tutar]} onChange={val => updateField(tutar, val)} personelList={personelList} />
                         </div>
                       </div>
                     ))}
@@ -380,7 +437,7 @@ export default function KayitGuncelle() {
                         {key}
                         {READONLY_FIELDS.includes(key) && <span style={s.readonlyBadge}>salt okunur</span>}
                       </label>
-                      <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} />
+                      <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} personelList={personelList} />
                     </div>
                   ))}
                 </div>
