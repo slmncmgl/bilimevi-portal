@@ -285,7 +285,7 @@ export default function KayitGuncelle() {
       setTimeout(() => {
         setSubmitting(false);
         setSuccessModal(true);
-      }, 4500);
+      }, 2500);
     } catch {
       showToast("Gönderim başarısız, tekrar deneyin", "error");
       setSubmitting(false);
@@ -371,18 +371,44 @@ export default function KayitGuncelle() {
         {/* Öğrenci Bilgi Kartı */}
         {data && (
           <>
-            <div style={s.infoCard}>
-              <div style={s.infoIcon}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" width="16" height="16">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
+            <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+              {/* Öğrenci & Danışman Kartı */}
+              <div style={{ ...s.infoCard, flex: 1, minWidth: "260px", marginBottom: 0, flexDirection: "column", alignItems: "flex-start", gap: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" width="15" height="15">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <span style={{ ...s.infoText, fontWeight: "700" }}>{data["Öğrenci Adı Soyadı"]}</span>
+                </div>
+                <div style={{ ...s.infoText, fontSize: "12px", color: "#0e7490", paddingLeft: "23px" }}>
+                  Danışman: <strong>{data["Danışman Adı"]}</strong>
+                </div>
+                <div style={{ ...s.infoText, fontSize: "12px", color: "#0e7490", paddingLeft: "23px" }}>
+                  Şube: <strong>{data["Şube Adı"]}</strong>
+                </div>
               </div>
-              <div style={s.infoText}>
-                <strong>{data["Öğrenci Adı Soyadı"]}</strong> adlı öğrencinin kaydı görüntüleniyor.
-                {" "}Danışman: <strong>{data["Danışman Adı"]}</strong> · Şube: <strong>{data["Şube Adı"]}</strong>
-              </div>
+
+              {/* Sözleşme Durumu Kartı */}
+              {(() => {
+                const durum = (data["Onay Durumu"] || "").toUpperCase();
+                const isOnaylandi = durum === "ONAYLANDI";
+                const isBeklemede = durum === "BEKLEMEDE";
+                const bg = isOnaylandi ? "#f0fdf4" : isBeklemede ? "#fffbeb" : "#f8fafc";
+                const border = isOnaylandi ? "#86efac" : isBeklemede ? "#fde68a" : "#e2e8f0";
+                const color = isOnaylandi ? "#166534" : isBeklemede ? "#92400e" : "#64748b";
+                const icon = isOnaylandi ? "✓" : isBeklemede ? "⏳" : "—";
+                return (
+                  <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: "12px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "10px", minWidth: "180px" }}>
+                    <span style={{ fontSize: "18px" }}>{icon}</span>
+                    <div>
+                      <div style={{ fontSize: "11px", fontWeight: "600", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "2px" }}>Sözleşme Durumu</div>
+                      <div style={{ fontSize: "14px", fontWeight: "700", color }}>{data["Onay Durumu"] || "—"}</div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Sekmeler */}
