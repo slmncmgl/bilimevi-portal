@@ -242,7 +242,7 @@ export default function Login() {
           <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: "20px", padding: "28px", maxWidth: "360px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#0f172a", marginBottom: "8px" }}>Şifreni Hatırlat</h3>
             <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px", lineHeight: 1.6 }}>
-              Kullanıcı adınızı girin, şifrenizi kayıtlı mail adresinize gönderelim.
+              Şirket mail adresinizi girdiğinizde "Şifreniz" mail adresinize gönderilecektir.
             </p>
             <input
               type="text"
