@@ -465,7 +465,7 @@ Müşteri bilgisi bulunamazsa ilgili alanı boş bırak. Asla uydurma.`
                 cursor: (crmLoading || crmDone) ? "not-allowed" : "pointer",
               }}>
               {crmLoading ? (
-                <><div style={{ ...s.spinner, borderTopColor: "#fff", width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff" }} /> Gönderiliyor...</>
+                <><div style={{ ...s.spinner, width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff" }} /> Gönderiliyor...</>
               ) : crmDone ? (
                 <>✅ Gönderildi</>
               ) : (
