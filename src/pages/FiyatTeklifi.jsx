@@ -250,8 +250,8 @@ export default function FiyatTeklifi() {
 
       // Tablo satirlari
       const rows = [
-        { label:"Kurs", sub: d.course?.name || "—", detail: `${d.startDate || ""} · ${d.weeks} hafta`, price: cCost },
-        { label:"Konaklama", sub: d.acc ? `${d.acc.name} (${d.acc.board})`, detail: `${d.acc ? `${d.acc.room} · ${d.acc.bathroom}` : ""}`, price: aCost },
+        { label:"Kurs", sub: d.course?.name || "—", detail: (d.startDate || "") + " · " + d.weeks + " hafta", price: cCost },
+        { label:"Konaklama", sub: d.acc ? (d.acc.name + " (" + d.acc.board + ")") : "—", detail: d.acc ? (d.acc.room + " · " + d.acc.bathroom) : "", price: aCost },
         { label:"Kayıt Ücreti", sub:"", detail:"", price: f.reg },
         { label:"Konaklama Placement", sub:"", detail:"", price: f.acc },
         { label:"Ders Materyalleri", sub:"", detail:"", price: f.mat },
