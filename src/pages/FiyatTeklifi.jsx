@@ -133,7 +133,7 @@ function fmt(n, cur) {
   return `${cur} ${Number(n).toLocaleString("tr-TR")}`;
 }
 
-const emptyDest = () => ({ lang:"", country:"", city:"", brand:"", course:null, weeks:4, acc:null, startDate:"" });
+const emptyDest = (sd="") => ({ lang:"", country:"", city:"", brand:"", course:null, weeks:4, acc:null, startDate:sd });
 
 export default function FiyatTeklifi() {
   const navigate = useNavigate();
@@ -163,13 +163,13 @@ export default function FiyatTeklifi() {
   ][step];
 
   function next() {
-    if (step === 3) { setDestinations(p => [...p, { ...cur }]); setCur(emptyDest()); setStep(4); }
+    if (step === 3) { setDestinations(p => [...p, { ...cur }]); setCur(emptyDest(cur.startDate)); setStep(4); }
     else setStep(s => s + 1);
   }
 
   function addDest() {
     if (step === 3 && cur.acc) setDestinations(p => [...p, { ...cur }]);
-    setCur(emptyDest());
+    setCur(emptyDest(cur.startDate));
     setStep(1);
   }
 
@@ -180,9 +180,7 @@ export default function FiyatTeklifi() {
 
   if (!user) return null;
 
-  const sidebarDests = step < 4 && cur.city && cur.course && cur.acc
-    ? [...destinations, cur]
-    : destinations;
+  const sidebarDests = destinations;
 
   return (
     <div style={S.root}>
@@ -214,15 +212,18 @@ export default function FiyatTeklifi() {
       `}</style>
 
       <header style={S.hdr}>
+        <div style={{ maxWidth:1100, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <button className="ftbb" onClick={() => navigate("/dashboard")}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
           Dashboard
         </button>
         <span style={S.htitle}>Fiyat Teklifi</span>
         <div style={{ width:100 }} />
+        </div>
       </header>
 
-      <div style={S.steps}>
+      <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0" }}>
+      <div style={{ maxWidth:1100, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", overflowX:"auto" }}>
         {STEPS.map((s, i) => (
           <div key={i} style={{ display:"flex", alignItems:"center", flex: i < STEPS.length-1 ? 1 : 0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
@@ -235,6 +236,7 @@ export default function FiyatTeklifi() {
             {i < STEPS.length-1 && <div style={{ flex:1, height:1, background:i<step?ORANGE:"#e2e8f0", margin:"0 8px" }} />}
           </div>
         ))}
+      </div>
       </div>
 
       <div style={S.body}>
@@ -478,9 +480,9 @@ export default function FiyatTeklifi() {
 
 const S = {
   root: { minHeight:"100vh", background:"#f8fafc", fontFamily:"'Sora',sans-serif" },
-  hdr: { position:"sticky", top:0, background:"rgba(255,255,255,0.92)", backdropFilter:"blur(12px)", borderBottom:"1px solid #e2e8f0", zIndex:10, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 28px" },
+  hdr: { position:"sticky", top:0, background:"rgba(255,255,255,0.92)", backdropFilter:"blur(12px)", borderBottom:"1px solid #e2e8f0", zIndex:10 },
   htitle: { fontSize:15, fontWeight:600, color:"#0f172a" },
-  steps: { display:"flex", alignItems:"center", background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"14px 32px", overflowX:"auto" },
+  steps: { display:"flex", alignItems:"center", background:"#fff", borderBottom:"1px solid #e2e8f0", padding:"0", overflowX:"auto" },
   body: { maxWidth:1100, margin:"0 auto", padding:"24px 24px 64px", display:"grid", gridTemplateColumns:"1fr 260px", gap:20, alignItems:"start" },
   main: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:"28px 32px", animation:"fadeUp .3s ease-out" },
   side: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:"20px", position:"sticky", top:80 },
