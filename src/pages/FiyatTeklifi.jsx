@@ -182,19 +182,39 @@ export default function FiyatTeklifi() {
     const GRAY = [100, 116, 139];
     const LGRAY = [210, 220, 230];
     const phone = user.phone || "905419189177";
-    const MX = 24; // sol/sag margin
-    const CW = W - MX * 2; // icerik genisligi
+    const MX = 24;
+    const CW = W - MX * 2;
 
-    // Turkce karakter donusumu - jsPDF Latin-1 destekler
+    // jsPDF Latin-1: c,o,u-umlaut calisiyor; dotless-i(i), g-breve(g), s-cedilla(s) calismiyor
+    // Cozum: sadece sorunlu karakterleri degistir, gerisi aynen birak
     function tr(s) {
-      return (s||"")
-        .replace(/ç/g,"c").replace(/Ç/g,"C")
-        .replace(/ğ/g,"g").replace(/Ğ/g,"G")
-        .replace(/ı/g,"i").replace(/İ/g,"I")
-        .replace(/ö/g,"o").replace(/Ö/g,"O")
-        .replace(/ş/g,"s").replace(/Ş/g,"S")
-        .replace(/ü/g,"u").replace(/Ü/g,"U")
-        .replace(/’/g,"'").replace(/‘/g,"'");
+      return (s || "")
+        .replace(/ı/g, "i")   // dotless i -> i
+        .replace(/İ/g, "I")   // dotted I -> I
+        .replace(/ğ/g, "g")   // g-breve -> g
+        .replace(/Ğ/g, "G")   // G-breve -> G
+        .replace(/ş/g, "s")   // s-cedilla -> s (NOT in Latin-1)
+        .replace(/Ş/g, "S");  // S-cedilla -> S
+      // c-cedilla (c), o-umlaut (o), u-umlaut (u) Latin-1'de var, degistirme
+    }
+
+    // Konaklama tip cevirileri
+    function trAccType(s) {
+      return (s || "")
+        .replace(/Homestay/gi, "Aile Yanı Konaklama")
+        .replace(/Student Residence/gi, "Ogrenci Yurdu")
+        .replace(/Shared Accommodation/gi, "Paylasimli Daire")
+        .replace(/Summer Residence/gi, "Yaz Yurdu");
+    }
+
+    // Board type cevirileri
+    function trBoard(s) {
+      return (s || "")
+        .replace(/Half Board/gi, "Yarım Pansiyon")
+        .replace(/Full Board/gi, "Tam Pansiyon")
+        .replace(/Bed & Breakfast/gi, "Kahvalti Dahil")
+        .replace(/Self-Catering/gi, "Kendi Mutfagi")
+        .replace(/Bed and Breakfast/gi, "Kahvalti Dahil");
     }
 
     function fmtDate(dateStr) {
@@ -209,12 +229,15 @@ export default function FiyatTeklifi() {
       if (!dateStr) return "";
       const d = new Date(dateStr);
       d.setDate(d.getDate() + weeks * 7);
-      return fmtDate(d.toISOString().slice(0,10));
+      return fmtDate(d.toISOString().slice(0, 10));
     }
 
     function fmtMoney(n) {
       return Number(n).toLocaleString("tr-TR") + ",00";
     }
+
+    // Para birimi sembol map
+    const curSymbol = { "GBP": "£", "EUR": "€", "USD": "$", "CAD": "CA$" };
 
     destinations.forEach((d, idx) => {
       if (idx > 0) doc.addPage();
@@ -226,6 +249,7 @@ export default function FiyatTeklifi() {
       const fT = f.reg + f.acc + f.mat;
       const tot = cCost + aCost + fT;
       const cur = d.course ? d.course.currency : f.cur;
+      const sym = curSymbol[cur] || cur;
       const startTxt = fmtDate(d.startDate);
       const endTxt = addWeeks(d.startDate, d.weeks);
 
@@ -233,59 +257,65 @@ export default function FiyatTeklifi() {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...GRAY);
-      doc.text(tr("Bilimevi Egitim Danismaniniz"), MX, 11);
+      doc.text(tr("Bilimevi Eğitim Danışmanınız"), MX, 11);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(...BLACK);
-      doc.text(tr(user.name || "—"), MX, 16);
+      doc.text(tr(user.name || "-"), MX, 16);
 
       // Orta: email
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...GRAY);
-      doc.text("E-posta: " + tr(user.email || ""), W/2, 13, { align:"center" });
+      doc.text("E-posta: " + tr(user.email || ""), W / 2, 13, { align: "center" });
 
-      // Sag: WA linki
+      // Sag: WA linki - tam saga yasla
       doc.setTextColor(...CYAN);
       doc.setFontSize(8);
-      doc.textWithLink(tr("Bana WhatsApp'tan Ulasin →"), W - MX, 11, {
-        align:"right", url: "https://wa.me/" + phone
+      doc.textWithLink(tr("Bana WhatsApp'tan Ulasın →"), W - MX, 11, {
+        align: "right", url: "https://wa.me/" + phone
       });
 
-      // Header cizgisi
+      // Para birimi logosu - sag ust
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.setTextColor(...GRAY);
+      doc.text(sym, W - MX, 20, { align: "right" });
+
+      // Header alt cizgisi
       doc.setDrawColor(...GRAY);
       doc.setLineWidth(0.25);
-      doc.line(MX, 20, W - MX, 20);
+      doc.line(MX, 22, W - MX, 22);
 
       // ─── SEHİR (CYAN, buyuk) ───
       doc.setFont("helvetica", "bold");
       doc.setFontSize(52);
       doc.setTextColor(...CYAN);
-      doc.text(tr(d.city), MX, 58);
+      doc.text(tr(d.city), MX, 60);
 
       // ─── TARİHLER (tek satir, siyah) ───
       doc.setFont("helvetica", "bold");
       doc.setFontSize(20);
       doc.setTextColor(...BLACK);
       const dateLine = endTxt ? (startTxt + "  —  " + endTxt) : startTxt;
-      doc.text(tr(dateLine), MX, 71);
+      doc.text(tr(dateLine), MX, 73);
 
       // ─── TABLO BASLIK ───
-      let y = 84;
+      let y = 86;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(...BLACK);
       doc.text(tr("Teklifinize neler dahil?"), MX, y);
       doc.setTextColor(...GRAY);
-      doc.text(cur, W - MX, y, { align:"right" });
+      doc.text(cur, W - MX, y, { align: "right" });
 
-      // Hafta sayisi (CYAN)
+      // Hafta Sayisi (CYAN, duzgun buyuk harf)
       y += 7;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(...CYAN);
-      doc.text(tr("Hafta sayisi: ") + d.weeks, MX, y);
+      doc.text(tr("Hafta Sayısı: ") + d.weeks, MX, y);
 
       // Ince cizgi
       y += 4;
@@ -294,34 +324,46 @@ export default function FiyatTeklifi() {
       doc.line(MX, y, W - MX, y);
 
       // ─── SATIRLAR ───
-      const COL1 = MX;        // Kategori
-      const COL2 = MX + 36;   // Detay
-      const COL3 = W - MX;    // Fiyat (sag)
+      const COL1 = MX;
+      const COL2 = MX + 36;
+      const COL3 = W - MX;
 
       const rows = [];
+
+      // Kurs
       rows.push({
         cat: "Kurs",
-        sub: tr(d.course ? d.course.name : "—"),
+        sub: tr(d.course ? d.course.name : "-"),
         detail: startTxt && endTxt ? (startTxt + " - " + endTxt) : "",
-        price: cCost,
-        isFirst: true
+        price: cCost
       });
+
+      // Konaklama
       if (d.acc) {
+        const accName = tr(trAccType(d.acc.name));
+        const boardName = tr(trBoard(d.acc.board));
         rows.push({
-          cat: "Konaklama",
-          sub: tr(d.acc.name + " (" + d.acc.board + ") (Ucrete dahil)"),
+          cat: tr("Konaklama"),
+          sub: accName + " (" + boardName + ") (" + tr("Ücrete dahil") + ")",
           detail: startTxt && endTxt ? (startTxt + " - " + endTxt) : "",
-          price: aCost,
-          isFirst: true
+          price: aCost
         });
       }
+
+      // Diger ucretler
       const extras = [];
-      if (f.reg > 0) extras.push({ sub: tr("Kayit Ucreti"), price: f.reg });
+      if (f.reg > 0) extras.push({ sub: tr("Kayıt Ücreti"), price: f.reg });
       if (f.mat > 0) extras.push({ sub: tr("Ders Materyalleri"), price: f.mat });
       if (f.acc > 0) extras.push({ sub: tr("Konaklama Placement"), price: f.acc });
+
       if (extras.length > 0) {
         extras.forEach((ex, ei) => {
-          rows.push({ cat: ei === 0 ? "Diger" : "", sub: ex.sub, detail: "", price: ex.price, isFirst: false });
+          rows.push({
+            cat: ei === 0 ? tr("Diğer") : "",
+            sub: ex.sub,
+            detail: "",
+            price: ex.price
+          });
         });
       }
 
@@ -351,7 +393,7 @@ export default function FiyatTeklifi() {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9);
         doc.setTextColor(...BLACK);
-        doc.text(fmtMoney(row.price), COL3, y + 4.5, { align:"right" });
+        doc.text(fmtMoney(row.price), COL3, y + 4.5, { align: "right" });
 
         doc.setDrawColor(...LGRAY);
         doc.setLineWidth(0.2);
@@ -360,60 +402,75 @@ export default function FiyatTeklifi() {
       });
 
       // ─── TOPLAM ───
-      y += 8; // cizgiden onceki bosluk
+      y += 12; // cizgi oncesi bosluk arttirildi
       doc.setDrawColor(...BLACK);
       doc.setLineWidth(0.5);
-      doc.line(MX, y - 4, W - MX, y - 4);
+      doc.line(MX, y - 5, W - MX, y - 5);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(13);
       doc.setTextColor(...BLACK);
-      doc.text(tr("Toplam Tutar ") + cur, MX, y + 4);
-      doc.setFontSize(13);
-      doc.text(cur + " " + fmtMoney(tot), COL3, y + 4, { align:"right" });
+      // Toplam solunda para birimi logosu
+      doc.text(sym + "  " + tr("Toplam Tutar ") + cur, MX, y + 4);
+      doc.text(cur + " " + fmtMoney(tot), COL3, y + 4, { align: "right" });
 
       // ─── NOTLAR (toplam disinda) ───
       const noteItems = [];
-      if (d.course && d.course.morning) noteItems.push(tr("Sabah garantisi mevcut (ek ucret uygulanabilir)"));
-      if (d.course && d.course.hs_supp) noteItems.push(tr("Yuksek sezon eki: " + cur + " " + d.course.hs_supp + "/hafta (29 Haziran - 28 Agustos icin gecerli)"));
-      if (d.acc && d.acc.hs_price && d.acc.hs_price !== d.acc.price) noteItems.push(tr("Yuksek sezonda konaklama fiyati degisebilir"));
+      if (d.course && d.course.morning) {
+        noteItems.push(tr("Sabah garantisi mevcut (ek ücret uygulanabilir)"));
+      }
+      if (d.course && d.course.hs_supp) {
+        noteItems.push(tr("Yüksek sezon eki: " + cur + " " + d.course.hs_supp + "/hafta (29 Haziran - 28 Ağustos için geçerli)"));
+      }
+      if (d.acc && d.acc.hs_price && d.acc.hs_price !== d.acc.price) {
+        noteItems.push(tr("Yüksek sezonda konaklama fiyatı değişebilir: " + cur + " " + d.acc.hs_price + "/hafta"));
+      }
+      // Konaklama notu
+      if (d.acc && d.acc.distance) {
+        noteItems.push(tr("Konaklamadan okula mesafe: ") + d.acc.distance);
+      }
 
       if (noteItems.length > 0) {
-        y += 18;
+        y += 20;
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
+        doc.setFontSize(9);
         doc.setTextColor(...GRAY);
-        doc.text(tr("Onemli Notlar"), MX, y);
-        y += 5;
+        doc.text(tr("Notlar:"), MX, y);
+        y += 6;
         doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
         noteItems.forEach(note => {
-          doc.text("- " + note, MX, y);
+          doc.text("- " + note, MX + 2, y);
           y += 5;
         });
       }
 
-      // ─── WA BUTONU ───
-      const btnY = H - 52;
+      // ─── WA BUTONU (sayfanin altina sabitlenmis) ───
+      const btnY = H - 50;
       const btnW = 85, btnH = 11;
-      const btnX = W/2 - btnW/2;
+      const btnX = W / 2 - btnW / 2;
       doc.setFillColor(...CYAN);
       doc.roundedRect(btnX, btnY, btnW, btnH, 5, 5, "F");
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(255, 255, 255);
-      doc.textWithLink(tr("Danismaniniza WhatsApp'tan Ulasin"),
-        W/2, btnY + 7.2, { align:"center", url: "https://wa.me/" + phone });
+      doc.textWithLink(
+        tr("Danışmanınıza WhatsApp'tan Ulasın"),
+        W / 2, btnY + 7.2,
+        { align: "center", url: "https://wa.me/" + phone }
+      );
 
       // ─── FOOTER ───
       const today = new Date().toLocaleDateString("tr-TR");
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...GRAY);
-      doc.text(tr("Gecerlilik tarihi: ") + today, MX, H - 10);
-      doc.text("bilimevi.com", W - MX, H - 10, { align:"right" });
+      doc.text(tr("Geçerlilik tarihi: ") + today, MX, H - 10);
+      doc.text("bilimevi.com", W - MX, H - 10, { align: "right" });
     });
 
-    const fname = tr(student.name || "teklif").replace(/\s+/g, "_") + "_" + new Date().toISOString().slice(0,10) + ".pdf";
+    const safeStudentName = tr(student.name || "teklif").replace(/\s+/g, "_");
+    const fname = safeStudentName + "_" + new Date().toISOString().slice(0, 10) + ".pdf";
     doc.save(fname);
   }
   function reset() {
