@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { jsPDF } from "jspdf";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
@@ -173,6 +174,156 @@ export default function FiyatTeklifi() {
     setStep(1);
   }
 
+  function generatePDF() {
+    const doc = new jsPDF({ unit:"mm", format:"a4" });
+    const W = 210, H = 297;
+    const CYAN = [0, 193, 222];
+    const BLACK = [15, 15, 15];
+    const GRAY = [100, 116, 139];
+    const LIGHTGRAY = [241, 245, 249];
+
+    destinations.forEach((d, idx) => {
+      if (idx > 0) doc.addPage();
+
+      const key = `${d.brand}-${d.city}`;
+      const f = getFees(key, d.weeks);
+      const cCost = getPrice(d.course, d.weeks);
+      const aCost = d.acc ? d.acc.price * d.weeks : 0;
+      const fT = f.reg + f.acc + f.mat;
+      const tot = cCost + aCost + fT;
+      const cur = d.course?.currency || f.cur;
+
+      // Header - danisman bilgisi
+      doc.setFontSize(8);
+      doc.setTextColor(...GRAY);
+      doc.text(`${user.name}`, 14, 14);
+      doc.text(`${user.company || "Bilimevi"} · ${user.branch || ""}`, 14, 19);
+      doc.setTextColor(...CYAN);
+      doc.text("bilimevi.com", W - 14, 14, { align:"right" });
+
+      // Cizgi
+      doc.setDrawColor(...CYAN);
+      doc.setLineWidth(0.5);
+      doc.line(14, 24, W - 14, 24);
+
+      // Sehir adi - cok buyuk
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(52);
+      doc.setTextColor(...BLACK);
+      doc.text(d.city, 14, 65);
+
+      // Tarih
+      doc.setFontSize(26);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...BLACK);
+      const startTxt = d.startDate
+        ? new Date(d.startDate).toLocaleDateString("tr-TR", { day:"numeric", month:"long", year:"numeric" })
+        : "—";
+      const endWeeks = d.weeks;
+      let endTxt = "";
+      if (d.startDate) {
+        const end = new Date(d.startDate);
+        end.setDate(end.getDate() + endWeeks * 7);
+        endTxt = end.toLocaleDateString("tr-TR", { day:"numeric", month:"long", year:"numeric" });
+      }
+      doc.text(`${startTxt}`, 14, 82);
+      if (endTxt) doc.text(`— ${endTxt}`, 14, 92);
+
+      // Hafta sayisi
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...GRAY);
+      doc.text(`Hafta sayısı: ${d.weeks}`, 14, 104);
+
+      // Teklif tablosu baslik
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...BLACK);
+      doc.text("Teklifinize neler dahil?", 14, 116);
+      doc.setTextColor(...GRAY);
+      doc.text(cur, W - 14, 116, { align:"right" });
+
+      // Tablo cizgisi
+      doc.setDrawColor(200, 210, 220);
+      doc.setLineWidth(0.3);
+      doc.line(14, 119, W - 14, 119);
+
+      // Tablo satirlari
+      const rows = [
+        { label:"Kurs", sub: d.course?.name || "—", detail: `${d.startDate || ""} · ${d.weeks} hafta`, price: cCost },
+        { label:"Konaklama", sub: d.acc ? `${d.acc.name} (${d.acc.board})`, detail: `${d.acc ? `${d.acc.room} · ${d.acc.bathroom}` : ""}`, price: aCost },
+        { label:"Kayıt Ücreti", sub:"", detail:"", price: f.reg },
+        { label:"Konaklama Placement", sub:"", detail:"", price: f.acc },
+        { label:"Ders Materyalleri", sub:"", detail:"", price: f.mat },
+      ];
+
+      let y = 127;
+      rows.forEach(row => {
+        if (row.price === 0 && !row.label.includes("Kurs") && !row.label.includes("Konaklama")) {
+          // skip 0 fees
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(...BLACK);
+        doc.text(row.label, 14, y);
+
+        if (row.sub) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9);
+          doc.setTextColor(...GRAY);
+          doc.text(row.sub, 52, y);
+        }
+        if (row.detail) {
+          doc.setFontSize(8);
+          doc.setTextColor(...GRAY);
+          doc.text(row.detail, 52, y + 4.5);
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(...BLACK);
+        doc.text(`${Number(row.price).toLocaleString("tr-TR")},00`, W - 14, y, { align:"right" });
+
+        doc.setDrawColor(220, 228, 236);
+        doc.setLineWidth(0.2);
+        const rowH = row.sub ? 14 : 9;
+        doc.line(14, y + rowH - 2, W - 14, y + rowH - 2);
+        y += rowH;
+      });
+
+      // Toplam
+      y += 4;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(...BLACK);
+      doc.text(`Toplam Tutar ${cur}`, 14, y);
+      doc.setFontSize(16);
+      doc.setTextColor(...CYAN);
+      doc.text(`${cur} ${Number(tot).toLocaleString("tr-TR")},00`, W - 14, y, { align:"right" });
+
+      // Buton benzeri dikdortgen
+      y += 12;
+      doc.setFillColor(...CYAN);
+      doc.roundedRect(W/2 - 45, y, 90, 10, 5, 5, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(255, 255, 255);
+      doc.text("Şimdi rezervasyon yapın", W/2, y + 6.5, { align:"center" });
+
+      // Gecerlilik
+      y += 20;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...GRAY);
+      const today = new Date().toLocaleDateString("tr-TR");
+      doc.text(`Geçerlilik tarihi: ${today}`, 14, H - 12);
+      doc.text("bilimevi.com", W - 14, H - 12, { align:"right" });
+    });
+
+    const fname = `${student.name || "teklif"}_${new Date().toISOString().slice(0,10)}.pdf`;
+    doc.save(fname);
+  }
+
   function reset() {
     setDestinations([]); setCur(emptyDest());
     setStudent({ name:"", age:"", gender:"" }); setStep(0);
@@ -277,7 +428,7 @@ export default function FiyatTeklifi() {
             <p style={S.slbl}>Dil</p>
             <div style={S.g3}>
               {DB.languages.map(l => (
-                <div key={l} className={`ftc${cur.lang===l?" s":""}`} onClick={()=>setCur({...emptyDest(),lang:l})}>{l}</div>
+                <div key={l} className={`ftc${cur.lang===l?" s":""}`} onClick={()=>setCur(p=>({...emptyDest(p.startDate),lang:l}))}>{l}</div>
               ))}
             </div>
             {cur.lang && <>
@@ -436,7 +587,10 @@ export default function FiyatTeklifi() {
               {step===3 && <button className="ftob" onClick={addDest}>+ Destinasyon ekle</button>}
               {step<4
                 ? <button className="ftpb" disabled={!canNext} onClick={next}>{step===3?"Özete geç →":"İleri →"}</button>
-                : <button className="ftpb" onClick={reset}>Yeni Teklif</button>
+                : <>
+                  <button className="ftpb" onClick={generatePDF} style={{ background:"#00C1DE" }}>PDF İndir</button>
+                  <button className="ftpb" onClick={reset} style={{ background:"#64748b" }}>Yeni Teklif</button>
+                </>
               }
             </div>
           </div>
