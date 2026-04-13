@@ -140,7 +140,7 @@ export default function FiyatTeklifi() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [step, setStep] = useState(0);
-  const [student, setStudent] = useState({ name:"", age:"", gender:"" });
+  const [student, setStudent] = useState({ name:"Selman Çamoğlu", age:"38", gender:"Erkek" });
   const [destinations, setDestinations] = useState([]);
   const [cur, setCur] = useState(emptyDest());
 
@@ -180,147 +180,197 @@ export default function FiyatTeklifi() {
     const CYAN = [0, 193, 222];
     const BLACK = [15, 15, 15];
     const GRAY = [100, 116, 139];
-    const LIGHTGRAY = [241, 245, 249];
+    const phone = user.phone || "905419189177";
+
+    // Tarih yardimci
+    function fmtDate(dateStr) {
+      if (!dateStr) return "—";
+      return new Date(dateStr).toLocaleDateString("tr-TR", { day:"numeric", month:"long", year:"numeric" });
+    }
+    function addWeeks(dateStr, weeks) {
+      if (!dateStr) return "";
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + weeks * 7);
+      return d.toLocaleDateString("tr-TR", { day:"numeric", month:"long", year:"numeric" });
+    }
 
     destinations.forEach((d, idx) => {
       if (idx > 0) doc.addPage();
 
-      const key = `${d.brand}-${d.city}`;
+      const key = d.brand + "-" + d.city;
       const f = getFees(key, d.weeks);
       const cCost = getPrice(d.course, d.weeks);
       const aCost = d.acc ? d.acc.price * d.weeks : 0;
       const fT = f.reg + f.acc + f.mat;
       const tot = cCost + aCost + fT;
-      const cur = d.course?.currency || f.cur;
+      const cur = d.course ? d.course.currency : f.cur;
+      const startTxt = fmtDate(d.startDate);
+      const endTxt = addWeeks(d.startDate, d.weeks);
 
-      // Header - danisman bilgisi
+      // ─── HEADER ───
+      // Sol: "Bilimevi Eğitim Danışmanınız:" etiketi + danısman adı
+      doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...GRAY);
-      doc.text(`${user.name}`, 14, 14);
-      doc.text(`${user.company || "Bilimevi"} · ${user.branch || ""}`, 14, 19);
-      doc.setTextColor(...CYAN);
-      doc.text("bilimevi.com", W - 14, 14, { align:"right" });
-
-      // Cizgi
-      doc.setDrawColor(...CYAN);
-      doc.setLineWidth(0.5);
-      doc.line(14, 24, W - 14, 24);
-
-      // Sehir adi - cok buyuk
+      doc.text("Bilimevi Egitim Danismaniniz", 14, 12);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(52);
+      doc.setFontSize(9);
       doc.setTextColor(...BLACK);
-      doc.text(d.city, 14, 65);
+      doc.text(user.name || "—", 14, 17);
 
-      // Tarih
-      doc.setFontSize(26);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(...BLACK);
-      const startTxt = d.startDate
-        ? new Date(d.startDate).toLocaleDateString("tr-TR", { day:"numeric", month:"long", year:"numeric" })
-        : "—";
-      const endWeeks = d.weeks;
-      let endTxt = "";
-      if (d.startDate) {
-        const end = new Date(d.startDate);
-        end.setDate(end.getDate() + endWeeks * 7);
-        endTxt = end.toLocaleDateString("tr-TR", { day:"numeric", month:"long", year:"numeric" });
-      }
-      doc.text(`${startTxt}`, 14, 82);
-      if (endTxt) doc.text(`— ${endTxt}`, 14, 92);
-
-      // Hafta sayisi
-      doc.setFontSize(11);
+      // Orta: email
       doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
       doc.setTextColor(...GRAY);
-      doc.text(`Hafta sayısı: ${d.weeks}`, 14, 104);
+      const emailX = W / 2;
+      doc.text("E-posta: " + (user.email || ""), emailX, 14, { align:"center" });
 
-      // Teklif tablosu baslik
-      doc.setFontSize(10);
+      // Sag: WhatsApp linki (mavi, altcizgili gorunum)
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...CYAN);
+      const wpText = "Bana WhatsApp'tan Ulasın →";
+      const wpX = W - 14;
+      doc.textWithLink(wpText, wpX, 12, { align:"right", url: "https://wa.me/" + phone });
+
+      // Header alt cizgisi - EF gibi ince
+      doc.setDrawColor(...GRAY);
+      doc.setLineWidth(0.2);
+      doc.line(14, 21, W - 14, 21);
+
+      // ─── SEHİR ADI (turkuaz, cok buyuk) ───
       doc.setFont("helvetica", "bold");
+      doc.setFontSize(56);
+      doc.setTextColor(...CYAN);
+      doc.text(d.city, 14, 68);
+
+      // ─── TARİH (siyah, buyuk, yana yana) ───
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
       doc.setTextColor(...BLACK);
-      doc.text("Teklifinize neler dahil?", 14, 116);
+      if (endTxt) {
+        doc.text(startTxt + "  —  " + endTxt, 14, 82);
+      } else {
+        doc.text(startTxt, 14, 82);
+      }
+
+      // ─── TABLO BASLIGI ───
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(...BLACK);
+      doc.text("Teklifinize neler dahil?", 14, 100);
       doc.setTextColor(...GRAY);
-      doc.text(cur, W - 14, 116, { align:"right" });
+      doc.text(cur, W - 14, 100, { align:"right" });
 
-      // Tablo cizgisi
-      doc.setDrawColor(200, 210, 220);
+      // Hafta sayisi (CYAN, altta)
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...CYAN);
+      doc.text("Hafta sayisi: " + d.weeks, 14, 108);
+
+      // Usteki tablo cizgisi
+      doc.setDrawColor(...GRAY);
       doc.setLineWidth(0.3);
-      doc.line(14, 119, W - 14, 119);
+      doc.line(14, 111, W - 14, 111);
 
-      // Tablo satirlari
-      const rows = [
-        { label:"Kurs", sub: d.course?.name || "—", detail: (d.startDate || "") + " · " + d.weeks + " hafta", price: cCost },
-        { label:"Konaklama", sub: d.acc ? (d.acc.name + " (" + d.acc.board + ")") : "—", detail: d.acc ? (d.acc.room + " · " + d.acc.bathroom) : "", price: aCost },
-        { label:"Kayıt Ücreti", sub:"", detail:"", price: f.reg },
-        { label:"Konaklama Placement", sub:"", detail:"", price: f.acc },
-        { label:"Ders Materyalleri", sub:"", detail:"", price: f.mat },
-      ];
+      // ─── TABLO SATIRLARI ───
+      const rows = [];
+      // Kurs
+      rows.push({
+        label: "Kurs",
+        sub1: d.course ? d.course.name : "—",
+        sub2: startTxt + " - " + endTxt,
+        price: cCost
+      });
+      // Konaklama
+      if (d.acc) {
+        rows.push({
+          label: "Konaklama",
+          sub1: d.acc.name + " (" + d.acc.board + ") (Ucrete dahil)",
+          sub2: fmtDate(d.startDate) + " - " + endTxt,
+          price: aCost
+        });
+      }
+      // Kayit ucreti
+      if (f.reg > 0) rows.push({ label: "Diger", sub1: "Kayit Ucreti", sub2: "", price: f.reg });
+      // Materyaller
+      if (f.mat > 0) rows.push({ label: "", sub1: "Ders Materyalleri", sub2: "", price: f.mat });
+      // Placement
+      if (f.acc > 0) rows.push({ label: "", sub1: "Konaklama Placement", sub2: "", price: f.acc });
 
-      let y = 127;
-      rows.forEach(row => {
-        if (row.price === 0 && !row.label.includes("Kurs") && !row.label.includes("Konaklama")) {
-          // skip 0 fees
-        }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(...BLACK);
-        doc.text(row.label, 14, y);
+      let y = 119;
+      rows.forEach((row, ri) => {
+        const hasDetail = row.sub2 && row.sub2.trim();
+        const rowH = hasDetail ? 13 : 9;
 
-        if (row.sub) {
-          doc.setFont("helvetica", "normal");
+        // Sol: kategori etiketi (bold) + detaylar
+        if (row.label) {
+          doc.setFont("helvetica", "bold");
           doc.setFontSize(9);
-          doc.setTextColor(...GRAY);
-          doc.text(row.sub, 52, y);
+          doc.setTextColor(...BLACK);
+          doc.text(row.label, 14, y + 4);
         }
-        if (row.detail) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(...BLACK);
+        doc.text(row.sub1, 50, y + 4);
+        if (hasDetail) {
           doc.setFontSize(8);
           doc.setTextColor(...GRAY);
-          doc.text(row.detail, 52, y + 4.5);
+          doc.text(row.sub2, 50, y + 8.5);
         }
 
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
+        // Sag: fiyat
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
         doc.setTextColor(...BLACK);
-        doc.text(`${Number(row.price).toLocaleString("tr-TR")},00`, W - 14, y, { align:"right" });
+        doc.text(Number(row.price).toLocaleString("tr-TR") + ",00", W - 14, y + 4, { align:"right" });
 
-        doc.setDrawColor(220, 228, 236);
+        // Alt cizgi
+        doc.setDrawColor(210, 220, 230);
         doc.setLineWidth(0.2);
-        const rowH = row.sub ? 14 : 9;
-        doc.line(14, y + rowH - 2, W - 14, y + rowH - 2);
+        doc.line(14, y + rowH, W - 14, y + rowH);
         y += rowH;
       });
 
-      // Toplam
-      y += 4;
+      // ─── TOPLAM ───
+      y += 6;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
       doc.setTextColor(...BLACK);
-      doc.text(`Toplam Tutar ${cur}`, 14, y);
-      doc.setFontSize(16);
-      doc.setTextColor(...CYAN);
-      doc.text(`${cur} ${Number(tot).toLocaleString("tr-TR")},00`, W - 14, y, { align:"right" });
+      doc.text("Toplam Tutar " + cur, 14, y);
+      doc.setFontSize(15);
+      doc.setTextColor(...BLACK);
+      doc.text(cur + " " + Number(tot).toLocaleString("tr-TR") + ",00", W - 14, y, { align:"right" });
 
-      // Buton benzeri dikdortgen
-      y += 12;
+      // Toplam ust cizgisi
+      doc.setDrawColor(...BLACK);
+      doc.setLineWidth(0.4);
+      doc.line(14, y - 4, W - 14, y - 4);
+
+      // ─── WHATSAPP BUTONU ───
+      y += 14;
+      const btnW = 80, btnH = 11, btnX = W/2 - btnW/2;
       doc.setFillColor(...CYAN);
-      doc.roundedRect(W/2 - 45, y, 90, 10, 5, 5, "F");
+      doc.roundedRect(btnX, y, btnW, btnH, 5, 5, "F");
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setTextColor(255, 255, 255);
-      doc.text("Şimdi rezervasyon yapın", W/2, y + 6.5, { align:"center" });
+      doc.textWithLink("Danismaniniza WhatsApp'tan Ulasin", W/2, y + 7, {
+        align: "center",
+        url: "https://wa.me/" + phone
+      });
 
-      // Gecerlilik
-      y += 20;
+      // ─── FOOTER ───
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...GRAY);
       const today = new Date().toLocaleDateString("tr-TR");
-      doc.text(`Geçerlilik tarihi: ${today}`, 14, H - 12);
-      doc.text("bilimevi.com", W - 14, H - 12, { align:"right" });
+      doc.text("Gecerlilik tarihi: " + today, 14, H - 10);
+      doc.text("bilimevi.com", W - 14, H - 10, { align:"right" });
     });
 
-    const fname = `${student.name || "teklif"}_${new Date().toISOString().slice(0,10)}.pdf`;
+    const fname = (student.name || "teklif").replace(/\s+/g, "_") + "_" + new Date().toISOString().slice(0,10) + ".pdf";
     doc.save(fname);
   }
 
