@@ -163,12 +163,12 @@ export default function FiyatTeklifi() {
   ][step];
 
   function next() {
-    if (step === 3) { setDestinations(p => [...p, { ...cur }]); setStep(4); }
+    if (step === 3) { setDestinations(p => [...p, { ...cur }]); setCur(emptyDest()); setStep(4); }
     else setStep(s => s + 1);
   }
 
   function addDest() {
-    if (cur.acc) setDestinations(p => [...p, { ...cur }]);
+    if (step === 3 && cur.acc) setDestinations(p => [...p, { ...cur }]);
     setCur(emptyDest());
     setStep(1);
   }
@@ -180,7 +180,9 @@ export default function FiyatTeklifi() {
 
   if (!user) return null;
 
-  const sidebarDests = [...destinations, ...(cur.city && cur.course && cur.acc ? [cur] : [])];
+  const sidebarDests = step < 4 && cur.city && cur.course && cur.acc
+    ? [...destinations, cur]
+    : destinations;
 
   return (
     <div style={S.root}>
