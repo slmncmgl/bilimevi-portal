@@ -8,6 +8,8 @@ import STMAwards from "./STMAwards";
 import InstagramDM from "./pages/InstagramDM";
 import BultenDuzenleyici from "./pages/BultenDuzenleyici";
 import KayitGuncelle from "./pages/KayitGuncelle";
+import FiyatTeklifi from "./pages/FiyatTeklifi";
+import KatalogParse from "./pages/KatalogParse";
 
 export default function App() {
   return (
@@ -21,8 +23,9 @@ export default function App() {
         <Route path="/instagram" element={<InstagramDM />} />
         <Route path="/bulten" element={<BultenDuzenleyici />} />
         <Route path="/kayit-guncelle" element={<KayitGuncelle />} />
+        <Route path="/fiyat-teklifi" element={<FiyatTeklifi />} />
+        <Route path="/katalog-parse" element={<KatalogParse />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-        {/* Diğer modüller eklenecek */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
