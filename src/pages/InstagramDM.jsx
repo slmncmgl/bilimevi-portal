@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSession } from "../utils/sheets";
+import { getSession } from "../utils/sheets"; 
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAjuJMQJyrNdwh2HuhwjFSw3c1kuIMExtHgVSeODc-D_gCtYjZS_vRy8TAp1h0m90E/exec";
 const GEMINI_MODEL = "gemini-2.5-flash";
