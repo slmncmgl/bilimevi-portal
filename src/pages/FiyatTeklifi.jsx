@@ -140,7 +140,7 @@ export default function FiyatTeklifi() {
 
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline) return;
-    // Eğer veriler zaten hafızadaysa (geri tuşu durumu) tekrar çekme
+    // HAFIZA KORUMASI: cityData zaten varsa tekrar fetch etme
     if (cur.cityData) return;
 
     const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
@@ -148,7 +148,7 @@ export default function FiyatTeklifi() {
       setCur(p => ({ ...p, cityLoading:true }));
       fetchCityData(sheetId, cur.city).then(data => setCur(p => ({ ...p, cityData:data, cityLoading:false })));
     }
-  }, [cur.city, cur.brand]);
+  }, [cur.city, cur.brand, nav.schoolSheets]);
 
   const isCourseValid = (course, weeks) => {
     if (!course || !course.tiers) return false;
@@ -182,7 +182,6 @@ export default function FiyatTeklifi() {
       .from(el).save()
       .then(() => {
         el.style.display="none";
-        // PDF indikten sonra sıfırla
         setDestinations([]); setCur(emptyDest()); setStep(0);
       });
   };
@@ -215,7 +214,6 @@ export default function FiyatTeklifi() {
 
       <div style={S.body}>
         <main style={S.main}>
-          {/* STEP 0 - Öğrenci */}
           {step === 0 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>Öğrenci Bilgileri</h2>
             <div style={S.r2}>
@@ -228,7 +226,6 @@ export default function FiyatTeklifi() {
             </div>
           </div>}
 
-          {/* STEP 1 - Destinasyon */}
           {step === 1 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>Destinasyon Seçimi</h2>
             <p style={S.slbl}>DİL SEÇİMİ</p>
@@ -241,7 +238,6 @@ export default function FiyatTeklifi() {
             {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b=><div key={b} style={cur.brand===b?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, brand:b, course:null, acc:null, cityData:null})}>{b}</div>)}</div></>}
           </div>}
 
-          {/* STEP 2 - Kurs */}
           {step === 2 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>{cur.isOnline ? "Paket Seçimi" : "Kurs Detayı - " + (cur.city || "")}</h2>
             <div style={S.r2}>
@@ -255,7 +251,6 @@ export default function FiyatTeklifi() {
             })}</div>
           </div>}
 
-          {/* STEP 3 - Konaklama */}
           {step === 3 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>Konaklama - {cur.brand} {cur.city}</h2>
             {cur.cityLoading ? <p>Yükleniyor...</p> : 
@@ -263,8 +258,7 @@ export default function FiyatTeklifi() {
             }
           </div>}
 
-          {/* STEP 4 - Final Özet */}
-          {step === 4 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Teklif Özeti</h2>{destinations.map((d,i)=><div key={i} style={S.summaryCard}><strong>{d.brand} {d.city}</strong><br/>{d.weeks} Hafta · {d.course?.name}</div>)}</div>}
+          {step === 4 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Özet</h2>{destinations.map((d,i)=><div key={i} style={S.summaryCard}><strong>{d.brand} {d.city}</strong><br/>{d.weeks} Hafta · {d.course?.name}</div>)}</div>}
 
           <div style={S.navBox}>
             {step > 0 && <button onClick={()=>setStep(s=>s-1)} style={S.btnBack}>← Geri</button>}
@@ -272,16 +266,15 @@ export default function FiyatTeklifi() {
           </div>
         </main>
 
-        {/* SAĞ PANEL - ANLIK ÖZET */}
         <aside style={S.side}>
           <h3 style={S.sideTtl}>ÖZET</h3>
           <div style={S.liveBox}>
-            <div style={{fontWeight:700, color:ORANGE, marginBottom:5}}>Şu anki Seçim:</div>
-            {cur.lang && <div>📍 {cur.lang} {cur.city && `/ ${cur.city}`}</div>}
+            <div style={{fontWeight:700, color:ORANGE, marginBottom:5}}>Anlık Seçim:</div>
+            {cur.lang && <div>📍 {cur.lang} {cur.country && `/ ${cur.country}`} {cur.city && `/ ${cur.city}`}</div>}
             {cur.brand && <div>🏫 {cur.brand}</div>}
             {cur.course && <div style={!isCourseValid(cur.course, cur.weeks) ? {color:"#ef4444"} : {}}>📚 {cur.course.name} ({cur.weeks}h)</div>}
             {cur.acc && <div>🏠 {cur.acc.name}</div>}
-            {currentTotal > 0 && isCourseValid(cur.course, cur.weeks) && <div style={S.liveTotal}>Anlık: {fmt(currentTotal, cur.course?.currency || "GBP")}</div>}
+            {currentTotal > 0 && isCourseValid(cur.course, cur.weeks) && <div style={S.liveTotal}>Anlık: {fmt(currentTotal, cur.course?.currency || cur.cityData?.fees?.[0]?.currency || "GBP")}</div>}
           </div>
           <p style={{fontWeight:600, fontSize:12, marginBottom:5}}>Eklenenler ({destinations.length})</p>
           {destinations.map((d,i)=><div key={i} style={S.sideItem}>{d.brand} {d.city}</div>)}
@@ -289,7 +282,6 @@ export default function FiyatTeklifi() {
         </aside>
       </div>
 
-      {/* PDF ŞABLONU */}
       <div id="pdf-area" style={{display:"none", width:"210mm", padding:"20mm", background:"#fff", fontFamily:"Arial"}}>
         {destinations.map((d, i) => {
           const f = d.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees, d.weeks);
