@@ -26,7 +26,7 @@ function parseCSV(csv) {
 async function fetchCSV(sheetId, sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error("Sheet okunamadi: " + sheetName);
+  if (!res.ok) throw new Error("Sheet okunamadi");
   return parseCSV(await res.text());
 }
 
@@ -60,7 +60,6 @@ async function fetchNav() {
     });
   });
 
-  // İngilizceyi başa al, Online'ı sona al mantığı
   const sortedLangs = [...languages].sort((a, b) => {
     if (a === "İngilizce") return -1;
     if (b === "İngilizce") return 1;
@@ -105,7 +104,11 @@ function calcFees(fees, weeks) {
   return { reg, place, mat, currency };
 }
 
-const getPrice = (c, w) => c?.tiers?.find(t => w >= t.min && (t.max === null || w <= t.max))?.price * w || 0;
+const getPrice = (c, w) => {
+  if (!c || !w) return 0;
+  const tier = c.tiers?.find(t => w >= t.min && (t.max === null || w <= t.max));
+  return tier ? tier.price * w : 0;
+};
 const fmt = (n, cur) => `${cur} ${Number(n||0).toLocaleString("tr-TR")}`;
 const emptyDest = (sd="") => ({ lang:"", country:"", city:"", brand:"", course:null, weeks:4, acc:null, startDate:sd, isOnline:false, cityData:null, cityLoading:false });
 
@@ -121,7 +124,7 @@ export default function FiyatTeklifi() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [step, setStep] = useState(0);
-  const [student, setStudent] = useState({ name:"Selman Çamoğlu", gender:"Erkek" });
+  const [student, setStudent] = useState({ name:"Selman Çamoğlu", age: "38", gender:"Erkek" });
   const [destinations, setDestinations] = useState([]);
   const [cur, setCur] = useState(emptyDest());
   const [nav, setNav] = useState({ languages:[], countries:{}, citiesByLang:{}, brandsByCity:{}, schoolSheets:{} });
@@ -142,14 +145,6 @@ export default function FiyatTeklifi() {
     }
   }, [cur.city, cur.brand]);
 
-  const canNext = [
-    !!(student.name && student.gender),
-    (cur.isOnline && cur.course) || (cur.brand && cur.city),
-    !!cur.course && !cur.cityLoading,
-    !!cur.acc || cur.isOnline,
-    true
-  ][step];
-
   const handleDateChange = (val) => {
     let d = new Date(val);
     if (d.getDay() !== 1) {
@@ -160,11 +155,13 @@ export default function FiyatTeklifi() {
   };
 
   const next = () => {
-    if (step === 3 || (step === 2 && cur.isOnline)) { setDestinations(p => [...p, { ...cur }]); setCur(emptyDest(cur.startDate)); setStep(4); }
+    if (step === 3 || (step === 2 && cur.isOnline)) { 
+      setDestinations(p => [...p, { ...cur }]); 
+      setCur(emptyDest(cur.startDate)); 
+      setStep(4); 
+    }
     else setStep(s => s + 1);
   };
-
-  const reset = () => { setDestinations([]); setCur(emptyDest()); setStep(0); };
 
   const generatePDF = () => {
     const el = document.getElementById("pdf-area");
@@ -172,131 +169,111 @@ export default function FiyatTeklifi() {
     window.html2pdf().set({ margin:10, filename:`${student.name}.pdf`, html2canvas:{scale:2}, jsPDF:{format:'a4'} }).from(el).save().then(()=>el.style.display="none");
   };
 
-  // Anlık Fiyat Hesaplayıcı (Sidebar için)
+  // ANLIK ÖZET İÇİN FİYAT HESAPLAMA
   const f = cur.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(cur.cityData?.fees, cur.weeks);
   const cCost = getPrice(cur.course, cur.weeks);
   const aCost = cur.acc ? cur.acc.price * cur.weeks : 0;
   const currentTotal = cCost + aCost + f.reg + f.mat + (f.place||0);
 
+  const canNext = [
+    !!(student.name && student.gender && student.age),
+    (cur.isOnline && cur.course) || (cur.brand && cur.city),
+    !!cur.course && !cur.cityLoading,
+    !!cur.acc || cur.isOnline,
+    true
+  ][step];
+
   return (
     <div style={S.root}>
-      <style>{`
-        .ftc{padding:12px; border:1.5px solid #e2e8f0; border-radius:12px; cursor:pointer; text-align:center; transition:0.2s; background:#fff;}
-        .ftc.s{border-color:${ORANGE}; background:#fff7ed; color:${ORANGE}; font-weight:600;}
-        .fti{width:100%; padding:10px; border:1.5px solid #e2e8f0; border-radius:10px; outline:none;}
-        .ftpb{background:${ORANGE}; color:#fff; border:none; padding:12px 24px; border-radius:10px; cursor:pointer; font-weight:600;}
-        .ftpb:disabled{opacity:0.4; cursor:not-allowed;}
-      `}</style>
-
       <header style={S.hdr}>
         <div style={S.cnt}>
-          <button onClick={()=>navigate("/dashboard")} style={{background:"none", border:"1px solid #e2e8f0", padding:"8px 15px", borderRadius:8, cursor:"pointer"}}>Geri</button>
-          <span style={{fontWeight:600}}>Fiyat Teklifi Oluştur</span>
-          <div style={{width:60}}/>
+          <button onClick={()=>navigate("/dashboard")} style={S.backBtn}>Dashboard</button>
+          <span style={S.htitle}>Fiyat Teklifi</span>
+          <div style={{width:100}}/>
         </div>
       </header>
 
       <div style={S.body}>
         <main style={S.main}>
-          {step === 0 && <div>
+          {step === 0 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>Öğrenci Bilgileri</h2>
-            <div style={{marginBottom:15}}><label style={S.lbl}>Ad Soyad</label><input className="fti" value={student.name} onChange={e=>setStudent(p=>({...p,name:e.target.value}))}/></div>
-            <div style={{display:"flex", gap:10}}>{["Erkek","Kadın"].map(g=><div key={g} className={`ftc ${student.gender===g?"s":""}`} style={{flex:1}} onClick={()=>setStudent(p=>({...p,gender:g}))}>{g}</div>)}</div>
+            <div style={S.r2}>
+              <div style={S.fld}><label style={S.lbl}>Ad Soyad</label><input style={S.fti} value={student.name} onChange={e=>setStudent(p=>({...p,name:e.target.value}))}/></div>
+              <div style={S.fld}><label style={S.lbl}>Yaş</label><input style={S.fti} type="number" value={student.age} onChange={e=>setStudent(p=>({...p,age:e.target.value}))}/></div>
+            </div>
+            <div style={S.fld}>
+              <label style={S.lbl}>Cinsiyet</label>
+              <div style={{display:"flex", gap:10}}>{["Erkek","Kadın"].map(g=><div key={g} style={student.gender===g?S.ftcSelected:S.ftc} onClick={()=>setStudent(p=>({...p,gender:g}))}>{g}</div>)}</div>
+            </div>
           </div>}
 
-          {step === 1 && <div>
-            <h2 style={S.ttl}>Destinasyon</h2>
-            <p style={S.lbl}>Dil</p>
+          {step === 1 && <div style={{animation:"fadeUp 0.3s"}}>
+            <h2 style={S.ttl}>Destinasyon Seçimi</h2>
+            <p style={S.slbl}>DİL SEÇİMİ</p>
             <div style={S.g3}>
-              {nav.languages.map(l=><div key={l} className={`ftc ${cur.lang===l && !cur.isOnline?"s":""}`} onClick={()=>setCur({...emptyDest(cur.startDate), lang:l})}>{l}</div>)}
-              <div className={`ftc ${cur.isOnline?"s":""}`} style={{borderColor:"#3b82f6", color:"#3b82f6"}} onClick={()=>setCur({...emptyDest(cur.startDate), isOnline:true, brand:"EC", city:"Online", lang:"İngilizce"})}>🌐 Online Kurs</div>
+              {nav.languages.map(l=><div key={l} style={cur.lang===l && !cur.isOnline?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, isOnline:false, lang:l, country:"", city:"", brand:""})}>{l}</div>)}
+              <div style={cur.isOnline?S.ftcOnlineSelected:S.ftcOnline} onClick={()=>setCur({...cur, isOnline:true, brand:"EC", city:"Online", lang:"İngilizce", country:"", course:null})}>🌐 Online Kurs</div>
             </div>
-            {!cur.isOnline && cur.lang && <><p style={S.lbl}>Ülke</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c=><div key={c} className={`ftc ${cur.country===c?"s":""}`} onClick={()=>setCur({...p, country:c, city:"", brand:""})}>{c}</div>)}</div></>}
-            {!cur.isOnline && cur.country && <><p style={S.lbl}>Şehir</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c=><div key={c} className={`ftc ${cur.city===c?"s":""}`} onClick={()=>setCur({...p, city:c, brand:""})}>{c}</div>)}</div></>}
-            {!cur.isOnline && cur.city && <><p style={S.lbl}>Okul</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b=><div key={b} className={`ftc ${cur.brand===b?"s":""}`} onClick={()=>setCur({...p, brand:b})}>{b}</div>)}</div></>}
-            {cur.isOnline && <div style={{marginTop:20}}><p style={S.lbl}>Paket</p><div style={{display:"grid", gap:10}}>{EC_LIVE.map(c=><div key={c.name} className={`ftc ${cur.course?.name===c.name?"s":""}`} onClick={()=>setCur({...p, course:c})}>{c.name}</div>)}</div></div>}
+            {!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c=><div key={c} style={cur.country===c?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, country:c, city:"", brand:""})}>{c}</div>)}</div></>}
+            {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c=><div key={c} style={cur.city===c?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, city:c, brand:""})}>{c}</div>)}</div></>}
+            {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b=><div key={b} style={cur.brand===b?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, brand:b})}>{b}</div>)}</div></>}
           </div>}
 
-          {step === 2 && <div>
-            <h2 style={S.ttl}>Kurs Detayları</h2>
-            <div style={{display:"flex", gap:15, marginBottom:20}}>
-              <div style={{flex:1}}><label style={S.lbl}>Başlangıç (Pazartesi)</label><input type="date" className="fti" min={new Date().toISOString().split('T')[0]} value={cur.startDate} onChange={e=>handleDateChange(e.target.value)}/></div>
-              <div style={{flex:1}}><label style={S.lbl}>Hafta</label><input type="number" className="fti" value={cur.weeks} onChange={e=>setCur({...p, weeks:parseInt(e.target.value)||1})}/></div>
+          {step === 2 && <div style={{animation:"fadeUp 0.3s"}}>
+            <h2 style={S.ttl}>{cur.isOnline ? "Paket Seçimi" : "Kurs Detayı - " + cur.city}</h2>
+            <div style={S.r2}>
+              <div style={S.fld}><label style={S.lbl}>Başlangıç (Pazartesi)</label><input type="date" style={S.fti} min={new Date().toISOString().split('T')[0]} value={cur.startDate} onChange={e=>handleDateChange(e.target.value)}/></div>
+              <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" value={cur.weeks} onChange={e=>setCur({...cur, weeks:parseInt(e.target.value)||1})}/></div>
             </div>
-            {!cur.isOnline && <div style={S.g3}>{courses.map(c=><div key={c.name} className={`ftc ${cur.course?.name===c.name?"s":""}`} onClick={()=>setCur({...p, course:c})}>{c.name}</div>)}</div>}
+            <div style={S.g3}>{(cur.isOnline ? EC_LIVE : cur.cityData?.courses || []).map(c=><div key={c.name} style={cur.course?.name===c.name?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, course:c})}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>)}</div>
           </div>}
 
-          {step === 3 && <div>
+          {step === 3 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>Konaklama</h2>
-            <div style={{display:"grid", gap:10}}>{accs.map(a=><div key={a.name+a.room} className={`ftc ${cur.acc?.name===a.name && cur.acc?.room===a.room?"s":""}`} onClick={()=>setCur({...p, acc:a})}>{a.name} - {a.room}</div>)}</div>
+            <div style={{display:"grid", gap:10}}>{accs.map(a=><div key={a.name+a.room} style={cur.acc?.name===a.name && cur.acc?.room===a.room?S.ftacSelected:S.ftac} onClick={()=>setCur({...cur, acc:a})}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board}</small></div><strong>{a.currency} {a.price}/h</strong></div>)}</div>
           </div>}
 
-          {step === 4 && <div><h2 style={S.ttl}>Teklif Hazır</h2><p>Tüm destinasyonlar eklendi. PDF olarak indirebilirsiniz.</p></div>}
+          {step === 4 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Teklif Hazır</h2>{destinations.map((d,i)=><div key={i} style={S.summaryCard}><strong>{d.brand} {d.city}</strong><br/>{d.weeks} Hafta · {d.course?.name}</div>)}</div>}
 
-          <div style={{marginTop:30, display:"flex", justifyContent:"space-between"}}>
-            {step > 0 && <button onClick={()=>setStep(s=>s-1)} style={{background:"none", border:"none", cursor:"pointer", color:"#64748b"}}>← Geri</button>}
-            <button className="ftpb" disabled={!canNext} onClick={next}>{step === 4 ? "Bitti" : "İleri →"}</button>
+          <div style={S.navBox}>
+            {step > 0 && <button onClick={()=>setStep(s=>s-1)} style={S.btnBack}>← Geri</button>}
+            <button style={S.btnNext} disabled={!canNext} onClick={next}>{step === 4 ? "Bitti" : "İleri →"}</button>
           </div>
         </main>
 
         <aside style={S.side}>
-          <h3 style={{fontSize:14, marginBottom:15, borderBottom:"1px solid #eee", paddingBottom:10}}>ÖZET</h3>
-          {/* Anlık Seçim Göstergesi */}
-          <div style={{fontSize:12, color:"#1e293b", background:"#f1f5f9", padding:10, borderRadius:8, marginBottom:15}}>
-            <div style={{fontWeight:700, color:ORANGE, marginBottom:5}}>Şu anki seçim:</div>
+          <h3 style={S.sideTtl}>ÖZET</h3>
+          <div style={S.liveBox}>
+            <div style={{fontWeight:700, color:ORANGE, marginBottom:5}}>Anlık Seçim:</div>
             {cur.lang && <div>📍 {cur.lang} {cur.city && `/ ${cur.city}`}</div>}
             {cur.brand && <div>🏫 {cur.brand}</div>}
-            {cur.course && <div>📚 {cur.course.name} ({cur.weeks} hafta)</div>}
+            {cur.course && <div>📚 {cur.course.name} ({cur.weeks}h)</div>}
             {cur.acc && <div>🏠 {cur.acc.name}</div>}
-            {currentTotal > 0 && <div style={{marginTop:8, fontWeight:700, fontSize:14, color:ORANGE}}>Anlık: {fmt(currentTotal, cur.course?.currency || "GBP")}</div>}
+            {currentTotal > 0 && <div style={S.liveTotal}>Anlık: {fmt(currentTotal, cur.course?.currency || "GBP")}</div>}
           </div>
-
-          <div style={{fontSize:12}}>
-            <p style={{fontWeight:600, marginBottom:8}}>Eklenenler ({destinations.length})</p>
-            {destinations.map((d,i)=><div key={i} style={{padding:8, borderBottom:"1px solid #eee"}}>{d.brand} {d.city} - {d.weeks}h</div>)}
-          </div>
-          {destinations.length > 0 && step === 4 && <button onClick={generatePDF} style={{width:"100%", marginTop:20, padding:10, background:BLUE_CYAN, color:"#fff", border:"none", borderRadius:8, cursor:"pointer", fontWeight:700}}>PDF İNDİR</button>}
+          <p style={{fontWeight:600, fontSize:12, marginBottom:5}}>Eklenenler ({destinations.length})</p>
+          {destinations.map((d,i)=><div key={i} style={S.sideItem}>{d.brand} {d.city}</div>)}
+          {destinations.length > 0 && step === 4 && <button onClick={generatePDF} style={S.pdfBtn}>PDF İNDİR</button>}
         </aside>
       </div>
 
-      {/* PDF ŞABLONU (GİZLİ) */}
       <div id="pdf-area" style={{display:"none", width:"210mm", padding:"20mm", background:"#fff", fontFamily:"Arial"}}>
         {destinations.map((d, i) => {
           const f = d.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees, d.weeks);
           const cCost = getPrice(d.course, d.weeks);
           const aCost = d.acc ? d.acc.price * d.weeks : 0;
           const curSym = d.course?.currency || f.currency;
-          
-          // Pazar günü girişi için tarih hesabı
-          const courseDate = new Date(d.startDate);
-          const sunDate = new Date(courseDate);
-          sunDate.setDate(courseDate.getDate() - 1);
-
+          const sunDate = new Date(d.startDate); sunDate.setDate(sunDate.getDate() - 1);
           return (
             <div key={i} style={{pageBreakAfter:"always"}}>
               <h1 style={{color:BLUE_CYAN}}>{d.brand} - {d.city}</h1>
-              <p>Öğrenci: {student.name}</p>
-              <table style={{width:"100%", borderCollapse:"collapse", marginTop:20}}>
-                <tr style={{borderBottom:"2px solid #333"}}>
-                  <th style={{textAlign:"left", padding:10}}>Hizmet</th>
-                  <th style={{textAlign:"right", padding:10}}>Tutar</th>
-                </tr>
-                <tr>
-                  <td style={{padding:10}}>Kurs: {d.course.name} ({d.weeks} Hafta)<br/><small>Başlangıç: {d.startDate}</small></td>
-                  <td style={{textAlign:"right", padding:10}}>{fmt(cCost, curSym)}</td>
-                </tr>
-                {d.acc && <tr>
-                  <td style={{padding:10}}>Konaklama: {d.acc.name} ({d.acc.room})<br/><small>Giriş (Pazar): {sunDate.toLocaleDateString("tr-TR")}</small></td>
-                  <td style={{textAlign:"right", padding:10}}>{fmt(aCost, curSym)}</td>
-                </tr>}
-                <tr>
-                  <td style={{padding:10}}>Kayıt ve Materyal Ücretleri</td>
-                  <td style={{textAlign:"right", padding:10}}>{fmt(f.reg + f.mat, curSym)}</td>
-                </tr>
-                <tr style={{borderTop:"2px solid #333", fontWeight:"bold", fontSize:18}}>
-                  <td style={{padding:10}}>TOPLAM</td>
-                  <td style={{textAlign:"right", padding:10}}>{fmt(cCost + aCost + f.reg + f.mat + (f.place||0), curSym)}</td>
-                </tr>
+              <p>Öğrenci: {student.name} ({student.age} yaş)</p>
+              <table style={{width:"100%", borderCollapse:"collapse", marginTop:10}}>
+                <tr style={{borderBottom:"2px solid #333"}}><th style={{textAlign:"left", padding:8}}>Hizmet</th><th style={{textAlign:"right", padding:8}}>Tutar</th></tr>
+                <tr><td style={{padding:8}}>Kurs: {d.course.name} ({d.weeks} Hafta)<br/><small>Başlangıç: {d.startDate}</small></td><td style={{textAlign:"right", padding:8}}>{fmt(cCost, curSym)}</td></tr>
+                {d.acc && <tr><td style={{padding:8}}>Konaklama: {d.acc.name} ({d.acc.room})<br/><small>Giriş (Pazar): {sunDate.toLocaleDateString("tr-TR")}</small></td><td style={{textAlign:"right", padding:8}}>{fmt(aCost, curSym)}</td></tr>}
+                <tr><td style={{padding:8}}>Ücretler (Kayıt/Materyal)</td><td style={{textAlign:"right", padding:8}}>{fmt(f.reg + f.mat, curSym)}</td></tr>
+                <tr style={{borderTop:"2px solid #333", fontWeight:"bold"}}><td style={{padding:8}}>TOPLAM</td><td style={{textAlign:"right", padding:8}}>{fmt(cCost + aCost + f.reg + f.mat + (f.place||0), curSym)}</td></tr>
               </table>
             </div>
           )
@@ -307,13 +284,34 @@ export default function FiyatTeklifi() {
 }
 
 const S = {
-  root: { minHeight:"100vh", background:"#f8fafc", fontFamily:"'Sora',sans-serif" },
+  root: { minHeight:"100vh", background:"#f8fafc", fontFamily:"'Sora', sans-serif" },
   hdr: { background:"#fff", borderBottom:"1px solid #e2e8f0", position:"sticky", top:0, zIndex:10 },
-  cnt: { maxWidth:1100, margin:"0 auto", padding:"15px 20px", display:"flex", justifyContent:"space-between", alignItems:"center" },
+  cnt: { maxWidth:1100, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" },
+  htitle: { fontSize:15, fontWeight:600, color:"#0f172a" },
+  backBtn: { background:"none", border:"1px solid #e2e8f0", padding:"8px 16px", borderRadius:10, cursor:"pointer", fontSize:13 },
   body: { maxWidth:1100, margin:"20px auto", padding:"0 20px", display:"grid", gridTemplateColumns:"1fr 280px", gap:20 },
-  main: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:"30px" },
-  side: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:"20px", position:"sticky", top:90, height:"fit-content" },
-  ttl: { fontSize:18, fontWeight:700, marginBottom:20 },
-  lbl: { fontSize:12, color:"#64748b", marginBottom:8, display:"block", fontWeight:600 },
-  g3: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:10, marginBottom:20 }
+  main: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:"30px", position:"relative" },
+  ttl: { fontSize:18, fontWeight:700, marginBottom:20, color:"#0f172a" },
+  slbl: { fontSize:11, fontWeight:600, color:"#94a3b8", margin:"15px 0 8px" },
+  r2: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:15 },
+  fld: { display:"flex", flexDirection:"column", gap:6 },
+  lbl: { fontSize:12, color:"#64748b" },
+  fti: { padding:"10px 14px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, outline:"none" },
+  ftc: { flex:1, padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, background:"#fff" },
+  ftcSelected: { flex:1, padding:12, border:`1.5px solid ${ORANGE}`, background:"#fff7ed", color:ORANGE, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
+  ftcOnline: { padding:12, border:"1.5px solid #3b82f6", color:"#3b82f6", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13 },
+  ftcOnlineSelected: { padding:12, border:`1.5px solid ${ORANGE}`, background:"#fff7ed", color:ORANGE, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
+  ftac: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:14, border:"1.5px solid #e2e8f0", borderRadius:12, cursor:"pointer", fontSize:13 },
+  ftacSelected: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:14, border:`1.5px solid ${ORANGE}`, background:"#fff7ed", color:ORANGE, borderRadius:12, cursor:"pointer", fontSize:13 },
+  g3: { display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px, 1fr))", gap:10 },
+  navBox: { marginTop:40, display:"flex", justifyContent:"flex-end", gap:10 },
+  btnBack: { background:"none", border:"none", cursor:"pointer", color:"#64748b", fontSize:14 },
+  btnNext: { background:ORANGE, color:"#fff", border:"none", padding:"12px 30px", borderRadius:10, fontWeight:600, cursor:"pointer" },
+  side: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:20, position:"sticky", top:90, height:"fit-content" },
+  sideTtl: { fontSize:14, fontWeight:700, borderBottom:"1px solid #eee", paddingBottom:10, marginBottom:15 },
+  liveBox: { background:"#f8fafc", padding:12, borderRadius:10, fontSize:12, marginBottom:15 },
+  liveTotal: { marginTop:8, fontWeight:700, fontSize:14, color:ORANGE },
+  sideItem: { fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" },
+  summaryCard: { border:"1.5px solid #e2e8f0", borderRadius:12, padding:15, marginBottom:10 },
+  pdfBtn: { width:"100%", marginTop:20, padding:12, background:BLUE_CYAN, color:"#fff", border:"none", borderRadius:10, fontWeight:700, cursor:"pointer" }
 };
