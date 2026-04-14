@@ -77,13 +77,13 @@ async function fetchCityData(sheetId, city) {
     });
     const acc = accRows.filter(r => r.city === city).map(r => ({ 
         name:r.place_name, 
-        type: r.accommodation_type || "Standard",
+        type: r.accommodation_type || "Standart",
         room:r.room_type, 
         bathroom: r.bathroom_type || "Paylaşımlı",
         board:r.board_type, 
         price:parseFloat(r.price_per_week)||0, 
         currency:r.currency, 
-        distance: r.distance_to_school || "",
+        distance: r.distance_to_school || "Belirtilmemiş",
         notes: r.notes || "",
         hsStart: r.high_season_start || "",
         hsEnd: r.high_season_end || "",
@@ -110,11 +110,13 @@ function calcFees(fees, weeks) {
 }
 
 const getPrice = (c, w) => c?.tiers?.find(t => w >= t.min && (t.max === null || w <= t.max))?.price * w || 0;
-const fmt = (n, cur) => `${cur || ""} ${Number(n||0).toLocaleString("tr-TR")}`;
+const fmt = (n, cur) => `${cur || ""} ${Number(n||0).toLocaleString("tr-TR", {minimumFractionDigits:2})}`;
 const emptyDest = (sd="") => ({ lang:"", country:"", city:"", brand:"", course:null, weeks:4, acc:null, startDate:sd, isOnline:false, cityData:null, cityLoading:false });
 
 const ORANGE = "#f97316";
 const BLUE_CYAN = "#00C1DE";
+const EF_BLUE = "#00a0e3";
+const EF_LIGHT_BLUE = "#4fb0e8";
 
 const EC_LIVE = [
   { name:"EC Live Premium (5 gun/hafta)", hours:7.5, tiers:[{min:1,max:11,price:115},{min:12,max:23,price:100},{min:24,max:null,price:85}], currency:"EUR", notes: "Canlı online dersler, dijital materyaller dahil." },
@@ -153,7 +155,7 @@ export default function FiyatTeklifi() {
 
   const next = () => {
     if (step === 3 || (step === 2 && cur.isOnline)) {
-      if (!destinations.find(d => d.city === cur.city && d.course?.name === cur.course?.name)) {
+      if (!destinations.find(d => d.city === cur.city && d.course?.name === cur.course?.name && d.acc?.name === cur.acc?.name)) {
          setDestinations(prev => [...prev, { ...cur }]);
       }
       setStep(4);
@@ -167,15 +169,20 @@ export default function FiyatTeklifi() {
   const generatePDF = () => {
     const el = document.getElementById("pdf-area"); if(!el) return;
     el.style.display = "block";
-    window.html2pdf().set({ margin:10, filename:`Teklif_${student.name}.pdf`, html2canvas:{scale:2, useCORS:true}, jsPDF:{format:'a4'} }).from(el).save().then(() => {
-      el.style.display="none"; setDestinations([]); setCur(emptyDest()); setStep(0); if (window._SCHOOL_CACHE) window._SCHOOL_CACHE = {};
+    window.html2pdf().set({ 
+        margin: 0, 
+        filename: `Teklif_${student.name}.pdf`, 
+        html2canvas: { scale: 2, useCORS: true, logging: false }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } 
+    }).from(el).save().then(() => {
+      el.style.display="none"; setDestinations([]); setCur(emptyDest()); setStep(0);
     });
   };
 
-  const fFees = cur.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(cur.cityData?.fees, cur.weeks);
+  const feesData = cur.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(cur.cityData?.fees, cur.weeks);
   const cCost = getPrice(cur.course, cur.weeks);
-  const aCost = cur.acc ? cur.acc.price * cur.weeks : 0;
-  const currentTotal = cCost + aCost + fFees.reg + fFees.mat + (fFees.place||0);
+  const aCost = cur.acc ? (cur.acc.price * cur.weeks) + cur.acc.hsPrice : 0;
+  const currentTotal = cCost + aCost + feesData.reg + feesData.mat + (feesData.place||0);
 
   const canNext = [
     !!(student.name && student.gender && student.age),
@@ -191,7 +198,7 @@ export default function FiyatTeklifi() {
   return (
     <div style={S.root}>
       <header style={S.hdr}>
-        <div style={S.cnt}><button onClick={()=>navigate("/dashboard")} style={S.backBtn}>Dashboard</button><span style={S.htitle}>Fiyat Teklifi</span><div style={{width:100}}/></div>
+        <div style={S.cnt}><button onClick={()=>navigate("/dashboard")} style={S.backBtn}>Dashboard</button><span style={S.htitle}>Fiyat Teklifi Oluştur</span><div style={{width:100}}/></div>
       </header>
       <div style={S.body}>
         <main style={S.main}>
@@ -203,9 +210,9 @@ export default function FiyatTeklifi() {
             <h2 style={S.ttl}>Konaklama - {cur.brand} {cur.city}</h2>
             <div style={{display:"grid", gap:10}}>
                 {accs.length > 0 ? accs.map((a, idx) => {
-                    const isSelected = cur.acc?.name === a.name && cur.acc?.room === a.room && cur.acc?.board === a.board;
+                    const isSel = cur.acc?.name === a.name && cur.acc?.room === a.room && cur.acc?.board === a.board;
                     return (
-                        <div key={idx} style={isSelected ? S.ftacSelected : S.ftac} onClick={() => setCur(p => ({ ...p, acc: a }))}>
+                        <div key={idx} style={isSel ? S.ftacSelected : S.ftac} onClick={() => setCur(p => ({ ...p, acc: a }))}>
                             <div>
                                 <strong>{a.name} ({a.type})</strong><br/>
                                 <small>{a.room} · {a.board} · {a.bathroom} Banyo</small>
@@ -216,7 +223,7 @@ export default function FiyatTeklifi() {
                             </div>
                         </div>
                     );
-                }) : <p>{cur.cityLoading ? "Yükleniyor..." : "Konaklama seçeneği bulunamadı."}</p>}
+                }) : <p>{cur.cityLoading ? "Veriler yükleniyor..." : "Konaklama seçeneği bulunamadı."}</p>}
             </div>
           </div>}
           
@@ -225,7 +232,7 @@ export default function FiyatTeklifi() {
             {destinations.map((d,i)=>{
               const f = d.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees, d.weeks);
               const cPrice = getPrice(d.course, d.weeks);
-              const aPrice = d.acc ? d.acc.price * d.weeks : 0;
+              const aPrice = d.acc ? (d.acc.price * d.weeks) + d.acc.hsPrice : 0;
               return (
                 <div key={i} style={S.summaryCard}>
                   <div style={{display:"flex", justifyContent:"space-between", borderBottom:"1px solid #eee", paddingBottom:10, marginBottom:10}}>
@@ -238,15 +245,14 @@ export default function FiyatTeklifi() {
                       <div style={{background:"#f8fafc", padding:12, borderRadius:8, marginBottom:10}}>
                         <strong>🏠 Konaklama:</strong> {d.acc.name} ({d.acc.type}) <br/>
                         <div style={{fontSize:12, color:"#1e293b", marginTop:4}}>
-                            Oda: {d.acc.room} · {d.acc.bathroom} Banyo <br/>
-                            Yemek: {d.acc.board} <br/>
-                            Okula Uzaklık: {d.acc.distance} <br/>
-                            {d.acc.hsPrice > 0 && <span style={{color:ORANGE}}>Sezon Farkı: {d.acc.currency} {d.acc.hsPrice} ({d.acc.hsStart} - {d.acc.hsEnd})</span>}
+                            Oda: {d.acc.room} · Banyo: {d.acc.bathroom} <br/>
+                            Yemek: {d.acc.board} · Okula Uzaklık: {d.acc.distance} <br/>
+                            {d.acc.hsPrice > 0 && <span style={{color:ORANGE, fontWeight:600}}>Sezon Farkı: {d.acc.currency} {d.acc.hsPrice} ({d.acc.hsStart} - {d.acc.hsEnd})</span>}
                         </div>
                         {d.acc.notes && <div style={{marginTop:8, color:"#64748b", fontSize:12, borderTop:"1px solid #e2e8f0", paddingTop:5}}><i>Not: {d.acc.notes}</i></div>}
                       </div>
                     )}
-                    <div style={{marginTop:5, paddingTop:5, borderTop:"1px dashed #eee"}}><strong>💰 Ücretler:</strong> Kayıt ({fmt(f.reg, f.currency)}) + Materyal ({fmt(f.mat, f.currency)})</div>
+                    <div style={{marginTop:5, paddingTop:5, borderTop:"1px dashed #eee"}}><strong>💰 Ek Ücretler:</strong> Kayıt ({fmt(f.reg, f.currency)}) + Materyal ({fmt(f.mat, f.currency)})</div>
                   </div>
                 </div>
               )
@@ -283,51 +289,75 @@ export default function FiyatTeklifi() {
         </aside>
       </div>
 
-      <div id="pdf-area" style={{display:"none", width:"210mm", padding:"20mm", background:"#fff", fontFamily:"Arial"}}>
+      {/* PDF ŞABLONU - PIXEL PERFECT (GİZLİ) */}
+      <div id="pdf-area" style={{ display: "none", width: "210mm", background: "#fff", fontFamily: "Arial, sans-serif" }}>
         {destinations.map((d, i) => {
-          const fees = d.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees, d.weeks);
-          const sunDate = d.startDate ? new Date(d.startDate) : new Date(); if(d.startDate) sunDate.setDate(sunDate.getDate()-1);
-          const totalVal = getPrice(d.course, d.weeks) + (d.acc?d.acc.price*d.weeks:0) + fees.reg + fees.mat + (fees.place||0);
+          const fees = d.isOnline ? { reg: 35, mat: 30, currency: "EUR" } : calcFees(d.cityData?.fees, d.weeks);
+          const cPrice = getPrice(d.course, d.weeks);
+          const aPrice = d.acc ? (d.acc.price * d.weeks) + d.acc.hsPrice : 0;
+          const totalVal = cPrice + aPrice + fees.reg + fees.mat + (fees.place || 0);
+          const curSym = d.course?.currency || fees.currency;
+
+          const startD = d.startDate ? new Date(d.startDate) : new Date();
+          const endD = new Date(startD); endD.setDate(startD.getDate() + (d.weeks * 7));
+          const accStart = new Date(startD); accStart.setDate(startD.getDate() - 1);
+          const accEnd = new Date(endD);
 
           return (
-            <div key={i} style={{pageBreakAfter:"always", borderBottom:"2px solid #eee", paddingBottom:30, marginBottom:30}}>
-              <h1 style={{color:BLUE_CYAN, margin:"0 0 10px 0"}}>{d.brand} Eğitim Teklifi</h1>
-              <p style={{fontSize:14, color:"#444"}}>Öğrenci: <strong>{student.name}</strong> | Destinasyon: <strong>{d.city}, {d.country}</strong></p>
-              
-              <table style={{width:"100%", borderCollapse:"collapse", marginTop:20}}>
-                <thead><tr style={{background:BLUE_CYAN, color:"#fff"}}><th style={{textAlign:"left", padding:12}}>Hizmet Detayları</th><th style={{textAlign:"right", padding:12}}>Tutar</th></tr></thead>
+            <div key={i} style={{ pageBreakAfter: "always", padding: "20mm", color: "#333", minHeight: "275mm", position: "relative" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <span style={{ fontSize: "24px", fontWeight: "bold" }}>Teklifinize neler dahil?</span>
+                <span style={{ fontSize: "24px", fontWeight: "bold" }}>{curSym}</span>
+              </div>
+              <div style={{ borderTop: "2px solid #000", margin: "8px 0 15px" }}></div>
+              <div style={{ color: EF_LIGHT_BLUE, fontWeight: "bold", fontSize: "16px", marginBottom: "25px" }}>Hafta sayısı: {d.weeks}</div>
+
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <tbody>
-                  <tr>
-                      <td style={{padding:12, borderBottom:"1px solid #eee"}}>
-                          <strong>Kurs:</strong> {d.course?.name} ({d.weeks} Hafta)<br/>
-                          <small style={{color:"#666"}}>{d.course?.notes}</small><br/>
-                          <small>Başlangıç: {d.startDate}</small>
-                      </td>
-                      <td style={{textAlign:"right", padding:12, borderBottom:"1px solid #eee"}}>{fmt(getPrice(d.course, d.weeks), d.course?.currency)}</td>
+                  <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
+                    <td style={{ padding: "15px 0", fontWeight: "bold", width: "25%", verticalAlign: "top" }}>Kurs</td>
+                    <td style={{ padding: "15px 0", width: "55%" }}>
+                      <div style={{ fontWeight: "600", fontSize: "14px" }}>{d.brand} {d.course?.name}</div>
+                      <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>{startD.toLocaleDateString("tr-TR")} - {endD.toLocaleDateString("tr-TR")}</div>
+                      {d.course?.notes && <div style={{ fontSize: "11px", color: "#666", marginTop: "6px" }}>{d.course.notes}</div>}
+                    </td>
+                    <td style={{ padding: "15px 0", textAlign: "right", fontWeight: "500" }}>{fmt(cPrice, "")}</td>
                   </tr>
-                  {d.acc && <tr>
-                      <td style={{padding:12, borderBottom:"1px solid #eee"}}>
-                          <strong>Konaklama:</strong> {d.acc.name} ({d.acc.type})<br/>
-                          <small style={{color:"#666"}}>Oda: {d.acc.room} / Banyo: {d.acc.bathroom} / Yemek: {d.acc.board}</small><br/>
-                          <small style={{color:"#666"}}>Uzaklık: {d.acc.distance}</small><br/>
-                          <small>Giriş (Pazar): {sunDate.toLocaleDateString("tr-TR")}</small>
-                          {d.acc.notes && <div style={{marginTop:8, fontSize:11, color:"#444"}}><i>Not: {d.acc.notes}</i></div>}
-                          {d.acc.hsPrice > 0 && <div style={{color:ORANGE, fontSize:11, marginTop:4}}>* Yüksek Sezon Farkı Uygulanmıştır ({d.acc.hsStart} - {d.acc.hsEnd})</div>}
+                  {d.acc && (
+                    <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
+                      <td style={{ padding: "15px 0", fontWeight: "bold", verticalAlign: "top" }}>Konaklama</td>
+                      <td style={{ padding: "15px 0" }}>
+                        <div style={{ fontWeight: "600", fontSize: "14px" }}>{d.acc.name} - {d.acc.room} ({d.acc.board})</div>
+                        <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>{accStart.toLocaleDateString("tr-TR")} - {accEnd.toLocaleDateString("tr-TR")}</div>
+                        <div style={{ fontSize: "12px", color: "#888" }}>Banyo: {d.acc.bathroom} | Uzaklık: {d.acc.distance}</div>
+                        {d.acc.notes && <div style={{ fontSize: "11px", color: "#666", marginTop: "6px" }}>{d.acc.notes}</div>}
+                        {d.acc.hsPrice > 0 && <div style={{ color: ORANGE, fontSize: "11px", marginTop: "4px" }}>* Yüksek Sezon Farkı Dahildir ({d.acc.hsStart} - {d.acc.hsEnd})</div>}
                       </td>
-                      <td style={{textAlign:"right", padding:12, borderBottom:"1px solid #eee"}}>{fmt(d.acc.price*d.weeks, d.acc.currency)}</td>
-                  </tr>}
-                  <tr>
-                      <td style={{padding:12, borderBottom:"1px solid #eee"}}>
-                          <strong>Kayıt & Materyal Ücretleri:</strong><br/>
-                          <small style={{color:"#666"}}>Okul kayıt ve zorunlu eğitim materyalleri.</small>
-                      </td>
-                      <td style={{textAlign:"right", padding:12, borderBottom:"1px solid #eee"}}>{fmt(fees.reg+fees.mat, fees.currency)}</td>
+                      <td style={{ padding: "15px 0", textAlign: "right", fontWeight: "500" }}>{fmt(aPrice, "")}</td>
+                    </tr>
+                  )}
+                  <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
+                    <td style={{ padding: "15px 0", fontWeight: "bold", verticalAlign: "top" }}>Diğer</td>
+                    <td style={{ padding: "15px 0" }}>
+                      <div style={{ fontWeight: "600", fontSize: "14px" }}>Kayıt ve Eğitim Materyalleri</div>
+                      <div style={{ fontSize: "11px", color: "#666" }}>Okul kayıt ücreti ve zorunlu materyaller dahildir.</div>
+                    </td>
+                    <td style={{ padding: "15px 0", textAlign: "right", fontWeight: "500" }}>{fmt(fees.reg + fees.mat, "")}</td>
                   </tr>
-                  <tr style={{fontSize:20, fontWeight:"bold"}}><td style={{padding:12, textAlign:"right"}}>TOPLAM:</td><td style={{padding:12, textAlign:"right", color:ORANGE}}>{fmt(totalVal, d.course?.currency)}</td></tr>
                 </tbody>
               </table>
+
+              <div style={{ borderTop: "3px solid #000", marginTop: "20px" }}></div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "20px 0" }}>
+                <span style={{ fontWeight: "bold", fontSize: "18px" }}>Toplam Tutar {curSym}</span>
+                <span style={{ fontWeight: "bold", fontSize: "26px" }}>{fmt(totalVal, curSym)}</span>
+              </div>
+
+              <div style={{ marginTop: "40px", textAlign: "right" }}>
+                <div style={{ display: "inline-block", backgroundColor: EF_BLUE, color: "#fff", padding: "12px 35px", fontWeight: "bold", borderRadius: "30px", fontSize: "14px", textTransform: "uppercase" }}>Şimdi rezervasyon yapın</div>
+              </div>
             </div>
-          )
+          );
         })}
       </div>
     </div>
@@ -340,7 +370,7 @@ const S = {
   cnt: { maxWidth:1100, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" },
   htitle: { fontSize:15, fontWeight:600, color:"#0f172a" },
   backBtn: { background:"none", border:"1px solid #e2e8f0", padding:"8px 16px", borderRadius:10, cursor:"pointer", fontSize:13 },
-  body: { maxWidth:1100, margin:"20px auto", padding:"0 20px", display:"grid", gridTemplateColumns:"1fr 280px", gap:20 },
+  body: { maxWidth:1100, margin:"20px auto", padding:"0 20px", display:"grid", gridTemplateColumns:"1fr 300px", gap:20 },
   main: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:"30px" },
   ttl: { fontSize:18, fontWeight:700, marginBottom:20, color:"#0f172a" },
   slbl: { fontSize:11, fontWeight:600, color:"#94a3b8", margin:"15px 0 8px" },
@@ -353,17 +383,17 @@ const S = {
   ftcDisabled: { flex:1, padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"not-allowed", fontSize:13, background:"#f1f5f9", opacity:0.6, color:"#94a3b8" },
   ftcOnline: { padding:12, border:"1.5px solid #3b82f6", color:"#3b82f6", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13 },
   ftcOnlineSelected: { padding:12, border:`1.5px solid ${ORANGE}`, background:"#fff7ed", color:ORANGE, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
-  ftac: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:14, border:"1.5px solid #e2e8f0", borderRadius:12, cursor:"pointer", fontSize:13 },
+  ftac: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:14, border:"1.5px solid #e2e8f0", borderRadius:12, cursor:"pointer", fontSize:13, background:"#fff" },
   ftacSelected: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:14, border:`1.5px solid ${ORANGE}`, background:"#fff7ed", color:ORANGE, borderRadius:12, cursor:"pointer", fontSize:13 },
   g3: { display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(140px, 1fr))", gap:10 },
   navBox: { marginTop:40, display:"flex", justifyContent:"flex-end", gap:10 },
   btnBack: { background:"none", border:"none", cursor:"pointer", color:"#64748b", fontSize:14 },
-  btnNext: { background:ORANGE, color:"#fff", border:"none", padding:"12px 30px", borderRadius:10, fontWeight:600, cursor:"pointer" },
+  btnNext: { background:ORANGE, color:"#fff", border:"none", padding:"12px 35px", borderRadius:10, fontWeight:600, cursor:"pointer" },
   side: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:20, position:"sticky", top:90, height:"fit-content" },
   sideTtl: { fontSize:14, fontWeight:700, borderBottom:"1px solid #eee", paddingBottom:10, marginBottom:15 },
   liveBox: { background:"#f8fafc", padding:12, borderRadius:10, fontSize:12, marginBottom:15 },
   liveTotal: { marginTop:8, fontWeight:700, fontSize:14, color:ORANGE },
   sideItem: { fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" },
-  summaryCard: { border:"1.5px solid #e2e8f0", borderRadius:12, padding:15, marginBottom:10 },
-  pdfBtn: { width:"100%", marginTop:20, padding:12, background:BLUE_CYAN, color:"#fff", border:"none", borderRadius:10, fontWeight:700, cursor:"pointer" }
+  summaryCard: { border:"1.5px solid #e2e8f0", borderRadius:15, padding:20, marginBottom:15 },
+  pdfBtn: { width:"100%", marginTop:20, padding:12, background:EF_BLUE, color:"#fff", border:"none", borderRadius:10, fontWeight:700, cursor:"pointer" }
 };
