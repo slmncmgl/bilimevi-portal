@@ -1,250 +1,195 @@
 import { useEffect, useState } from "react";
-import { jsPDF } from "jspdf";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
+import { jsPDF } from "jspdf";
 
-const ORANGE = "#f97316";
-const ORANGE_LIGHT = "#fff7ed";
-const ORANGE_BORDER = "#fed7aa";
+const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
 
-// Navigasyon verisi sheet'ten dinamik yuklenecek
-// courses, accommodation, fees hard-code kalir (kompleks yapilar)
-const MASTER_INDEX_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
-
-async function fetchNav() {
-  const url = `https://docs.google.com/spreadsheets/d/${MASTER_INDEX_ID}/gviz/tq?tqx=out:csv&sheet=master_index`;
-  const res = await fetch(url);
-  const csv = await res.text();
+function parseCSV(csv) {
   const lines = csv.trim().split("\n");
   const headers = lines[0].split(",").map(h => h.replace(/"/g,"").trim());
+  return lines.slice(1).map(line => {
+    const cols = [];
+    let cur = "", inQ = false;
+    for (const ch of line) {
+      if (ch === '"') inQ = !inQ;
+      else if (ch === "," && !inQ) { cols.push(cur.trim()); cur = ""; }
+      else cur += ch;
+    }
+    cols.push(cur.trim());
+    const row = {};
+    headers.forEach((h, i) => { row[h] = (cols[i]||"").replace(/^"|"$/g,""); });
+    return row;
+  });
+}
 
-  const cityIdx    = headers.indexOf("city");
-  const countryIdx = headers.indexOf("country");
-  const brandIdx   = headers.indexOf("school_brand");
-  const langIdx    = headers.indexOf("language");
-  const statusIdx  = headers.indexOf("parse_status");
+async function fetchCSV(sheetId, sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Sheet okunamadi: " + sheetName);
+  return parseCSV(await res.text());
+}
 
+async function fetchNav() {
+  const rows = await fetchCSV(MASTER_ID, "master_index");
+  const countryTR = {
+    "UK":"İngiltere","Ireland":"İrlanda","Malta":"Malta",
+    "South Africa":"Güney Afrika","Canada":"Kanada","USA":"ABD","UAE":"BAE"
+  };
   const languages = new Set();
   const countries = {};
-  const cities    = {};
-  const brands    = {};
+  const citiesByLang = {};
+  const brands = {};
+  const schoolSheets = {};
 
-  const countryTR = {
-    "UK": "İngiltere", "Ireland": "İrlanda", "Malta": "Malta",
-    "South Africa": "Güney Afrika", "Canada": "Kanada",
-    "USA": "ABD", "UAE": "BAE"
-  };
-
-  lines.slice(1).forEach(line => {
-    const cols = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || [];
-    const clean = i => (cols[i]||"").replace(/"/g,"").trim();
-
-    const city      = clean(cityIdx);
-    const countryEn = clean(countryIdx);
-    const brand     = clean(brandIdx);
-    const langRaw   = clean(langIdx) || "İngilizce";
-    const status    = clean(statusIdx);
-    const countryTRName = countryTR[countryEn] || countryEn;
-
-    // Sadece approved sehirleri goster
-    if (!city || !countryEn || status !== "approved") return;
-
-    // Virgülle ayrılmış diller: "İngilizce,Fransızca"
+  rows.forEach(row => {
+    if (row.parse_status !== "approved") return;
+    const city = row.city;
+    const countryTRName = countryTR[row.country] || row.country;
+    const brand = row.school_brand;
+    const langRaw = row.language || "İngilizce";
+    const driveLink = row.drive_link || "";
+    const match = driveLink.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+    const sheetId = match ? match[1] : null;
+    if (sheetId && brand && !schoolSheets[brand]) {
+      schoolSheets[brand] = { sheetId, sheetName: row.sheet_name };
+    }
     const langs = langRaw.split(",").map(l => l.trim()).filter(Boolean);
     langs.forEach(l => {
       languages.add(l);
       if (!countries[l]) countries[l] = new Set();
       countries[l].add(countryTRName);
-    });
-
-    if (!cities[countryTRName]) cities[countryTRName] = new Set();
-    cities[countryTRName].add(city);
-
-    brands[city] = brand;
-  });
-
-  // cities: lang -> country -> [city] seklinde tut
-  const citiesByLang = {};
-  lines.slice(1).forEach(line => {
-    const cols = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || [];
-    const clean = i => (cols[i]||"").replace(/"/g,"").trim();
-    const city      = clean(cityIdx);
-    const countryEn = clean(countryIdx);
-    const langRaw   = clean(langIdx) || "İngilizce";
-    const status    = clean(statusIdx);
-    const countryTRName = countryTR[countryEn] || countryEn;
-    if (!city || !countryEn || status !== "approved") return;
-    const langs = langRaw.split(",").map(l => l.trim()).filter(Boolean);
-    langs.forEach(l => {
       if (!citiesByLang[l]) citiesByLang[l] = {};
       if (!citiesByLang[l][countryTRName]) citiesByLang[l][countryTRName] = new Set();
       citiesByLang[l][countryTRName].add(city);
     });
+    brands[city] = brand;
   });
 
   return {
     languages: [...languages].sort(),
     countries: Object.fromEntries(Object.entries(countries).map(([k,v])=>[k,[...v]])),
-    cities:    Object.fromEntries(Object.entries(cities).map(([k,v])=>[k,[...v].sort()])),
-    citiesByLang: Object.fromEntries(
-      Object.entries(citiesByLang).map(([lang, cMap]) => [
-        lang,
-        Object.fromEntries(Object.entries(cMap).map(([c,s])=>[c,[...s].sort()]))
-      ])
-    ),
+    citiesByLang: Object.fromEntries(Object.entries(citiesByLang).map(([l,cm])=>[
+      l, Object.fromEntries(Object.entries(cm).map(([c,s])=>[c,[...s].sort()]))
+    ])),
     brands,
+    schoolSheets,
   };
 }
 
-const DB = {
-  languages: ["İngilizce", "Fransızca"],
-  countries: {
-    "İngilizce": ["İngiltere","İrlanda","Malta","Güney Afrika","Kanada","ABD","BAE"],
-    "Fransızca": ["Kanada"],
-  },
-  cities: {
-    "İngiltere": ["London","Brighton","Cambridge","Manchester","Bristol"],
-    "İrlanda":   ["Dublin","Dublin 30+"],
-    "Malta":     ["Malta","Malta 30+"],
-    "Güney Afrika": ["Cape Town","Cape Town 30+"],
-    "Kanada":    ["Montreal","Toronto","Toronto 30+","Vancouver","Vancouver 30+"],
-    "ABD":       ["Boston","New York","New York 30+","San Francisco","Los Angeles"],
-    "BAE":       ["Dubai"],
-  },
-  citiesByLang: {
-    "İngilizce": {
-      "İngiltere": ["London","Brighton","Cambridge","Manchester","Bristol","London 30+","Brighton 30+"],
-      "İrlanda":   ["Dublin","Dublin 30+"],
-      "Malta":     ["Malta","Malta 30+"],
-      "Güney Afrika": ["Cape Town","Cape Town 30+"],
-      "Kanada":    ["Montreal","Toronto","Toronto 30+","Vancouver","Vancouver 30+"],
-      "ABD":       ["Boston","New York","New York 30+","San Francisco","Los Angeles"],
-      "BAE":       ["Dubai"],
-    },
-    "Fransızca": {
-      "Kanada": ["Montreal"],
-    },
-  },
-  brands: {
-    "London":"EC","Brighton":"EC","Cambridge":"EC","Manchester":"EC","Bristol":"EC",
-    "Dublin":"EC","Dublin 30+":"EC","Malta":"EC","Malta 30+":"EC",
-    "Cape Town":"EC","Cape Town 30+":"EC",
-    "Montreal":"EC","Toronto":"EC","Toronto 30+":"EC","Vancouver":"EC","Vancouver 30+":"EC",
-    "Boston":"EC","New York":"EC","New York 30+":"EC","San Francisco":"EC","Los Angeles":"EC",
-    "Dubai":"EC","London 30+":"EC","Brighton 30+":"EC",
-  },
-  courses: {
-    "EC-London": [
-      { name:"General English 20", lessons:20, hours:15, tiers:[{min:1,max:11,price:405},{min:12,max:23,price:365},{min:24,max:null,price:330}], currency:"GBP", hs_supp:20, morning:true },
-      { name:"General English 30", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:495},{min:12,max:23,price:450},{min:24,max:null,price:390}], currency:"GBP", hs_supp:20, morning:true },
-      { name:"English for Work", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:495},{min:12,max:23,price:450}], currency:"GBP", hs_supp:20, max_weeks:12, morning:true },
-      { name:"English in the City", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:495}], currency:"GBP", max_weeks:4, morning:true },
-      { name:"Writing with AI", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:495}], currency:"GBP", max_weeks:4, morning:true },
-      { name:"Exam Prep IELTS", lessons:20, hours:15, tiers:[{min:1,max:11,price:405},{min:12,max:23,price:365}], currency:"GBP", hs_supp:20, morning:false },
-    ],
-    "EC-Dublin": [
-      { name:"General English 20", lessons:20, hours:15, tiers:[{min:1,max:11,price:380},{min:12,max:23,price:365},{min:24,max:null,price:280}], currency:"EUR", hs_supp:25, morning:true },
-      { name:"General English 30", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:445},{min:12,max:23,price:420},{min:24,max:null,price:325}], currency:"EUR", hs_supp:25, morning:true },
-      { name:"English for Work", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:445},{min:12,max:23,price:420}], currency:"EUR", hs_supp:25, max_weeks:12, morning:true },
-      { name:"Exam Prep IELTS", lessons:20, hours:15, tiers:[{min:1,max:11,price:380},{min:12,max:23,price:365}], currency:"EUR", hs_supp:25, max_weeks:12, morning:false },
-    ],
-    "EC-Brighton": [
-      { name:"General English 20", lessons:20, hours:15, tiers:[{min:1,max:11,price:385},{min:12,max:23,price:340},{min:24,max:null,price:290}], currency:"GBP", hs_supp:20, morning:true },
-      { name:"General English 30", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:485},{min:12,max:23,price:405},{min:24,max:null,price:360}], currency:"GBP", hs_supp:20, morning:true },
-      { name:"English for Work", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:485},{min:12,max:23,price:405}], currency:"GBP", hs_supp:20, max_weeks:12, morning:true },
-      { name:"Exam Prep IELTS", lessons:20, hours:15, tiers:[{min:1,max:11,price:385},{min:12,max:23,price:340}], currency:"GBP", hs_supp:20, morning:false },
-    ],
-    "EC-Malta": [
-      { name:"General English 20", lessons:20, hours:15, tiers:[{min:1,max:11,price:300},{min:12,max:23,price:255},{min:24,max:null,price:240}], currency:"EUR", hs_supp:25, morning:true },
-      { name:"General English 30", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:410},{min:12,max:23,price:320},{min:24,max:null,price:300}], currency:"EUR", hs_supp:25, morning:true },
-      { name:"English for Work", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:410},{min:12,max:23,price:320}], currency:"EUR", hs_supp:25, max_weeks:12, morning:true },
-      { name:"Exam Prep IELTS", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:410},{min:12,max:23,price:320}], currency:"EUR", hs_supp:25, morning:true },
-    ],
-    "EC-Dubai": [
-      { name:"General English 20 - Sabah", lessons:20, hours:15, tiers:[{min:1,max:11,price:380},{min:12,max:23,price:335},{min:24,max:null,price:310}], currency:"USD", morning:false },
-      { name:"General English 20 - Öğleden Sonra", lessons:20, hours:15, tiers:[{min:1,max:11,price:310},{min:12,max:23,price:270},{min:24,max:null,price:245}], currency:"USD", morning:false },
-      { name:"General English 30", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:520},{min:12,max:23,price:480},{min:24,max:null,price:440}], currency:"USD", morning:false },
-      { name:"English for Work", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:520},{min:12,max:23,price:480}], currency:"USD", max_weeks:12, morning:false },
-    ],
-    "EC-Montreal": [
-      { name:"General English / French 20", lessons:20, hours:15, tiers:[{min:1,max:11,price:420},{min:12,max:23,price:405}], currency:"CAD", morning:false },
-      { name:"General English / French 30", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:510},{min:12,max:23,price:495}], currency:"CAD", morning:false },
-      { name:"Bilingual 24", lessons:24, hours:18, tiers:[{min:1,max:11,price:435},{min:12,max:23,price:420}], currency:"CAD", morning:false },
-    ],
-    "EC-Boston": [
-      { name:"Vacation English (GE 20)", lessons:20, hours:15, tiers:[{min:1,max:11,price:505},{min:12,max:23,price:485}], currency:"USD", hs_supp:25, morning:false },
-      { name:"General English 24", lessons:24, hours:18, tiers:[{min:1,max:11,price:570},{min:12,max:23,price:510},{min:24,max:null,price:480}], currency:"USD", hs_supp:25, morning:false },
-      { name:"General English 30", lessons:30, hours:22.5, tiers:[{min:1,max:11,price:650},{min:12,max:23,price:595},{min:24,max:null,price:525}], currency:"USD", hs_supp:25, morning:false },
-    ],
-  },
-  accommodation: {
-    "EC-London": [
-      { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Half Board", dist:"60 dk", price:305, currency:"GBP" },
-      { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Bed & Breakfast", dist:"60 dk", price:250, currency:"GBP" },
-      { type:"Student Residence", name:"iQ Highbury", room:"Single", bathroom:"Ensuite", board:"Self-Catering", dist:"23 dk", price:510, currency:"GBP" },
-      { type:"Student Residence", name:"iQ Shoreditch", room:"Studio", bathroom:"Ensuite", board:"Self-Catering", dist:"20 dk", price:625, currency:"GBP" },
-    ],
-    "EC-Dublin": [
-      { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Bed & Breakfast", dist:"75 dk", price:275, currency:"EUR" },
-      { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Half Board", dist:"75 dk", price:305, currency:"EUR" },
-      { type:"Student Residence", name:"Heyday Carman's Hall", room:"Single", bathroom:"Ensuite", board:"Self-Catering", dist:"20-30 dk", price:450, currency:"EUR" },
-    ],
-    "EC-Brighton": [
-      { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Bed & Breakfast", dist:"60 dk", price:240, currency:"GBP" },
-      { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Half Board", dist:"60 dk", price:275, currency:"GBP" },
-      { type:"Student Residence", name:"Abacus House", room:"Single", bathroom:"Ensuite", board:"Self-Catering", dist:"20 dk", price:390, currency:"GBP" },
-    ],
-    "EC-Malta": [
-      { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Half Board", dist:"15-45 dk", price:360, currency:"EUR" },
-      { type:"Student Residence", name:"Campus Hub", room:"Single", bathroom:"Private", board:"Self-Catering", dist:"30 dk", price:390, currency:"EUR" },
-    ],
-    "EC-Dubai": [
-      { type:"Shared Accommodation", name:"Student Apartment", room:"Single", bathroom:"Private", board:"Self-Catering", dist:"25 dk", price:450, currency:"USD" },
-      { type:"Student Residence", name:"Student Residence", room:"Single", bathroom:"Ensuite", board:"Self-Catering", dist:"50 dk", price:425, currency:"USD" },
-    ],
-    "EC-Montreal": [
-      { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Half Board", dist:"60 dk", price:320, currency:"CAD" },
-      { type:"Shared Accommodation", name:"La Marq au 515", room:"Single", bathroom:"Shared", board:"Self-Catering", dist:"20 dk", price:495, currency:"CAD" },
-    ],
-    "EC-Boston": [
-      { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Bed & Breakfast", dist:"30-65 dk", price:370, currency:"USD" },
-      { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Half Board", dist:"30-65 dk", price:440, currency:"USD" },
-    ],
-  },
-  ecLive: [
-    { name:"EC Live Premium (5 gun/hafta)", hours:7.5, tiers:[{min:1,max:11,price:115},{min:12,max:23,price:100},{min:24,max:null,price:85}], currency:"EUR", minWeeks:1 },
-    { name:"EC Live Standard (2 gun/hafta)", hours:3, tiers:[{min:1,max:11,price:55},{min:12,max:23,price:45},{min:24,max:null,price:35}], currency:"EUR", minWeeks:2 },
-    { name:"EC Live English for Work", hours:3, tiers:[{min:1,max:11,price:80},{min:12,max:23,price:70},{min:24,max:null,price:60}], currency:"EUR", minWeeks:1 },
-  ],
-  fees: {
-    "EC-London":   { reg:60,  acc:40,  mat_pw:7,  mat_12:84,  mat_24:105, cur:"GBP" },
-    "EC-Dublin":   { reg:55,  acc:55,  mat_pw:7,  mat_12:84,  mat_24:105, cur:"EUR" },
-    "EC-Brighton": { reg:60,  acc:40,  mat_pw:7,  mat_12:84,  mat_24:105, cur:"GBP" },
-    "EC-Malta":    { reg:55,  acc:40,  mat_pw:7,  mat_12:84,  mat_24:105, cur:"EUR" },
-    "EC-Dubai":    { reg:100, acc:100, mat_pw:7,  mat_12:84,  mat_24:105, cur:"USD" },
-    "EC-Montreal": { reg:140, acc:230, mat_pw:10, mat_12:120, mat_24:140, cur:"CAD" },
-    "EC-Boston":   { reg:170, acc:95,  mat_pw:10, mat_12:120, mat_24:140, cur:"USD" },
-  },
-};
+async function fetchCityData(sheetId, city) {
+  const [courseRows, accRows, feeRows, transferRows] = await Promise.all([
+    fetchCSV(sheetId, "courses"),
+    fetchCSV(sheetId, "accommodation"),
+    fetchCSV(sheetId, "fees"),
+    fetchCSV(sheetId, "transfers"),
+  ]);
+
+  const courseMap = {};
+  courseRows.filter(r => r.city === city).forEach(r => {
+    const key = r.course_name;
+    if (!courseMap[key]) {
+      courseMap[key] = {
+        name: r.course_name,
+        type: r.program_type,
+        lessons: parseFloat(r.lessons_per_week) || 0,
+        hours: parseFloat(r.hours_per_week) || 0,
+        currency: r.currency,
+        hs_supp: parseFloat(r.high_season_supplement) || 0,
+        hs_cond: r.high_season_condition,
+        max_weeks: r.max_weeks ? parseInt(r.max_weeks) : null,
+        morning: !!(r.morning_supplement && parseFloat(r.morning_supplement) > 0),
+        notes: r.notes,
+        tiers: [],
+      };
+    }
+    courseMap[key].tiers.push({
+      min: parseInt(r.weeks_tier_min) || 1,
+      max: r.weeks_tier_max ? parseInt(r.weeks_tier_max) : null,
+      price: parseFloat(r.price_per_week) || 0,
+    });
+  });
+
+  const acc = accRows.filter(r => r.city === city).map(r => ({
+    type: r.accommodation_type,
+    name: r.place_name,
+    room: r.room_type,
+    bathroom: r.bathroom_type,
+    board: r.board_type,
+    distance: r.distance_to_school,
+    price: parseFloat(r.price_per_week) || 0,
+    hs_price: parseFloat(r.high_season_price) || 0,
+    currency: r.currency,
+    min_weeks: r.min_weeks ? parseInt(r.min_weeks) : null,
+    notes: r.notes,
+  }));
+
+  const fees = feeRows.filter(r => r.city === city).map(r => ({
+    name: r.fee_name,
+    amount: parseFloat(r.amount) || 0,
+    currency: r.currency,
+    calc_type: r.calculation_type,
+    tier_min: r.tier_min_weeks ? parseInt(r.tier_min_weeks) : null,
+    tier_max: r.tier_max_weeks ? parseInt(r.tier_max_weeks) : null,
+    notes: r.notes,
+  }));
+
+  const transfers = transferRows.filter(r => r.city === city).map(r => ({
+    airport: r.airport_name,
+    code: r.airport_code,
+    one_way: parseFloat(r.price_one_way) || 0,
+    two_way: parseFloat(r.price_two_way) || 0,
+    currency: r.currency,
+    notes: r.notes,
+  }));
+
+  return { courses: Object.values(courseMap), acc, fees, transfers };
+}
+
+function calcFees(fees, weeks) {
+  if (!fees || !fees.length) return { reg:0, acc_placement:0, mat:0, currency:"GBP" };
+  let reg = 0, acc_placement = 0, mat = 0, currency = fees[0]?.currency || "GBP";
+  fees.forEach(f => {
+    const n = f.name.toLowerCase();
+    if (f.calc_type === "fixed") {
+      if (n.includes("registration") || n.includes("kayit")) { reg += f.amount; }
+      else if (n.includes("placement")) { acc_placement += f.amount; }
+      else if (n.includes("material") || n.includes("materyal")) {
+        const inRange = (!f.tier_min || weeks >= f.tier_min) && (!f.tier_max || weeks <= f.tier_max);
+        if (inRange) mat += f.amount;
+      }
+    } else if (f.calc_type === "per_week") {
+      if (n.includes("material") || n.includes("materyal")) mat += f.amount * weeks;
+    }
+  });
+  return { reg, acc_placement, mat, currency };
+}
 
 function getPrice(course, weeks) {
   if (!course) return 0;
-  const tier = course.tiers.find(t => weeks >= t.min && (t.max === null || weeks <= t.max));
+  const tier = course.tiers?.find(t => weeks >= t.min && (t.max === null || weeks <= t.max));
   return tier ? tier.price * weeks : 0;
-}
-
-function getFees(key, weeks) {
-  const f = DB.fees[key];
-  if (!f) return { reg:0, acc:0, mat:0, cur:"GBP" };
-  const mat = weeks <= 11 ? f.mat_pw * weeks : weeks <= 23 ? f.mat_12 : f.mat_24;
-  return { reg:f.reg, acc:f.acc, mat, cur:f.cur };
 }
 
 function fmt(n, cur) {
   return `${cur} ${Number(n).toLocaleString("tr-TR")}`;
 }
 
-const emptyDest = (sd="") => ({ lang:"", country:"", city:"", brand:"", course:null, weeks:4, acc:null, startDate:sd, isOnline:false });
+const emptyDest = (sd="") => ({
+  lang:"", country:"", city:"", brand:"",
+  course:null, weeks:4, acc:null, startDate:sd,
+  isOnline:false, cityData:null, cityLoading:false
+});
+
+const ORANGE = "#f97316";
+const ORANGE_LIGHT = "#fff7ed";
+const ORANGE_BORDER = "#fed7aa";
+
+const EC_LIVE = [
+  { name:"EC Live Premium (5 gun/hafta)", hours:7.5, tiers:[{min:1,max:11,price:115},{min:12,max:23,price:100},{min:24,max:null,price:85}], currency:"EUR", minWeeks:1 },
+  { name:"EC Live Standard (2 gun/hafta)", hours:3, tiers:[{min:1,max:11,price:55},{min:12,max:23,price:45},{min:24,max:null,price:35}], currency:"EUR", minWeeks:2 },
+  { name:"EC Live English for Work", hours:3, tiers:[{min:1,max:11,price:80},{min:12,max:23,price:70},{min:24,max:null,price:60}], currency:"EUR", minWeeks:1 },
+];
 
 export default function FiyatTeklifi() {
   const navigate = useNavigate();
@@ -253,33 +198,37 @@ export default function FiyatTeklifi() {
   const [student, setStudent] = useState({ name:"Selman Çamoğlu", age:"38", gender:"Erkek" });
   const [destinations, setDestinations] = useState([]);
   const [cur, setCur] = useState(emptyDest());
-  const [nav, setNav] = useState({
-    languages: DB.languages,
-    countries: DB.countries,
-    cities: DB.cities,
-    citiesByLang: null,
-    brands: DB.brands,
-  });
+  const [nav, setNav] = useState({ languages:[], countries:{}, citiesByLang:{}, brands:{}, schoolSheets:{} });
   const [navLoading, setNavLoading] = useState(true);
 
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
-    // Sheet'ten navigasyon verisini cek
     fetchNav().then(data => {
       setNav(data);
       setNavLoading(false);
-    }).catch(() => {
-      // Hata olursa hard-code kullan
+    }).catch(err => {
+      console.error("Nav yuklenemedi:", err);
       setNavLoading(false);
     });
   }, []);
 
+  // Sehir secilince o sehirin verilerini cek
+  useEffect(() => {
+    if (!cur.city || !cur.brand || cur.isOnline) return;
+    const sheetInfo = nav.schoolSheets?.[cur.brand];
+    if (!sheetInfo?.sheetId) return;
+    setCur(p => ({ ...p, cityData:null, cityLoading:true }));
+    fetchCityData(sheetInfo.sheetId, cur.city)
+      .then(data => setCur(p => ({ ...p, cityData:data, cityLoading:false })))
+      .catch(err => { console.error("City data yuklenemedi:", err); setCur(p => ({ ...p, cityLoading:false })); });
+  }, [cur.city, cur.brand]);
+
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Özet"];
-  const dbKey = cur.brand && cur.city ? `${cur.brand}-${cur.city}` : null;
-  const courses = dbKey ? (DB.courses[dbKey] || []) : [];
-  const accs = dbKey ? (DB.accommodation[dbKey] || []) : [];
+  const courses = cur.cityData?.courses || [];
+  const accs    = cur.cityData?.acc     || [];
+  const fees    = cur.cityData?.fees    || [];
 
   const canNext = [
     !!(student.name && student.gender),
@@ -370,10 +319,10 @@ export default function FiyatTeklifi() {
       if (idx > 0) doc.addPage();
 
       const key = d.brand + "-" + d.city;
-      const f = getFees(key, d.weeks, d.isOnline);
+      const f = d.isOnline ? {reg:35,acc_placement:0,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees||[], d.weeks);
       const cCost = getPrice(d.course, d.weeks);
       const aCost = d.acc ? d.acc.price * d.weeks : 0;
-      const fT = f.reg + f.acc + f.mat;
+      const fT = f.reg + f.acc_placement + f.mat;
       const tot = cCost + aCost + fT;
       const cur = d.course ? d.course.currency : f.cur;
       const sym = curSymbol[cur] || cur;
@@ -481,7 +430,7 @@ export default function FiyatTeklifi() {
       const extras = [];
       if (f.reg > 0) extras.push({ sub: tr("Kayıt Ücreti"), price: f.reg });
       if (f.mat > 0) extras.push({ sub: tr("Ders Materyalleri"), price: f.mat });
-      if (f.acc > 0) extras.push({ sub: tr("Konaklama Placement"), price: f.acc });
+      if (f.acc_placement > 0) extras.push({ sub: tr("Konaklama Placement"), price: f.acc_placement });
 
       if (extras.length > 0) {
         extras.forEach((ex, ei) => {
@@ -733,7 +682,7 @@ export default function FiyatTeklifi() {
             <div style={{ marginTop:28, paddingTop:24, borderTop:"1.5px dashed #e2e8f0" }}>
               <p style={{ fontSize:12, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:12 }}>Online Eğitim Seçenekleri</p>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:10 }}>
-                {DB.ecLive.map((c,i) => (
+                {EC_LIVE.map((c,i) => (
                   <div key={i}
                     className={"ftc" + (cur.isOnline && cur.course?.name===c.name ? " s" : "")}
                     onClick={()=>setCur(p=>({...emptyDest(p.startDate), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:c}))}
@@ -756,7 +705,15 @@ export default function FiyatTeklifi() {
 
           {/* STEP 2 */}
           {step === 2 && <div style={{ animation:"fadeUp .3s ease-out" }}>
-            <h2 style={S.ttl}>{cur.isOnline ? "EC Live Kurs Detayı" : "Kurs seç — " + cur.brand + " " + cur.city}</h2>
+            <h2 style={S.ttl}>
+              {cur.isOnline ? "EC Live Kurs Detayı" : "Kurs seç — " + cur.brand + " " + cur.city}
+              {cur.cityLoading && <span style={{ fontSize:11, color:"#94a3b8", fontWeight:400, marginLeft:8 }}>yükleniyor...</span>}
+            </h2>
+            {!cur.cityLoading && courses.length === 0 && !cur.isOnline && (
+              <div style={{ padding:"20px", color:"#94a3b8", fontSize:13, textAlign:"center" }}>
+                Bu şehir için kurs verisi bulunamadı.
+              </div>
+            )}
             <div style={S.r2}>
               <div style={S.fld}>
                 <label style={S.lbl}>Başlangıç tarihi</label>
@@ -836,10 +793,10 @@ export default function FiyatTeklifi() {
             {destinations.length===0 && <div style={{ textAlign:"center", color:"#94a3b8", padding:"40px 0" }}>Destinasyon eklenmedi.</div>}
             {destinations.map((d,i) => {
               const key=`${d.brand}-${d.city}`;
-              const f=getFees(key,d.weeks,d.isOnline);
+              const f=d.isOnline ? {reg:35,acc_placement:0,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees||[], d.weeks);
               const cCost=getPrice(d.course,d.weeks);
               const aCost=d.acc?d.acc.price*d.weeks:0;
-              const fT=f.reg+f.acc+f.mat;
+              const fT=f.reg+f.acc_placement+f.mat;
               const tot=cCost+aCost+fT;
               const c=d.course?.currency||f.cur;
               return (
@@ -852,7 +809,7 @@ export default function FiyatTeklifi() {
                     <span style={{ color:"#64748b" }}>Konaklama ücreti</span><span style={{ fontWeight:600 }}>{fmt(aCost,c)}</span>
                   </div>
                   <div style={{ borderTop:"1px solid #f1f5f9", marginTop:12, paddingTop:10, fontSize:12, color:"#94a3b8" }}>
-                    Kayıt: {fmt(f.reg,f.cur)} · Placement: {fmt(f.acc,f.cur)} · Materyaller: {fmt(f.mat,f.cur)}
+                    Kayıt: {fmt(f.reg,f.cur)} · Placement: {fmt(f.acc_placement,f.cur)} · Materyaller: {fmt(f.mat,f.cur)}
                   </div>
                   <div style={{ textAlign:"right", fontSize:16, fontWeight:700, marginTop:10 }}>{fmt(tot,c)}</div>
                 </div>
@@ -862,8 +819,8 @@ export default function FiyatTeklifi() {
               const totals={};
               destinations.forEach(d=>{
                 const key=`${d.brand}-${d.city}`;
-                const f=getFees(key,d.weeks,d.isOnline);
-                const t=getPrice(d.course,d.weeks)+(d.acc?d.acc.price*d.weeks:0)+f.reg+f.acc+f.mat;
+                const f=d.isOnline ? {reg:35,acc_placement:0,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees||[], d.weeks);
+                const t=getPrice(d.course,d.weeks)+(d.acc?d.acc.price*d.weeks:0)+f.reg+f.acc_placement+f.mat;
                 const c=d.course?.currency||f.cur;
                 totals[c]=(totals[c]||0)+t;
               });
@@ -903,10 +860,10 @@ export default function FiyatTeklifi() {
             ? <p style={{ fontSize:13, color:"#94a3b8" }}>Destinasyon henüz seçilmedi.</p>
             : sidebarDests.map((d,i)=>{
                 const key=`${d.brand}-${d.city}`;
-                const f=getFees(key,d.weeks,d.isOnline);
+                const f=d.isOnline ? {reg:35,acc_placement:0,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees||[], d.weeks);
                 const cCost=getPrice(d.course,d.weeks);
                 const aCost=d.acc?d.acc.price*d.weeks:0;
-                const tot=cCost+aCost+f.reg+f.acc+f.mat;
+                const tot=cCost+aCost+f.reg+f.acc_placement+f.mat;
                 const c=d.course?.currency||f.cur;
                 return (
                   <div key={i} style={{ marginBottom:14, paddingBottom:14, borderBottom:"1px solid #f1f5f9" }}>
