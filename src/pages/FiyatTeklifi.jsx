@@ -27,8 +27,7 @@ async function fetchCSV(sheetId, sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Sheet okunamadi");
-  const text = await res.text();
-  return parseCSV(text);
+  return parseCSV(await res.text());
 }
 
 async function fetchNav() {
@@ -52,8 +51,7 @@ async function fetchNav() {
     const langs = langRaw.split(",").map(l => l.trim()).filter(Boolean);
     langs.forEach(l => {
       languages.add(l);
-      if (!countries[l]) countries[l] = new Set();
-      countries[l].add(countryTRName);
+      if (!countries[l]) countries[l] = new Set(); countries[l].add(countryTRName);
       if (!citiesByLang[l]) citiesByLang[l] = {};
       if (!citiesByLang[l][countryTRName]) citiesByLang[l][countryTRName] = new Set();
       citiesByLang[l][countryTRName].add(city);
@@ -140,10 +138,11 @@ export default function FiyatTeklifi() {
     fetchNav().then(setNav);
   }, []);
 
-  // VERİ ÇEKME - KRİTİK GÜNCELLEME (RE-RENDER KORUMALI)
+  // VERİ ÇEKME - KRİTİK GÜNCELLEME (RE-RENDER VE GERİ TUŞU KORUMALI)
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline) return;
-    if (cur.cityData) return; // Eğer veri zaten varsa dokunma (Geri tuşu fix)
+    // Eğer o şehre ait veri zaten çekilmişse (geri tuşu durumu) tekrar API'ye gitme
+    if (cur.cityData && cur.cityData.courses.length > 0) return;
 
     const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
     if (sheetId) {
@@ -152,7 +151,7 @@ export default function FiyatTeklifi() {
         setCur(p => ({ ...p, cityData:data, cityLoading:false }));
       });
     }
-  }, [cur.city, cur.brand, nav.schoolSheets]);
+  }, [cur.city, cur.brand]);
 
   const isCourseValid = (course, weeks) => {
     if (!course || !course.tiers) return false;
@@ -162,13 +161,16 @@ export default function FiyatTeklifi() {
   const handleDateChange = (val) => {
     if(!val) return;
     let d = new Date(val);
-    if (d.getDay() !== 1) d.setDate(d.getDate() + (d.getDay() === 0 ? 1 : 8 - d.getDay()));
+    if (d.getDay() !== 1) {
+      const diff = (d.getDay() === 0 ? 1 : 8 - d.getDay());
+      d.setDate(d.getDate() + diff);
+    }
     setCur(p => ({ ...p, startDate: d.toISOString().split('T')[0] }));
   };
 
   const next = () => {
     if (step === 3 || (step === 2 && cur.isOnline)) { 
-      setDestinations(p => [...p, { ...cur }]); 
+      setDestinations(prev => [...prev, { ...cur }]); 
       setCur(emptyDest(cur.startDate)); 
       setStep(4); 
     }
@@ -187,10 +189,10 @@ export default function FiyatTeklifi() {
     });
   };
 
-  const f = cur.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(cur.cityData?.fees, cur.weeks);
+  const fFees = cur.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(cur.cityData?.fees, cur.weeks);
   const cCost = getPrice(cur.course, cur.weeks);
   const aCost = cur.acc ? cur.acc.price * cur.weeks : 0;
-  const currentTotal = cCost + aCost + f.reg + f.mat + (f.place||0);
+  const currentTotal = cCost + aCost + fFees.reg + fFees.mat + (fFees.place||0);
 
   const canNext = [
     !!(student.name && student.gender && student.age),
@@ -199,9 +201,6 @@ export default function FiyatTeklifi() {
     !!cur.acc || cur.isOnline,
     true
   ][step];
-
-  const courses = cur.cityData?.courses || [];
-  const accs = cur.cityData?.acc || [];
 
   return (
     <div style={S.root}>
@@ -240,12 +239,12 @@ export default function FiyatTeklifi() {
           </div>}
 
           {step === 2 && <div style={{animation:"fadeUp 0.3s"}}>
-            <h2 style={S.ttl}>{cur.isOnline ? "Paket Seçimi" : "Kurs Detayı - " + (cur.city || "")}</h2>
+            <h2 style={S.ttl}>{cur.isOnline ? "Paket Seçimi" : `Kurs Detayı - ${cur.brand} ${cur.city}`}</h2>
             <div style={S.r2}>
               <div style={S.fld}><label style={S.lbl}>Başlangıç (Pazartesi)</label><input type="date" style={S.fti} min={new Date().toISOString().split('T')[0]} value={cur.startDate} onChange={e=>handleDateChange(e.target.value)}/></div>
               <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" value={cur.weeks} onChange={e=>setCur(p=>({...p, weeks:parseInt(e.target.value)||1}))}/></div>
             </div>
-            <div style={S.g3}>{(cur.isOnline ? EC_LIVE : courses).map((c, idx) => {
+            <div style={S.g3}>{(cur.isOnline ? EC_LIVE : (cur.cityData?.courses || [])).map((c, idx) => {
               const valid = isCourseValid(c, cur.weeks);
               return (<div key={idx} style={cur.course?.name===c.name?S.ftcSelected:(valid?S.ftc:S.ftcDisabled)} onClick={()=>valid && setCur(p=>({...p, course:c}))}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>);
             })}</div>
@@ -253,7 +252,7 @@ export default function FiyatTeklifi() {
 
           {step === 3 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>Konaklama - {cur.brand} {cur.city}</h2>
-            <div style={{display:"grid", gap:10}}>{accs.length > 0 ? accs.map((a, idx)=><div key={idx} style={cur.acc?.name===a.name && cur.acc?.room===a.room?S.ftacSelected:S.ftac} onClick={()=>setCur(p=>({...p, acc:a}))}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board}</small></div><strong>{a.currency} {a.price}/h</strong></div>) : <p>{cur.cityLoading ? "Yükleniyor..." : "Konaklama seçeneği bulunamadı."}</p>}</div>
+            <div style={{display:"grid", gap:10}}>{(cur.cityData?.acc || []).length > 0 ? (cur.cityData.acc).map((a, idx)=><div key={idx} style={cur.acc?.name===a.name && cur.acc?.room===a.room?S.ftacSelected:S.ftac} onClick={()=>setCur(p=>({...p, acc:a}))}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board}</small></div><strong>{a.currency} {a.price}/h</strong></div>) : <p>{cur.cityLoading ? "Yükleniyor..." : "Konaklama seçeneği bulunamadı."}</p>}</div>
           </div>}
 
           {step === 4 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Teklif Özeti</h2>{destinations.map((d,i)=><div key={i} style={S.summaryCard}><strong>{d.brand} {d.city}</strong><br/>{d.weeks} Hafta · {d.course?.name}</div>)}</div>}
@@ -286,7 +285,7 @@ export default function FiyatTeklifi() {
           const sunDate = d.startDate ? new Date(d.startDate) : new Date(); if(d.startDate) sunDate.setDate(sunDate.getDate()-1);
           return (
             <div key={i} style={{pageBreakAfter:"always"}}>
-              <h1>{d.brand} - {d.city}</h1>
+              <h1 style={{color:BLUE_CYAN}}>{d.brand} - {d.city}</h1>
               <p>Öğrenci: {student.name} ({student.age} yaş)</p>
               <table style={{width:"100%", borderCollapse:"collapse", marginTop:10}}>
                 <tr style={{borderBottom:"2px solid #333"}}><th style={{textAlign:"left", padding:8}}>Hizmet</th><th style={{textAlign:"right", padding:8}}>Tutar</th></tr>
