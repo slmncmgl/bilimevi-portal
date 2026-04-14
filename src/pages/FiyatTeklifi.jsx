@@ -208,12 +208,16 @@ export default function FiyatTeklifi() {
   ][step];
 
   function next() {
-    if (step === 3 || (step === 2 && cur.isOnline)) { setDestinations(p => [...p, { ...cur }]); setCur(emptyDest(cur.startDate)); setStep(4); }
+    if (step === 3 || (step === 2 && cur.isOnline)) { 
+      setDestinations(prev => [...prev, { ...cur }]); 
+      setCur(emptyDest(cur.startDate)); 
+      setStep(4); 
+    }
     else setStep(s => s + 1);
   }
 
   function addDest() {
-    if (step === 3 || (step === 2 && cur.isOnline)) setDestinations(p => [...p, { ...cur }]);
+    setDestinations(prev => [...prev, { ...cur }]);
     setCur(emptyDest(cur.startDate));
     setStep(1);
   }
@@ -303,7 +307,6 @@ export default function FiyatTeklifi() {
               {nav.languages.map(l => (
                 <div key={l} className={`ftc${cur.lang===l && !cur.isOnline ?" s":""}`} onClick={()=>setCur(p=>({...emptyDest(p.startDate),lang:l, isOnline:false}))}>{l}</div>
               ))}
-              {/* Online Eğitim Butonu - Dillerle aynı hizada */}
               <div className={`ftc${cur.isOnline ? " s" : ""}`} 
                    style={{ borderColor: cur.isOnline ? ORANGE : "#3b82f6", color: cur.isOnline ? ORANGE : "#3b82f6", fontWeight: 600 }}
                    onClick={()=>setCur(p=>({...emptyDest(p.startDate), isOnline:true, brand:"EC", city:"Online", lang:"İngilizce"}))}>
@@ -349,14 +352,11 @@ export default function FiyatTeklifi() {
             <h2 style={S.ttl}>Konaklama Seçin</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {accs.map((a, i) => {
-                // DÜZELTME: Seçimi benzersiz yapmak için name + room + board kontrolü ekledik
                 const sel = cur.acc?.name === a.name && cur.acc?.room === a.room && cur.acc?.board === a.board;
-
                 return (
                   <div key={i} className={`ftac${sel ? " s" : ""}`} onClick={() => setCur(p => ({ ...p, acc: a }))}>
                     <div>
                       <div style={{ fontWeight: 600 }}>{a.name}</div>
-                      {/* EKLEME: Oda tipini (room) buraya ekledik */}
                       <div style={{ fontSize: 12, color: "#64748b" }}>{a.room} · {a.board}</div>
                     </div>
                     <div style={{ fontWeight: 700 }}>{a.currency} {a.price}/h</div>
@@ -366,7 +366,42 @@ export default function FiyatTeklifi() {
             </div>
           </div>}
 
-          {step === 4 && <div style={{ animation:"fadeUp .3s ease-out" }}><h2 style={S.ttl}>Özet</h2>{destinations.map((d, i) => <div key={i} style={{ padding:10, borderBottom:"1px solid #eee" }}>{d.brand} {d.city} - {d.weeks} Hafta</div>)}</div>}
+          {step === 4 && <div style={{ animation: "fadeUp .3s ease-out" }}>
+            <h2 style={S.ttl}>Teklif Özeti</h2>
+            {destinations.length === 0 ? (
+              <div style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>Henüz bir destinasyon eklenmedi.</div>
+            ) : (
+              destinations.map((d, i) => {
+                const f = d.isOnline ? { reg: 35, acc_placement: 0, mat: 30, currency: "EUR" } : calcFees(d.cityData?.fees || [], d.weeks);
+                const cCost = getPrice(d.course, d.weeks);
+                const aCost = d.acc ? d.acc.price * d.weeks : 0;
+                const curSym = d.course?.currency || f.currency;
+
+                return (
+                  <div key={i} style={{ border: "1.5px solid #e2e8f0", borderRadius: 16, padding: "16px 20px", marginBottom: 14 }}>
+                    <div style={{ fontWeight: 700, color: ORANGE, marginBottom: 8 }}>
+                      {d.brand} {d.city} — {d.weeks} Hafta
+                    </div>
+                    <div style={{ fontSize: 13, display: "grid", gridTemplateColumns: "1fr auto", gap: 4 }}>
+                      <span style={{ color: "#64748b" }}>Kurs: {d.course?.name}</span>
+                      <span style={{ fontWeight: 600 }}>{fmt(cCost, curSym)}</span>
+                      {d.acc && (
+                        <>
+                          <span style={{ color: "#64748b" }}>Konaklama: {d.acc.name} ({d.acc.room})</span>
+                          <span style={{ fontWeight: 600 }}>{fmt(aCost, curSym)}</span>
+                        </>
+                      )}
+                      <span style={{ color: "#64748b" }}>Ek Ücretler (Kayıt, Materyal vb.)</span>
+                      <span style={{ fontWeight: 600 }}>{fmt(f.reg + f.mat + f.acc_placement, curSym)}</span>
+                    </div>
+                    <div style={{ textAlign: "right", borderTop: "1px solid #f1f5f9", marginTop: 10, paddingTop: 8, fontWeight: 700, fontSize: 15 }}>
+                      Toplam: {fmt(cCost + aCost + f.reg + f.mat + f.acc_placement, curSym)}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>}
 
           <div style={{ display:"flex", justifyContent:"space-between", marginTop:32 }}>
             {step > 0 ? <button className="ftbb" onClick={()=>setStep(s=>s-1)}>← Geri</button> : <div/>}
@@ -377,11 +412,19 @@ export default function FiyatTeklifi() {
           </div>
         </div>
 
-        <div style={S.side}><div style={{ fontSize:14, fontWeight:600, marginBottom:16 }}>Sepet</div>{destinations.map((d, i) => (<div key={i} style={{ fontSize:12, marginBottom:8 }}>{d.city} - {d.weeks}h</div>))}</div>
+        <div style={S.side}>
+          <div style={{ fontSize:14, fontWeight:600, marginBottom:16 }}>Sepet</div>
+          {destinations.map((d, i) => (
+            <div key={i} style={{ fontSize:12, marginBottom:8, paddingBottom: 8, borderBottom: "1px solid #f1f5f9" }}>
+              <strong>{d.city}</strong><br/>
+              {d.weeks} hafta · {d.course?.name}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
 
-    {/* PDF GHOST TEMPLATE - GÖRSELDEKİ TASARIMIN AYNISI */}
+    {/* PDF GHOST TEMPLATE */}
     <div id="pdf-export-area" style={{ display: "none", width: "210mm", padding: "20mm", background: "#fff", fontFamily: "Arial" }}>
       {destinations.map((d, i) => {
         const f = d.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees||[], d.weeks);
