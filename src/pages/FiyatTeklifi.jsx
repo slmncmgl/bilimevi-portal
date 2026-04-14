@@ -216,104 +216,150 @@ export default function FiyatTeklifi() {
         </aside>
       </div>
 
-      {/* --- PDF ŞABLONU (PIXEL PERFECT) --- */}
-      <div id="pdf-area" style={{ display: "none", width: "210mm", background: "#fff", fontFamily: "Arial, sans-serif", color: "#333" }}>
-        {destinations.map((d, i) => {
-          const fees = calcFees(d.cityData?.fees, d.weeks);
-          const cPrice = getPrice(d.course, d.weeks);
-          const aPrice = d.acc ? (d.acc.price * d.weeks) + d.acc.hsPrice : 0;
-          const totalVal = cPrice + aPrice + fees.reg + fees.mat + (fees.place || 0);
-          const curSym = d.course?.currency || fees.currency;
+    // ... (Önceki Importlar ve Helper Fonksiyonlar Aynı Kalacak)
 
-          const startD = d.startDate ? new Date(d.startDate) : new Date();
-          const endD = new Date(startD); endD.setDate(startD.getDate() + (d.weeks * 7));
-          const validD = new Date(); validD.setDate(validD.getDate() + 5);
+// PDF ŞABLONU - GÜNCELLENMİŞ VE PİXEL PERFECT
+<div id="pdf-area" style={{ display: "none", width: "210mm", background: "#fff", fontFamily: "Arial, sans-serif", color: "#333" }}>
+  {destinations.map((d, i) => {
+    const fees = calcFees(d.cityData?.fees, d.weeks);
+    const cPrice = getPrice(d.course, d.weeks);
+    const aPrice = d.acc ? (d.acc.price * d.weeks) + d.acc.hsPrice : 0;
+    const totalVal = cPrice + aPrice + fees.reg + fees.mat + (fees.place || 0);
+    const curSym = d.course?.currency || fees.currency;
 
-          return (
-            <div key={i} style={{ pageBreakAfter: "always", padding: "15mm 20mm", minHeight: "297mm", position: "relative" }}>
-              {/* Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", borderBottom: "1px solid #eee", paddingBottom: "10px", marginBottom: "20px" }}>
-                <div>
-                  <div style={{ color: "#888", marginBottom: "2px" }}>Bilimevi Eğitim Danışmanınız</div>
-                  <div style={{ fontWeight: "bold", fontSize: "14px" }}>{user?.name || "Danışman Adı"}</div>
+    // Tarihler
+    const startD = d.startDate ? new Date(d.startDate) : new Date();
+    const endD = new Date(startD); endD.setDate(startD.getDate() + (d.weeks * 7));
+    const accStart = new Date(startD); accStart.setDate(startD.getDate() - 1);
+    const accEnd = new Date(endD);
+    const validD = new Date(); validD.setDate(validD.getDate() + 5);
+
+    return (
+      <div key={i} style={{ 
+        pageBreakAfter: "always", 
+        padding: "15mm 20mm", 
+        height: "267mm", // Taşmayı önlemek için sınırlandırılmış yükseklik
+        display: "flex", 
+        flexDirection: "column", 
+        position: "relative" 
+      }}>
+        
+        {/* Üst Header: Danışman Bilgileri */}
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", borderBottom: "1px solid #f0f0f0", paddingBottom: "10px", marginBottom: "25px" }}>
+          <div>
+            <div style={{ color: "#999", marginBottom: "2px", fontSize: "10px", textTransform: "uppercase" }}>Bilimevi Eğitim Danışmanınız</div>
+            <div style={{ fontWeight: "bold", fontSize: "15px" }}>{user?.name || "Danışman Adı"}</div>
+          </div>
+          <div style={{ textAlign: "right", color: "#666" }}>
+            <div style={{ marginBottom: "2px" }}>{user?.email || "bilgi@bilimevi.com"}</div>
+            <div>www.bilimevi.com</div>
+          </div>
+        </div>
+
+        {/* Ana Başlık: Destinasyon ve Tarih */}
+        <div style={{ marginBottom: "35px" }}>
+          <div style={{ color: BILIMEVI_TURQUOISE, fontSize: "48px", fontWeight: "900", textTransform: "uppercase", letterSpacing: "-1px" }}>{d.city}</div>
+          <div style={{ color: BILIMEVI_TURQUOISE, fontSize: "20px", fontWeight: "600" }}>
+            {startD.toLocaleDateString("tr-TR", { day: 'numeric', month: 'long' })} - {endD.toLocaleDateString("tr-TR", { day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+        </div>
+
+        {/* Teklif Detay Başlığı */}
+        <div style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "5px" }}>Teklifinize neler dahil?</div>
+        <div style={{ color: BILIMEVI_TURQUOISE, fontWeight: "bold", fontSize: "17px", marginBottom: "10px" }}>Hafta sayısı: {d.weeks}</div>
+        <div style={{ borderTop: "2.5px solid #000", marginBottom: "5px" }}></div>
+
+        {/* Tablo Alanı */}
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <tbody>
+            {/* Kurs Satırı */}
+            <tr style={{ borderBottom: "1px solid #eee" }}>
+              <td style={{ padding: "18px 0", fontWeight: "bold", fontSize: "16px", width: "25%", verticalAlign: "top" }}>Kurs</td>
+              <td style={{ padding: "18px 0", width: "55%" }}>
+                <div style={{ fontWeight: "bold", fontSize: "17px", color: "#111" }}>{d.brand} - {d.course?.name}</div>
+                <div style={{ fontSize: "13px", color: "#555", marginTop: "5px" }}>
+                  <strong>Başlangıç:</strong> {startD.toLocaleDateString("tr-TR")} | <strong>Bitiş:</strong> {endD.toLocaleDateString("tr-TR")}
                 </div>
-                <div style={{ textAlign: "right" }}>{user?.email || "danisman@bilimevi.com"}</div>
-              </div>
+              </td>
+              <td style={{ padding: "18px 0", textAlign: "right", fontWeight: "bold", fontSize: "17px" }}>{curSym}{fmt(cPrice, "")}</td>
+            </tr>
 
-              {/* Destinasyon Başlık */}
-              <div style={{ color: BILIMEVI_TURQUOISE, fontSize: "42px", fontWeight: "bold", textTransform: "uppercase", lineHeight: "1" }}>{d.city}</div>
-              <div style={{ color: BILIMEVI_TURQUOISE, fontSize: "18px", fontWeight: "bold", marginTop: "5px" }}>
-                {startD.toLocaleDateString("tr-TR", { day: 'numeric', month: 'long' })} - {endD.toLocaleDateString("tr-TR", { day: 'numeric', month: 'long', year: 'numeric' })}
-              </div>
+            {/* Konaklama Satırı */}
+            {d.acc && (
+              <tr style={{ borderBottom: "1px solid #eee" }}>
+                <td style={{ padding: "18px 0", fontWeight: "bold", fontSize: "16px", verticalAlign: "top" }}>Konaklama</td>
+                <td style={{ padding: "18px 0" }}>
+                  <div style={{ fontWeight: "bold", fontSize: "17px", color: "#111" }}>{d.acc.name} ({d.acc.room})</div>
+                  <div style={{ fontSize: "13px", color: "#555", marginTop: "5px" }}>
+                    <strong>Giriş:</strong> {accStart.toLocaleDateString("tr-TR")} | <strong>Çıkış:</strong> {accEnd.toLocaleDateString("tr-TR")}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "#777", marginTop: "3px" }}>{d.acc.board} | Banyo: {d.acc.bathroom} | Uzaklık: {d.acc.distance}</div>
+                </td>
+                <td style={{ padding: "18px 0", textAlign: "right", fontWeight: "bold", fontSize: "17px" }}>{curSym}{fmt(aPrice, "")}</td>
+              </tr>
+            )}
 
-              {/* İçerik Başlık */}
-              <div style={{ marginTop: "40px" }}>
-                <div style={{ fontSize: "22px", fontWeight: "bold", marginBottom: "5px" }}>Teklifinize neler dahil?</div>
-                <div style={{ color: BILIMEVI_TURQUOISE, fontWeight: "bold", fontSize: "16px" }}>Hafta sayısı: {d.weeks}</div>
-                <div style={{ borderTop: "2px solid #000", margin: "10px 0" }}></div>
-              </div>
+            {/* Diğer Ücretler */}
+            <tr style={{ borderBottom: "1px solid #eee" }}>
+              <td style={{ padding: "18px 0", fontWeight: "bold", fontSize: "16px", verticalAlign: "top" }}>Diğer</td>
+              <td style={{ padding: "18px 0" }}>
+                <div style={{ fontWeight: "600", fontSize: "15px" }}>Kayıt, Materyal ve Ek Ücretler</div>
+                <div style={{ fontSize: "12px", color: "#888" }}>Okul kayıt ücreti, zorunlu eğitim materyalleri ve varsa yerleştirme ücretleri dahildir.</div>
+              </td>
+              <td style={{ padding: "18px 0", textAlign: "right", fontWeight: "bold", fontSize: "17px" }}>{curSym}{fmt(fees.reg + fees.mat, "")}</td>
+            </tr>
+          </tbody>
+        </table>
 
-              {/* Tablo */}
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <tbody>
-                  <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
-                    <td style={{ padding: "15px 0", fontWeight: "bold", width: "25%", verticalAlign: "top" }}>Kurs</td>
-                    <td style={{ padding: "15px 0", width: "55%" }}>
-                      <div style={{ fontWeight: "600" }}>{d.brand} - {d.course?.name}</div>
-                      <div style={{ fontSize: "11px", color: "#888", marginTop: "4px" }}>{d.course?.notes}</div>
-                    </td>
-                    <td style={{ padding: "15px 0", textAlign: "right", fontWeight: "bold" }}>{fmt(cPrice, "")}</td>
-                  </tr>
-                  {d.acc && (
-                    <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
-                      <td style={{ padding: "15px 0", fontWeight: "bold", verticalAlign: "top" }}>Konaklama</td>
-                      <td style={{ padding: "15px 0" }}>
-                        <div style={{ fontWeight: "600" }}>{d.acc.name} ({d.acc.room})</div>
-                        <div style={{ fontSize: "11px", color: "#888", marginTop: "4px" }}>Yemek: {d.acc.board} | Banyo: {d.acc.bathroom} | Uzaklık: {d.acc.distance}</div>
-                        {d.acc.notes && <div style={{ fontSize: "11px", color: "#888", marginTop: "2px" }}>{d.acc.notes}</div>}
-                      </td>
-                      <td style={{ padding: "15px 0", textAlign: "right", fontWeight: "bold" }}>{fmt(aPrice, "")}</td>
-                    </tr>
-                  )}
-                  <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
-                    <td style={{ padding: "15px 0", fontWeight: "bold", verticalAlign: "top" }}>Diğer</td>
-                    <td style={{ padding: "15px 0" }}>
-                      <div style={{ fontWeight: "600" }}>Kayıt ve Materyal Ücretleri</div>
-                      <div style={{ fontSize: "11px", color: "#888" }}>Okul kayıt, materyal ve zorunlu ek ücretler.</div>
-                    </td>
-                    <td style={{ padding: "15px 0", textAlign: "right", fontWeight: "bold" }}>{fmt(fees.reg + fees.mat, "")}</td>
-                  </tr>
-                </tbody>
-              </table>
+        {/* Toplam Tutar Alanı */}
+        <div style={{ borderTop: "3px solid #000", marginTop: "15px" }}></div>
+        <div style={{ display: "flex", justifyContent: "space-between", padding: "15px 0", alignItems: "center" }}>
+          <span style={{ fontWeight: "bold", fontSize: "19px", textTransform: "uppercase" }}>Toplam Tutar ({d.course?.currency || "USD"})</span>
+          <span style={{ fontWeight: "bold", fontSize: "32px" }}>{curSym}{fmt(totalVal, "")}</span>
+        </div>
+        <div style={{ borderBottom: "1px solid #000", marginBottom: "25px" }}></div>
 
-              {/* Toplam */}
-              <div style={{ borderTop: "3px solid #000", marginTop: "20px" }}></div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "15px 0", alignItems: "center" }}>
-                <span style={{ fontWeight: "bold", fontSize: "18px" }}>Toplam Tutar {fees.currency}</span>
-                <span style={{ fontWeight: "bold", fontSize: "28px" }}>{fmt(totalVal, curSym)}</span>
-              </div>
-              <div style={{ borderBottom: "1px solid #000" }}></div>
+        {/* Buton */}
+        <div style={{ textAlign: "center", marginBottom: "30px" }}>
+          <div style={{ display: "inline-block", backgroundColor: BILIMEVI_TURQUOISE, color: "#fff", padding: "14px 45px", borderRadius: "35px", fontWeight: "bold", fontSize: "16px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Şimdi Eğitim Danışmanınızla Görüşün
+          </div>
+        </div>
 
-              {/* CTA Buton Alanı */}
-              <div style={{ marginTop: "40px", textAlign: "center" }}>
-                <div style={{ display: "inline-block", backgroundColor: BILIMEVI_TURQUOISE, color: "#fff", padding: "15px 40px", borderRadius: "30px", fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>
-                  Şimdi Eğitim Danışmanınızla Görüşün
-                </div>
-              </div>
+        {/* Notlar ve Detaylar Bölümü */}
+        <div style={{ background: "#f9f9f9", padding: "15px", borderRadius: "10px", fontSize: "11px", color: "#444", flexGrow: 1 }}>
+          <div style={{ fontWeight: "bold", borderBottom: "1px solid #ddd", paddingBottom: "5px", marginBottom: "8px", textTransform: "uppercase", fontSize: "12px" }}>Önemli Notlar & Detaylar</div>
+          <div style={{ lineHeight: "1.5" }}>
+            {d.course?.notes && <div style={{ marginBottom: "5px" }}>• <strong>Kurs Notu:</strong> {d.course.notes}</div>}
+            {d.acc?.notes && <div style={{ marginBottom: "5px" }}>• <strong>Konaklama Notu:</strong> {d.acc.notes}</div>}
+            {d.cityData?.fees?.filter(f => f.notes).map((f, fi) => (
+               <div key={fi} style={{ marginBottom: "5px" }}>• <strong>{f.name}:</strong> {f.notes}</div>
+            ))}
+            <div style={{ color: "#777", marginTop: "10px" }}>* Bu fiyat teklifi bilgilendirme amaçlıdır. Kesin kayıt anındaki okul kontenjanı ve güncel kur fiyatları geçerlidir.</div>
+          </div>
+        </div>
 
-              {/* Footer */}
-              <div style={{ position: "absolute", bottom: "15mm", left: "20mm", right: "20mm", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #eee", paddingTop: "10px", fontSize: "10px", color: "#888" }}>
-                <div>Geçerlilik Tarihi: {validD.toLocaleDateString("tr-TR")}</div>
-                <div style={{ fontWeight: "bold" }}>www.bilimevi.com</div>
-                <div>[LOGO ALANI]</div>
-              </div>
-            </div>
-          );
-        })}
+        {/* Alt Footer: Logo ve Geçerlilik */}
+        <div style={{ 
+          marginTop: "auto", 
+          paddingTop: "15px", 
+          borderTop: "1px solid #eee", 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center" 
+        }}>
+          <div style={{ fontSize: "11px", color: "#999" }}>
+            Geçerlilik Tarihi: <strong>{validD.toLocaleDateString("tr-TR")}</strong>
+          </div>
+          <div style={{ fontSize: "12px", fontWeight: "bold", color: BILIMEVI_TURQUOISE }}>www.bilimevi.com</div>
+          <div style={{ textAlign: "right" }}>
+             <img src="https://drive.google.com/uc?export=view&id=15NE2SjE_d2mMxmZACdSMF7U5suO5IEgP" alt="Bilimevi" style={{ height: "35px" }} />
+          </div>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  })}
+</div>
 
 const S = {
   root: { minHeight:"100vh", background:"#f8fafc", fontFamily:"'Sora', sans-serif" },
