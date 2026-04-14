@@ -39,8 +39,8 @@ async function fetchNav() {
   const languages = new Set();
   const countries = {};
   const citiesByLang = {};
-  const brandsByCity = {}; // Şehirdeki markaları tutmak için
-  const schoolSheets = {}; // Markaya göre sheetId tutmak için
+  const brandsByCity = {};
+  const schoolSheets = {};
 
   rows.forEach(row => {
     if (row.parse_status !== "approved") return;
@@ -61,11 +61,9 @@ async function fetchNav() {
       languages.add(l);
       if (!countries[l]) countries[l] = new Set();
       countries[l].add(countryTRName);
-      
       if (!citiesByLang[l]) citiesByLang[l] = {};
       if (!citiesByLang[l][countryTRName]) citiesByLang[l][countryTRName] = new Set();
       citiesByLang[l][countryTRName].add(city);
-
       if (!brandsByCity[city]) brandsByCity[city] = new Set();
       brandsByCity[city].add(brand);
     });
@@ -189,7 +187,6 @@ export default function FiyatTeklifi() {
     fetchNav().then(data => { setNav(data); setNavLoading(false); });
   }, []);
 
-  // Şehir VE Marka seçildiğinde veriyi çek
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline) return;
     const sheetInfo = nav.schoolSheets?.[cur.brand];
@@ -411,7 +408,7 @@ export default function FiyatTeklifi() {
           <div style={{ fontSize:14, fontWeight:600, marginBottom:16 }}>Sepet</div>
           {destinations.length === 0 && <p style={{ fontSize:12, color:"#94a3b8" }}>Henüz bir seçim yapılmadı.</p>}
           {destinations.map((d, i) => (
-            <div key={i} style={{ fontSize:12, paddingBottom:8, borderBottom:\"1px solid #f1f5f9\", marginBottom:8 }}>
+            <div key={i} style={{ fontSize:12, paddingBottom:8, borderBottom: "1px solid #f1f5f9", marginBottom:8 }}>
               <strong>{d.brand} {d.city}</strong><br/>{d.weeks} hafta · {d.course?.name}
             </div>
           ))}
@@ -419,7 +416,6 @@ export default function FiyatTeklifi() {
       </div>
     </div>
 
-    {/* PDF TEMPLATE */}
     <div id="pdf-export-area" style={{ display: "none", width: "210mm", padding: "20mm", background: "#fff", fontFamily: "Arial" }}>
       {destinations.map((d, i) => {
         const f = d.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees||[], d.weeks);
@@ -464,17 +460,17 @@ export default function FiyatTeklifi() {
 }
 
 const S = {
-  root: { minHeight:"100vh", background:"#f8fafc", fontFamily:"'Sora',sans-serif" },
-  hdr: { background:\"#fff\", borderBottom:\"1px solid #e2e8f0\", position:\"sticky\", top:0, zIndex:10 },
-  htitle: { fontSize:15, fontWeight:600 },
-  steps: { background:\"#fff\", borderBottom:\"1px solid #e2e8f0\" },
-  body: { maxWidth:1100, margin:\"0 auto\", padding:\"24px\", display:\"grid\", gridTemplateColumns:\"1fr 260px\", gap:20 },
-  main: { background:\"#fff\", borderRadius:20, border:\"1.5px solid #e2e8f0\", padding:\"32px\" },
-  side: { background:\"#fff\", borderRadius:20, border:\"1.5px solid #e2e8f0\", padding:\"20px\", position:\"sticky\", top:80 },
-  ttl: { fontSize:18, fontWeight:700, marginBottom:20 },
-  slbl: { fontSize:11, fontWeight:600, color:\"#94a3b8\", textTransform:\"uppercase\", margin:\"16px 0 8px\" },
-  r2: { display:\"grid\", gridTemplateColumns:\"1fr 1fr\", gap:16 },
-  fld: { display:\"flex\", flexDirection:\"column\", gap:6, marginBottom:16 },
-  lbl: { fontSize:12, color:\"#64748b\" },
-  g3: { display:\"grid\", gridTemplateColumns:\"repeat(auto-fill,minmax(130px,1fr))\", gap:8 }
+  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora',sans-serif" },
+  hdr: { background: "#fff", borderBottom: "1px solid #e2e8f0", position: "sticky", top: 0, zIndex: 10 },
+  htitle: { fontSize: 15, fontWeight: 600 },
+  steps: { background: "#fff", borderBottom: "1px solid #e2e8f0" },
+  body: { maxWidth: 1100, margin: "0 auto", padding: "24px", display: "grid", gridTemplateColumns: "1fr 260px", gap: 20 },
+  main: { background: "#fff", borderRadius: 20, border: "1.5px solid #e2e8f0", padding: "32px" },
+  side: { background: "#fff", borderRadius: 20, border: "1.5px solid #e2e8f0", padding: "20px", position: "sticky", top: 80 },
+  ttl: { fontSize: 18, fontWeight: 700, marginBottom: 20 },
+  slbl: { fontSize: 11, fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", margin: "16px 0 8px" },
+  r2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 },
+  fld: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 },
+  lbl: { fontSize: 12, color: "#64748b" },
+  g3: { display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(130px,1fr))", gap: 8 }
 };
