@@ -7,6 +7,73 @@ const ORANGE = "#f97316";
 const ORANGE_LIGHT = "#fff7ed";
 const ORANGE_BORDER = "#fed7aa";
 
+// Navigasyon verisi sheet'ten dinamik yuklenecek
+// courses, accommodation, fees hard-code kalir (kompleks yapilar)
+const SHEET_ID = "1PMuw11fAUcnX1iz56OOH2HUBe1IUZUdP12VkX9-nt8Q";
+
+async function fetchNav() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=courses`;
+  const res = await fetch(url);
+  const csv = await res.text();
+  const lines = csv.trim().split("\n");
+  const headers = lines[0].split(",").map(h => h.replace(/"/g,"").trim());
+  const cityIdx = headers.indexOf("city");
+  const countryIdx = headers.indexOf("country");
+  const schoolIdx = headers.indexOf("school");
+  const langIdx = headers.indexOf("language");
+
+  const languages = new Set();
+  const countries = {};   // lang -> [country]
+  const cities = {};      // country -> [city]
+  const brands = {};      // city -> brand
+
+  // Ulke-dil eslesmesi icin yardimci map
+  const countryLangMap = {
+    "UK": "İngiltere", "Ireland": "İrlanda", "Malta": "Malta",
+    "South Africa": "Güney Afrika", "Canada": "Kanada",
+    "USA": "ABD", "UAE": "BAE"
+  };
+  const countryTR = {
+    "UK": "İngiltere", "Ireland": "İrlanda", "Malta": "Malta",
+    "South Africa": "Güney Afrika", "Canada": "Kanada",
+    "USA": "ABD", "UAE": "BAE"
+  };
+
+  lines.slice(1).forEach(line => {
+    const cols = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || [];
+    const clean = i => (cols[i]||"").replace(/"/g,"").trim();
+    const city = clean(cityIdx);
+    const countryEn = clean(countryIdx);
+    const brand = clean(schoolIdx);
+    const lang = clean(langIdx) || "İngilizce";
+    const countryTRName = countryTR[countryEn] || countryEn;
+
+    if (!city || !countryEn) return;
+
+    // Dil
+    const langs = lang.includes("/") ? lang.split("/").map(l=>l.trim()) : [lang];
+    langs.forEach(l => {
+      languages.add(l);
+      if (!countries[l]) countries[l] = new Set();
+      countries[l].add(countryTRName);
+    });
+
+    // Sehir
+    if (!cities[countryTRName]) cities[countryTRName] = new Set();
+    cities[countryTRName].add(city);
+
+    // Marka
+    brands[city] = brand;
+  });
+
+  return {
+    languages: [...languages].sort(),
+    countries: Object.fromEntries(Object.entries(countries).map(([k,v])=>[k,[...v]])),
+    cities: Object.fromEntries(Object.entries(cities).map(([k,v])=>[k,[...v].sort()])),
+    brands,
+  };
+}
+
 const DB = {
   languages: ["İngilizce", "Fransızca"],
   countries: {
@@ -16,17 +83,19 @@ const DB = {
   cities: {
     "İngiltere": ["London","Brighton","Cambridge","Manchester","Bristol"],
     "İrlanda":   ["Dublin","Dublin 30+"],
-    "Malta":     ["Malta"],
-    "Güney Afrika": ["Cape Town"],
-    "Kanada":    ["Montreal","Toronto","Vancouver"],
-    "ABD":       ["Boston","New York","San Francisco","Los Angeles"],
+    "Malta":     ["Malta","Malta 30+"],
+    "Güney Afrika": ["Cape Town","Cape Town 30+"],
+    "Kanada":    ["Montreal","Toronto","Toronto 30+","Vancouver","Vancouver 30+"],
+    "ABD":       ["Boston","New York","New York 30+","San Francisco","Los Angeles"],
     "BAE":       ["Dubai"],
   },
   brands: {
     "London":"EC","Brighton":"EC","Cambridge":"EC","Manchester":"EC","Bristol":"EC",
-    "Dublin":"EC","Dublin 30+":"EC","Malta":"EC","Cape Town":"EC",
-    "Montreal":"EC","Toronto":"EC","Vancouver":"EC",
-    "Boston":"EC","New York":"EC","San Francisco":"EC","Los Angeles":"EC","Dubai":"EC",
+    "Dublin":"EC","Dublin 30+":"EC","Malta":"EC","Malta 30+":"EC",
+    "Cape Town":"EC","Cape Town 30+":"EC",
+    "Montreal":"EC","Toronto":"EC","Toronto 30+":"EC","Vancouver":"EC","Vancouver 30+":"EC",
+    "Boston":"EC","New York":"EC","New York 30+":"EC","San Francisco":"EC","Los Angeles":"EC",
+    "Dubai":"EC","London 30+":"EC","Brighton 30+":"EC",
   },
   courses: {
     "EC-London": [
@@ -148,11 +217,26 @@ export default function FiyatTeklifi() {
   const [student, setStudent] = useState({ name:"Selman Çamoğlu", age:"38", gender:"Erkek" });
   const [destinations, setDestinations] = useState([]);
   const [cur, setCur] = useState(emptyDest());
+  const [nav, setNav] = useState({
+    languages: DB.languages,
+    countries: DB.countries,
+    cities: DB.cities,
+    brands: DB.brands,
+  });
+  const [navLoading, setNavLoading] = useState(true);
 
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
+    // Sheet'ten navigasyon verisini cek
+    fetchNav().then(data => {
+      setNav(data);
+      setNavLoading(false);
+    }).catch(() => {
+      // Hata olursa hard-code kullan
+      setNavLoading(false);
+    });
   }, []);
 
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Özet"];
@@ -579,17 +663,17 @@ export default function FiyatTeklifi() {
 
           {/* STEP 1 */}
           {step === 1 && <div style={{ animation:"fadeUp .3s ease-out" }}>
-            <h2 style={S.ttl}>Destinasyon seç</h2>
+            <h2 style={S.ttl}>Destinasyon seç {navLoading && <span style={{ fontSize:11, color:"#94a3b8", fontWeight:400 }}>yükleniyor...</span>}</h2>
             <p style={S.slbl}>Dil</p>
             <div style={S.g3}>
-              {DB.languages.map(l => (
+              {nav.languages.map(l => (
                 <div key={l} className={`ftc${cur.lang===l?" s":""}`} onClick={()=>setCur(p=>({...emptyDest(p.startDate),lang:l}))}>{l}</div>
               ))}
             </div>
             {cur.lang && <>
               <p style={S.slbl}>Ülke</p>
               <div style={S.g3}>
-                {(DB.countries[cur.lang]||[]).map(c => (
+                {(nav.countries[cur.lang]||[]).map(c => (
                   <div key={c} className={`ftc${cur.country===c?" s":""}`}
                     onClick={()=>setCur(p=>({...p,country:c,city:"",brand:"",course:null,acc:null}))}>{c}</div>
                 ))}
@@ -598,9 +682,9 @@ export default function FiyatTeklifi() {
             {cur.country && <>
               <p style={S.slbl}>Şehir</p>
               <div style={S.g3}>
-                {(DB.cities[cur.country]||[]).map(c => (
+                {(nav.cities[cur.country]||[]).map(c => (
                   <div key={c} className={`ftc${cur.city===c?" s":""}`}
-                    onClick={()=>setCur(p=>({...p,city:c,brand:DB.brands[c]||"",course:null,acc:null}))}>{c}</div>
+                    onClick={()=>setCur(p=>({...p,city:c,brand:nav.brands[c]||"",course:null,acc:null}))}>{c}</div>
                 ))}
               </div>
             </>}
