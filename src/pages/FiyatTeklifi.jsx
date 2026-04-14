@@ -76,23 +76,28 @@ async function fetchNav() {
 }
 
 async function fetchCityData(sheetId, city) {
-  const [courseRows, accRows, feeRows] = await Promise.all([
-    fetchCSV(sheetId, "courses"), fetchCSV(sheetId, "accommodation"), fetchCSV(sheetId, "fees")
-  ]);
-  const courseMap = {};
-  courseRows.filter(r => r.city === city).forEach(r => {
-    if (!courseMap[r.course_name]) courseMap[r.course_name] = { name:r.course_name, lessons:parseFloat(r.lessons_per_week)||0, hours:parseFloat(r.hours_per_week)||0, currency:r.currency, tiers:[] };
-    courseMap[r.course_name].tiers.push({ min:parseInt(r.weeks_tier_min)||1, max:r.weeks_tier_max?parseInt(r.weeks_tier_max):null, price:parseFloat(r.price_per_week)||0 });
-  });
-  const acc = accRows.filter(r => r.city === city).map(r => ({ name:r.place_name, room:r.room_type, board:r.board_type, price:parseFloat(r.price_per_week)||0, currency:r.currency }));
-  const fees = feeRows.filter(r => r.city === city).map(r => ({ name:r.fee_name, amount:parseFloat(r.amount)||0, currency:r.currency, calc_type:r.calculation_type, tier_min:r.tier_min_weeks?parseInt(r.tier_min_weeks):null, tier_max:r.tier_max_weeks?parseInt(r.tier_max_weeks):null }));
-  return { courses: Object.values(courseMap), acc, fees };
+  try {
+    const [courseRows, accRows, feeRows] = await Promise.all([
+      fetchCSV(sheetId, "courses"), fetchCSV(sheetId, "accommodation"), fetchCSV(sheetId, "fees")
+    ]);
+    const courseMap = {};
+    courseRows.filter(r => r.city === city).forEach(r => {
+      if (!courseMap[r.course_name]) courseMap[r.course_name] = { name:r.course_name, lessons:parseFloat(r.lessons_per_week)||0, hours:parseFloat(r.hours_per_week)||0, currency:r.currency, tiers:[] };
+      courseMap[r.course_name].tiers.push({ min:parseInt(r.weeks_tier_min)||1, max:r.weeks_tier_max?parseInt(r.weeks_tier_max):null, price:parseFloat(r.price_per_week)||0 });
+    });
+    const acc = accRows.filter(r => r.city === city).map(r => ({ name:r.place_name, room:r.room_type, board:r.board_type, price:parseFloat(r.price_per_week)||0, currency:r.currency }));
+    const fees = feeRows.filter(r => r.city === city).map(r => ({ name:r.fee_name, amount:parseFloat(r.amount)||0, currency:r.currency, calc_type:r.calculation_type, tier_min:r.tier_min_weeks?parseInt(r.tier_min_weeks):null, tier_max:r.tier_max_weeks?parseInt(r.tier_max_weeks):null }));
+    return { courses: Object.values(courseMap), acc, fees };
+  } catch (err) {
+    console.error("fetchCityData error:", err);
+    return { courses: [], acc: [], fees: [] };
+  }
 }
 
 function calcFees(fees, weeks) {
   let reg = 0, place = 0, mat = 0, currency = fees?.[0]?.currency || "GBP";
   (fees||[]).forEach(f => {
-    const n = f.name.toLowerCase();
+    const n = (f.name || "").toLowerCase();
     if (n.includes("registration") || n.includes("kayit")) reg += f.amount;
     else if (n.includes("placement")) place += f.amount;
     else if (n.includes("material") || n.includes("materyal")) {
@@ -105,11 +110,11 @@ function calcFees(fees, weeks) {
 }
 
 const getPrice = (c, w) => {
-  if (!c || !w) return 0;
-  const tier = c.tiers?.find(t => w >= t.min && (t.max === null || w <= t.max));
+  if (!c || !w || !c.tiers) return 0;
+  const tier = c.tiers.find(t => w >= t.min && (t.max === null || w <= t.max));
   return tier ? tier.price * w : 0;
 };
-const fmt = (n, cur) => `${cur} ${Number(n||0).toLocaleString("tr-TR")}`;
+const fmt = (n, cur) => `${cur || ""} ${Number(n||0).toLocaleString("tr-TR")}`;
 const emptyDest = (sd="") => ({ lang:"", country:"", city:"", brand:"", course:null, weeks:4, acc:null, startDate:sd, isOnline:false, cityData:null, cityLoading:false });
 
 const ORANGE = "#f97316";
@@ -133,7 +138,7 @@ export default function FiyatTeklifi() {
     const session = getSession();
     if (!session) return navigate("/");
     setUser(session);
-    fetchNav().then(setNav);
+    fetchNav().then(setNav).catch(e => console.error("Nav loading failed", e));
   }, []);
 
   useEffect(() => {
@@ -146,6 +151,7 @@ export default function FiyatTeklifi() {
   }, [cur.city, cur.brand]);
 
   const handleDateChange = (val) => {
+    if(!val) return;
     let d = new Date(val);
     if (d.getDay() !== 1) {
       const diff = (d.getDay() === 0 ? 1 : 8 - d.getDay());
@@ -165,11 +171,11 @@ export default function FiyatTeklifi() {
 
   const generatePDF = () => {
     const el = document.getElementById("pdf-area");
+    if(!el) return;
     el.style.display = "block";
     window.html2pdf().set({ margin:10, filename:`${student.name}.pdf`, html2canvas:{scale:2}, jsPDF:{format:'a4'} }).from(el).save().then(()=>el.style.display="none");
   };
 
-  // ANLIK ÖZET İÇİN FİYAT HESAPLAMA
   const f = cur.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(cur.cityData?.fees, cur.weeks);
   const cCost = getPrice(cur.course, cur.weeks);
   const aCost = cur.acc ? cur.acc.price * cur.weeks : 0;
@@ -182,6 +188,9 @@ export default function FiyatTeklifi() {
     !!cur.acc || cur.isOnline,
     true
   ][step];
+
+  const courses = cur.cityData?.courses || [];
+  const accs = cur.cityData?.acc || [];
 
   return (
     <div style={S.root}>
@@ -220,20 +229,22 @@ export default function FiyatTeklifi() {
           </div>}
 
           {step === 2 && <div style={{animation:"fadeUp 0.3s"}}>
-            <h2 style={S.ttl}>{cur.isOnline ? "Paket Seçimi" : "Kurs Detayı - " + cur.city}</h2>
+            <h2 style={S.ttl}>{cur.isOnline ? "Paket Seçimi" : "Kurs Detayı - " + (cur.city || "")}</h2>
             <div style={S.r2}>
               <div style={S.fld}><label style={S.lbl}>Başlangıç (Pazartesi)</label><input type="date" style={S.fti} min={new Date().toISOString().split('T')[0]} value={cur.startDate} onChange={e=>handleDateChange(e.target.value)}/></div>
               <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" value={cur.weeks} onChange={e=>setCur({...cur, weeks:parseInt(e.target.value)||1})}/></div>
             </div>
-            <div style={S.g3}>{(cur.isOnline ? EC_LIVE : cur.cityData?.courses || []).map(c=><div key={c.name} style={cur.course?.name===c.name?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, course:c})}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>)}</div>
+            <div style={S.g3}>{(cur.isOnline ? EC_LIVE : courses).map((c, idx)=><div key={c.name + idx} style={cur.course?.name===c.name?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, course:c})}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>)}</div>
           </div>}
 
           {step === 3 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>Konaklama</h2>
-            <div style={{display:"grid", gap:10}}>{accs.map(a=><div key={a.name+a.room} style={cur.acc?.name===a.name && cur.acc?.room===a.room?S.ftacSelected:S.ftac} onClick={()=>setCur({...cur, acc:a})}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board}</small></div><strong>{a.currency} {a.price}/h</strong></div>)}</div>
+            {cur.cityLoading ? <p>Yükleniyor...</p> : 
+              <div style={{display:"grid", gap:10}}>{accs.length > 0 ? accs.map((a, idx)=><div key={a.name + a.room + idx} style={cur.acc?.name===a.name && cur.acc?.room===a.room?S.ftacSelected:S.ftac} onClick={()=>setCur({...cur, acc:a})}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board}</small></div><strong>{a.currency} {a.price}/h</strong></div>) : <p>Konaklama seçeneği bulunamadı.</p>}</div>
+            }
           </div>}
 
-          {step === 4 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Teklif Hazır</h2>{destinations.map((d,i)=><div key={i} style={S.summaryCard}><strong>{d.brand} {d.city}</strong><br/>{d.weeks} Hafta · {d.course?.name}</div>)}</div>}
+          {step === 4 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Özet</h2>{destinations.map((d,i)=><div key={i} style={S.summaryCard}><strong>{d.brand} {d.city}</strong><br/>{d.weeks} Hafta · {d.course?.name}</div>)}</div>}
 
           <div style={S.navBox}>
             {step > 0 && <button onClick={()=>setStep(s=>s-1)} style={S.btnBack}>← Geri</button>}
@@ -249,7 +260,7 @@ export default function FiyatTeklifi() {
             {cur.brand && <div>🏫 {cur.brand}</div>}
             {cur.course && <div>📚 {cur.course.name} ({cur.weeks}h)</div>}
             {cur.acc && <div>🏠 {cur.acc.name}</div>}
-            {currentTotal > 0 && <div style={S.liveTotal}>Anlık: {fmt(currentTotal, cur.course?.currency || "GBP")}</div>}
+            {currentTotal > 0 && <div style={S.liveTotal}>Anlık: {fmt(currentTotal, cur.course?.currency || cur.cityData?.fees?.[0]?.currency || "GBP")}</div>}
           </div>
           <p style={{fontWeight:600, fontSize:12, marginBottom:5}}>Eklenenler ({destinations.length})</p>
           {destinations.map((d,i)=><div key={i} style={S.sideItem}>{d.brand} {d.city}</div>)}
@@ -263,17 +274,23 @@ export default function FiyatTeklifi() {
           const cCost = getPrice(d.course, d.weeks);
           const aCost = d.acc ? d.acc.price * d.weeks : 0;
           const curSym = d.course?.currency || f.currency;
-          const sunDate = new Date(d.startDate); sunDate.setDate(sunDate.getDate() - 1);
+          const sunDate = d.startDate ? new Date(d.startDate) : new Date();
+          if(d.startDate) sunDate.setDate(sunDate.getDate() - 1);
+
           return (
             <div key={i} style={{pageBreakAfter:"always"}}>
               <h1 style={{color:BLUE_CYAN}}>{d.brand} - {d.city}</h1>
               <p>Öğrenci: {student.name} ({student.age} yaş)</p>
               <table style={{width:"100%", borderCollapse:"collapse", marginTop:10}}>
-                <tr style={{borderBottom:"2px solid #333"}}><th style={{textAlign:"left", padding:8}}>Hizmet</th><th style={{textAlign:"right", padding:8}}>Tutar</th></tr>
-                <tr><td style={{padding:8}}>Kurs: {d.course.name} ({d.weeks} Hafta)<br/><small>Başlangıç: {d.startDate}</small></td><td style={{textAlign:"right", padding:8}}>{fmt(cCost, curSym)}</td></tr>
-                {d.acc && <tr><td style={{padding:8}}>Konaklama: {d.acc.name} ({d.acc.room})<br/><small>Giriş (Pazar): {sunDate.toLocaleDateString("tr-TR")}</small></td><td style={{textAlign:"right", padding:8}}>{fmt(aCost, curSym)}</td></tr>}
-                <tr><td style={{padding:8}}>Ücretler (Kayıt/Materyal)</td><td style={{textAlign:"right", padding:8}}>{fmt(f.reg + f.mat, curSym)}</td></tr>
-                <tr style={{borderTop:"2px solid #333", fontWeight:"bold"}}><td style={{padding:8}}>TOPLAM</td><td style={{textAlign:"right", padding:8}}>{fmt(cCost + aCost + f.reg + f.mat + (f.place||0), curSym)}</td></tr>
+                <thead>
+                  <tr style={{borderBottom:"2px solid #333"}}><th style={{textAlign:"left", padding:8}}>Hizmet</th><th style={{textAlign:"right", padding:8}}>Tutar</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td style={{padding:8}}>Kurs: {d.course?.name} ({d.weeks} Hafta)<br/><small>Başlangıç: {d.startDate}</small></td><td style={{textAlign:"right", padding:8}}>{fmt(cCost, curSym)}</td></tr>
+                  {d.acc && <tr><td style={{padding:8}}>Konaklama: {d.acc.name} ({d.acc.room})<br/><small>Giriş (Pazar): {sunDate.toLocaleDateString("tr-TR")}</small></td><td style={{textAlign:"right", padding:8}}>{fmt(aCost, curSym)}</td></tr>}
+                  <tr><td style={{padding:8}}>Ücretler (Kayıt/Materyal)</td><td style={{textAlign:"right", padding:8}}>{fmt(f.reg + f.mat, curSym)}</td></tr>
+                  <tr style={{borderTop:"2px solid #333", fontWeight:"bold"}}><td style={{padding:8}}>TOPLAM</td><td style={{textAlign:"right", padding:8}}>{fmt(cCost + aCost + f.reg + f.mat + (f.place||0), curSym)}</td></tr>
+                </tbody>
               </table>
             </div>
           )
