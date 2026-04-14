@@ -45,9 +45,7 @@ async function fetchNav() {
     const countryTRName = countryTR[row.country] || row.country;
     const match = drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
     const sheetId = match ? match[1] : null;
-
     if (sheetId && brand && !schoolSheets[brand]) schoolSheets[brand] = { sheetId, sheetName: row.sheet_name };
-    
     const langs = langRaw.split(",").map(l => l.trim()).filter(Boolean);
     langs.forEach(l => {
       languages.add(l);
@@ -138,16 +136,19 @@ export default function FiyatTeklifi() {
     fetchNav().then(setNav);
   }, []);
 
+  // VERİ ÇEKME - HAFIZA KORUMALI
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline) return;
-    if (cur.cityData) return; // Hafıza koruması
+    if (cur.cityData) return; // Eğer veri zaten varsa (Geri gelindiyse) tekrar çekme
 
     const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
     if (sheetId) {
       setCur(p => ({ ...p, cityLoading:true }));
-      fetchCityData(sheetId, cur.city).then(data => setCur(p => ({ ...p, cityData:data, cityLoading:false })));
+      fetchCityData(sheetId, cur.city).then(data => {
+        setCur(p => ({ ...p, cityData:data, cityLoading:false }));
+      });
     }
-  }, [cur.city, cur.brand, nav.schoolSheets]);
+  }, [cur.city, cur.brand, cur.cityData]);
 
   const isCourseValid = (course, weeks) => {
     if (!course || !course.tiers) return false;
@@ -157,10 +158,7 @@ export default function FiyatTeklifi() {
   const handleDateChange = (val) => {
     if(!val) return;
     let d = new Date(val);
-    if (d.getDay() !== 1) {
-      const diff = (d.getDay() === 0 ? 1 : 8 - d.getDay());
-      d.setDate(d.getDate() + diff);
-    }
+    if (d.getDay() !== 1) { d.setDate(d.getDate() + (d.getDay() === 0 ? 1 : 8 - d.getDay())); }
     setCur(p => ({ ...p, startDate: d.toISOString().split('T')[0] }));
   };
 
@@ -173,26 +171,21 @@ export default function FiyatTeklifi() {
     else setStep(s => s + 1);
   };
 
-  const back = () => {
-    setStep(s => s - 1);
-  };
-
   const generatePDF = () => {
     const el = document.getElementById("pdf-area");
     if(!el) return;
     el.style.display = "block";
-    window.html2pdf().set({ margin:10, filename:`${student.name}.pdf`, html2canvas:{scale:2}, jsPDF:{format:'a4'} })
-      .from(el).save()
-      .then(() => {
-        el.style.display="none";
-        setDestinations([]); setCur(emptyDest()); setStep(0);
-      });
+    window.html2pdf().set({ margin:10, filename:`${student.name}.pdf`, html2canvas:{scale:2}, jsPDF:{format:'a4'} }).from(el).save().then(() => {
+      el.style.display="none";
+      setDestinations([]); setCur(emptyDest()); setStep(0);
+    });
   };
 
-  const f = cur.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(cur.cityData?.fees, cur.weeks);
+  // ÖZET HESAPLAMA
+  const feesObj = cur.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(cur.cityData?.fees, cur.weeks);
   const cCost = getPrice(cur.course, cur.weeks);
   const aCost = cur.acc ? cur.acc.price * cur.weeks : 0;
-  const currentTotal = cCost + aCost + f.reg + f.mat + (f.place||0);
+  const currentTotal = cCost + aCost + feesObj.reg + feesObj.mat + (feesObj.place||0);
 
   const canNext = [
     !!(student.name && student.gender && student.age),
@@ -201,9 +194,6 @@ export default function FiyatTeklifi() {
     !!cur.acc || cur.isOnline,
     true
   ][step];
-
-  const courses = cur.cityData?.courses || [];
-  const accs = cur.cityData?.acc || [];
 
   return (
     <div style={S.root}>
@@ -233,38 +223,37 @@ export default function FiyatTeklifi() {
             <h2 style={S.ttl}>Destinasyon Seçimi</h2>
             <p style={S.slbl}>DİL SEÇİMİ</p>
             <div style={S.g3}>
-              {nav.languages.map(l=><div key={l} style={cur.lang===l && !cur.isOnline?S.ftcSelected:S.ftc} onClick={()=>{ if(cur.lang !== l) setCur({...cur, isOnline:false, lang:l, country:"", city:"", brand:"", course:null, acc:null, cityData:null}); }}>{l}</div>)}
-              <div style={cur.isOnline?S.ftcOnlineSelected:S.ftcOnline} onClick={()=>{ if(!cur.isOnline) setCur({...cur, isOnline:true, brand:"EC", city:"Online", lang:"İngilizce", country:"", cityData:null, course:null, acc:null}); }}>🌐 Online Kurs</div>
+              {nav.languages.map(l=><div key={l} style={cur.lang===l && !cur.isOnline?S.ftcSelected:S.ftc} onClick={()=>setCur(p=>({...p, isOnline:false, lang:l, country:"", city:"", brand:"", course:null, acc:null, cityData:null}))}>{l}</div>)}
+              <div style={cur.isOnline?S.ftcOnlineSelected:S.ftcOnline} onClick={()=>setCur(p=>({...p, isOnline:true, brand:"EC", city:"Online", lang:"İngilizce", country:"", course:null, acc:null, cityData:null}))}>🌐 Online Kurs</div>
             </div>
-            {!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c=><div key={c} style={cur.country===c?S.ftcSelected:S.ftc} onClick={()=>{ if(cur.country !== c) setCur({...cur, country:c, city:"", brand:"", course:null, acc:null, cityData:null}); }}>{c}</div>)}</div></>}
-            {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c=><div key={c} style={cur.city===c?S.ftcSelected:S.ftc} onClick={()=>{ if(cur.city !== c) setCur({...cur, city:c, brand:"", course:null, acc:null, cityData:null}); }}>{c}</div>)}</div></>}
-            {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b=><div key={b} style={cur.brand===b?S.ftcSelected:S.ftc} onClick={()=>{ if(cur.brand !== b) setCur({...cur, brand:b, course:null, acc:null, cityData:null}); }}>{b}</div>)}</div></>}
+            {!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c=><div key={c} style={cur.country===c?S.ftcSelected:S.ftc} onClick={()=>setCur(p=>({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>)}</div></>}
+            {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c=><div key={c} style={cur.city===c?S.ftcSelected:S.ftc} onClick={()=>setCur(p=>({...p, city:c, brand:"", course:null, acc:null, cityData:null}))}>{c}</div>)}</div></>}
+            {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b=><div key={b} style={cur.brand===b?S.ftcSelected:S.ftc} onClick={()=>setCur(p=>({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>)}</div></>}
           </div>}
 
           {step === 2 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>{cur.isOnline ? "Paket Seçimi" : "Kurs Detayı - " + (cur.city || "")}</h2>
             <div style={S.r2}>
               <div style={S.fld}><label style={S.lbl}>Başlangıç (Pazartesi)</label><input type="date" style={S.fti} min={new Date().toISOString().split('T')[0]} value={cur.startDate} onChange={e=>handleDateChange(e.target.value)}/></div>
-              <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" value={cur.weeks} onChange={e=>setCur({...cur, weeks:parseInt(e.target.value)||1})}/></div>
+              <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" value={cur.weeks} onChange={e=>setCur(p=>({...p, weeks:parseInt(e.target.value)||1}))}/></div>
             </div>
-            <div style={S.g3}>{(cur.isOnline ? EC_LIVE : courses).map((c, idx) => {
-              const isValid = isCourseValid(c, cur.weeks);
-              const isSelected = cur.course?.name === c.name;
-              return (<div key={idx} style={isSelected ? S.ftcSelected : (isValid ? S.ftc : S.ftcDisabled)} onClick={() => isValid && setCur({...cur, course:c})}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>);
+            <div style={S.g3}>{(cur.isOnline ? EC_LIVE : cur.cityData?.courses || []).map((c, idx) => {
+              const valid = isCourseValid(c, cur.weeks);
+              return (<div key={idx} style={cur.course?.name===c.name?S.ftcSelected:(valid?S.ftc:S.ftcDisabled)} onClick={()=>valid && setCur(p=>({...p, course:c}))}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>);
             })}</div>
           </div>}
 
           {step === 3 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>Konaklama - {cur.brand} {cur.city}</h2>
             {cur.cityLoading ? <p>Yükleniyor...</p> : 
-              <div style={{display:"grid", gap:10}}>{accs.length > 0 ? accs.map((a, idx)=><div key={idx} style={cur.acc?.name===a.name && cur.acc?.room===a.room?S.ftacSelected:S.ftac} onClick={()=>setCur({...cur, acc:a})}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board}</small></div><strong>{a.currency} {a.price}/h</strong></div>) : <p>Konaklama seçeneği bulunamadı.</p>}</div>
+              <div style={{display:"grid", gap:10}}>{(cur.cityData?.acc || []).length > 0 ? (cur.cityData.acc).map((a, idx)=><div key={idx} style={cur.acc?.name===a.name && cur.acc?.room===a.room?S.ftacSelected:S.ftac} onClick={()=>setCur(p=>({...p, acc:a}))}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board}</small></div><strong>{a.currency} {a.price}/h</strong></div>) : <p>Konaklama seçeneği bulunamadı.</p>}</div>
             }
           </div>}
 
           {step === 4 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Teklif Özeti</h2>{destinations.map((d,i)=><div key={i} style={S.summaryCard}><strong>{d.brand} {d.city}</strong><br/>{d.weeks} Hafta · {d.course?.name}</div>)}</div>}
 
           <div style={S.navBox}>
-            {step > 0 && <button onClick={back} style={S.btnBack}>← Geri</button>}
+            {step > 0 && <button onClick={()=>setStep(s=>s-1)} style={S.btnBack}>← Geri</button>}
             <button style={S.btnNext} disabled={!canNext} onClick={next}>{step === 4 ? "Bitti" : "İleri →"}</button>
           </div>
         </main>
@@ -272,10 +261,10 @@ export default function FiyatTeklifi() {
         <aside style={S.side}>
           <h3 style={S.sideTtl}>ÖZET</h3>
           <div style={S.liveBox}>
-            <div style={{fontWeight:700, color:ORANGE, marginBottom:5}}>Şu anki Seçim:</div>
+            <div style={{fontWeight:700, color:ORANGE, marginBottom:5}}>Anlık Seçim:</div>
             {cur.lang && <div>📍 {cur.lang} {cur.country && `/ ${cur.country}`} {cur.city && `/ ${cur.city}`}</div>}
             {cur.brand && <div>🏫 {cur.brand}</div>}
-            {cur.course && <div style={!isCourseValid(cur.course, cur.weeks) ? {color:"#ef4444"} : {}}>📚 {cur.course.name} ({cur.weeks}h)</div>}
+            {cur.course && <div style={!isCourseValid(cur.course, cur.weeks)?{color:"#ef4444"}:{}}>📚 {cur.course.name} ({cur.weeks}h)</div>}
             {cur.acc && <div>🏠 {cur.acc.name}</div>}
             {currentTotal > 0 && isCourseValid(cur.course, cur.weeks) && <div style={S.liveTotal}>Anlık: {fmt(currentTotal, cur.course?.currency || "GBP")}</div>}
           </div>
@@ -287,24 +276,17 @@ export default function FiyatTeklifi() {
 
       <div id="pdf-area" style={{display:"none", width:"210mm", padding:"20mm", background:"#fff", fontFamily:"Arial"}}>
         {destinations.map((d, i) => {
-          const f = d.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees, d.weeks);
-          const cCost = getPrice(d.course, d.weeks);
-          const aCost = d.acc ? d.acc.price * d.weeks : 0;
-          const curSym = d.course?.currency || f.currency;
-          const sunDate = d.startDate ? new Date(d.startDate) : new Date();
-          if(d.startDate) sunDate.setDate(sunDate.getDate() - 1);
+          const fees = d.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees, d.weeks);
+          const sunDate = d.startDate ? new Date(d.startDate) : new Date(); if(d.startDate) sunDate.setDate(sunDate.getDate()-1);
           return (
             <div key={i} style={{pageBreakAfter:"always"}}>
               <h1 style={{color:BLUE_CYAN}}>{d.brand} - {d.city}</h1>
               <p>Öğrenci: {student.name} ({student.age} yaş)</p>
               <table style={{width:"100%", borderCollapse:"collapse", marginTop:10}}>
-                <thead><tr style={{borderBottom:"2px solid #333"}}><th style={{textAlign:"left", padding:8}}>Hizmet</th><th style={{textAlign:"right", padding:8}}>Tutar</th></tr></thead>
-                <tbody>
-                  <tr><td style={{padding:8}}>Kurs: {d.course?.name} ({d.weeks} Hafta)<br/><small>Başlangıç: {d.startDate}</small></td><td style={{textAlign:"right", padding:8}}>{fmt(cCost, curSym)}</td></tr>
-                  {d.acc && <tr><td style={{padding:8}}>Konaklama: {d.acc.name} ({d.acc.room})<br/><small>Giriş (Pazar): {sunDate.toLocaleDateString("tr-TR")}</small></td><td style={{textAlign:"right", padding:8}}>{fmt(aCost, curSym)}</td></tr>}
-                  <tr><td style={{padding:8}}>Ücretler (Kayıt/Materyal)</td><td style={{textAlign:"right", padding:8}}>{fmt(f.reg + f.mat, curSym)}</td></tr>
-                  <tr style={{borderTop:"2px solid #333", fontWeight:"bold"}}><td style={{padding:8}}>TOPLAM</td><td style={{textAlign:"right", padding:8}}>{fmt(cCost + aCost + f.reg + f.mat + (f.place||0), curSym)}</td></tr>
-                </tbody>
+                <tr style={{borderBottom:"2px solid #333"}}><th style={{textAlign:"left", padding:8}}>Hizmet</th><th style={{textAlign:"right", padding:8}}>Tutar</th></tr>
+                <tr><td style={{padding:8}}>Kurs: {d.course?.name} ({d.weeks} Hafta)</td><td style={{textAlign:"right", padding:8}}>{fmt(getPrice(d.course, d.weeks), d.course?.currency)}</td></tr>
+                {d.acc && <tr><td style={{padding:8}}>Konaklama: {d.acc.name} ({d.acc.room})<br/><small>Giriş: {sunDate.toLocaleDateString("tr-TR")}</small></td><td style={{textAlign:"right", padding:8}}>{fmt(d.acc.price*d.weeks, d.acc.currency)}</td></tr>}
+                <tr><td style={{padding:8}}>Ücretler (Kayıt/Materyal)</td><td style={{textAlign:"right", padding:8}}>{fmt(fees.reg+fees.mat, fees.currency)}</td></tr>
               </table>
             </div>
           )
