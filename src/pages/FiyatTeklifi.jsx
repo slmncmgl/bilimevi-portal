@@ -75,7 +75,20 @@ async function fetchCityData(sheetId, city) {
       if (!courseMap[r.course_name]) courseMap[r.course_name] = { name:r.course_name, lessons:parseFloat(r.lessons_per_week)||0, hours:parseFloat(r.hours_per_week)||0, currency:r.currency, notes: r.notes || "", tiers:[] };
       courseMap[r.course_name].tiers.push({ min:parseInt(r.weeks_tier_min)||1, max:r.weeks_tier_max?parseInt(r.weeks_tier_max):null, price:parseFloat(r.price_per_week)||0 });
     });
-    const acc = accRows.filter(r => r.city === city).map(r => ({ name:r.place_name, room:r.room_type, board:r.board_type, price:parseFloat(r.price_per_week)||0, currency:r.currency, notes: r.notes || "" }));
+    const acc = accRows.filter(r => r.city === city).map(r => ({ 
+        name:r.place_name, 
+        type: r.accommodation_type || "Standard",
+        room:r.room_type, 
+        bathroom: r.bathroom_type || "Shared",
+        board:r.board_type, 
+        price:parseFloat(r.price_per_week)||0, 
+        currency:r.currency, 
+        distance: r.distance_to_school || "",
+        notes: r.notes || "",
+        hsStart: r.high_season_start || "",
+        hsEnd: r.high_season_end || "",
+        hsPrice: parseFloat(r.high_season_price) || 0
+    }));
     const fees = feeRows.filter(r => r.city === city).map(r => ({ name:r.fee_name, amount:parseFloat(r.amount)||0, currency:r.currency, calc_type:r.calculation_type, tier_min:r.tier_min_weeks?parseInt(r.tier_min_weeks):null, tier_max:r.tier_max_weeks?parseInt(r.tier_max_weeks):null }));
     const res = { courses: Object.values(courseMap), acc, fees };
     if (!window._SCHOOL_CACHE) window._SCHOOL_CACHE = {}; window._SCHOOL_CACHE[cacheKey] = res;
@@ -140,7 +153,6 @@ export default function FiyatTeklifi() {
 
   const next = () => {
     if (step === 3 || (step === 2 && cur.isOnline)) {
-      // KRİTİK: Mevcut seçimi sepete ekle ama cur'u SIFIRLAMA, sadece step'i artır
       if (!destinations.find(d => d.city === cur.city && d.course?.name === cur.course?.name)) {
          setDestinations(prev => [...prev, { ...cur }]);
       }
@@ -155,7 +167,7 @@ export default function FiyatTeklifi() {
   const generatePDF = () => {
     const el = document.getElementById("pdf-area"); if(!el) return;
     el.style.display = "block";
-    window.html2pdf().set({ margin:10, filename:`Teklif_${student.name}.pdf`, html2canvas:{scale:2}, jsPDF:{format:'a4'} }).from(el).save().then(() => {
+    window.html2pdf().set({ margin:10, filename:`Teklif_${student.name}.pdf`, html2canvas:{scale:2, useCORS:true}, jsPDF:{format:'a4'} }).from(el).save().then(() => {
       el.style.display="none"; setDestinations([]); setCur(emptyDest()); setStep(0); if (window._SCHOOL_CACHE) window._SCHOOL_CACHE = {};
     });
   };
@@ -183,7 +195,7 @@ export default function FiyatTeklifi() {
           {step === 0 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Öğrenci Bilgileri</h2><div style={S.r2}><div style={S.fld}><label style={S.lbl}>Ad Soyad</label><input style={S.fti} value={student.name} onChange={e=>setStudent(p=>({...p,name:e.target.value}))}/></div><div style={S.fld}><label style={S.lbl}>Yaş</label><input style={S.fti} type="number" value={student.age} onChange={e=>setStudent(p=>({...p,age:e.target.value}))}/></div></div><div style={S.fld}><label style={S.lbl}>Cinsiyet</label><div style={{display:"flex", gap:10}}>{["Erkek","Kadın"].map(g=><div key={g} style={student.gender===g?S.ftcSelected:S.ftc} onClick={()=>setStudent(p=>({...p,gender:g}))}>{g}</div>)}</div></div></div>}
           {step === 1 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Destinasyon Seçimi</h2><p style={S.slbl}>DİL SEÇİMİ</p><div style={S.g3}>{nav.languages.map(l=><div key={l} style={cur.lang===l && !cur.isOnline?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, isOnline:false, lang:l, country:"", city:"", brand:"", course:null, acc:null, cityData:null})}>{l}</div>)}<div style={cur.isOnline?S.ftcOnlineSelected:S.ftcOnline} onClick={()=>setCur({...cur, isOnline:true, brand:"EC", city:"Online", lang:"İngilizce", country:"", course:null, acc:null, cityData:null})}>🌐 Online Kurs</div></div>{!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c=><div key={c} style={cur.country===c?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, country:c, city:"", brand:"", course:null, acc:null, cityData:null})}>{c}</div>)}</div></>}{!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c=><div key={c} style={cur.city===c?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, city:c, brand:"", course:null, acc:null, cityData:null})}>{c}</div>)}</div></>}{!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b=><div key={b} style={cur.brand===b?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, brand:b, course:null, acc:null, cityData:null})}>{b}</div>)}</div></>}</div>}
           {step === 2 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>{cur.isOnline ? "Paket Seçimi" : `Kurs Detayı - ${cur.brand} ${cur.city}`}</h2><div style={S.r2}><div style={S.fld}><label style={S.lbl}>Başlangıç (Pazartesi)</label><input type="date" style={S.fti} min={new Date().toISOString().split('T')[0]} value={cur.startDate} onChange={e=>handleDateChange(e.target.value)}/></div><div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" value={cur.weeks} onChange={e=>setCur({...cur, weeks:parseInt(e.target.value)||1})}/></div></div><div style={S.g3}>{(cur.isOnline ? EC_LIVE : (cur.cityData?.courses || [])).map((c, idx) => { const valid = isCourseValid(c, cur.weeks); return (<div key={idx} style={cur.course?.name===c.name?S.ftcSelected:(valid?S.ftc:S.ftcDisabled)} onClick={()=>valid && setCur({...cur, course:c})}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>); })}</div></div>}
-          {step === 3 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Konaklama - {cur.brand} {cur.city}</h2><div style={{display:"grid", gap:10}}>{(cur.cityData?.acc || []).length > 0 ? (cur.cityData.acc).map((a, idx)=><div key={idx} style={cur.acc?.name===a.name && cur.acc?.room===a.room?S.ftacSelected:S.ftac} onClick={()=>setCur({...cur, acc:a})}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board}</small></div><strong>{a.currency} {a.price}/h</strong></div>) : <p>{cur.cityLoading ? "Yükleniyor..." : "Konaklama seçeneği bulunamadı."}</p>}</div></div>}
+          {step === 3 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Konaklama - {cur.brand} {cur.city}</h2><div style={{display:"grid", gap:10}}>{(cur.cityData?.acc || []).length > 0 ? (cur.cityData.acc).map((a, idx)=><div key={idx} style={cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board?S.ftacSelected:S.ftac} onClick={()=>setCur({...p, acc:a})}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board} · {a.bathroom} Banyo</small></div><strong>{a.currency} {a.price}/h</strong></div>) : <p>{cur.cityLoading ? "Yükleniyor..." : "Konaklama seçeneği bulunamadı."}</p>}</div></div>}
           
           {step === 4 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>Teklif Detayları</h2>
@@ -198,15 +210,19 @@ export default function FiyatTeklifi() {
                     <span style={{fontWeight:700}}>{fmt(cPrice + aPrice + f.reg + f.mat + (f.place||0), d.course?.currency)}</span>
                   </div>
                   <div style={{fontSize:13, lineHeight:"1.6"}}>
-                    <div><strong>Kurs:</strong> {d.course?.name} ({d.weeks} Hafta)</div>
-                    <div style={{color:"#64748b", marginBottom:5}}><i>{d.course?.notes}</i></div>
+                    <div style={{marginBottom:10}}><strong>📚 Kurs:</strong> {d.course?.name} ({d.weeks} Hafta) <br/> <i>{d.course?.notes}</i></div>
                     {d.acc && (
-                      <>
-                        <div><strong>Konaklama:</strong> {d.acc.name} - {d.acc.room} ({d.acc.board})</div>
-                        <div style={{color:"#64748b", marginBottom:5}}><i>{d.acc.notes}</i></div>
-                      </>
+                      <div style={{background:"#f8fafc", padding:10, borderRadius:8, marginBottom:10}}>
+                        <strong>🏠 Konaklama:</strong> {d.acc.name} <br/>
+                        <span style={{fontSize:12, color:"#64748b"}}>
+                            Oda: {d.acc.room} / Banyo: {d.acc.bathroom} / Yemek: {d.acc.board} <br/>
+                            Okula Uzaklık: {d.acc.distance} <br/>
+                            {d.acc.hsPrice > 0 && <span>Sezon Farkı: {d.acc.currency} {d.acc.hsPrice} ({d.acc.hsStart} - {d.acc.hsEnd})</span>}
+                        </span>
+                        {d.acc.notes && <div style={{marginTop:5, color:"#0f172a"}}><i>Not: {d.acc.notes}</i></div>}
+                      </div>
                     )}
-                    <div style={{marginTop:5, paddingTop:5, borderTop:"1px dashed #eee"}}><strong>Ek Ücretler:</strong> Kayıt ({fmt(f.reg, f.currency)}) + Materyal ({fmt(f.mat, f.currency)})</div>
+                    <div style={{marginTop:5, paddingTop:5, borderTop:"1px dashed #eee"}}><strong>💰 Ücretler:</strong> Kayıt ({fmt(f.reg, f.currency)}) + Materyal ({fmt(f.mat, f.currency)})</div>
                   </div>
                 </div>
               )
@@ -224,10 +240,16 @@ export default function FiyatTeklifi() {
           <h3 style={S.sideTtl}>ÖZET</h3>
           <div style={S.liveBox}>
             <div style={{fontWeight:700, color:ORANGE, marginBottom:5}}>Anlık Seçim:</div>
-            {cur.lang && <div>📍 {cur.lang} {cur.country && `/ ${cur.country}`} {cur.city && `/ ${cur.city}`}</div>}
+            {cur.lang && <div>📍 {cur.lang} / {cur.country} / {cur.city}</div>}
             {cur.brand && <div>🏫 {cur.brand}</div>}
-            {cur.course && <div style={!isCourseValid(cur.course, cur.weeks)?{color:"#ef4444"}:{}}>📚 {cur.course.name} ({cur.weeks}h)</div>}
-            {cur.acc && <div>🏠 {cur.acc.name}</div>}
+            {cur.course && <div>📚 {cur.course.name} ({cur.weeks}h)</div>}
+            {cur.acc && (
+                <div style={{marginTop:5, borderTop:"1px solid #e2e8f0", paddingTop:5, fontSize:11}}>
+                    🏠 <strong>{cur.acc.name}</strong> <br/>
+                    {cur.acc.room} / {cur.acc.board} <br/>
+                    🚶 {cur.acc.distance}
+                </div>
+            )}
             {currentTotal > 0 && isCourseValid(cur.course, cur.weeks) && <div style={S.liveTotal}>Anlık: {fmt(currentTotal, cur.course?.currency || "GBP")}</div>}
           </div>
           <p style={{fontWeight:600, fontSize:12, marginBottom:5}}>Eklenenler ({destinations.length})</p>
@@ -240,16 +262,42 @@ export default function FiyatTeklifi() {
         {destinations.map((d, i) => {
           const fees = d.isOnline ? {reg:35,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees, d.weeks);
           const sunDate = d.startDate ? new Date(d.startDate) : new Date(); if(d.startDate) sunDate.setDate(sunDate.getDate()-1);
+          const totalVal = getPrice(d.course, d.weeks) + (d.acc?d.acc.price*d.weeks:0) + fees.reg + fees.mat + (fees.place||0);
+
           return (
-            <div key={i} style={{pageBreakAfter:"always", borderBottom:"1px solid #eee", paddingBottom:30, marginBottom:30}}>
+            <div key={i} style={{pageBreakAfter:"always", borderBottom:"2px solid #eee", paddingBottom:30, marginBottom:30}}>
               <h1 style={{color:BLUE_CYAN, margin:"0 0 10px 0"}}>{d.brand} Eğitim Teklifi</h1>
               <p style={{fontSize:14, color:"#444"}}>Öğrenci: <strong>{student.name}</strong> | Destinasyon: <strong>{d.city}, {d.country}</strong></p>
+              
               <table style={{width:"100%", borderCollapse:"collapse", marginTop:20}}>
                 <tr style={{background:BLUE_CYAN, color:"#fff"}}><th style={{textAlign:"left", padding:12}}>Hizmet Detayları</th><th style={{textAlign:"right", padding:12}}>Tutar</th></tr>
-                <tr><td style={{padding:12, borderBottom:"1px solid #eee"}}><strong>Kurs:</strong> {d.course?.name} ({d.weeks} Hafta)<br/><small style={{color:"#666"}}>{d.course?.notes}</small><br/><small>Başlangıç: {d.startDate}</small></td><td style={{textAlign:"right", padding:12, borderBottom:"1px solid #eee"}}>{fmt(getPrice(d.course, d.weeks), d.course?.currency)}</td></tr>
-                {d.acc && <tr><td style={{padding:12, borderBottom:"1px solid #eee"}}><strong>Konaklama:</strong> {d.acc.name} ({d.acc.room})<br/><small style={{color:"#666"}}>{d.acc.notes}</small><br/><small>Giriş: {sunDate.toLocaleDateString("tr-TR")}</small></td><td style={{textAlign:"right", padding:12, borderBottom:"1px solid #eee"}}>{fmt(d.acc.price*d.weeks, d.acc.currency)}</td></tr>}
-                <tr><td style={{padding:12, borderBottom:"1px solid #eee"}}><strong>Kayıt & Materyal Ücretleri:</strong><br/><small style={{color:"#666"}}>Okul kayıt ve zorunlu eğitim materyalleri.</small></td><td style={{textAlign:"right", padding:12, borderBottom:"1px solid #eee"}}>{fmt(fees.reg+fees.mat, fees.currency)}</td></tr>
-                <tr style={{fontSize:20, fontWeight:"bold"}}><td style={{padding:12, textAlign:"right"}}>TOPLAM:</td><td style={{padding:12, textAlign:"right", color:ORANGE}}>{fmt(getPrice(d.course, d.weeks) + (d.acc?d.acc.price*d.weeks:0) + fees.reg + fees.mat + (fees.place||0), d.course?.currency)}</td></tr>
+                <tr>
+                    <td style={{padding:12, borderBottom:"1px solid #eee"}}>
+                        <strong>Kurs:</strong> {d.course?.name} ({d.weeks} Hafta)<br/>
+                        <small style={{color:"#666"}}>{d.course?.notes}</small><br/>
+                        <small>Başlangıç: {d.startDate}</small>
+                    </td>
+                    <td style={{textAlign:"right", padding:12, borderBottom:"1px solid #eee"}}>{fmt(getPrice(d.course, d.weeks), d.course?.currency)}</td>
+                </tr>
+                {d.acc && <tr>
+                    <td style={{padding:12, borderBottom:"1px solid #eee"}}>
+                        <strong>Konaklama:</strong> {d.acc.name} ({d.acc.room})<br/>
+                        <small style={{color:"#666"}}>Tip: {d.acc.type} / Banyo: {d.acc.bathroom} / Yemek: {d.acc.board}</small><br/>
+                        <small style={{color:"#666"}}>Uzaklık: {d.acc.distance}</small><br/>
+                        <small>Giriş: {sunDate.toLocaleDateString("tr-TR")}</small>
+                        {d.acc.notes && <div style={{marginTop:5, fontSize:11}}><i>* {d.acc.notes}</i></div>}
+                        {d.acc.hsPrice > 0 && <div style={{color:ORANGE, fontSize:11}}>* Yüksek Sezon Farkı Uygulanmıştır ({d.acc.hsStart} - {d.acc.hsEnd})</div>}
+                    </td>
+                    <td style={{textAlign:"right", padding:12, borderBottom:"1px solid #eee"}}>{fmt(d.acc.price*d.weeks, d.acc.currency)}</td>
+                </tr>}
+                <tr>
+                    <td style={{padding:12, borderBottom:"1px solid #eee"}}>
+                        <strong>Kayıt & Materyal Ücretleri:</strong><br/>
+                        <small style={{color:"#666"}}>Okul kayıt ve zorunlu eğitim materyalleri.</small>
+                    </td>
+                    <td style={{textAlign:"right", padding:12, borderBottom:"1px solid #eee"}}>{fmt(fees.reg+fees.mat, fees.currency)}</td>
+                </tr>
+                <tr style={{fontSize:20, fontWeight:"bold"}}><td style={{padding:12, textAlign:"right"}}>TOPLAM:</td><td style={{padding:12, textAlign:"right", color:ORANGE}}>{fmt(totalVal, d.course?.currency)}</td></tr>
               </table>
             </div>
           )
