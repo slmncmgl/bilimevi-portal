@@ -89,7 +89,6 @@ async function fetchCityData(sheetId, city) {
     const fees = feeRows.filter(r => r.city === city).map(r => ({ name:r.fee_name, amount:parseFloat(r.amount)||0, currency:r.currency, calc_type:r.calculation_type, tier_min:r.tier_min_weeks?parseInt(r.tier_min_weeks):null, tier_max:r.tier_max_weeks?parseInt(r.tier_max_weeks):null }));
     return { courses: Object.values(courseMap), acc, fees };
   } catch (err) {
-    console.error("fetchCityData error:", err);
     return { courses: [], acc: [], fees: [] };
   }
 }
@@ -138,11 +137,14 @@ export default function FiyatTeklifi() {
     const session = getSession();
     if (!session) return navigate("/");
     setUser(session);
-    fetchNav().then(setNav).catch(e => console.error("Nav loading failed", e));
+    fetchNav().then(setNav);
   }, []);
 
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline) return;
+    // Eğer veriler zaten hafızadaysa tekrar çekme
+    if (cur.cityData && cur.cityData.courses.length > 0) return;
+
     const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
     if (sheetId) {
       setCur(p => ({ ...p, cityLoading:true }));
@@ -220,12 +222,12 @@ export default function FiyatTeklifi() {
             <h2 style={S.ttl}>Destinasyon Seçimi</h2>
             <p style={S.slbl}>DİL SEÇİMİ</p>
             <div style={S.g3}>
-              {nav.languages.map(l=><div key={l} style={cur.lang===l && !cur.isOnline?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, isOnline:false, lang:l, country:"", city:"", brand:""})}>{l}</div>)}
-              <div style={cur.isOnline?S.ftcOnlineSelected:S.ftcOnline} onClick={()=>setCur({...cur, isOnline:true, brand:"EC", city:"Online", lang:"İngilizce", country:"", course:null})}>🌐 Online Kurs</div>
+              {nav.languages.map(l=><div key={l} style={cur.lang===l && !cur.isOnline?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, isOnline:false, lang:l, country:"", city:"", brand:"", course:null, acc:null, cityData:null})}>{l}</div>)}
+              <div style={cur.isOnline?S.ftcOnlineSelected:S.ftcOnline} onClick={()=>setCur({...cur, isOnline:true, brand:"EC", city:"Online", lang:"İngilizce", country:"", cityData:null, course:null, acc:null})}>🌐 Online Kurs</div>
             </div>
-            {!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c=><div key={c} style={cur.country===c?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, country:c, city:"", brand:""})}>{c}</div>)}</div></>}
-            {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c=><div key={c} style={cur.city===c?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, city:c, brand:""})}>{c}</div>)}</div></>}
-            {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b=><div key={b} style={cur.brand===b?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, brand:b})}>{b}</div>)}</div></>}
+            {!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c=><div key={c} style={cur.country===c?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, country:c, city:"", brand:"", course:null, acc:null, cityData:null})}>{c}</div>)}</div></>}
+            {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c=><div key={c} style={cur.city===c?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, city:c, brand:"", course:null, acc:null, cityData:null})}>{c}</div>)}</div></>}
+            {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b=><div key={b} style={cur.brand===b?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, brand:b, course:null, acc:null, cityData:null})}>{b}</div>)}</div></>}
           </div>}
 
           {step === 2 && <div style={{animation:"fadeUp 0.3s"}}>
