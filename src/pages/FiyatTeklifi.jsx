@@ -106,6 +106,11 @@ const DB = {
       { type:"Homestay", name:"Homestay", room:"Single", bathroom:"Shared", board:"Half Board", dist:"30-65 dk", price:440, currency:"USD" },
     ],
   },
+  ecLive: [
+    { name:"EC Live Premium (5 gun/hafta)", hours:7.5, tiers:[{min:1,max:11,price:115},{min:12,max:23,price:100},{min:24,max:null,price:85}], currency:"EUR", minWeeks:1 },
+    { name:"EC Live Standard (2 gun/hafta)", hours:3, tiers:[{min:1,max:11,price:55},{min:12,max:23,price:45},{min:24,max:null,price:35}], currency:"EUR", minWeeks:2 },
+    { name:"EC Live English for Work", hours:3, tiers:[{min:1,max:11,price:80},{min:12,max:23,price:70},{min:24,max:null,price:60}], currency:"EUR", minWeeks:1 },
+  ],
   fees: {
     "EC-London":   { reg:60,  acc:40,  mat_pw:7,  mat_12:84,  mat_24:105, cur:"GBP" },
     "EC-Dublin":   { reg:55,  acc:55,  mat_pw:7,  mat_12:84,  mat_24:105, cur:"EUR" },
@@ -134,7 +139,7 @@ function fmt(n, cur) {
   return `${cur} ${Number(n).toLocaleString("tr-TR")}`;
 }
 
-const emptyDest = (sd="") => ({ lang:"", country:"", city:"", brand:"", course:null, weeks:4, acc:null, startDate:sd });
+const emptyDest = (sd="") => ({ lang:"", country:"", city:"", brand:"", course:null, weeks:4, acc:null, startDate:sd, isOnline:false });
 
 export default function FiyatTeklifi() {
   const navigate = useNavigate();
@@ -157,7 +162,7 @@ export default function FiyatTeklifi() {
 
   const canNext = [
     !!(student.name && student.gender),
-    !!(cur.brand && cur.city),
+    !!(cur.brand && cur.city) || !!(cur.isOnline && cur.course),
     !!cur.course,
     !!cur.acc,
     true,
@@ -165,6 +170,7 @@ export default function FiyatTeklifi() {
 
   function next() {
     if (step === 3) { setDestinations(p => [...p, { ...cur }]); setCur(emptyDest(cur.startDate)); setStep(4); }
+    else if (step === 2 && cur.isOnline) { setDestinations(p => [...p, { ...cur }]); setCur(emptyDest(cur.startDate)); setStep(4); }
     else setStep(s => s + 1);
   }
 
@@ -243,7 +249,7 @@ export default function FiyatTeklifi() {
       if (idx > 0) doc.addPage();
 
       const key = d.brand + "-" + d.city;
-      const f = getFees(key, d.weeks);
+      const f = getFees(key, d.weeks, d.isOnline);
       const cCost = getPrice(d.course, d.weeks);
       const aCost = d.acc ? d.acc.price * d.weeks : 0;
       const fT = f.reg + f.acc + f.mat;
@@ -339,7 +345,7 @@ export default function FiyatTeklifi() {
       });
 
       // Konaklama
-      if (d.acc) {
+      if (d.acc && !d.isOnline) {
         const accName = tr(trAccType(d.acc.name));
         const boardName = tr(trBoard(d.acc.board));
         rows.push({
@@ -601,11 +607,35 @@ export default function FiyatTeklifi() {
             {cur.city && <div style={{ marginTop:16, padding:"10px 14px", background:"#f8fafc", borderRadius:10, border:"1px solid #e2e8f0", fontSize:13, color:"#64748b" }}>
               Okul markası: <strong style={{ color:"#0f172a" }}>{cur.brand}</strong>
             </div>}
+
+            {/* Online Egitim Bolumu */}
+            <div style={{ marginTop:28, paddingTop:24, borderTop:"1.5px dashed #e2e8f0" }}>
+              <p style={{ fontSize:12, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:12 }}>Online Eğitim Seçenekleri</p>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:10 }}>
+                {DB.ecLive.map((c,i) => (
+                  <div key={i}
+                    className={"ftc" + (cur.isOnline && cur.course?.name===c.name ? " s" : "")}
+                    onClick={()=>setCur(p=>({...emptyDest(p.startDate), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:c}))}
+                    style={{ padding:"14px", textAlign:"left" }}>
+                    <div style={{ fontWeight:600, fontSize:13, marginBottom:4 }}>{c.name}</div>
+                    <div style={{ fontSize:11, color:"#64748b" }}>{c.hours} saat/hafta</div>
+                    <div style={{ fontSize:12, fontWeight:600, marginTop:6, color: cur.isOnline && cur.course?.name===c.name ? "inherit" : ORANGE }}>
+                      €{c.tiers[0].price}/hafta'dan
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {cur.isOnline && (
+                <div style={{ marginTop:12, padding:"10px 14px", background:"#eff6ff", borderRadius:10, border:"1px solid #bfdbfe", fontSize:13, color:"#2563eb" }}>
+                  ✓ Online kurs seçildi — konaklama adımı atlanacak
+                </div>
+              )}
+            </div>
           </div>}
 
           {/* STEP 2 */}
           {step === 2 && <div style={{ animation:"fadeUp .3s ease-out" }}>
-            <h2 style={S.ttl}>Kurs seç — {cur.brand} {cur.city}</h2>
+            <h2 style={S.ttl}>{cur.isOnline ? "EC Live Kurs Detayı" : "Kurs seç — " + cur.brand + " " + cur.city}</h2>
             <div style={S.r2}>
               <div style={S.fld}>
                 <label style={S.lbl}>Başlangıç tarihi</label>
@@ -685,7 +715,7 @@ export default function FiyatTeklifi() {
             {destinations.length===0 && <div style={{ textAlign:"center", color:"#94a3b8", padding:"40px 0" }}>Destinasyon eklenmedi.</div>}
             {destinations.map((d,i) => {
               const key=`${d.brand}-${d.city}`;
-              const f=getFees(key,d.weeks);
+              const f=getFees(key,d.weeks,d.isOnline);
               const cCost=getPrice(d.course,d.weeks);
               const aCost=d.acc?d.acc.price*d.weeks:0;
               const fT=f.reg+f.acc+f.mat;
@@ -711,7 +741,7 @@ export default function FiyatTeklifi() {
               const totals={};
               destinations.forEach(d=>{
                 const key=`${d.brand}-${d.city}`;
-                const f=getFees(key,d.weeks);
+                const f=getFees(key,d.weeks,d.isOnline);
                 const t=getPrice(d.course,d.weeks)+(d.acc?d.acc.price*d.weeks:0)+f.reg+f.acc+f.mat;
                 const c=d.course?.currency||f.cur;
                 totals[c]=(totals[c]||0)+t;
@@ -735,7 +765,7 @@ export default function FiyatTeklifi() {
             <div style={{ display:"flex", gap:8 }}>
               {step===3 && <button className="ftob" onClick={addDest}>+ Destinasyon ekle</button>}
               {step<4
-                ? <button className="ftpb" disabled={!canNext} onClick={next}>{step===3?"Özete geç →":"İleri →"}</button>
+                ? <button className="ftpb" disabled={!canNext} onClick={next}>{step===3?"Özete geç →":step===2&&cur.isOnline?"Özete geç →":"İleri →"}</button>
                 : <>
                   <button className="ftpb" onClick={generatePDF} style={{ background:"#00C1DE" }}>PDF İndir</button>
                   <button className="ftpb" onClick={reset} style={{ background:"#64748b" }}>Yeni Teklif</button>
@@ -752,7 +782,7 @@ export default function FiyatTeklifi() {
             ? <p style={{ fontSize:13, color:"#94a3b8" }}>Destinasyon henüz seçilmedi.</p>
             : sidebarDests.map((d,i)=>{
                 const key=`${d.brand}-${d.city}`;
-                const f=getFees(key,d.weeks);
+                const f=getFees(key,d.weeks,d.isOnline);
                 const cCost=getPrice(d.course,d.weeks);
                 const aCost=d.acc?d.acc.price*d.weeks:0;
                 const tot=cCost+aCost+f.reg+f.acc+f.mat;
@@ -764,7 +794,7 @@ export default function FiyatTeklifi() {
                       <span style={{ color:"#64748b" }}>{d.course.name}</span>
                       <span style={{ fontWeight:600 }}>{fmt(cCost,c)}</span>
                     </div>}
-                    {d.acc&&<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}>
+                    {d.acc && !d.isOnline &&<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}>
                       <span style={{ color:"#64748b" }}>{d.acc.name}</span>
                       <span style={{ fontWeight:600 }}>{fmt(aCost,c)}</span>
                     </div>}
