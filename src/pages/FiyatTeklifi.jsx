@@ -345,9 +345,25 @@ export default function FiyatTeklifi() {
             {!cur.isOnline && <div style={S.g3}>{courses.map((c,i) => (<div key={i} className={`ftcc${cur.course?.name===c.name?" s":""}`} onClick={()=>setCur(p=>({...p,course:c}))}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>))}</div>}
           </div>}
 
-          {step === 3 && <div style={{ animation:"fadeUp .3s ease-out" }}>
-            <h2 style={S.ttl}>Konaklama</h2>
-            <div style={{ display: "grid", gap: 10 }}>{accs.map((a, i) => (<div key={i} className={`ftac${cur.acc?.name === a.name ? " s" : ""}`} onClick={() => setCur(p => ({ ...p, acc: a }))}><div><strong>{a.name}</strong><br/><small>{a.board}</small></div><div style={{ fontWeight: 700 }}>{a.currency} {a.price}/h</div></div>))}</div>
+          {step === 3 && <div style={{ animation: "fadeUp .3s ease-out" }}>
+            <h2 style={S.ttl}>Konaklama Seçin</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {accs.map((a, i) => {
+                // DÜZELTME: Seçimi benzersiz yapmak için name + room + board kontrolü ekledik
+                const sel = cur.acc?.name === a.name && cur.acc?.room === a.room && cur.acc?.board === a.board;
+
+                return (
+                  <div key={i} className={`ftac${sel ? " s" : ""}`} onClick={() => setCur(p => ({ ...p, acc: a }))}>
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{a.name}</div>
+                      {/* EKLEME: Oda tipini (room) buraya ekledik */}
+                      <div style={{ fontSize: 12, color: "#64748b" }}>{a.room} · {a.board}</div>
+                    </div>
+                    <div style={{ fontWeight: 700 }}>{a.currency} {a.price}/h</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>}
 
           {step === 4 && <div style={{ animation:"fadeUp .3s ease-out" }}><h2 style={S.ttl}>Özet</h2>{destinations.map((d, i) => <div key={i} style={{ padding:10, borderBottom:"1px solid #eee" }}>{d.brand} {d.city} - {d.weeks} Hafta</div>)}</div>}
@@ -393,7 +409,11 @@ export default function FiyatTeklifi() {
                 </tr>
                 {d.acc && <tr style={{ borderBottom: "1px solid #eee" }}>
                   <td style={{ fontWeight: "bold", padding: "12px 0" }}>Konaklama</td>
-                  <td style={{ padding: "12px 0" }}>{d.acc.name}<br/><small style={{color:"#777"}}>{new Date(d.startDate).toLocaleDateString("tr-TR")} – {endD(d.startDate, d.weeks)}</small></td>
+                  <td style={{ padding: "12px 0" }}>
+                    {d.acc.name}
+                    <div style={{ fontSize: "11px", color: "#777" }}>{d.acc.room} · {d.acc.board}</div>
+                    <small style={{color:"#777"}}>{new Date(d.startDate).toLocaleDateString("tr-TR")} – {endD(d.startDate, d.weeks)}</small>
+                  </td>
                   <td style={{ textAlign: "right", fontWeight: "bold" }}>{fmt(aCost, "")}</td>
                 </tr>}
                 <tr style={{ borderBottom: "1px solid #eee" }}>
