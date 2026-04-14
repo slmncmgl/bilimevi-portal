@@ -185,6 +185,7 @@ export default function FiyatTeklifi() {
     fetchNav().then(data => { setNav(data); setNavLoading(false); });
   }, []);
 
+  // Şehir seçildiği anda veriyi çekmeyi başlat
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline) return;
     const sheetInfo = nav.schoolSheets?.[cur.brand];
@@ -202,7 +203,7 @@ export default function FiyatTeklifi() {
   const canNext = [
     !!(student.name && student.gender),
     !!(cur.brand && cur.city) || !!(cur.isOnline && cur.course),
-    !!cur.course,
+    !!cur.course && !cur.cityLoading, // Veri yüklenirken ilerlemeyi engelle
     !!cur.acc || cur.isOnline,
     true,
   ][step];
@@ -340,16 +341,17 @@ export default function FiyatTeklifi() {
           </div>}
 
           {step === 2 && <div style={{ animation:"fadeUp .3s ease-out" }}>
-            <h2 style={S.ttl}>{cur.isOnline ? "Online Eğitim Süresi" : "Kurs Detayı - " + cur.city}</h2>
+            <h2 style={S.ttl}>{cur.isOnline ? "Online Eğitim Süresi" : `Kurs Detayı – ${cur.brand} ${cur.city}`}</h2>
             <div style={S.r2}>
               <div style={S.fld}><label style={S.lbl}>Başlangıç tarihi</label><input className="fti" type="date" value={cur.startDate} onChange={e=>setCur(p=>({...p,startDate:e.target.value}))} /></div>
               <div style={S.fld}><label style={S.lbl}>Süre (hafta)</label><input className="fti" type="number" value={cur.weeks} onChange={e=>setCur(p=>({...p,weeks:parseInt(e.target.value)||1}))} /></div>
             </div>
-            {!cur.isOnline && <div style={S.g3}>{courses.map((c,i) => (<div key={i} className={`ftcc${cur.course?.name===c.name?" s":""}`} onClick={()=>setCur(p=>({...p,course:c}))}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>))}</div>}
+            {cur.cityLoading && <div style={{ textAlign: "center", padding: 20 }}>Programlar yükleniyor...</div>}
+            {!cur.isOnline && !cur.cityLoading && <div style={S.g3}>{courses.map((c,i) => (<div key={i} className={`ftcc${cur.course?.name===c.name?" s":""}`} onClick={()=>setCur(p=>({...p,course:c}))}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>))}</div>}
           </div>}
 
           {step === 3 && <div style={{ animation: "fadeUp .3s ease-out" }}>
-            <h2 style={S.ttl}>Konaklama Seçin</h2>
+            <h2 style={S.ttl}>{`Konaklama Seçin – ${cur.brand} ${cur.city}`}</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {accs.map((a, i) => {
                 const sel = cur.acc?.name === a.name && cur.acc?.room === a.room && cur.acc?.board === a.board;
@@ -416,7 +418,7 @@ export default function FiyatTeklifi() {
           <div style={{ fontSize:14, fontWeight:600, marginBottom:16 }}>Sepet</div>
           {destinations.map((d, i) => (
             <div key={i} style={{ fontSize:12, marginBottom:8, paddingBottom: 8, borderBottom: "1px solid #f1f5f9" }}>
-              <strong>{d.city}</strong><br/>
+              <strong>{d.brand} {d.city}</strong><br/>
               {d.weeks} hafta · {d.course?.name}
             </div>
           ))}
@@ -447,7 +449,10 @@ export default function FiyatTeklifi() {
               <tbody>
                 <tr style={{ borderBottom: "1px solid #eee" }}>
                   <td style={{ fontWeight: "bold", padding: "12px 0", width: "25%" }}>Kurs</td>
-                  <td style={{ padding: "12px 0" }}>{d.course?.name}<br/><small style={{color:"#777"}}>{new Date(d.startDate).toLocaleDateString("tr-TR")} – {endD(d.startDate, d.weeks)}</small></td>
+                  <td style={{ padding: "12px 0" }}>
+                    <div style={{fontWeight:"bold"}}>{d.brand} - {d.course?.name}</div>
+                    <small style={{color:"#777"}}>{new Date(d.startDate).toLocaleDateString("tr-TR")} – {endD(d.startDate, d.weeks)}</small>
+                  </td>
                   <td style={{ textAlign: "right", fontWeight: "bold" }}>{fmt(cCost, "")}</td>
                 </tr>
                 {d.acc && <tr style={{ borderBottom: "1px solid #eee" }}>
