@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
-import { jsPDF } from "jspdf";
 
 const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
 
@@ -251,306 +250,36 @@ export default function FiyatTeklifi() {
   }
 
   function generatePDF() {
-    const doc = new jsPDF({ unit:"mm", format:"a4" });
-    const W = 210, H = 297;
-    const CYAN = [0, 193, 222];
-    const BLACK = [15, 15, 15];
-    const GRAY = [100, 116, 139];
-    const LGRAY = [210, 220, 230];
-    const phone = user.phone || "905419189177";
-    const MX = 24;
-    const CW = W - MX * 2;
+      function generatePDF() {
+    const el = document.getElementById("pdf-export-area");
+    if (!el) return;
+    el.style.display = "block";
 
-    // jsPDF Latin-1: c,o,u-umlaut calisiyor; dotless-i(i), g-breve(g), s-cedilla(s) calismiyor
-    // Cozum: sadece sorunlu karakterleri degistir, gerisi aynen birak
-    function tr(s) {
-      return (s || "")
-        .replace(/ı/g, "i")   // dotless i -> i
-        .replace(/İ/g, "I")   // dotted I -> I
-        .replace(/ğ/g, "g")   // g-breve -> g
-        .replace(/Ğ/g, "G")   // G-breve -> G
-        .replace(/ş/g, "s")   // s-cedilla -> s (NOT in Latin-1)
-        .replace(/Ş/g, "S");  // S-cedilla -> S
-      // c-cedilla (c), o-umlaut (o), u-umlaut (u) Latin-1'de var, degistirme
-    }
+    const validUntil = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      const months = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran",
+                      "Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+      return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+    })();
 
-    // Konaklama tip cevirileri
-    function trAccType(s) {
-      return (s || "")
-        .replace(/Homestay/gi, "Aile Yanı Konaklama")
-        .replace(/Student Residence/gi, "Ogrenci Yurdu")
-        .replace(/Shared Accommodation/gi, "Paylasimli Daire")
-        .replace(/Summer Residence/gi, "Yaz Yurdu");
-    }
+    const safeStudentName = (student.name || "teklif").replace(/\s+/g, "_");
+    const fname = safeStudentName + "_" + new Date().toISOString().slice(0,10) + ".pdf";
 
-    // Board type cevirileri
-    function trBoard(s) {
-      return (s || "")
-        .replace(/Half Board/gi, "Yarım Pansiyon")
-        .replace(/Full Board/gi, "Tam Pansiyon")
-        .replace(/Bed & Breakfast/gi, "Kahvalti Dahil")
-        .replace(/Self-Catering/gi, "Kendi Mutfagi")
-        .replace(/Bed and Breakfast/gi, "Kahvalti Dahil");
-    }
-
-    function fmtDate(dateStr) {
-      if (!dateStr) return "-";
-      const months = ["Ocak","Subat","Mart","Nisan","Mayis","Haziran",
-                      "Temmuz","Agustos","Eylul","Ekim","Kasim","Aralik"];
-      const dt = new Date(dateStr);
-      return dt.getDate() + " " + months[dt.getMonth()] + " " + dt.getFullYear();
-    }
-
-    function addWeeks(dateStr, weeks) {
-      if (!dateStr) return "";
-      const d = new Date(dateStr);
-      d.setDate(d.getDate() + weeks * 7);
-      return fmtDate(d.toISOString().slice(0, 10));
-    }
-
-    function fmtMoney(n) {
-      return Number(n).toLocaleString("tr-TR") + ",00";
-    }
-
-    // Para birimi sembol map
-    const curSymbol = { "GBP": "£", "EUR": "€", "USD": "$", "CAD": "CA$" };
-
-    destinations.forEach((d, idx) => {
-      if (idx > 0) doc.addPage();
-
-      const key = d.brand + "-" + d.city;
-      const f = d.isOnline ? {reg:35,acc_placement:0,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees||[], d.weeks);
-      const cCost = getPrice(d.course, d.weeks);
-      const aCost = d.acc ? d.acc.price * d.weeks : 0;
-      const fT = f.reg + f.acc_placement + f.mat;
-      const tot = cCost + aCost + fT;
-      const cur = d.course ? d.course.currency : f.cur;
-      const sym = curSymbol[cur] || cur;
-      const startTxt = fmtDate(d.startDate);
-      const endTxt = addWeeks(d.startDate, d.weeks);
-
-      // ─── HEADER ───
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...GRAY);
-      doc.text(tr("Bilimevi Eğitim Danışmanınız"), MX, 11);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(...BLACK);
-      doc.text(tr(user.name || "-"), MX, 16);
-
-      // Orta: email
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...GRAY);
-      doc.text("E-posta: " + tr(user.email || ""), W / 2, 13, { align: "center" });
-
-      // Sag: WA linki - tam saga yasla
-      doc.setTextColor(...CYAN);
-      doc.setFontSize(8);
-      doc.textWithLink(tr("Bana WhatsApp'tan Ulasın →"), W - MX, 11, {
-        align: "right", url: "https://wa.me/" + phone
-      });
-
-      // Para birimi logosu - sag ust
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
-      doc.setTextColor(...GRAY);
-      doc.text(sym, W - MX, 20, { align: "right" });
-
-      // Header alt cizgisi
-      doc.setDrawColor(...GRAY);
-      doc.setLineWidth(0.25);
-      doc.line(MX, 22, W - MX, 22);
-
-      // ─── SEHİR (CYAN, buyuk) ───
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(52);
-      doc.setTextColor(...CYAN);
-      doc.text(tr(d.city), MX, 60);
-
-      // ─── TARİHLER (tek satir, siyah) ───
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(20);
-      doc.setTextColor(...BLACK);
-      const dateLine = endTxt ? (startTxt + "  —  " + endTxt) : startTxt;
-      doc.text(tr(dateLine), MX, 73);
-
-      // ─── TABLO BASLIK ───
-      let y = 86;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(...BLACK);
-      doc.text(tr("Teklifinize neler dahil?"), MX, y);
-      doc.setTextColor(...GRAY);
-      doc.text(cur, W - MX, y, { align: "right" });
-
-      // Hafta Sayisi (CYAN, duzgun buyuk harf)
-      y += 7;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(...CYAN);
-      doc.text(tr("Hafta Sayısı: ") + d.weeks, MX, y);
-
-      // Ince cizgi
-      y += 4;
-      doc.setDrawColor(...LGRAY);
-      doc.setLineWidth(0.3);
-      doc.line(MX, y, W - MX, y);
-
-      // ─── SATIRLAR ───
-      const COL1 = MX;
-      const COL2 = MX + 36;
-      const COL3 = W - MX;
-
-      const rows = [];
-
-      // Kurs
-      rows.push({
-        cat: "Kurs",
-        sub: tr(d.course ? d.course.name : "-"),
-        detail: startTxt && endTxt ? (startTxt + " - " + endTxt) : "",
-        price: cCost
-      });
-
-      // Konaklama
-      if (d.acc && !d.isOnline) {
-        const accName = tr(trAccType(d.acc.name));
-        const boardName = tr(trBoard(d.acc.board));
-        rows.push({
-          cat: tr("Konaklama"),
-          sub: accName + " (" + boardName + ") (" + tr("Ücrete dahil") + ")",
-          detail: startTxt && endTxt ? (startTxt + " - " + endTxt) : "",
-          price: aCost
-        });
-      }
-
-      // Diger ucretler
-      const extras = [];
-      if (f.reg > 0) extras.push({ sub: tr("Kayıt Ücreti"), price: f.reg });
-      if (f.mat > 0) extras.push({ sub: tr("Ders Materyalleri"), price: f.mat });
-      if (f.acc_placement > 0) extras.push({ sub: tr("Konaklama Placement"), price: f.acc_placement });
-
-      if (extras.length > 0) {
-        extras.forEach((ex, ei) => {
-          rows.push({
-            cat: ei === 0 ? tr("Diğer") : "",
-            sub: ex.sub,
-            detail: "",
-            price: ex.price
-          });
-        });
-      }
-
-      y += 6;
-      rows.forEach((row) => {
-        const hasDetail = row.detail && row.detail.trim();
-        const rowH = hasDetail ? 14 : 9;
-
-        if (row.cat) {
-          doc.setFont("helvetica", "bold");
-          doc.setFontSize(9);
-          doc.setTextColor(...BLACK);
-          doc.text(row.cat, COL1, y + 4.5);
-        }
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.setTextColor(...BLACK);
-        doc.text(row.sub, COL2, y + 4.5);
-
-        if (hasDetail) {
-          doc.setFontSize(8);
-          doc.setTextColor(...CYAN);
-          doc.text(row.detail, COL2, y + 9);
-        }
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.setTextColor(...BLACK);
-        doc.text(fmtMoney(row.price), COL3, y + 4.5, { align: "right" });
-
-        doc.setDrawColor(...LGRAY);
-        doc.setLineWidth(0.2);
-        doc.line(MX, y + rowH, W - MX, y + rowH);
-        y += rowH;
-      });
-
-      // ─── TOPLAM ───
-      y += 12; // cizgi oncesi bosluk arttirildi
-      doc.setDrawColor(...BLACK);
-      doc.setLineWidth(0.5);
-      doc.line(MX, y - 5, W - MX, y - 5);
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      doc.setTextColor(...BLACK);
-      // Toplam solunda para birimi logosu
-      doc.text(sym + "  " + tr("Toplam Tutar ") + cur, MX, y + 4);
-      doc.text(cur + " " + fmtMoney(tot), COL3, y + 4, { align: "right" });
-
-      // ─── NOTLAR (toplam disinda) ───
-      const noteItems = [];
-      if (d.course && d.course.morning) {
-        noteItems.push(tr("Sabah garantisi mevcut (ek ücret uygulanabilir)"));
-      }
-      if (d.course && d.course.hs_supp) {
-        noteItems.push(tr("Yüksek sezon eki: " + cur + " " + d.course.hs_supp + "/hafta (29 Haziran - 28 Ağustos için geçerli)"));
-      }
-      if (d.acc && d.acc.hs_price && d.acc.hs_price !== d.acc.price) {
-        noteItems.push(tr("Yüksek sezonda konaklama fiyatı değişebilir: " + cur + " " + d.acc.hs_price + "/hafta"));
-      }
-      // Konaklama notu
-      if (d.acc && d.acc.distance) {
-        noteItems.push(tr("Konaklamadan okula mesafe: ") + d.acc.distance);
-      }
-
-      if (noteItems.length > 0) {
-        y += 20;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(...GRAY);
-        doc.text(tr("Notlar:"), MX, y);
-        y += 6;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        noteItems.forEach(note => {
-          doc.text("- " + note, MX + 2, y);
-          y += 5;
-        });
-      }
-
-      // ─── WA BUTONU (sayfanin altina sabitlenmis) ───
-      const btnY = H - 50;
-      const btnW = 85, btnH = 11;
-      const btnX = W / 2 - btnW / 2;
-      doc.setFillColor(...CYAN);
-      doc.roundedRect(btnX, btnY, btnW, btnH, 5, 5, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(255, 255, 255);
-      doc.textWithLink(
-        tr("Danışmanınıza WhatsApp'tan Ulasın"),
-        W / 2, btnY + 7.2,
-        { align: "center", url: "https://wa.me/" + phone }
-      );
-
-      // ─── FOOTER ───
-      const today = new Date().toLocaleDateString("tr-TR");
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(...GRAY);
-      doc.text(tr("Geçerlilik tarihi: ") + today, MX, H - 10);
-      doc.text("bilimevi.com", W - MX, H - 10, { align: "right" });
-    });
-
-    const safeStudentName = tr(student.name || "teklif").replace(/\s+/g, "_");
-    const fname = safeStudentName + "_" + new Date().toISOString().slice(0, 10) + ".pdf";
-    doc.save(fname);
+    window.html2pdf()
+      .set({
+        margin: 0,
+        filename: fname,
+        image: { type:"jpeg", quality:0.98 },
+        html2canvas: { scale:2, useCORS:true, letterRendering:true },
+        jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
+        pagebreak: { mode:"css", before:".pdf-page-break" },
+      })
+      .from(el)
+      .save()
+      .then(() => { el.style.display = "none"; });
   }
-  function reset() {
-    setDestinations([]); setCur(emptyDest());
+stinations([]); setCur(emptyDest());
     setStudent({ name:"", age:"", gender:"" }); setStep(0);
   }
 
@@ -886,6 +615,13 @@ export default function FiyatTeklifi() {
         </div>
       </div>
     </div>
+
+    {/* ─── GHOST PDF TEMPLATE ─── */}
+    <PdfTemplate
+      destinations={destinations}
+      student={student}
+      user={user}
+    />
   );
 }
 
@@ -905,3 +641,215 @@ const S = {
   g3: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))", gap:8 },
   pill: { display:"inline-block", background:ORANGE_LIGHT, color:ORANGE, fontSize:12, padding:"3px 10px", borderRadius:20, fontWeight:600 },
 };
+
+// ─── PDF TEMPLATE (Ghost - kullanici gormuyor) ───
+function PdfTemplate({ destinations, student, user }) {
+  if (!destinations || destinations.length === 0) return null;
+
+  const phone = user?.phone || "905419189177";
+  const CYAN = "#00C1DE";
+
+  const months = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran",
+                  "Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+
+  function fmtDate(str) {
+    if (!str) return "—";
+    const d = new Date(str);
+    return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+  }
+
+  function addWeeks(str, w) {
+    if (!str) return "—";
+    const d = new Date(str);
+    d.setDate(d.getDate() + w * 7);
+    return fmtDate(d.toISOString().slice(0,10));
+  }
+
+  function fmtMoney(n) {
+    return Number(n).toLocaleString("tr-TR") + ",00";
+  }
+
+  function trAcc(s) {
+    return (s||"")
+      .replace(/Homestay/gi,"Aile Yanı Konaklama")
+      .replace(/Student Residence/gi,"Öğrenci Yurdu")
+      .replace(/Shared Accommodation/gi,"Paylaşımlı Daire")
+      .replace(/Summer Residence/gi,"Yaz Yurdu");
+  }
+
+  function trBoard(s) {
+    return (s||"")
+      .replace(/Half Board/gi,"Yarım Pansiyon")
+      .replace(/Full Board/gi,"Tam Pansiyon")
+      .replace(/Bed & Breakfast/gi,"Kahvaltı Dahil")
+      .replace(/Self-Catering/gi,"Kendi Mutfağı");
+  }
+
+  const validUntil = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.getDate() + " " + months[d.getMonth()] + " " + d.getFullYear();
+  })();
+
+  const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" };
+
+  return (
+    <div id="pdf-export-area" style={{ display:"none", fontFamily:"Arial, Helvetica, sans-serif" }}>
+      {destinations.map((d, idx) => {
+        const f = d.isOnline
+          ? { reg:35, acc_placement:0, mat:30, currency:"EUR" }
+          : calcFees(d.cityData?.fees||[], d.weeks);
+        const cCost = getPrice(d.course, d.weeks);
+        const aCost = d.acc ? d.acc.price * d.weeks : 0;
+        const fT = f.reg + f.acc_placement + f.mat;
+        const tot = cCost + aCost + fT;
+        const cur = d.course?.currency || f.currency || "GBP";
+        const sym = curSym[cur] || cur;
+        const startTxt = fmtDate(d.startDate);
+        const endTxt = addWeeks(d.startDate, d.weeks);
+
+        // Notes
+        const notes = [];
+        if (d.course?.morning) notes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
+        if (d.course?.hs_supp) notes.push(`Yüksek sezon eki: ${cur} ${d.course.hs_supp}/hafta (29 Haziran – 28 Ağustos)`);
+        if (d.acc?.hs_price && d.acc.hs_price !== d.acc.price) notes.push(`Yüksek sezonda konaklama: ${cur} ${d.acc.hs_price}/hafta`);
+        if (d.acc?.notes) notes.push(d.acc.notes);
+
+        return (
+          <div key={idx} className={idx > 0 ? "pdf-page-break" : ""}
+            style={{ width:"210mm", minHeight:"297mm", padding:"14mm 16mm 12mm", boxSizing:"border-box", position:"relative", background:"#fff" }}>
+
+            {/* HEADER */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:"6mm", paddingBottom:"3mm", borderBottom:"0.5px solid #aaa" }}>
+              <div>
+                <div style={{ fontSize:"7pt", color:"#888" }}>Bilimevi Eğitim Danışmanınız</div>
+                <div style={{ fontSize:"9pt", fontWeight:"bold", color:"#111" }}>{user?.name || "—"}</div>
+                <div style={{ fontSize:"7pt", color:"#555", marginTop:"1mm" }}>{user?.email || ""}</div>
+              </div>
+              <div style={{ textAlign:"center" }}>
+                <div style={{ fontSize:"7pt", color:"#555" }}>bilimevi.com</div>
+              </div>
+            </div>
+
+            {/* ŞEHİR ADI */}
+            <div style={{ fontSize:"52pt", fontWeight:"bold", color:CYAN, lineHeight:1, marginBottom:"3mm" }}>
+              {d.city}
+            </div>
+
+            {/* TARİHLER */}
+            <div style={{ fontSize:"20pt", fontWeight:"bold", color:"#111", marginBottom:"6mm", lineHeight:1.2 }}>
+              {startTxt}<br/>— {endTxt}
+            </div>
+
+            {/* TABLO BAŞLIĞI */}
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:"9pt", marginBottom:"1mm" }}>
+              <span style={{ color:"#333" }}>Teklifinize neler dahil?</span>
+              <span style={{ color:"#999" }}>{sym}</span>
+            </div>
+
+            {/* HAFTA SAYISI */}
+            <div style={{ fontSize:"9pt", fontWeight:"bold", color:CYAN, marginBottom:"2mm" }}>
+              Hafta Sayısı: {d.weeks}
+            </div>
+
+            {/* TABLO */}
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"8.5pt" }}>
+              <tbody>
+                {/* KURS SATIRI */}
+                <tr style={{ borderTop:"0.5px solid #ddd" }}>
+                  <td style={{ padding:"3mm 2mm", fontWeight:"bold", color:"#111", verticalAlign:"top", width:"22%" }}>Kurs</td>
+                  <td style={{ padding:"3mm 2mm", color:"#111", verticalAlign:"top" }}>
+                    <div style={{ fontWeight:"bold" }}>{d.course?.name || "—"}</div>
+                    <div style={{ color:CYAN, fontSize:"8pt" }}>{startTxt} – {endTxt}</div>
+                    {d.course?.lessons && <div style={{ color:"#666", fontSize:"7.5pt" }}>{d.course.lessons} ders/hafta · {d.course.hours} saat</div>}
+                  </td>
+                  <td style={{ padding:"3mm 2mm", textAlign:"right", fontWeight:"bold", color:"#111", verticalAlign:"top", whiteSpace:"nowrap" }}>
+                    {fmtMoney(cCost)}
+                  </td>
+                </tr>
+
+                {/* KONAKLAMA */}
+                {d.acc && !d.isOnline && (
+                  <tr style={{ borderTop:"0.5px solid #ddd" }}>
+                    <td style={{ padding:"3mm 2mm", fontWeight:"bold", color:"#111", verticalAlign:"top" }}>Konaklama</td>
+                    <td style={{ padding:"3mm 2mm", color:"#111", verticalAlign:"top" }}>
+                      <div style={{ fontWeight:"bold" }}>{trAcc(d.acc.name)} ({trBoard(d.acc.board)}) <span style={{ color:"#666", fontWeight:"normal" }}>(Ücrete dahil)</span></div>
+                      <div style={{ color:CYAN, fontSize:"8pt" }}>{startTxt} – {endTxt}</div>
+                      {d.acc.room && <div style={{ color:"#666", fontSize:"7.5pt" }}>{d.acc.room} · {d.acc.bathroom} · Okula {d.acc.distance}</div>}
+                    </td>
+                    <td style={{ padding:"3mm 2mm", textAlign:"right", fontWeight:"bold", color:"#111", verticalAlign:"top", whiteSpace:"nowrap" }}>
+                      {fmtMoney(aCost)}
+                    </td>
+                  </tr>
+                )}
+
+                {/* DİĞER ÜCRETLER */}
+                {(f.reg > 0 || f.mat > 0 || f.acc_placement > 0) && (
+                  <>
+                    {f.reg > 0 && (
+                      <tr style={{ borderTop:"0.5px solid #ddd" }}>
+                        <td style={{ padding:"3mm 2mm", fontWeight:"bold", color:"#111", verticalAlign:"top" }}>Diğer</td>
+                        <td style={{ padding:"3mm 2mm", color:"#333" }}>Kayıt Ücreti</td>
+                        <td style={{ padding:"3mm 2mm", textAlign:"right", color:"#111", whiteSpace:"nowrap" }}>{fmtMoney(f.reg)}</td>
+                      </tr>
+                    )}
+                    {f.mat > 0 && (
+                      <tr style={{ borderTop:"0.5px solid #eee" }}>
+                        <td></td>
+                        <td style={{ padding:"2mm 2mm", color:"#333" }}>Ders Materyalleri</td>
+                        <td style={{ padding:"2mm 2mm", textAlign:"right", color:"#111", whiteSpace:"nowrap" }}>{fmtMoney(f.mat)}</td>
+                      </tr>
+                    )}
+                    {f.acc_placement > 0 && (
+                      <tr style={{ borderTop:"0.5px solid #eee" }}>
+                        <td></td>
+                        <td style={{ padding:"2mm 2mm", color:"#333" }}>Konaklama Placement</td>
+                        <td style={{ padding:"2mm 2mm", textAlign:"right", color:"#111", whiteSpace:"nowrap" }}>{fmtMoney(f.acc_placement)}</td>
+                      </tr>
+                    )}
+                  </>
+                )}
+              </tbody>
+            </table>
+
+            {/* TOPLAM */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", borderTop:"2px solid #111", marginTop:"3mm", paddingTop:"3mm" }}>
+              <div style={{ fontSize:"13pt", fontWeight:"bold", color:"#111" }}>
+                {sym} Toplam Tutar {cur}
+              </div>
+              <div style={{ fontSize:"14pt", fontWeight:"bold", color:"#111" }}>
+                {cur} {fmtMoney(tot)}
+              </div>
+            </div>
+
+            {/* NOTLAR */}
+            {notes.length > 0 && (
+              <div style={{ marginTop:"4mm", fontSize:"7.5pt", color:"#666" }}>
+                <div style={{ fontWeight:"bold", marginBottom:"1mm" }}>Notlar:</div>
+                {notes.map((n,i) => <div key={i}>— {n}</div>)}
+              </div>
+            )}
+
+            {/* WA BUTONU */}
+            <div style={{ textAlign:"center", marginTop:"6mm" }}>
+              <a href={"https://wa.me/" + phone}
+                style={{ display:"inline-block", background:CYAN, color:"#fff", padding:"3mm 8mm", borderRadius:"6mm", fontSize:"10pt", fontWeight:"bold", textDecoration:"none" }}>
+                Eğitim Danışmanınıza Şimdi Ulaşın
+              </a>
+            </div>
+
+            {/* FOOTER */}
+            <div style={{ position:"absolute", bottom:"8mm", left:"16mm", right:"16mm", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ fontSize:"7pt", color:"#999" }}>Geçerlilik tarihi: {validUntil}</div>
+              <div style={{ textAlign:"center" }}>
+                <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg"
+                  alt="Bilimevi" style={{ height:"8mm" }} crossOrigin="anonymous" />
+              </div>
+              <div style={{ fontSize:"7pt", color:"#999" }}>bilimevi.com</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
