@@ -168,10 +168,13 @@ export default function KayitGuncelle() {
       .finally(() => setOgrencilerLoading(false));
   }, [user?.name]);
 
-  function showToast(msg, type = "success") {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  }
+ function showToast(msg, type = "success") {
+  setToast({ msg, type });
+  // 3 saniye sonra toast'u tamamen null yapıyoruz
+  setTimeout(() => {
+    setToast(null);
+  }, 3000);
+}
 
   async function sorgula(tcParam) {
     // TC'yi her ihtimale karşı temizle ve string'e zorla
@@ -416,7 +419,26 @@ export default function KayitGuncelle() {
 
 // Stil Nesnesi (Daha derli toplu ve responsive dostu)
 const s = {
-  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative" },
+ root: { 
+    minHeight: "100vh", 
+    background: "#f8fafc", 
+    fontFamily: "'Sora', sans-serif", 
+    position: "relative",
+    overflowX: "hidden" // Sayfa kaymalarını engellemek için
+  },
+  modalOverlay: { 
+    position: "fixed", 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0, 
+    background: "rgba(15,23,42,0.6)", 
+    display: "flex", 
+    alignItems: "center", 
+    justifyContent: "center", 
+    zIndex: 9999, // En üstte olduğundan emin olalım
+    backdropFilter: "blur(4px)"
+  },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px" },
   bgGlow: { position: "fixed", top: "-10%", right: "-5%", width: "500px", height: "500px", background: "radial-gradient(circle, #cffafe44 0%, transparent 70%)" },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 100 },
@@ -450,7 +472,6 @@ const s = {
   submitRow: { marginTop: "20px", display: "flex", justifyContent: "flex-end" },
   submitBtn: { padding: "15px 30px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer" },
   spinner: { display: "inline-block", width: "15px", height: "15px", border: "2px solid #fff3", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
-  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
   modal: { background: "#fff", padding: "30px", borderRadius: "20px", textAlign: "center", maxWidth: "400px", width: "90%" },
   modalBtn: { width: "100%", padding: "12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "10px", fontWeight: "600", cursor: "pointer" },
   taksitHeader: { display: "flex", padding: "5px 25px", color: "#94a3b8", fontSize: "11px", fontWeight: "700" },
