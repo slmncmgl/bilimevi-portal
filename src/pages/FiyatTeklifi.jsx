@@ -51,7 +51,8 @@ async function fetchNav() {
     const langs = langRaw.split(",").map(l => l.trim()).filter(Boolean);
     langs.forEach(l => {
       languages.add(l);
-      if (!countries[l]) countries[l] = new Set(); countries[l].add(countryTRName);
+      if (!countries[l]) countries[l] = new Set();
+      countries[l].add(countryTRName);
       if (!citiesByLang[l]) citiesByLang[l] = {};
       if (!citiesByLang[l][countryTRName]) citiesByLang[l][countryTRName] = new Set();
       citiesByLang[l][countryTRName].add(city);
@@ -76,6 +77,10 @@ async function fetchNav() {
 }
 
 async function fetchCityData(sheetId, city) {
+  // BROWSER CACHE KONTROLÜ (Geri tuşu için en güvenli liman)
+  const cacheKey = `${sheetId}_${city}`;
+  if (window._SCHOOL_CACHE && window._SCHOOL_CACHE[cacheKey]) return window._SCHOOL_CACHE[cacheKey];
+
   try {
     const [courseRows, accRows, feeRows] = await Promise.all([
       fetchCSV(sheetId, "courses"), fetchCSV(sheetId, "accommodation"), fetchCSV(sheetId, "fees")
@@ -87,7 +92,11 @@ async function fetchCityData(sheetId, city) {
     });
     const acc = accRows.filter(r => r.city === city).map(r => ({ name:r.place_name, room:r.room_type, board:r.board_type, price:parseFloat(r.price_per_week)||0, currency:r.currency }));
     const fees = feeRows.filter(r => r.city === city).map(r => ({ name:r.fee_name, amount:parseFloat(r.amount)||0, currency:r.currency, calc_type:r.calculation_type, tier_min:r.tier_min_weeks?parseInt(r.tier_min_weeks):null, tier_max:r.tier_max_weeks?parseInt(r.tier_max_weeks):null }));
-    return { courses: Object.values(courseMap), acc, fees };
+    
+    const result = { courses: Object.values(courseMap), acc, fees };
+    if (!window._SCHOOL_CACHE) window._SCHOOL_CACHE = {};
+    window._SCHOOL_CACHE[cacheKey] = result;
+    return result;
   } catch (err) { return { courses: [], acc: [], fees: [] }; }
 }
 
@@ -138,20 +147,26 @@ export default function FiyatTeklifi() {
     fetchNav().then(setNav);
   }, []);
 
-  // VERİ ÇEKME - KRİTİK GÜNCELLEME (RE-RENDER VE GERİ TUŞU KORUMALI)
+  // VERİ ÇEKME - WINDOW CACHE VE RE-RENDER KORUMALI
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline) return;
-    // Eğer o şehre ait veri zaten çekilmişse (geri tuşu durumu) tekrar API'ye gitme
-    if (cur.cityData && cur.cityData.courses.length > 0) return;
-
     const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
-    if (sheetId) {
-      setCur(p => ({ ...p, cityLoading:true }));
-      fetchCityData(sheetId, cur.city).then(data => {
-        setCur(p => ({ ...p, cityData:data, cityLoading:false }));
-      });
+    if (!sheetId) return;
+
+    // Eğer cur içinde cityData varsa veya window cache'de varsa API'ye gitme
+    const cacheKey = `${sheetId}_${cur.city}`;
+    if (cur.cityData || (window._SCHOOL_CACHE && window._SCHOOL_CACHE[cacheKey])) {
+      if (!cur.cityData) {
+        setCur(p => ({ ...p, cityData: window._SCHOOL_CACHE[cacheKey] }));
+      }
+      return;
     }
-  }, [cur.city, cur.brand]);
+
+    setCur(p => ({ ...p, cityLoading:true }));
+    fetchCityData(sheetId, cur.city).then(data => {
+      setCur(p => ({ ...p, cityData:data, cityLoading:false }));
+    });
+  }, [cur.city, cur.brand, nav.schoolSheets]);
 
   const isCourseValid = (course, weeks) => {
     if (!course || !course.tiers) return false;
@@ -161,10 +176,7 @@ export default function FiyatTeklifi() {
   const handleDateChange = (val) => {
     if(!val) return;
     let d = new Date(val);
-    if (d.getDay() !== 1) {
-      const diff = (d.getDay() === 0 ? 1 : 8 - d.getDay());
-      d.setDate(d.getDate() + diff);
-    }
+    if (d.getDay() !== 1) d.setDate(d.getDate() + (d.getDay() === 0 ? 1 : 8 - d.getDay()));
     setCur(p => ({ ...p, startDate: d.toISOString().split('T')[0] }));
   };
 
@@ -186,6 +198,7 @@ export default function FiyatTeklifi() {
     window.html2pdf().set({ margin:10, filename:`${student.name}.pdf`, html2canvas:{scale:2}, jsPDF:{format:'a4'} }).from(el).save().then(() => {
       el.style.display="none";
       setDestinations([]); setCur(emptyDest()); setStep(0);
+      if (window._SCHOOL_CACHE) window._SCHOOL_CACHE = {}; // Cache temizle
     });
   };
 
@@ -201,6 +214,9 @@ export default function FiyatTeklifi() {
     !!cur.acc || cur.isOnline,
     true
   ][step];
+
+  const courses = cur.cityData?.courses || [];
+  const accs = cur.cityData?.acc || [];
 
   return (
     <div style={S.root}>
@@ -244,7 +260,7 @@ export default function FiyatTeklifi() {
               <div style={S.fld}><label style={S.lbl}>Başlangıç (Pazartesi)</label><input type="date" style={S.fti} min={new Date().toISOString().split('T')[0]} value={cur.startDate} onChange={e=>handleDateChange(e.target.value)}/></div>
               <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" value={cur.weeks} onChange={e=>setCur(p=>({...p, weeks:parseInt(e.target.value)||1}))}/></div>
             </div>
-            <div style={S.g3}>{(cur.isOnline ? EC_LIVE : (cur.cityData?.courses || [])).map((c, idx) => {
+            <div style={S.g3}>{(cur.isOnline ? EC_LIVE : courses).map((c, idx) => {
               const valid = isCourseValid(c, cur.weeks);
               return (<div key={idx} style={cur.course?.name===c.name?S.ftcSelected:(valid?S.ftc:S.ftcDisabled)} onClick={()=>valid && setCur(p=>({...p, course:c}))}><strong>{c.name}</strong><br/><small>{c.hours} saat/h</small></div>);
             })}</div>
@@ -252,7 +268,7 @@ export default function FiyatTeklifi() {
 
           {step === 3 && <div style={{animation:"fadeUp 0.3s"}}>
             <h2 style={S.ttl}>Konaklama - {cur.brand} {cur.city}</h2>
-            <div style={{display:"grid", gap:10}}>{(cur.cityData?.acc || []).length > 0 ? (cur.cityData.acc).map((a, idx)=><div key={idx} style={cur.acc?.name===a.name && cur.acc?.room===a.room?S.ftacSelected:S.ftac} onClick={()=>setCur(p=>({...p, acc:a}))}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board}</small></div><strong>{a.currency} {a.price}/h</strong></div>) : <p>{cur.cityLoading ? "Yükleniyor..." : "Konaklama seçeneği bulunamadı."}</p>}</div>
+            <div style={{display:"grid", gap:10}}>{accs.length > 0 ? accs.map((a, idx)=><div key={idx} style={cur.acc?.name===a.name && cur.acc?.room===a.room?S.ftacSelected:S.ftac} onClick={()=>setCur(p=>({...p, acc:a}))}><div><strong>{a.name}</strong><br/><small>{a.room} · {a.board}</small></div><strong>{a.currency} {a.price}/h</strong></div>) : <p>{cur.cityLoading ? "Yükleniyor..." : "Konaklama seçeneği bulunamadı."}</p>}</div>
           </div>}
 
           {step === 4 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Teklif Özeti</h2>{destinations.map((d,i)=><div key={i} style={S.summaryCard}><strong>{d.brand} {d.city}</strong><br/>{d.weeks} Hafta · {d.course?.name}</div>)}</div>}
