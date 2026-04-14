@@ -9,30 +9,26 @@ const ORANGE_BORDER = "#fed7aa";
 
 // Navigasyon verisi sheet'ten dinamik yuklenecek
 // courses, accommodation, fees hard-code kalir (kompleks yapilar)
-const SHEET_ID = "1PMuw11fAUcnX1iz56OOH2HUBe1IUZUdP12VkX9-nt8Q";
+const MASTER_INDEX_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
 
 async function fetchNav() {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=courses`;
+  const url = `https://docs.google.com/spreadsheets/d/${MASTER_INDEX_ID}/gviz/tq?tqx=out:csv&sheet=master_index`;
   const res = await fetch(url);
   const csv = await res.text();
   const lines = csv.trim().split("\n");
   const headers = lines[0].split(",").map(h => h.replace(/"/g,"").trim());
-  const cityIdx = headers.indexOf("city");
+
+  const cityIdx    = headers.indexOf("city");
   const countryIdx = headers.indexOf("country");
-  const schoolIdx = headers.indexOf("school");
-  const langIdx = headers.indexOf("language");
+  const brandIdx   = headers.indexOf("school_brand");
+  const langIdx    = headers.indexOf("language");
+  const statusIdx  = headers.indexOf("parse_status");
 
   const languages = new Set();
-  const countries = {};   // lang -> [country]
-  const cities = {};      // country -> [city]
-  const brands = {};      // city -> brand
+  const countries = {};
+  const cities    = {};
+  const brands    = {};
 
-  // Ulke-dil eslesmesi icin yardimci map
-  const countryLangMap = {
-    "UK": "İngiltere", "Ireland": "İrlanda", "Malta": "Malta",
-    "South Africa": "Güney Afrika", "Canada": "Kanada",
-    "USA": "ABD", "UAE": "BAE"
-  };
   const countryTR = {
     "UK": "İngiltere", "Ireland": "İrlanda", "Malta": "Malta",
     "South Africa": "Güney Afrika", "Canada": "Kanada",
@@ -42,34 +38,35 @@ async function fetchNav() {
   lines.slice(1).forEach(line => {
     const cols = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || [];
     const clean = i => (cols[i]||"").replace(/"/g,"").trim();
-    const city = clean(cityIdx);
+
+    const city      = clean(cityIdx);
     const countryEn = clean(countryIdx);
-    const brand = clean(schoolIdx);
-    const lang = clean(langIdx) || "İngilizce";
+    const brand     = clean(brandIdx);
+    const langRaw   = clean(langIdx) || "İngilizce";
+    const status    = clean(statusIdx);
     const countryTRName = countryTR[countryEn] || countryEn;
 
-    if (!city || !countryEn) return;
+    // Sadece approved sehirleri goster
+    if (!city || !countryEn || status !== "approved") return;
 
-    // Dil
-    const langs = lang.includes("/") ? lang.split("/").map(l=>l.trim()) : [lang];
+    // Virgülle ayrılmış diller: "İngilizce,Fransızca"
+    const langs = langRaw.split(",").map(l => l.trim()).filter(Boolean);
     langs.forEach(l => {
       languages.add(l);
       if (!countries[l]) countries[l] = new Set();
       countries[l].add(countryTRName);
     });
 
-    // Sehir
     if (!cities[countryTRName]) cities[countryTRName] = new Set();
     cities[countryTRName].add(city);
 
-    // Marka
     brands[city] = brand;
   });
 
   return {
     languages: [...languages].sort(),
     countries: Object.fromEntries(Object.entries(countries).map(([k,v])=>[k,[...v]])),
-    cities: Object.fromEntries(Object.entries(cities).map(([k,v])=>[k,[...v].sort()])),
+    cities:    Object.fromEntries(Object.entries(cities).map(([k,v])=>[k,[...v].sort()])),
     brands,
   };
 }
