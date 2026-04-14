@@ -140,8 +140,7 @@ export default function FiyatTeklifi() {
 
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline) return;
-    // HAFIZA KORUMASI: cityData zaten varsa tekrar fetch etme
-    if (cur.cityData) return;
+    if (cur.cityData) return; // Hafıza koruması
 
     const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
     if (sheetId) {
@@ -172,6 +171,10 @@ export default function FiyatTeklifi() {
       setStep(4); 
     }
     else setStep(s => s + 1);
+  };
+
+  const back = () => {
+    setStep(s => s - 1);
   };
 
   const generatePDF = () => {
@@ -230,12 +233,12 @@ export default function FiyatTeklifi() {
             <h2 style={S.ttl}>Destinasyon Seçimi</h2>
             <p style={S.slbl}>DİL SEÇİMİ</p>
             <div style={S.g3}>
-              {nav.languages.map(l=><div key={l} style={cur.lang===l && !cur.isOnline?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, isOnline:false, lang:l, country:"", city:"", brand:"", course:null, acc:null, cityData:null})}>{l}</div>)}
-              <div style={cur.isOnline?S.ftcOnlineSelected:S.ftcOnline} onClick={()=>setCur({...cur, isOnline:true, brand:"EC", city:"Online", lang:"İngilizce", country:"", cityData:null, course:null, acc:null})}>🌐 Online Kurs</div>
+              {nav.languages.map(l=><div key={l} style={cur.lang===l && !cur.isOnline?S.ftcSelected:S.ftc} onClick={()=>{ if(cur.lang !== l) setCur({...cur, isOnline:false, lang:l, country:"", city:"", brand:"", course:null, acc:null, cityData:null}); }}>{l}</div>)}
+              <div style={cur.isOnline?S.ftcOnlineSelected:S.ftcOnline} onClick={()=>{ if(!cur.isOnline) setCur({...cur, isOnline:true, brand:"EC", city:"Online", lang:"İngilizce", country:"", cityData:null, course:null, acc:null}); }}>🌐 Online Kurs</div>
             </div>
-            {!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c=><div key={c} style={cur.country===c?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, country:c, city:"", brand:"", course:null, acc:null, cityData:null})}>{c}</div>)}</div></>}
-            {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c=><div key={c} style={cur.city===c?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, city:c, brand:"", course:null, acc:null, cityData:null})}>{c}</div>)}</div></>}
-            {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b=><div key={b} style={cur.brand===b?S.ftcSelected:S.ftc} onClick={()=>setCur({...cur, brand:b, course:null, acc:null, cityData:null})}>{b}</div>)}</div></>}
+            {!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c=><div key={c} style={cur.country===c?S.ftcSelected:S.ftc} onClick={()=>{ if(cur.country !== c) setCur({...cur, country:c, city:"", brand:"", course:null, acc:null, cityData:null}); }}>{c}</div>)}</div></>}
+            {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c=><div key={c} style={cur.city===c?S.ftcSelected:S.ftc} onClick={()=>{ if(cur.city !== c) setCur({...cur, city:c, brand:"", course:null, acc:null, cityData:null}); }}>{c}</div>)}</div></>}
+            {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b=><div key={b} style={cur.brand===b?S.ftcSelected:S.ftc} onClick={()=>{ if(cur.brand !== b) setCur({...cur, brand:b, course:null, acc:null, cityData:null}); }}>{b}</div>)}</div></>}
           </div>}
 
           {step === 2 && <div style={{animation:"fadeUp 0.3s"}}>
@@ -258,10 +261,10 @@ export default function FiyatTeklifi() {
             }
           </div>}
 
-          {step === 4 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Özet</h2>{destinations.map((d,i)=><div key={i} style={S.summaryCard}><strong>{d.brand} {d.city}</strong><br/>{d.weeks} Hafta · {d.course?.name}</div>)}</div>}
+          {step === 4 && <div style={{animation:"fadeUp 0.3s"}}><h2 style={S.ttl}>Teklif Özeti</h2>{destinations.map((d,i)=><div key={i} style={S.summaryCard}><strong>{d.brand} {d.city}</strong><br/>{d.weeks} Hafta · {d.course?.name}</div>)}</div>}
 
           <div style={S.navBox}>
-            {step > 0 && <button onClick={()=>setStep(s=>s-1)} style={S.btnBack}>← Geri</button>}
+            {step > 0 && <button onClick={back} style={S.btnBack}>← Geri</button>}
             <button style={S.btnNext} disabled={!canNext} onClick={next}>{step === 4 ? "Bitti" : "İleri →"}</button>
           </div>
         </main>
@@ -269,12 +272,12 @@ export default function FiyatTeklifi() {
         <aside style={S.side}>
           <h3 style={S.sideTtl}>ÖZET</h3>
           <div style={S.liveBox}>
-            <div style={{fontWeight:700, color:ORANGE, marginBottom:5}}>Anlık Seçim:</div>
+            <div style={{fontWeight:700, color:ORANGE, marginBottom:5}}>Şu anki Seçim:</div>
             {cur.lang && <div>📍 {cur.lang} {cur.country && `/ ${cur.country}`} {cur.city && `/ ${cur.city}`}</div>}
             {cur.brand && <div>🏫 {cur.brand}</div>}
             {cur.course && <div style={!isCourseValid(cur.course, cur.weeks) ? {color:"#ef4444"} : {}}>📚 {cur.course.name} ({cur.weeks}h)</div>}
             {cur.acc && <div>🏠 {cur.acc.name}</div>}
-            {currentTotal > 0 && isCourseValid(cur.course, cur.weeks) && <div style={S.liveTotal}>Anlık: {fmt(currentTotal, cur.course?.currency || cur.cityData?.fees?.[0]?.currency || "GBP")}</div>}
+            {currentTotal > 0 && isCourseValid(cur.course, cur.weeks) && <div style={S.liveTotal}>Anlık: {fmt(currentTotal, cur.course?.currency || "GBP")}</div>}
           </div>
           <p style={{fontWeight:600, fontSize:12, marginBottom:5}}>Eklenenler ({destinations.length})</p>
           {destinations.map((d,i)=><div key={i} style={S.sideItem}>{d.brand} {d.city}</div>)}
