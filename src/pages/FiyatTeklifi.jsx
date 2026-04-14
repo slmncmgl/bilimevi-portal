@@ -63,10 +63,35 @@ async function fetchNav() {
     brands[city] = brand;
   });
 
+  // cities: lang -> country -> [city] seklinde tut
+  const citiesByLang = {};
+  lines.slice(1).forEach(line => {
+    const cols = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || [];
+    const clean = i => (cols[i]||"").replace(/"/g,"").trim();
+    const city      = clean(cityIdx);
+    const countryEn = clean(countryIdx);
+    const langRaw   = clean(langIdx) || "İngilizce";
+    const status    = clean(statusIdx);
+    const countryTRName = countryTR[countryEn] || countryEn;
+    if (!city || !countryEn || status !== "approved") return;
+    const langs = langRaw.split(",").map(l => l.trim()).filter(Boolean);
+    langs.forEach(l => {
+      if (!citiesByLang[l]) citiesByLang[l] = {};
+      if (!citiesByLang[l][countryTRName]) citiesByLang[l][countryTRName] = new Set();
+      citiesByLang[l][countryTRName].add(city);
+    });
+  });
+
   return {
     languages: [...languages].sort(),
     countries: Object.fromEntries(Object.entries(countries).map(([k,v])=>[k,[...v]])),
     cities:    Object.fromEntries(Object.entries(cities).map(([k,v])=>[k,[...v].sort()])),
+    citiesByLang: Object.fromEntries(
+      Object.entries(citiesByLang).map(([lang, cMap]) => [
+        lang,
+        Object.fromEntries(Object.entries(cMap).map(([c,s])=>[c,[...s].sort()]))
+      ])
+    ),
     brands,
   };
 }
@@ -85,6 +110,20 @@ const DB = {
     "Kanada":    ["Montreal","Toronto","Toronto 30+","Vancouver","Vancouver 30+"],
     "ABD":       ["Boston","New York","New York 30+","San Francisco","Los Angeles"],
     "BAE":       ["Dubai"],
+  },
+  citiesByLang: {
+    "İngilizce": {
+      "İngiltere": ["London","Brighton","Cambridge","Manchester","Bristol","London 30+","Brighton 30+"],
+      "İrlanda":   ["Dublin","Dublin 30+"],
+      "Malta":     ["Malta","Malta 30+"],
+      "Güney Afrika": ["Cape Town","Cape Town 30+"],
+      "Kanada":    ["Montreal","Toronto","Toronto 30+","Vancouver","Vancouver 30+"],
+      "ABD":       ["Boston","New York","New York 30+","San Francisco","Los Angeles"],
+      "BAE":       ["Dubai"],
+    },
+    "Fransızca": {
+      "Kanada": ["Montreal"],
+    },
   },
   brands: {
     "London":"EC","Brighton":"EC","Cambridge":"EC","Manchester":"EC","Bristol":"EC",
@@ -218,6 +257,7 @@ export default function FiyatTeklifi() {
     languages: DB.languages,
     countries: DB.countries,
     cities: DB.cities,
+    citiesByLang: null,
     brands: DB.brands,
   });
   const [navLoading, setNavLoading] = useState(true);
@@ -679,7 +719,7 @@ export default function FiyatTeklifi() {
             {cur.country && <>
               <p style={S.slbl}>Şehir</p>
               <div style={S.g3}>
-                {(nav.cities[cur.country]||[]).map(c => (
+                {((nav.citiesByLang?.[cur.lang]?.[cur.country]) || nav.cities[cur.country] || []).map(c => (
                   <div key={c} className={`ftc${cur.city===c?" s":""}`}
                     onClick={()=>setCur(p=>({...p,city:c,brand:nav.brands[c]||"",course:null,acc:null}))}>{c}</div>
                 ))}
