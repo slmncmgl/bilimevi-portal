@@ -31,9 +31,7 @@ const HIDDEN_FIELDS = [
 ];
 
 const TAB_FIELDS = {
-  "Öğrenci": [
-    "TC Kimlik No", "Öğrenci Adı Soyadı", "Doğum Tarihi", "Adres",
-  ],
+  "Öğrenci": ["TC Kimlik No", "Öğrenci Adı Soyadı", "Doğum Tarihi", "Adres"],
   "Ebeveyn": [
     "Anne Adı Soyadı", "Anne TC", "Anne Telefon", "Anne Mail",
     "Baba Adı Soyadı", "Baba TC", "Baba Telefon", "Baba Mail",
@@ -45,9 +43,7 @@ const TAB_FIELDS = {
     "Program Başlangıç Tarihi", "Program Bitiş Tarihi",
     "Haftalık Ders Saati", "Kurs Süresi",
   ],
-  "Konaklama": [
-    "Konaklama Tipi", "Oda Tipi", "Öğle Yemeği", "Vize Harcı Dahil Mi?",
-  ],
+  "Konaklama": ["Konaklama Tipi", "Oda Tipi", "Öğle Yemeği", "Vize Harcı Dahil Mi?"],
   "Taksit": [
     "Depozito Miktarı", "Para Birimi", "Program Ücreti", "Konaklama Ücreti",
     "Toplam Program Ücreti", "Taksit Sayısı",
@@ -58,6 +54,11 @@ const TAB_FIELDS = {
     "Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi",
   ],
 };
+
+const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı"];
+const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti"];
+const TAKSIT_TUTAR = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Tutarı`);
+const TAKSIT_DONEM = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Dönemi`);
 
 function Toast({ toast }) {
   if (!toast) return null;
@@ -78,11 +79,6 @@ function Toast({ toast }) {
   );
 }
 
-const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı"];
-const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti"];
-const TAKSIT_TUTAR = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Tutarı`);
-const TAKSIT_DONEM = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Dönemi`);
-
 function FieldInput({ label, value, onChange }) {
   const isDropdown = !!DROPDOWN_OPTIONS[label];
   const isReadonly = READONLY_FIELDS.includes(label);
@@ -92,7 +88,6 @@ function FieldInput({ label, value, onChange }) {
   const isEmail = label.includes("Mail");
   const isTextarea = label === "Adres";
 
-  // Dropdown mismatch kontrolü
   const hasMismatch = isDropdown && !isReadonly && value && !DROPDOWN_OPTIONS[label].includes(value);
 
   const baseStyle = {
@@ -171,7 +166,7 @@ export default function KayitGuncelle() {
       .then(json => { if (json.found && json.list) setOgrencilerim(json.list); })
       .catch(() => {})
       .finally(() => setOgrencilerLoading(false));
-  }, []);
+  }, [user?.name]);
 
   function showToast(msg, type = "success") {
     setToast({ msg, type });
@@ -179,14 +174,21 @@ export default function KayitGuncelle() {
   }
 
   async function sorgula(tcParam) {
-    const sorguTC = tcParam || tc;
-    if (!sorguTC || String(sorguTC).length !== 11) return showToast("Geçerli bir TC Kimlik No girin (11 hane)", "error");
-    if (tcParam) setTc(String(tcParam));
+    // TC'yi her ihtimale karşı temizle ve string'e zorla
+    const targetTC = String(tcParam || tc).trim().replace(/\D/g, "");
+    
+    if (!targetTC || targetTC.length !== 11) {
+      return showToast("Geçerli bir TC Kimlik No girin (11 hane)", "error");
+    }
+
+    if (tcParam) setTc(targetTC);
+    
     setLoading(true);
     try {
-      const res = await fetch(`${FETCH_URL}?tc=${sorguTC}`);
+      const res = await fetch(`${FETCH_URL}?tc=${targetTC}`);
       const json = await res.json();
       if (!json.found) return showToast("Bu TC ile kayıt bulunamadı", "error");
+      
       setData(json.data);
       setActiveTab("Öğrenci");
     } catch {
@@ -201,6 +203,7 @@ export default function KayitGuncelle() {
   }
 
   async function gonder() {
+    if (!data) return;
     setSubmitting(true);
     try {
       const LABEL_MAP = {
@@ -249,13 +252,8 @@ export default function KayitGuncelle() {
     }
   }
 
-  const tabFields = TAB_FIELDS[activeTab] || [];
-
-  // Taksit sekmesi için özel render (çiftli grid)
   const isTaksitTab = activeTab === "Taksit";
-  const taksitPairs = Array.from({ length: 11 }, (_, i) => [
-    `${i + 1}. Taksit Dönemi`, `${i + 1}. Taksit Tutarı`
-  ]);
+  const taksitPairs = Array.from({ length: 11 }, (_, i) => [`${i + 1}. Taksit Dönemi`, `${i + 1}. Taksit Tutarı`]);
   const taksitTopFields = ["Depozito Miktarı", "Para Birimi", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Taksit Sayısı"];
 
   return (
@@ -265,9 +263,7 @@ export default function KayitGuncelle() {
 
       <header style={s.header}>
         <div style={s.headerInner}>
-          <button onClick={() => navigate("/dashboard")} style={s.backBtn}
-            onMouseEnter={e => e.currentTarget.style.borderColor = "#0891b2"}
-            onMouseLeave={e => e.currentTarget.style.borderColor = "#e2e8f0"}>
+          <button onClick={() => navigate("/dashboard")} style={s.backBtn}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
               <polyline points="15 18 9 12 15 6"/>
             </svg>
@@ -276,13 +272,12 @@ export default function KayitGuncelle() {
           <div style={s.headerTitle}>
             <div style={s.headerIcon}>
               <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="1.5" width="20" height="20">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
               </svg>
             </div>
             <div>
               <div style={s.headerTitleText}>Kayıt Güncelle</div>
-              <div style={s.headerSub}>Öğrenci kaydını düzelt ve sözleşmeyi yeniden gönder</div>
+              <div style={s.headerSub}>Bilimevi CRM Portalı</div>
             </div>
           </div>
           <div style={s.headerUser}>
@@ -293,84 +288,45 @@ export default function KayitGuncelle() {
       </header>
 
       <main style={s.main}>
-        {/* TC Arama */}
+        {/* Arama Alanı */}
         <div style={s.searchCard}>
-          <div style={s.searchLabel}>TC Kimlik No ile Öğrenci Sorgula</div>
+          <div style={s.searchLabel}>TC Kimlik No ile Sorgula</div>
           <div style={s.searchRow}>
             <input
               type="text" maxLength={11} value={tc}
               onChange={e => setTc(e.target.value.replace(/\D/g, ""))}
               onKeyDown={e => e.key === "Enter" && sorgula()}
-              placeholder="11 haneli TC Kimlik No"
+              placeholder="11 haneli TC No"
               style={s.searchInput}
-              onFocus={e => e.target.style.borderColor = "#0891b2"}
-              onBlur={e => e.target.style.borderColor = "#e2e8f0"}
             />
-            <button onClick={sorgula} disabled={loading} style={{
-              ...s.searchBtn,
-              background: loading ? "#64748b" : "#0891b2",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "#0e7490"; }}
-              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = "#0891b2"; }}>
-              {loading ? (
-                <span style={s.spinner} />
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                </svg>
-              )}
-              {loading ? "Sorgulanıyor..." : "Sorgula"}
+            <button onClick={() => sorgula()} disabled={loading} style={s.searchBtn}>
+              {loading ? <span style={s.spinner} /> : "Sorgula"}
             </button>
           </div>
         </div>
 
-        {/* Öğrencilerim Tablosu */}
-        {(ogrencilerLoading || ogrencilerim.length > 0) && !data && (
-          <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "24px 28px", marginBottom: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", animation: "fadeUp 0.4s ease-out" }}>
-            <div style={{ fontSize: "13px", fontWeight: "600", color: "#475569", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" width="16" height="16">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        {/* Liste Görünümü (Sadece Data yokken) */}
+        {!data && (ogrencilerLoading || ogrencilerim.length > 0) && (
+          <div style={s.listCard}>
+            <div style={s.listHeader}>
+               <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" width="16" height="16">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
               </svg>
-              Öğrencilerim
-              {ogrencilerim.length > 0 && <span style={{ background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "20px", padding: "1px 8px", fontSize: "11px", fontWeight: "700" }}>{ogrencilerim.length}</span>}
+              Öğrencilerim ({ogrencilerim.length})
             </div>
-            {ogrencilerLoading ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#94a3b8", fontSize: "13px" }}>
-                <span style={s.spinner2} /> Öğrenciler yükleniyor...
-              </div>
-            ) : (
+            {ogrencilerLoading ? <div style={s.loadingText}>Yükleniyor...</div> : (
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                <table style={s.table}>
                   <thead>
-                    <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                      <th style={{ textAlign: "left", padding: "8px 12px", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ad Soyad</th>
-                      <th style={{ textAlign: "left", padding: "8px 12px", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>TC</th>
-                      <th style={{ textAlign: "left", padding: "8px 12px", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>Grup</th>
-                      <th style={{ padding: "8px 12px" }}></th>
-                    </tr>
+                    <tr><th>Ad Soyad</th><th>TC</th><th>İşlem</th></tr>
                   </thead>
                   <tbody>
                     {ogrencilerim.map((ogr, i) => (
-                      <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
-                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                        <td style={{ padding: "10px 12px", fontWeight: "600", color: "#0f172a" }}>{ogr["Öğrenci Adı Soyadı"]}</td>
-                        <td style={{ padding: "10px 12px", color: "#64748b", fontFamily: "monospace" }}>{ogr["TC Kimlik No"]}</td>
-                        <td style={{ padding: "10px 12px", color: "#64748b", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ogr["Öğrenci Hangi Gruba Kayıtlı"]}</td>
-                        <td style={{ padding: "10px 12px", textAlign: "right" }}>
-                          <button
-                            onClick={() => sorgula(String(ogr["TC Kimlik No"]))}
-                            style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'Sora', sans-serif", transition: "all 0.15s" }}
-                            onMouseEnter={e => { e.currentTarget.style.background = "#0891b2"; e.currentTarget.style.color = "#fff"; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = "#ecfeff"; e.currentTarget.style.color = "#0891b2"; }}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                            </svg>
-                            Düzenle
-                          </button>
+                      <tr key={i}>
+                        <td style={{fontWeight: "600"}}>{ogr["Öğrenci Adı Soyadı"]}</td>
+                        <td style={{color: "#64748b"}}>{ogr["TC Kimlik No"]}</td>
+                        <td>
+                          <button onClick={() => sorgula(ogr["TC Kimlik No"])} style={s.editBtn}>Düzenle</button>
                         </td>
                       </tr>
                     ))}
@@ -381,24 +337,13 @@ export default function KayitGuncelle() {
           </div>
         )}
 
-        {/* Öğrenci Bilgi Kartı */}
+        {/* Form Alanı */}
         {data && (
           <>
             <div style={s.infoCard}>
-              <div style={s.infoIcon}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" width="16" height="16">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
-                </svg>
-              </div>
-              <div style={s.infoText}>
-                <strong>{data["Öğrenci Adı Soyadı"]}</strong> adlı öğrencinin kaydı görüntüleniyor.
-                {" "}Danışman: <strong>{data["Danışman Adı"]}</strong> · Şube: <strong>{data["Şube Adı"]}</strong>
-              </div>
+              <strong>{data["Öğrenci Adı Soyadı"]}</strong> ({data["TC Kimlik No"]}) düzenleniyor.
             </div>
 
-            {/* Sekmeler */}
             <div style={s.tabBar}>
               {TABS.map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
@@ -406,13 +351,10 @@ export default function KayitGuncelle() {
                   borderBottom: activeTab === tab ? "2px solid #0891b2" : "2px solid transparent",
                   color: activeTab === tab ? "#0891b2" : "#64748b",
                   fontWeight: activeTab === tab ? "700" : "500",
-                }}>
-                  {tab}
-                </button>
+                }}>{tab}</button>
               ))}
             </div>
 
-            {/* Form */}
             <div style={s.formCard}>
               {isTaksitTab ? (
                 <>
@@ -425,31 +367,21 @@ export default function KayitGuncelle() {
                     ))}
                   </div>
                   <div style={{ marginTop: "20px" }}>
-                    <div style={s.taksitHeader}>
-                      <span style={{ flex: 1 }}>Dönem</span>
-                      <span style={{ flex: 1 }}>Tutar</span>
-                    </div>
+                    <div style={s.taksitHeader}><span>Dönem</span><span>Tutar</span></div>
                     {taksitPairs.map(([donem, tutar], i) => (
                       <div key={i} style={s.taksitRow}>
                         <div style={s.taksitNum}>{i + 1}.</div>
-                        <div style={{ flex: 1 }}>
-                          <FieldInput label={donem} value={data[donem]} onChange={val => updateField(donem, val)} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <FieldInput label={tutar} value={data[tutar]} onChange={val => updateField(tutar, val)} />
-                        </div>
+                        <div style={{ flex: 1 }}><FieldInput label={donem} value={data[donem]} onChange={val => updateField(donem, val)} /></div>
+                        <div style={{ flex: 1 }}><FieldInput label={tutar} value={data[tutar]} onChange={val => updateField(tutar, val)} /></div>
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
                 <div style={s.fieldGrid}>
-                  {tabFields.map(key => (
+                  {TAB_FIELDS[activeTab]?.map(key => (
                     <div key={key} style={key === "Adres" ? { ...s.fieldGroup, gridColumn: "1 / -1" } : s.fieldGroup}>
-                      <label style={s.fieldLabel}>
-                        {key}
-                        {READONLY_FIELDS.includes(key) && <span style={s.readonlyBadge}>salt okunur</span>}
-                      </label>
+                      <label style={s.fieldLabel}>{key} {READONLY_FIELDS.includes(key) && <span style={s.readonlyBadge}>Kilitli</span>}</label>
                       <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} />
                     </div>
                   ))}
@@ -457,21 +389,9 @@ export default function KayitGuncelle() {
               )}
             </div>
 
-            {/* Submit */}
             <div style={s.submitRow}>
-              <button onClick={gonder} disabled={submitting} style={{
-                ...s.submitBtn,
-                background: submitting ? "#64748b" : "linear-gradient(135deg, #0891b2, #0e7490)",
-                cursor: submitting ? "not-allowed" : "pointer",
-              }}
-                onMouseEnter={e => { if (!submitting) e.currentTarget.style.opacity = "0.9"; }}
-                onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}>
-                {submitting ? <span style={s.spinner} /> : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-                    <path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/>
-                  </svg>
-                )}
-                {submitting ? "Gönderiliyor..." : "Düzelt ve Sözleşmeyi Tekrar Gönder"}
+              <button onClick={gonder} disabled={submitting} style={s.submitBtn}>
+                {submitting ? <span style={s.spinner} /> : "Güncelle ve Sözleşme Gönder"}
               </button>
             </div>
           </>
@@ -480,84 +400,60 @@ export default function KayitGuncelle() {
 
       <Toast toast={toast} />
 
-      {/* Başarı Modal */}
       {successModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#fff", borderRadius: "24px", padding: "40px 36px", maxWidth: "380px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", textAlign: "center", animation: "fadeUp 0.3s ease-out" }}>
-            <div style={{ fontSize: "48px", marginBottom: "16px" }}>🎉</div>
-            <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#0e7490", marginBottom: "10px", fontFamily: "'Sora', sans-serif" }}>
-              Güncellenmiş Sözleşme Öğrenciye / Veliye Tekrar Gönderildi!
-            </h3>
-            <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "28px", fontFamily: "'Sora', sans-serif", lineHeight: 1.6 }}>
-              Sözleşme yeniden oluşturuldu ve iletildi.
-            </p>
-            <button
-              onClick={() => { setSuccessModal(false); setData(null); setTc(""); }}
-              style={{ width: "100%", padding: "12px", background: "linear-gradient(135deg, #0891b2, #0e7490)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "700", cursor: "pointer", fontFamily: "'Sora', sans-serif" }}
-              onMouseEnter={e => e.currentTarget.style.opacity = "0.9"}
-              onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-              Tamam
-            </button>
+        <div style={s.modalOverlay}>
+          <div style={s.modal}>
+            <div style={{ fontSize: "40px" }}>✅</div>
+            <h3 style={{ margin: "10px 0" }}>Başarıyla Güncellendi</h3>
+            <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "20px" }}>Sözleşme tekrar gönderildi.</p>
+            <button onClick={() => { setSuccessModal(false); setData(null); setTc(""); }} style={s.modalBtn}>Kapat</button>
           </div>
         </div>
       )}
-
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 640px) {
-          .kg-field-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </div>
   );
 }
 
+// Stil Nesnesi (Daha derli toplu ve responsive dostu)
 const s = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative" },
-  bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
-  bgGlow: { position: "fixed", top: "-10%", right: "-5%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, #cffafe44 0%, transparent 70%)", zIndex: 0 },
-
-  header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "900px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", gap: "16px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#475569", fontFamily: "'Sora', sans-serif", transition: "border-color 0.2s", whiteSpace: "nowrap" },
-  headerTitle: { display: "flex", alignItems: "center", gap: "10px", flex: 1 },
-  headerIcon: { width: "36px", height: "36px", borderRadius: "10px", background: "#ecfeff", border: "1px solid #a5f3fc", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  headerTitleText: { fontSize: "15px", fontWeight: "700", color: "#0f172a" },
-  headerSub: { fontSize: "11px", color: "#94a3b8", marginTop: "1px" },
+  bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px" },
+  bgGlow: { position: "fixed", top: "-10%", right: "-5%", width: "500px", height: "500px", background: "radial-gradient(circle, #cffafe44 0%, transparent 70%)" },
+  header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 100 },
+  headerInner: { maxWidth: "1000px", margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px" },
+  backBtn: { padding: "8px 15px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px", fontSize: "13px" },
+  headerTitle: { flex: 1, display: "flex", alignItems: "center", gap: "10px" },
+  headerIcon: { width: "32px", height: "32px", background: "#ecfeff", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center" },
+  headerTitleText: { fontWeight: "700", fontSize: "14px" },
+  headerSub: { fontSize: "11px", color: "#94a3b8" },
   headerUser: { display: "flex", alignItems: "center", gap: "8px" },
-  avatar: { width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #0891b2, #0e7490)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "700" },
-  userName: { fontSize: "13px", fontWeight: "600", color: "#0f172a" },
-
-  main: { maxWidth: "900px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
-
-  searchCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "24px 28px", marginBottom: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", animation: "fadeUp 0.4s ease-out" },
-  searchLabel: { fontSize: "13px", fontWeight: "600", color: "#475569", marginBottom: "12px" },
-  searchRow: { display: "flex", gap: "12px" },
-  searchInput: { flex: 1, padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "'Sora', sans-serif", color: "#0f172a", outline: "none", transition: "border-color 0.2s" },
-  searchBtn: { display: "flex", alignItems: "center", gap: "8px", padding: "10px 20px", color: "#fff", border: "none", borderRadius: "10px", fontSize: "13px", fontWeight: "600", fontFamily: "'Sora', sans-serif", transition: "all 0.2s", whiteSpace: "nowrap" },
-
-  infoCard: { background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "12px", padding: "12px 16px", marginBottom: "16px", display: "flex", alignItems: "center", gap: "10px", animation: "fadeUp 0.3s ease-out" },
-  infoIcon: { flexShrink: 0 },
-  infoText: { fontSize: "13px", color: "#0e7490", lineHeight: 1.5 },
-
-  tabBar: { display: "flex", gap: "0", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "14px 14px 0 0", borderBottom: "none", overflow: "hidden", marginBottom: "0" },
-  tabBtn: { flex: 1, padding: "12px 8px", background: "none", border: "none", borderBottom: "2px solid transparent", cursor: "pointer", fontSize: "13px", fontFamily: "'Sora', sans-serif", transition: "all 0.15s", whiteSpace: "nowrap" },
-
-  formCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderTop: "none", borderRadius: "0 0 20px 20px", padding: "28px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", animation: "fadeUp 0.3s ease-out" },
-  fieldGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" },
-  fieldGroup: { display: "flex", flexDirection: "column", gap: "6px" },
-  fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#475569", display: "flex", alignItems: "center", gap: "6px" },
-  readonlyBadge: { fontSize: "10px", fontWeight: "500", color: "#94a3b8", background: "#f1f5f9", padding: "1px 6px", borderRadius: "4px" },
-
-  taksitHeader: { display: "flex", gap: "8px", padding: "6px 0 6px 28px", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" },
-  taksitRow: { display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" },
-  taksitNum: { width: "20px", fontSize: "12px", fontWeight: "600", color: "#94a3b8", textAlign: "right", flexShrink: 0 },
-
-  submitRow: { marginTop: "16px", display: "flex", justifyContent: "flex-end" },
-  submitBtn: { display: "flex", alignItems: "center", gap: "10px", padding: "14px 28px", color: "#fff", border: "none", borderRadius: "14px", fontSize: "14px", fontWeight: "700", fontFamily: "'Sora', sans-serif", transition: "opacity 0.2s", boxShadow: "0 4px 12px rgba(8,145,178,0.3)" },
-  spinner: { display: "inline-block", width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
-  spinner2: { display: "inline-block", width: "14px", height: "14px", border: "2px solid #e2e8f0", borderTopColor: "#0891b2", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
+  avatar: { width: "30px", height: "30px", borderRadius: "50%", background: "#0891b2", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px" },
+  userName: { fontSize: "12px", fontWeight: "600" },
+  main: { maxWidth: "1000px", margin: "0 auto", padding: "20px" },
+  searchCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
+  searchLabel: { fontSize: "13px", fontWeight: "600", marginBottom: "10px" },
+  searchRow: { display: "flex", gap: "10px" },
+  searchInput: { flex: 1, padding: "10px", borderRadius: "10px", border: "1px solid #e2e8f0", outline: "none" },
+  searchBtn: { padding: "10px 20px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "600" },
+  listCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px" },
+  listHeader: { display: "flex", alignItems: "center", gap: "10px", fontWeight: "700", marginBottom: "15px", fontSize: "14px" },
+  table: { width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" },
+  editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontWeight: "600" },
+  infoCard: { background: "#ecfeff", border: "1px solid #a5f3fc", padding: "12px", borderRadius: "10px", marginBottom: "15px", fontSize: "13px" },
+  tabBar: { display: "flex", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0" },
+  tabBtn: { flex: 1, padding: "12px", border: "none", background: "none", cursor: "pointer", fontSize: "13px" },
+  formCard: { background: "#fff", border: "1px solid #e2e8f0", padding: "20px", borderRadius: "0 0 15px 15px" },
+  fieldGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "15px" },
+  fieldGroup: { display: "flex", flexDirection: "column", gap: "5px" },
+  fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#475569" },
+  readonlyBadge: { fontSize: "10px", background: "#f1f5f9", padding: "2px 5px", borderRadius: "4px" },
+  submitRow: { marginTop: "20px", display: "flex", justifyContent: "flex-end" },
+  submitBtn: { padding: "15px 30px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer" },
+  spinner: { display: "inline-block", width: "15px", height: "15px", border: "2px solid #fff3", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
+  modal: { background: "#fff", padding: "30px", borderRadius: "20px", textAlign: "center", maxWidth: "400px", width: "90%" },
+  modalBtn: { width: "100%", padding: "12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "10px", fontWeight: "600", cursor: "pointer" },
+  taksitHeader: { display: "flex", padding: "5px 25px", color: "#94a3b8", fontSize: "11px", fontWeight: "700" },
+  taksitRow: { display: "flex", gap: "10px", alignItems: "center", marginBottom: "10px" },
+  taksitNum: { width: "20px", fontSize: "12px", color: "#94a3b8" }
 };
