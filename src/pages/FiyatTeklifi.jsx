@@ -214,15 +214,16 @@ export default function FiyatTeklifi() {
   }, []);
 
   // Sehir secilince o sehirin verilerini cek
+  // nav.schoolSheets de dependency'de - nav yuklenmeden sehir secilirse tekrar tetiklenir
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline) return;
     const sheetInfo = nav.schoolSheets?.[cur.brand];
-    if (!sheetInfo?.sheetId) return;
+    if (!sheetInfo?.sheetId) return; // nav henuz yuklenmediyse bekle, nav gelince tekrar tetiklenecek
     setCur(p => ({ ...p, cityData:null, cityLoading:true }));
     fetchCityData(sheetInfo.sheetId, cur.city)
       .then(data => setCur(p => ({ ...p, cityData:data, cityLoading:false })))
       .catch(err => { console.error("City data yuklenemedi:", err); setCur(p => ({ ...p, cityLoading:false })); });
-  }, [cur.city, cur.brand]);
+  }, [cur.city, cur.brand, nav.schoolSheets]);
 
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Özet"];
   const courses = cur.cityData?.courses || [];
