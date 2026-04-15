@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
+import LOGO_ASSET from "../assets/bilimevi_logo.svg";
 
 const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
 const CYAN = "#00C1DE";
@@ -655,7 +656,7 @@ function PdfTemplate({ destinations, student, user, logoBase64 }) {
                 <div style={{ fontSize:"11pt", fontWeight:"bold", color:"#111" }}>{user?.name || "—"}</div>
                 <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}>{user?.email || ""}</div>
               </div>
-              <img src={logoBase64 || LOGO_URL} alt="Bilimevi" style={{ height:"10mm" }} />
+              <img src={logoBase64 || LOGO_ASSET} alt="Bilimevi" style={{ height:"10mm" }} />
             </div>
 
             {/* ŞEHİR */}
