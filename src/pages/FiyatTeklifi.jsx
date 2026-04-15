@@ -289,7 +289,7 @@ export default function FiyatTeklifi() {
       image: { type:"jpeg", quality:0.98 },
       html2canvas: { scale:2, useCORS:true, letterRendering:true },
       jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
-      pagebreak: { mode:["avoid-all","css"], avoid:["tr","td","img"] },
+      pagebreak: { mode:"css" },
     }).from(el).save().then(() => { el.style.display = "none"; });
   };
 
@@ -670,7 +670,7 @@ function PdfTemplate({ destinations, student, user }) {
         if (d.acc?.notes) notes.push(d.acc.notes);
 
         return (
-          <div key={idx} style={{ width:"210mm", padding:"12mm 18mm 10mm", boxSizing:"border-box", background:"#fff", display:"flex", flexDirection:"column", pageBreakAfter: idx < destinations.length-1 ? "always" : "avoid" }}>
+          <div key={idx} style={{ width:"210mm", padding:"12mm 18mm 10mm", boxSizing:"border-box", background:"#fff", display:"block", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto", pageBreakInside: "avoid" }}>
 
             {/* HEADER */}
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", paddingBottom:"5mm", borderBottom:"0.4px solid #aaa", marginBottom:"8mm" }}>
