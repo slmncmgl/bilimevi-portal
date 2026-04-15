@@ -131,6 +131,21 @@ const MODULE_CONFIG = [
   bg: "#eff6ff",
   border: "#bfdbfe",
 },
+  {
+  key: "performansanalizi",
+  title: "Performans Analizi",
+  desc: "Danışman sınav sayılarını ve başarı ortalamalarını takip et",
+  path: "/performans-analizi",
+  icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+      <path d="M12 20V10M18 20V4M6 20v-4" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M3 20h18" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  color: "#0891b2", // Cyan-600 tonu (Farklılaşması için)
+  bg: "#ecfeff",   // Cyan-50
+  border: "#a5f3fc", // Cyan-200
+},
 ];
 
 export default function Dashboard() {
