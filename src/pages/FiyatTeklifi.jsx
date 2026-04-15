@@ -196,12 +196,23 @@ export default function FiyatTeklifi() {
   const [destinations, setDestinations] = useState([]);
   const [cur, setCur] = useState(emptyDest());
   const [nav, setNav] = useState({ languages:[], countries:{}, citiesByLang:{}, brandsByCity:{}, schoolSheets:{} });
+  const [logoBase64, setLogoBase64] = useState("");
 
   useEffect(() => {
     const session = getSession();
     if (!session) return navigate("/");
     setUser(session);
     fetchNav().then(setNav).catch(console.error);
+    // Logo'yu base64'e cevir - CORS sorununu oner
+    fetch(LOGO_URL)
+      .then(r => r.blob())
+      .then(blob => new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      }))
+      .then(setLogoBase64)
+      .catch(() => setLogoBase64(LOGO_URL)); // hata olursa URL kullan
   }, []);
 
   // Şehir + marka seçilince ve nav yüklenince city data çek
@@ -265,7 +276,7 @@ export default function FiyatTeklifi() {
       image: { type:"jpeg", quality:0.98 },
       html2canvas: { scale:2, useCORS:true, letterRendering:true },
       jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
-      pagebreak: { mode:"css", before:".pdf-page-break" },
+      pagebreak: { mode:["avoid-all","css"], avoid:["tr","td","img"] },
     }).from(el).save().then(() => { el.style.display = "none"; });
   };
 
@@ -597,13 +608,13 @@ export default function FiyatTeklifi() {
     </div>
 
     {/* ─── GHOST PDF TEMPLATE ─── */}
-    <PdfTemplate destinations={destinations} student={student} user={user} />
+    <PdfTemplate destinations={destinations} student={student} user={user} logoBase64={logoBase64} />
     </>
   );
 }
 
 // ─── PDF TEMPLATE ───
-function PdfTemplate({ destinations, student, user }) {
+function PdfTemplate({ destinations, student, user, logoBase64 }) {
   if (!destinations?.length) return null;
   const phone = user?.phone || "905419189177";
   const validUntil = (() => { const d = new Date(); d.setDate(d.getDate()+7); return fmtDate(d); })();
@@ -635,8 +646,7 @@ function PdfTemplate({ destinations, student, user }) {
         (d.cityData?.fees||[]).filter(f2=>f2.notes).forEach(f2 => notes.push(`${f2.name}: ${f2.notes}`));
 
         return (
-          <div key={idx} className={idx > 0 ? "pdf-page-break" : ""}
-            style={{ width:"210mm", minHeight:"297mm", padding:"12mm 18mm 10mm", boxSizing:"border-box", position:"relative", background:"#fff", display:"flex", flexDirection:"column" }}>
+          <div key={idx} style={{ width:"210mm", padding:"12mm 18mm 10mm", boxSizing:"border-box", background:"#fff", display:"flex", flexDirection:"column", pageBreakAfter: idx < destinations.length-1 ? "always" : "avoid" }}>
 
             {/* HEADER */}
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", paddingBottom:"5mm", borderBottom:"0.4px solid #aaa", marginBottom:"8mm" }}>
@@ -645,7 +655,7 @@ function PdfTemplate({ destinations, student, user }) {
                 <div style={{ fontSize:"11pt", fontWeight:"bold", color:"#111" }}>{user?.name || "—"}</div>
                 <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}>{user?.email || ""}</div>
               </div>
-              <img src={LOGO_URL} alt="Bilimevi" style={{ height:"10mm" }} crossOrigin="anonymous" />
+              <img src={logoBase64 || LOGO_URL} alt="Bilimevi" style={{ height:"10mm" }} />
             </div>
 
             {/* ŞEHİR */}
