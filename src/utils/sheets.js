@@ -82,7 +82,8 @@ export async function loginWithCredentials(username, password) {
     sozlesme:  modulRow?.["Sözleşme"]?.toLowerCase() === "evet",
     kayitguncelle: modulRow?.["Kayıt Güncelle"]?.toLowerCase() === "evet",
     fiyatteklifi:  modulRow?.["Fiyat Teklifi"]?.toLowerCase() === "evet",
-    katalogparse:  modulRow?.["Katalog Parse"]?.toLowerCase() === "evet"
+    katalogparse:  modulRow?.["Katalog Parse"]?.toLowerCase() === "evet",
+    performansanalizi: modulRow?.["Performans Analizi"]?.toLowerCase() === "evet",
   };
 
   return {
