@@ -10,7 +10,7 @@ import BultenDuzenleyici from "./pages/BultenDuzenleyici";
 import KayitGuncelle from "./pages/KayitGuncelle";
 import FiyatTeklifi from "./pages/FiyatTeklifi";
 import KatalogParse from "./pages/KatalogParse";
-import PerformansAnalizi from './components/PerformansAnalizi';
+import PerformansAnalizi from './components/PerformansAnalizi";
 
 export default function App() {
   return (
