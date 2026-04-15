@@ -485,20 +485,77 @@ export default function FiyatTeklifi() {
                 const ac = d.acc ? d.acc.price * d.weeks : 0;
                 const tot = cc + ac + f.reg + f.mat + (f.place||0);
                 const cur2 = d.course?.currency || f.currency;
+                // Tarih hesapla
+                const sD = d.startDate ? new Date(d.startDate) : null;
+                const eD = sD ? (() => { const x = new Date(sD); x.setDate(sD.getDate() + d.weeks*7 - 3); return x; })() : null;
+                const accSD = sD ? (() => { const x = new Date(sD); x.setDate(sD.getDate() - 1); return x; })() : null;
+                const accED = eD ? (() => { const x = new Date(eD); x.setDate(eD.getDate() + 2); return x; })() : null;
+                const MONTHS_TR = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+                const fd = (dt) => dt ? `${dt.getDate()} ${MONTHS_TR[dt.getMonth()]} ${dt.getFullYear()}` : "—";
+
+                // Notlar
+                const destNotes = [];
+                if (d.course?.morning) destNotes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
+                if (d.course?.hs_supp > 0) destNotes.push(`Yüksek sezon eki: ${cur2} ${d.course.hs_supp}/hafta (29 Haz – 28 Ağu)`);
+                if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) destNotes.push(`Yüksek sezonda konaklama: ${cur2} ${d.acc.hs_price}/hafta`);
+                if (d.course?.notes) destNotes.push(d.course.notes);
+                if (d.acc?.notes) destNotes.push(d.acc.notes);
+                (d.cityData?.fees||[]).filter(f2=>f2.notes).forEach(f2 => destNotes.push(`${f2.name}: ${f2.notes}`));
+
                 return (
                   <div key={i} style={S.summaryCard}>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
-                      <strong>{d.brand} {d.city}</strong>
+                    {/* Başlık */}
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}>
+                      <strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong>
                       <span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span>
                     </div>
-                    <div style={{ fontSize:13, display:"grid", gap:4 }}>
-                      <div style={{ display:"flex", justifyContent:"space-between" }}><span style={{ color:"#64748b" }}>{d.course?.name}</span><span style={{ fontWeight:600 }}>{fmt(cc, cur2)}</span></div>
-                      {d.acc && <div style={{ display:"flex", justifyContent:"space-between" }}><span style={{ color:"#64748b" }}>{d.acc.name}</span><span style={{ fontWeight:600 }}>{fmt(ac, cur2)}</span></div>}
-                      <div style={{ display:"flex", justifyContent:"space-between" }}><span style={{ color:"#64748b" }}>Diğer</span><span style={{ fontWeight:600 }}>{fmt(f.reg+f.mat+(f.place||0), cur2)}</span></div>
+
+                    {/* Kurs */}
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Kurs</div>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                        <span style={{ fontWeight:600 }}>{d.course?.name}</span>
+                        <span style={{ fontWeight:600, color:CYAN }}>{fmt(cc, cur2)}</span>
+                      </div>
+                      {sD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
+                        📅 {fd(sD)} — {fd(eD)}
+                      </div>}
                     </div>
-                    <div style={{ borderTop:`1.5px solid #0f172a`, marginTop:10, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}>
+
+                    {/* Konaklama */}
+                    {d.acc && !d.isOnline && (
+                      <div style={{ marginBottom:10 }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                          <span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board}</span>
+                          <span style={{ fontWeight:600, color:CYAN }}>{fmt(ac, cur2)}</span>
+                        </div>
+                        {accSD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
+                          📅 {fd(accSD)} — {fd(accED)}
+                        </div>}
+                      </div>
+                    )}
+
+                    {/* Diğer */}
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}>
+                      <span style={{ color:"#64748b" }}>Kayıt + Materyal</span>
+                      <span style={{ fontWeight:600 }}>{fmt(f.reg+f.mat+(f.place||0), cur2)}</span>
+                    </div>
+
+                    {/* Toplam */}
+                    <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}>
                       <span>Toplam</span><span style={{ color:CYAN }}>{fmt(tot, cur2)}</span>
                     </div>
+
+                    {/* Notlar */}
+                    {destNotes.length > 0 && (
+                      <div style={{ marginTop:12, padding:"10px 12px", background:"#fef9ec", borderRadius:8, border:"1px solid #fde68a" }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:"#92400e", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Notlar</div>
+                        {destNotes.map((n,ni) => (
+                          <div key={ni} style={{ fontSize:12, color:"#78350f", marginBottom:3 }}>— {n}</div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
