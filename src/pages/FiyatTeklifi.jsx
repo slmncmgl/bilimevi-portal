@@ -80,10 +80,11 @@ async function fetchCityData(sheetId, city) {
   if (window._CITY_CACHE[key]) return window._CITY_CACHE[key];
 
   try {
-    const [courseRows, accRows, feeRows] = await Promise.all([
+    const [courseRows, accRows, feeRows, transferRows] = await Promise.all([
       fetchCSV(sheetId, "courses"),
       fetchCSV(sheetId, "accommodation"),
       fetchCSV(sheetId, "fees"),
+      fetchCSV(sheetId, "transfers").catch(() => []),
     ]);
 
     const courseMap = {};
@@ -136,6 +137,14 @@ async function fetchCityData(sheetId, city) {
       notes: r.notes || "",
     }));
 
+    const transfers = (transferRows || []).filter(r => r.city === city).map(r => ({
+      airport: r.airport_name,
+      code: r.airport_code,
+      one_way: parseFloat(r.price_one_way) || 0,
+      two_way: parseFloat(r.price_two_way) || 0,
+      currency: r.currency,
+      notes: r.notes || "",
+    }));
     const result = { courses: Object.values(courseMap), acc, fees, transfers };
     window._CITY_CACHE[key] = result;
     return result;
