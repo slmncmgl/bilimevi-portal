@@ -5,7 +5,6 @@ import LOGO_ASSET from "../assets/bilimevi_logo.svg";
 
 const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
 const CYAN = "#00C1DE";
-const LOGO_URL = "https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg";
 
 // ─── CSV PARSE ───
 function parseCSV(csv) {
@@ -197,23 +196,12 @@ export default function FiyatTeklifi() {
   const [destinations, setDestinations] = useState([]);
   const [cur, setCur] = useState(emptyDest());
   const [nav, setNav] = useState({ languages:[], countries:{}, citiesByLang:{}, brandsByCity:{}, schoolSheets:{} });
-  const [logoBase64, setLogoBase64] = useState("");
-
   useEffect(() => {
     const session = getSession();
     if (!session) return navigate("/");
     setUser(session);
     fetchNav().then(setNav).catch(console.error);
-    // Logo'yu base64'e cevir - CORS sorununu oner
-    fetch(LOGO_URL)
-      .then(r => r.blob())
-      .then(blob => new Promise(resolve => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.readAsDataURL(blob);
-      }))
-      .then(setLogoBase64)
-      .catch(() => setLogoBase64(LOGO_URL)); // hata olursa URL kullan
+
   }, []);
 
   // Şehir + marka seçilince ve nav yüklenince city data çek
@@ -609,13 +597,13 @@ export default function FiyatTeklifi() {
     </div>
 
     {/* ─── GHOST PDF TEMPLATE ─── */}
-    <PdfTemplate destinations={destinations} student={student} user={user} logoBase64={logoBase64} />
+    <PdfTemplate destinations={destinations} student={student} user={user} />
     </>
   );
 }
 
 // ─── PDF TEMPLATE ───
-function PdfTemplate({ destinations, student, user, logoBase64 }) {
+function PdfTemplate({ destinations, student, user }) {
   if (!destinations?.length) return null;
   const phone = user?.phone || "905419189177";
   const validUntil = (() => { const d = new Date(); d.setDate(d.getDate()+7); return fmtDate(d); })();
@@ -656,7 +644,7 @@ function PdfTemplate({ destinations, student, user, logoBase64 }) {
                 <div style={{ fontSize:"11pt", fontWeight:"bold", color:"#111" }}>{user?.name || "—"}</div>
                 <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}>{user?.email || ""}</div>
               </div>
-              <img src={logoBase64 || LOGO_ASSET} alt="Bilimevi" style={{ height:"10mm" }} />
+              <img src={LOGO_ASSET} alt="Bilimevi" style={{ height:"10mm" }} />
             </div>
 
             {/* ŞEHİR */}
