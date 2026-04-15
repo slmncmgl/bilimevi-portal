@@ -561,7 +561,12 @@ function PdfTemplate({ destinations, student, user }) {
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
-        const endD = addWeeksToDate(d.startDate || new Date().toISOString(), d.weeks);
+        // Kurs bitisi: baslangic pazartesi + (hafta*7 - 3) gun = cuma
+        const endD = new Date(startD);
+        endD.setDate(startD.getDate() + d.weeks * 7 - 3);
+        // Konaklama: giris = kurs baslangicindan 1 gun onceki pazar, cikis = kurs bitisinin ardindan gelen pazar
+        const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
+        const accEndD = new Date(endD); accEndD.setDate(endD.getDate() + 2);
 
         // Notlar
         const notes = [];
@@ -583,7 +588,7 @@ function PdfTemplate({ destinations, student, user }) {
                 <div style={{ fontSize:"11pt", fontWeight:"bold", color:"#111" }}>{user?.name || "—"}</div>
                 <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}>{user?.email || ""}</div>
               </div>
-              <div style={{ fontSize:"8pt", color:"#555", textAlign:"right" }}>bilimevi.com</div>
+              <img src={LOGO_URL} alt="Bilimevi" style={{ height:"10mm" }} crossOrigin="anonymous" />
             </div>
 
             {/* ŞEHİR */}
@@ -625,7 +630,7 @@ function PdfTemplate({ destinations, student, user }) {
                     <td style={{ padding:"4mm 2mm", verticalAlign:"top" }}>
                       <div style={{ fontWeight:"bold", fontSize:"10pt" }}>{d.acc.name} <span style={{ fontWeight:"normal", fontSize:"9pt" }}>({d.acc.board})</span></div>
                       <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}>
-                        <strong>Giriş:</strong> {fmtDate(startD)} &nbsp;|&nbsp; <strong>Çıkış:</strong> {fmtDate(endD)}
+                        <strong>Giriş:</strong> {fmtDate(accStartD)} &nbsp;|&nbsp; <strong>Çıkış:</strong> {fmtDate(accEndD)}
                       </div>
                       <div style={{ fontSize:"8pt", color:"#777", marginTop:"1mm" }}>{d.acc.room} · {d.acc.bathroom} · Okula {d.acc.distance}</div>
                     </td>
@@ -673,12 +678,8 @@ function PdfTemplate({ destinations, student, user }) {
             </div>
 
             {/* FOOTER */}
-            <div style={{ marginTop:"auto", paddingTop:"4mm", borderTop:"0.5px solid #eee", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <div style={{ fontSize:"7pt", color:"#999" }}>Geçerlilik tarihi: {validUntil}</div>
-              <div style={{ textAlign:"center" }}>
-                <img src={LOGO_URL} alt="Bilimevi" style={{ height:"8mm" }} crossOrigin="anonymous" />
-              </div>
-              <div style={{ fontSize:"7pt", color:CYAN, fontWeight:"bold" }}>bilimevi.com</div>
+            <div style={{ marginTop:"auto", paddingTop:"4mm", borderTop:"0.5px solid #eee", display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
+              <div style={{ fontSize:"8pt", color:"#333" }}>www.bilimevi.com</div>
             </div>
           </div>
         );
