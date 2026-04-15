@@ -136,7 +136,7 @@ async function fetchCityData(sheetId, city) {
       notes: r.notes || "",
     }));
 
-    const result = { courses: Object.values(courseMap), acc, fees };
+    const result = { courses: Object.values(courseMap), acc, fees, transfers };
     window._CITY_CACHE[key] = result;
     return result;
   } catch (e) {
@@ -146,19 +146,34 @@ async function fetchCityData(sheetId, city) {
 }
 
 // ─── HESAPLAMA FONKSİYONLARI ───
+// Her fee'yi ayri satirda dondur - isim, tutar, currency
 function calcFees(fees, weeks) {
-  let reg = 0, place = 0, mat = 0;
   const currency = fees?.[0]?.currency || "GBP";
+  const items = [];
+  let total = 0;
+
   (fees || []).forEach(f => {
     const n = (f.name || "").toLowerCase();
+    // Sadece "standard" ucretleri goster: registration, placement, materials
+    // Sigorta, courier, bank transfer vb. gosterme
+    const isStd = n.includes("registration") || n.includes("kayit") ||
+                  n.includes("placement") ||
+                  n.includes("material") || n.includes("materyal") ||
+                  n.includes("administration") || n.includes("booking") ||
+                  n.includes("pel protection") || n.includes("protection of enrolled");
+
+    if (!isStd) return;
+
+    // Tier kontrolu (materials icin)
     const inRange = (!f.tier_min || weeks >= f.tier_min) && (!f.tier_max || weeks <= f.tier_max);
-    if (n.includes("registration") || n.includes("kayit")) reg += f.amount;
-    else if (n.includes("placement")) place += f.amount;
-    else if ((n.includes("material") || n.includes("materyal")) && inRange) {
-      mat += f.calc_type === "per_week" ? f.amount * weeks : f.amount;
-    }
+    if ((n.includes("material") || n.includes("materyal")) && !inRange) return;
+
+    const amount = f.calc_type === "per_week" ? f.amount * weeks : f.amount;
+    items.push({ name: f.name, amount, currency: f.currency || currency });
+    total += amount;
   });
-  return { reg, place, mat, currency };
+
+  return { items, total, currency };
 }
 
 const getPrice = (c, w) => {
@@ -217,11 +232,11 @@ export default function FiyatTeklifi() {
   const courses = cur.cityData?.courses || [];
   const accs = cur.cityData?.acc || [];
   const feesData = cur.isOnline
-    ? { reg:35, place:0, mat:30, currency:"EUR" }
+    ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
     : calcFees(cur.cityData?.fees, cur.weeks);
   const cCost = getPrice(cur.course, cur.weeks);
   const aCost = cur.acc ? cur.acc.price * cur.weeks : 0;
-  const currentTotal = cCost + aCost + feesData.reg + feesData.mat + (feesData.place || 0);
+  const currentTotal = cCost + aCost + (feesData.total || 0);
 
   const canNext = [
     !!(student.name && student.gender && student.age),
@@ -480,10 +495,10 @@ export default function FiyatTeklifi() {
               <h2 style={S.ttl}>Teklif Özeti</h2>
               {destinations.length === 0 && <p style={{ color:"#94a3b8" }}>Henüz destinasyon eklenmedi.</p>}
               {destinations.map((d,i) => {
-                const f = d.isOnline ? {reg:35,place:0,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees, d.weeks);
+                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks);
                 const cc = getPrice(d.course, d.weeks);
                 const ac = d.acc ? d.acc.price * d.weeks : 0;
-                const tot = cc + ac + f.reg + f.mat + (f.place||0);
+                const tot = cc + ac + (f.total || 0);
                 const cur2 = d.course?.currency || f.currency;
                 // Tarih hesapla
                 const sD = d.startDate ? new Date(d.startDate) : null;
@@ -500,7 +515,6 @@ export default function FiyatTeklifi() {
                 if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) destNotes.push(`Yüksek sezonda konaklama: ${cur2} ${d.acc.hs_price}/hafta`);
                 if (d.course?.notes) destNotes.push(d.course.notes);
                 if (d.acc?.notes) destNotes.push(d.acc.notes);
-                (d.cityData?.fees||[]).filter(f2=>f2.notes).forEach(f2 => destNotes.push(`${f2.name}: ${f2.notes}`));
 
                 return (
                   <div key={i} style={S.summaryCard}>
@@ -546,6 +560,19 @@ export default function FiyatTeklifi() {
                     <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}>
                       <span>Toplam</span><span style={{ color:CYAN }}>{fmt(tot, cur2)}</span>
                     </div>
+
+                    {/* Transfer */}
+                    {d.cityData?.transfers?.length > 0 && (
+                      <div style={{ marginTop:8, fontSize:13 }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Transfer</div>
+                        {d.cityData.transfers.map((t, ti) => (
+                          <div key={ti} style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
+                            <span style={{ color:"#64748b" }}>{t.airport} ({t.code})</span>
+                            <span style={{ fontWeight:600 }}>{t.currency} {Number(t.one_way).toLocaleString("tr-TR")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Notlar */}
                     {destNotes.length > 0 && (
@@ -611,10 +638,10 @@ function PdfTemplate({ destinations, student, user }) {
   return (
     <div id="pdf-area" style={{ display:"none", fontFamily:"Arial, Helvetica, sans-serif", background:"#fff" }}>
       {destinations.map((d, idx) => {
-        const f = d.isOnline ? {reg:35,place:0,mat:30,currency:"EUR"} : calcFees(d.cityData?.fees, d.weeks);
+        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks);
         const cCost = getPrice(d.course, d.weeks);
         const aCost = d.acc ? d.acc.price * d.weeks : 0;
-        const tot = cCost + aCost + f.reg + f.mat + (f.place||0);
+        const tot = cCost + aCost + (f.total || 0);
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
@@ -625,14 +652,13 @@ function PdfTemplate({ destinations, student, user }) {
         const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
         const accEndD = new Date(endD); accEndD.setDate(endD.getDate() + 2);
 
-        // Notlar
+        // Notlar - sadece secili kurs ve konaklama notlari + hs/morning
         const notes = [];
         if (d.course?.morning) notes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
         if (d.course?.hs_supp > 0) notes.push(`Yüksek sezon eki: ${cur} ${d.course.hs_supp}/hafta (29 Haziran – 28 Ağustos)`);
         if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) notes.push(`Yüksek sezonda konaklama: ${cur} ${d.acc.hs_price}/hafta`);
         if (d.course?.notes) notes.push(d.course.notes);
         if (d.acc?.notes) notes.push(d.acc.notes);
-        (d.cityData?.fees||[]).filter(f2=>f2.notes).forEach(f2 => notes.push(`${f2.name}: ${f2.notes}`));
 
         return (
           <div key={idx} style={{ width:"210mm", padding:"12mm 18mm 10mm", boxSizing:"border-box", background:"#fff", display:"flex", flexDirection:"column", pageBreakAfter: idx < destinations.length-1 ? "always" : "avoid" }}>
@@ -694,17 +720,32 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 )}
 
-                {/* DİĞER */}
-                {(f.reg > 0 || f.mat > 0 || f.place > 0) && (
-                  <tr style={{ borderBottom:"0.5px solid #ddd" }}>
-                    <td style={{ padding:"4mm 2mm 4mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Diğer</td>
-                    <td style={{ padding:"4mm 2mm", verticalAlign:"top" }}>
-                      {f.reg > 0 && <div>Kayıt Ücreti</div>}
-                      {f.mat > 0 && <div style={{ marginTop:"1mm" }}>Ders Materyalleri</div>}
-                      {f.place > 0 && <div style={{ marginTop:"1mm" }}>Konaklama Placement</div>}
+                {/* DİĞER - her fee ayri satir */}
+                {f.items?.length > 0 && f.items.map((fi, fii) => (
+                  <tr key={fii} style={{ borderBottom:"0.5px solid #ddd" }}>
+                    <td style={{ padding:"3mm 2mm 3mm 0", fontWeight: fii===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: fii===0 ? "inherit" : "9pt" }}>
+                      {fii === 0 ? "Diğer" : ""}
                     </td>
-                    <td style={{ padding:"4mm 0 4mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
-                      {Number(f.reg+f.mat+(f.place||0)).toLocaleString("tr-TR")},00
+                    <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{fi.name}</td>
+                    <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
+                      {Number(fi.amount).toLocaleString("tr-TR")},00
+                    </td>
+                  </tr>
+                ))}
+
+                {/* TRANSFER */}
+                {d.cityData?.transfers?.length > 0 && (
+                  <tr style={{ borderBottom:"0.5px solid #ddd" }}>
+                    <td style={{ padding:"3mm 2mm 3mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Transfer</td>
+                    <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>
+                      {d.cityData.transfers.map((t, ti) => (
+                        <div key={ti}>{t.airport} ({t.code}){t.notes ? ` — ${t.notes}` : ""}</div>
+                      ))}
+                    </td>
+                    <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
+                      {d.cityData.transfers.map((t, ti) => (
+                        <div key={ti}>{t.currency} {Number(t.one_way).toLocaleString("tr-TR")},00</div>
+                      ))}
                     </td>
                   </tr>
                 )}
@@ -734,7 +775,7 @@ function PdfTemplate({ destinations, student, user }) {
             </div>
 
             {/* FOOTER */}
-            <div style={{ marginTop:"auto", paddingTop:"4mm", borderTop:"0.5px solid #eee", display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
+            <div style={{ marginTop:"16mm", paddingTop:"4mm", borderTop:"0.5px solid #eee", display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
               <div style={{ fontSize:"8pt", color:"#333" }}>www.bilimevi.com</div>
             </div>
           </div>
