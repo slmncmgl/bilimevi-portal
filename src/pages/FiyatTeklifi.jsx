@@ -298,11 +298,11 @@ export default function FiyatTeklifi() {
       image: { type:"jpeg", quality:0.98 },
       html2canvas: { scale:2, useCORS:true, letterRendering:true },
       jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
-      pagebreak: { mode:"css" },
+      pagebreak: { mode:"css", avoid:".pdf-block" },
     }).from(el).save().then(() => { el.style.display = "none"; });
   };
 
-  const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Add-ons","Özet"];
+  const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"];
 
   return (
     <>
@@ -612,7 +612,7 @@ export default function FiyatTeklifi() {
           {/* ADIM 4: ADD-ONS */}
           {step === 4 && (
             <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>Add-ons — {cur.brand} {cur.city}</h2>
+              <h2 style={S.ttl}>Ek Hizmetler — {cur.brand} {cur.city}</h2>
               {(() => {
                 const allFees = cur.cityData?.fees || [];
                 const age = parseInt(student.age) || 0;
@@ -775,7 +775,7 @@ function PdfTemplate({ destinations, student, user }) {
         if (d.acc?.notes) notes.push(d.acc.notes);
 
         return (
-          <div key={idx} style={{ width:"210mm", padding:"12mm 18mm 10mm", boxSizing:"border-box", background:"#fff", display:"block", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto", pageBreakInside: "avoid" }}>
+          <div key={idx} className="pdf-block" style={{ width:"210mm", padding:"12mm 18mm 10mm", boxSizing:"border-box", background:"#fff", display:"block", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto" }}>
 
             {/* HEADER */}
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", paddingBottom:"5mm", borderBottom:"0.4px solid #aaa", marginBottom:"8mm" }}>
@@ -807,7 +807,7 @@ function PdfTemplate({ destinations, student, user }) {
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"9pt" }}>
               <tbody>
                 {/* KURS */}
-                <tr style={{ borderBottom:"0.5px solid #ddd" }}>
+                <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                   <td style={{ padding:"4mm 2mm 4mm 0", fontWeight:"bold", verticalAlign:"top", width:"20%", color:"#111" }}>Kurs</td>
                   <td style={{ padding:"4mm 2mm", verticalAlign:"top", width:"58%" }}>
                     <div style={{ fontWeight:"bold", fontSize:"10pt" }}>{d.brand} — {d.course?.name}</div>
@@ -821,7 +821,7 @@ function PdfTemplate({ destinations, student, user }) {
 
                 {/* KONAKLAMA */}
                 {d.acc && !d.isOnline && (
-                  <tr style={{ borderBottom:"0.5px solid #ddd" }}>
+                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"4mm 2mm 4mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Konaklama</td>
                     <td style={{ padding:"4mm 2mm", verticalAlign:"top" }}>
                       <div style={{ fontWeight:"bold", fontSize:"10pt" }}>{d.acc.name} <span style={{ fontWeight:"normal", fontSize:"9pt" }}>({d.acc.board})</span></div>
@@ -836,7 +836,7 @@ function PdfTemplate({ destinations, student, user }) {
 
                 {/* DİĞER - her fee ayri satir */}
                 {f.items?.length > 0 && f.items.map((fi, fii) => (
-                  <tr key={fii} style={{ borderBottom:"0.5px solid #ddd" }}>
+                  <tr key={fii} style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight: fii===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: fii===0 ? "inherit" : "9pt" }}>
                       {fii === 0 ? "Diğer" : ""}
                     </td>
@@ -849,9 +849,9 @@ function PdfTemplate({ destinations, student, user }) {
 
                 {/* ADD-ONS */}
                 {(d.addons||[]).length > 0 && (d.addons||[]).map((a, ai) => (
-                  <tr key={ai} style={{ borderBottom:"0.5px solid #ddd" }}>
+                  <tr key={ai} style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight: ai===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: ai===0 ? "inherit" : "9pt" }}>
-                      {ai === 0 ? "Add-ons" : ""}
+                      {ai === 0 ? "Ek Hizmetler" : ""}
                     </td>
                     <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{a.name}{a.notes ? ` — ${a.notes}` : ""}</td>
                     <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
@@ -862,7 +862,7 @@ function PdfTemplate({ destinations, student, user }) {
 
                 {/* TRANSFER */}
                 {d.cityData?.transfers?.length > 0 && (
-                  <tr style={{ borderBottom:"0.5px solid #ddd" }}>
+                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Transfer</td>
                     <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>
                       {d.cityData.transfers.map((t, ti) => (
