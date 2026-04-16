@@ -708,7 +708,7 @@ export default function FiyatTeklifi() {
             {step > 0 && <button onClick={() => setStep(s => s-1)} style={S.btnBack}>← Geri</button>}
             <div style={{ display:"flex", gap:10 }}>
               {step === 5 && <button onClick={reset} style={{ ...S.btnBack, border:`1px solid #e2e8f0`, padding:"10px 20px", borderRadius:10 }}>Yeni Teklif</button>}
-              {step < 4 && <button style={S.btnNext} disabled={!canNext} onClick={next}>{step===4||(step===2&&cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>}
+              {step < 5 && <button style={S.btnNext} disabled={!canNext} onClick={next}>{step===4||(step===2&&cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>}
             </div>
           </div>
         </main>
