@@ -135,6 +135,12 @@ async function fetchCityData(sheetId, city) {
       tier_min: r.tier_min_weeks ? parseInt(r.tier_min_weeks) : null,
       tier_max: r.tier_max_weeks ? parseInt(r.tier_max_weeks) : null,
       notes: r.notes || "",
+      addon_type: r.addon_type || "compulsory",
+      eligible_courses: r.eligible_courses || "",
+      date_start: r.date_start || "",
+      date_end: r.date_end || "",
+      min_age: r.min_age ? parseInt(r.min_age) : null,
+      max_age: r.max_age ? parseInt(r.max_age) : null,
     }));
 
     const transfers = (transferRows || []).filter(r => r.city === city).map(r => ({
@@ -199,6 +205,7 @@ const emptyDest = (sd = "") => ({
   lang: "", country: "", city: "", brand: "",
   course: null, weeks: 4, acc: null, startDate: sd,
   isOnline: false, cityData: null, cityLoading: false,
+  addons: [], // secilen optional add-on'lar
 });
 
 const EC_LIVE = [
@@ -245,14 +252,16 @@ export default function FiyatTeklifi() {
     : calcFees(cur.cityData?.fees, cur.weeks);
   const cCost = getPrice(cur.course, cur.weeks);
   const aCost = cur.acc ? cur.acc.price * cur.weeks : 0;
-  const currentTotal = cCost + aCost + (feesData.total || 0);
+  const addonsCost = (cur.addons||[]).reduce((s,a) => s+(a.totalAmount||0), 0);
+  const currentTotal = cCost + aCost + (feesData.total || 0) + addonsCost;
 
   const canNext = [
     !!(student.name && student.gender && student.age),
     (cur.isOnline && cur.course) || !!(cur.brand && cur.city),
     !!cur.course && isCourseValid(cur.course, cur.weeks) && !cur.cityLoading,
     !!cur.acc || cur.isOnline,
-    true,
+    true, // add-ons secim zorunlu degil
+    true, // ozet
   ][step];
 
   // Pazartesi zorlaması
@@ -264,13 +273,13 @@ export default function FiyatTeklifi() {
   };
 
   const next = () => {
-    if (step === 3 || (step === 2 && cur.isOnline)) {
-      // Duplicate kontrolü
+    if (step === 4 || (step === 2 && cur.isOnline)) {
+      // Duplicate kontrolu
       const isDup = destinations.some(d =>
         d.city === cur.city && d.course?.name === cur.course?.name && d.acc?.name === cur.acc?.name
       );
       if (!isDup) setDestinations(p => [...p, { ...cur }]);
-      setStep(4);
+      setStep(5);
     } else {
       setStep(s => s + 1);
     }
@@ -293,7 +302,7 @@ export default function FiyatTeklifi() {
     }).from(el).save().then(() => { el.style.display = "none"; });
   };
 
-  const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Özet"];
+  const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Add-ons","Özet"];
 
   return (
     <>
@@ -499,7 +508,7 @@ export default function FiyatTeklifi() {
           )}
 
           {/* ADIM 4: ÖZET */}
-          {step === 4 && (
+          {step === 5 && (
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>Teklif Özeti</h2>
               {destinations.length === 0 && <p style={{ color:"#94a3b8" }}>Henüz destinasyon eklenmedi.</p>}
@@ -507,7 +516,8 @@ export default function FiyatTeklifi() {
                 const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks);
                 const cc = getPrice(d.course, d.weeks);
                 const ac = d.acc ? d.acc.price * d.weeks : 0;
-                const tot = cc + ac + (f.total || 0);
+                const addonTotal = (d.addons||[]).reduce((s,a) => s + (a.totalAmount||0), 0);
+                const tot = cc + ac + (f.total || 0) + addonTotal;
                 const cur2 = d.course?.currency || f.currency;
                 // Tarih hesapla
                 const sD = d.startDate ? new Date(d.startDate) : null;
@@ -599,12 +609,106 @@ export default function FiyatTeklifi() {
             </div>
           )}
 
+          {/* ADIM 4: ADD-ONS */}
+          {step === 4 && (
+            <div style={{ animation:"fadeUp 0.3s" }}>
+              <h2 style={S.ttl}>Add-ons — {cur.brand} {cur.city}</h2>
+              {(() => {
+                const allFees = cur.cityData?.fees || [];
+                const age = parseInt(student.age) || 0;
+                const startD = cur.startDate ? new Date(cur.startDate) : null;
+
+                // Compulsory olanlar - otomatik goster
+                const compulsory = allFees.filter(f => {
+                  if (f.addon_type !== "compulsory") return false;
+                  if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
+                  if (f.min_age && age < f.min_age) return false;
+                  if (f.max_age && age > f.max_age) return false;
+                  if (f.date_start && startD && new Date(f.date_start) > startD) return false;
+                  if (f.date_end && startD && new Date(f.date_end) < startD) return false;
+                  return true;
+                });
+
+                // Optional olanlar - secim yapilabilir
+                const optional = allFees.filter(f => {
+                  if (!["optional_service","supplement","upgrade","course_addon","post_departure"].includes(f.addon_type)) return false;
+                  if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
+                  if (f.min_age && age < f.min_age) return false;
+                  if (f.max_age && age > f.max_age) return false;
+                  if (f.date_start && startD && new Date(f.date_start) > startD) return false;
+                  if (f.date_end && startD && new Date(f.date_end) < startD) return false;
+                  return true;
+                });
+
+                if (compulsory.length === 0 && optional.length === 0) {
+                  return <p style={{ color:"#94a3b8", fontSize:13 }}>Bu kurs ve tarih için eklenebilecek add-on bulunmuyor.</p>;
+                }
+
+                return (
+                  <>
+                    {compulsory.length > 0 && (
+                      <div style={{ marginBottom:20 }}>
+                        <p style={S.slbl}>Zorunlu Ücretler</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                          {compulsory.map((f,i) => (
+                            <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", background:"#f8fafc", borderRadius:10, border:"1px solid #e2e8f0", fontSize:13 }}>
+                              <div>
+                                <span style={{ fontWeight:600 }}>{f.name}</span>
+                                {f.notes && <span style={{ fontSize:11, color:"#94a3b8", marginLeft:8 }}>{f.notes}</span>}
+                              </div>
+                              <span style={{ fontWeight:600, color:"#64748b" }}>
+                                {f.calc_type === "per_week" ? `${f.currency} ${f.amount}/h` : `${f.currency} ${Number(f.amount).toLocaleString("tr-TR")}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {optional.length > 0 && (
+                      <div>
+                        <p style={S.slbl}>İsteğe Bağlı Eklemeler</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                          {optional.map((f,i) => {
+                            const sel = cur.addons?.some(a => a.name === f.name);
+                            const amt = f.calc_type === "per_week" ? f.amount * cur.weeks : f.amount;
+                            return (
+                              <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${sel ? CYAN : "#e2e8f0"}`, background: sel ? "#f0fdff" : "#fff", cursor:"pointer" }}
+                                onClick={() => setCur(p => ({
+                                  ...p,
+                                  addons: sel
+                                    ? (p.addons||[]).filter(a => a.name !== f.name)
+                                    : [...(p.addons||[]), { ...f, totalAmount: amt }]
+                                }))}>
+                                <div>
+                                  <div style={{ fontWeight:600, fontSize:13, color: sel ? CYAN : "#0f172a" }}>{f.name}</div>
+                                  {f.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{f.notes}</div>}
+                                  {f.addon_type === "supplement" && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>Ek ücret</div>}
+                                </div>
+                                <div style={{ textAlign:"right", flexShrink:0 }}>
+                                  <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>
+                                    {f.currency} {Number(amt).toLocaleString("tr-TR")}
+                                  </div>
+                                  {f.calc_type === "per_week" && <div style={{ fontSize:11, color:"#94a3b8" }}>{f.amount}/h × {cur.weeks}h</div>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
           {/* NAVİGASYON */}
           <div style={S.navBox}>
             {step > 0 && <button onClick={() => setStep(s => s-1)} style={S.btnBack}>← Geri</button>}
             <div style={{ display:"flex", gap:10 }}>
-              {step === 4 && <button onClick={reset} style={{ ...S.btnBack, border:`1px solid #e2e8f0`, padding:"10px 20px", borderRadius:10 }}>Yeni Teklif</button>}
-              {step < 4 && <button style={S.btnNext} disabled={!canNext} onClick={next}>{step===3||(step===2&&cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>}
+              {step === 5 && <button onClick={reset} style={{ ...S.btnBack, border:`1px solid #e2e8f0`, padding:"10px 20px", borderRadius:10 }}>Yeni Teklif</button>}
+              {step < 4 && <button style={S.btnNext} disabled={!canNext} onClick={next}>{step===4||(step===2&&cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>}
             </div>
           </div>
         </main>
@@ -625,7 +729,7 @@ export default function FiyatTeklifi() {
               <strong>{d.city}</strong> · {d.weeks}h · {d.course?.name?.slice(0,20)}
             </div>
           ))}
-          {step === 4 && destinations.length > 0 && (
+          {step === 5 && destinations.length > 0 && (
             <button onClick={generatePDF} style={S.pdfBtn}>📄 PDF Oluştur</button>
           )}
         </aside>
@@ -650,7 +754,8 @@ function PdfTemplate({ destinations, student, user }) {
         const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks);
         const cCost = getPrice(d.course, d.weeks);
         const aCost = d.acc ? d.acc.price * d.weeks : 0;
-        const tot = cCost + aCost + (f.total || 0);
+        const addonTot = (d.addons||[]).reduce((s,a) => s+(a.totalAmount||0), 0);
+        const tot = cCost + aCost + (f.total || 0) + addonTot;
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
@@ -738,6 +843,19 @@ function PdfTemplate({ destinations, student, user }) {
                     <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{fi.name}</td>
                     <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
                       {Number(fi.amount).toLocaleString("tr-TR")},00
+                    </td>
+                  </tr>
+                ))}
+
+                {/* ADD-ONS */}
+                {(d.addons||[]).length > 0 && (d.addons||[]).map((a, ai) => (
+                  <tr key={ai} style={{ borderBottom:"0.5px solid #ddd" }}>
+                    <td style={{ padding:"3mm 2mm 3mm 0", fontWeight: ai===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: ai===0 ? "inherit" : "9pt" }}>
+                      {ai === 0 ? "Add-ons" : ""}
+                    </td>
+                    <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{a.name}{a.notes ? ` — ${a.notes}` : ""}</td>
+                    <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
+                      {Number(a.totalAmount||0).toLocaleString("tr-TR")},00
                     </td>
                   </tr>
                 ))}
