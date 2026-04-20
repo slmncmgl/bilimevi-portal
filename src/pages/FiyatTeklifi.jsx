@@ -206,6 +206,7 @@ const emptyDest = (sd = "") => ({
   course: null, weeks: 4, acc: null, startDate: sd,
   isOnline: false, cityData: null, cityLoading: false,
   addons: [], // secilen optional add-on'lar
+  transfer: null, // secilen transfer secenegi (null = secilmedi)
 });
 
 const EC_LIVE = [
@@ -242,7 +243,13 @@ export default function FiyatTeklifi() {
     if (!sheetId) return;
     setCur(p => ({ ...p, cityLoading: true }));
     fetchCityData(sheetId, cur.city)
-      .then(data => setCur(p => ({ ...p, cityData: data, cityLoading: false })));
+      .then(data => setCur(p => ({
+        ...p,
+        cityData: data,
+        cityLoading: false,
+        // Ilk transferi default sec (danisman degistirebilir)
+        transfer: data.transfers?.[0] || null,
+      })));
   }, [cur.city, cur.brand, nav.schoolSheets, cur.isOnline, cur.cityData]);
 
   const courses = cur.cityData?.courses || [];
@@ -534,6 +541,11 @@ export default function FiyatTeklifi() {
                 if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) destNotes.push(`Yüksek sezonda konaklama: ${cur2} ${d.acc.hs_price}/hafta`);
                 if (d.course?.notes) destNotes.push(d.course.notes);
                 if (d.acc?.notes) destNotes.push(d.acc.notes);
+                // Transfer secilmediyse ilk secenegi not olarak ekle
+                if (!d.transfer && d.cityData?.transfers?.length > 0) {
+                  const t = d.cityData.transfers[0];
+                  destNotes.push(`Transfer: ${t.airport} (${t.code}) — ${t.currency} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`);
+                }
 
                 return (
                   <div key={i} style={S.summaryCard}>
@@ -580,16 +592,14 @@ export default function FiyatTeklifi() {
                       <span>Toplam</span><span style={{ color:CYAN }}>{fmt(tot, cur2)}</span>
                     </div>
 
-                    {/* Transfer */}
-                    {d.cityData?.transfers?.length > 0 && (
+                    {/* Transfer - secilen varsa goster, yoksa ilk secenegi notta belirt */}
+                    {d.transfer && (
                       <div style={{ marginTop:8, fontSize:13 }}>
                         <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Transfer</div>
-                        {d.cityData.transfers.map((t, ti) => (
-                          <div key={ti} style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
-                            <span style={{ color:"#64748b" }}>{t.airport} ({t.code})</span>
-                            <span style={{ fontWeight:600 }}>{t.currency} {Number(t.one_way).toLocaleString("tr-TR")}</span>
-                          </div>
-                        ))}
+                        <div style={{ display:"flex", justifyContent:"space-between" }}>
+                          <span style={{ color:"#64748b" }}>{d.transfer.airport} ({d.transfer.code})</span>
+                          <span style={{ fontWeight:600 }}>{d.transfer.currency} {Number(d.transfer.one_way).toLocaleString("tr-TR")}</span>
+                        </div>
                       </div>
                     )}
 
@@ -700,6 +710,32 @@ export default function FiyatTeklifi() {
                   </>
                 );
               })()}
+
+              {/* TRANSFER SEÇİMİ */}
+              {cur.cityData?.transfers?.length > 0 && (
+                <div style={{ marginTop:20 }}>
+                  <p style={S.slbl}>Transfer</p>
+                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                    {cur.cityData.transfers.map((t, ti) => {
+                      const sel = cur.transfer?.airport === t.airport && cur.transfer?.code === t.code;
+                      return (
+                        <div key={ti}
+                          style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${sel ? CYAN : "#e2e8f0"}`, background: sel ? "#f0fdff" : "#fff", cursor:"pointer" }}
+                          onClick={() => setCur(p => ({ ...p, transfer: sel ? null : t }))}>
+                          <div>
+                            <div style={{ fontWeight:600, fontSize:13, color: sel ? CYAN : "#0f172a" }}>{t.airport} ({t.code})</div>
+                            {t.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{t.notes}</div>}
+                          </div>
+                          <div style={{ textAlign:"right", flexShrink:0 }}>
+                            <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{t.currency} {Number(t.one_way).toLocaleString("tr-TR")}</div>
+                            <div style={{ fontSize:11, color:"#94a3b8" }}>Tek yön</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -773,6 +809,10 @@ function PdfTemplate({ destinations, student, user }) {
         if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) notes.push(`Yüksek sezonda konaklama: ${cur} ${d.acc.hs_price}/hafta`);
         if (d.course?.notes) notes.push(d.course.notes);
         if (d.acc?.notes) notes.push(d.acc.notes);
+        if (!d.transfer && d.cityData?.transfers?.length > 0) {
+          const t = d.cityData.transfers[0];
+          notes.push(`Transfer bilgisi: ${t.airport} (${t.code}) — ${cur} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`);
+        }
 
         return (
           <div key={idx} className="pdf-block" style={{ width:"210mm", padding:"12mm 18mm 10mm", boxSizing:"border-box", background:"#fff", display:"block", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto" }}>
@@ -860,19 +900,15 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 ))}
 
-                {/* TRANSFER */}
-                {d.cityData?.transfers?.length > 0 && (
+                {/* TRANSFER - sadece secilen */}
+                {d.transfer && (
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Transfer</td>
                     <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>
-                      {d.cityData.transfers.map((t, ti) => (
-                        <div key={ti}>{t.airport} ({t.code}){t.notes ? ` — ${t.notes}` : ""}</div>
-                      ))}
+                      {d.transfer.airport} ({d.transfer.code}){d.transfer.notes ? ` — ${d.transfer.notes}` : ""}
                     </td>
                     <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
-                      {d.cityData.transfers.map((t, ti) => (
-                        <div key={ti}>{t.currency} {Number(t.one_way).toLocaleString("tr-TR")},00</div>
-                      ))}
+                      {d.transfer.currency} {Number(d.transfer.one_way).toLocaleString("tr-TR")},00
                     </td>
                   </tr>
                 )}
