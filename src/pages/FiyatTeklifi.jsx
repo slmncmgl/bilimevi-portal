@@ -638,16 +638,8 @@ export default function FiyatTeklifi() {
                 const age = parseInt(student.age) || 0;
                 const startD = cur.startDate ? new Date(cur.startDate) : null;
 
-                // Compulsory olanlar - otomatik goster
-                const compulsory = allFees.filter(f => {
-                  if (f.addon_type !== "compulsory") return false;
-                  if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
-                  if (f.min_age && age < f.min_age) return false;
-                  if (f.max_age && age > f.max_age) return false;
-                  if (f.date_start && startD && new Date(f.date_start) > startD) return false;
-                  if (f.date_end && startD && new Date(f.date_end) < startD) return false;
-                  return true;
-                });
+                // Compulsory olanlar - calcFees'ten al (tier kontrolu yapilmis, tek satir gelir)
+                const compulsory = calcFees(allFees, cur.weeks).items;
 
                 // Optional olanlar - secim yapilabilir
                 const optional = allFees.filter(f => {
@@ -672,12 +664,9 @@ export default function FiyatTeklifi() {
                         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                           {compulsory.map((f,i) => (
                             <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", background:"#f8fafc", borderRadius:10, border:"1px solid #e2e8f0", fontSize:13 }}>
-                              <div>
-                                <span style={{ fontWeight:600 }}>{f.name}</span>
-                                {f.notes && <span style={{ fontSize:11, color:"#94a3b8", marginLeft:8 }}>{f.notes}</span>}
-                              </div>
+                              <span style={{ fontWeight:600 }}>{f.name}</span>
                               <span style={{ fontWeight:600, color:"#64748b" }}>
-                                {f.calc_type === "per_week" ? `${f.currency} ${f.amount}/h` : `${f.currency} ${Number(f.amount).toLocaleString("tr-TR")}`}
+                                {f.currency} {Number(f.amount).toLocaleString("tr-TR")}
                               </span>
                             </div>
                           ))}
