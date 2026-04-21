@@ -168,20 +168,24 @@ function calcFees(fees, weeks) {
   let total = 0;
 
   (fees || []).forEach(f => {
+    // Sadece compulsory addon_type olan satirlar (sheet'te isaretlenmis)
+    // addon_type yoksa (eski format) keyword ile kontrol et
     const n = (f.name || "").toLowerCase();
-    // Sadece "standard" ucretleri goster: registration, placement, materials
-    // Sigorta, courier, bank transfer vb. gosterme
-    const isStd = n.includes("registration") || n.includes("kayit") ||
-                  n.includes("placement") ||
-                  n.includes("material") || n.includes("materyal") ||
-                  n.includes("administration") || n.includes("booking") ||
-                  n.includes("pel protection") || n.includes("protection of enrolled");
+    const isCompulsory = f.addon_type
+      ? f.addon_type === "compulsory"
+      : (n.includes("registration") || n.includes("kayit") ||
+         n.includes("placement") ||
+         n.includes("material") || n.includes("materyal") ||
+         n.includes("administration") || n.includes("booking") ||
+         n.includes("pel protection") || n.includes("protection of enrolled"));
 
-    if (!isStd) return;
+    if (!isCompulsory) return;
 
-    // Tier kontrolu (materials icin)
-    const inRange = (!f.tier_min || weeks >= f.tier_min) && (!f.tier_max || weeks <= f.tier_max);
-    if ((n.includes("material") || n.includes("materyal")) && !inRange) return;
+    // Tier kontrolu - tier_min/max varsa hafta sayisina gore filtrele
+    const hasTier = f.tier_min || f.tier_max;
+    const inRange = !hasTier ||
+      ((!f.tier_min || weeks >= f.tier_min) && (!f.tier_max || weeks <= f.tier_max));
+    if (!inRange) return;
 
     const amount = f.calc_type === "per_week" ? f.amount * weeks : f.amount;
     items.push({ name: f.name, amount, currency: f.currency || currency });
