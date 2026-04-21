@@ -167,9 +167,9 @@ function calcFees(fees, weeks) {
   const items = [];
   let total = 0;
 
+  // Ayni isimli fee satirlarini grupla - tier'li olanlarda sadece eslesen tier'i al
+  const feeGroups = {};
   (fees || []).forEach(f => {
-    // Sadece compulsory addon_type olan satirlar (sheet'te isaretlenmis)
-    // addon_type yoksa (eski format) keyword ile kontrol et
     const n = (f.name || "").toLowerCase();
     const isCompulsory = f.addon_type
       ? f.addon_type === "compulsory"
@@ -178,15 +178,21 @@ function calcFees(fees, weeks) {
          n.includes("material") || n.includes("materyal") ||
          n.includes("administration") || n.includes("booking") ||
          n.includes("pel protection") || n.includes("protection of enrolled"));
-
     if (!isCompulsory) return;
 
-    // Tier kontrolu - tier_min/max varsa hafta sayisina gore filtrele
     const hasTier = f.tier_min || f.tier_max;
-    const inRange = !hasTier ||
-      ((!f.tier_min || weeks >= f.tier_min) && (!f.tier_max || weeks <= f.tier_max));
-    if (!inRange) return;
+    if (hasTier) {
+      // Hafta sayisina uyan tier'i sec
+      const inRange = (!f.tier_min || weeks >= f.tier_min) && (!f.tier_max || weeks <= f.tier_max);
+      if (!inRange) return;
+    }
 
+    // Ayni isimli fee varsa ustune yaz (tier match olan kazanir)
+    const key = f.name;
+    feeGroups[key] = f;
+  });
+
+  Object.values(feeGroups).forEach(f => {
     const amount = f.calc_type === "per_week" ? f.amount * weeks : f.amount;
     items.push({ name: f.name, amount, currency: f.currency || currency });
     total += amount;
