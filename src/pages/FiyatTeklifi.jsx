@@ -162,7 +162,7 @@ async function fetchCityData(sheetId, city) {
 
 // ─── HESAPLAMA FONKSİYONLARI ───
 // Her fee'yi ayri satirda dondur - isim, tutar, currency
-function calcFees(fees, weeks) {
+function calcFees(fees, weeks, age, accType) {
   const currency = fees?.[0]?.currency || "GBP";
   const items = [];
   let total = 0;
@@ -197,6 +197,24 @@ function calcFees(fees, weeks) {
     items.push({ name: f.name, amount, currency: f.currency || currency });
     total += amount;
   });
+
+  // U18 supplement - yas 17 veya altiysa ve homestay seciliyse otomatik ekle
+  const isHomestay = (accType || "").toLowerCase().includes("homestay") ||
+                     (accType || "").toLowerCase().includes("aile");
+  if (age && age <= 17 && isHomestay) {
+    const u18 = (fees || []).find(f =>
+      (f.name || "").toLowerCase().includes("u18") ||
+      (f.name || "").toLowerCase().includes("under 18")
+    );
+    if (u18) {
+      const amt = u18.calc_type === "per_week" ? u18.amount * weeks : u18.amount;
+      // Duplicate ekleme - zaten compulsory olarak gelmemisse ekle
+      if (!items.find(i => i.name === u18.name)) {
+        items.push({ name: u18.name, amount: amt, currency: u18.currency || currency, auto: true });
+        total += amt;
+      }
+    }
+  }
 
   return { items, total, currency };
 }
@@ -266,7 +284,7 @@ export default function FiyatTeklifi() {
   const accs = cur.cityData?.acc || [];
   const feesData = cur.isOnline
     ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-    : calcFees(cur.cityData?.fees, cur.weeks);
+    : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type);
   const cCost = getPrice(cur.course, cur.weeks);
   const aCost = cur.acc ? cur.acc.price * cur.weeks : 0;
   const addonsCost = (cur.addons||[]).reduce((s,a) => s+(a.totalAmount||0), 0);
@@ -530,7 +548,7 @@ export default function FiyatTeklifi() {
               <h2 style={S.ttl}>Teklif Özeti</h2>
               {destinations.length === 0 && <p style={{ color:"#94a3b8" }}>Henüz destinasyon eklenmedi.</p>}
               {destinations.map((d,i) => {
-                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks);
+                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
                 const cc = getPrice(d.course, d.weeks);
                 const ac = d.acc ? d.acc.price * d.weeks : 0;
                 const addonTotal = (d.addons||[]).reduce((s,a) => s + (a.totalAmount||0), 0);
@@ -639,7 +657,7 @@ export default function FiyatTeklifi() {
                 const startD = cur.startDate ? new Date(cur.startDate) : null;
 
                 // Compulsory olanlar - calcFees'ten al (tier kontrolu yapilmis, tek satir gelir)
-                const compulsory = calcFees(allFees, cur.weeks).items;
+                const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type).items;
 
                 // Optional olanlar - secim yapilabilir
                 const optional = allFees.filter(f => {
@@ -786,7 +804,7 @@ function PdfTemplate({ destinations, student, user }) {
   return (
     <div id="pdf-area" style={{ display:"none", fontFamily:"Arial, Helvetica, sans-serif", background:"#fff" }}>
       {destinations.map((d, idx) => {
-        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks);
+        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
         const cCost = getPrice(d.course, d.weeks);
         const aCost = d.acc ? d.acc.price * d.weeks : 0;
         const addonTot = (d.addons||[]).reduce((s,a) => s+(a.totalAmount||0), 0);
