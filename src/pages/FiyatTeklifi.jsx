@@ -135,7 +135,7 @@ async function fetchCityData(sheetId, city) {
       tier_min: r.tier_min_weeks ? parseInt(r.tier_min_weeks) : null,
       tier_max: r.tier_max_weeks ? parseInt(r.tier_max_weeks) : null,
       notes: r.notes || "",
-      addon_type: r.addon_type || "compulsory",
+      addon_type: r.addon_type || "",
       eligible_courses: r.eligible_courses || "",
       date_start: r.date_start || "",
       date_end: r.date_end || "",
