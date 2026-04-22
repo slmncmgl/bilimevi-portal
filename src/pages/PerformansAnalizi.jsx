@@ -4,7 +4,7 @@ import { getSession } from "../utils/sheets";
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const DANISMAN_URL = `https://docs.google.com/spreadsheets/d/${QUIZ_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Dan%C4%B1%C5%9Fman`;
+const CEVAPLAR_URL = `https://docs.google.com/spreadsheets/d/${QUIZ_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Cevaplar`;
 const PERSONEL_URL = `https://docs.google.com/spreadsheets/d/${PERSONEL_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Personel`;
 
 function parseCSV(csv) {
@@ -30,15 +30,9 @@ function parseYuzde(val) {
   return null;
 }
 
-function DanismanDetay({ danisman, okullar, satirlar, onGeri }) {
-  const satir = satirlar.find(r => r[0]?.trim().toLowerCase() === danisman.toLowerCase());
-  const sonuclar = okullar.map((okul, i) => {
-    const val = satir ? satir[i + 1] : null;
-    const yuzde = parseYuzde(val);
-    return { okul, sonuc: val || null, yuzde };
-  });
-  const girilmisler = sonuclar.filter(s => s.sonuc);
-  const toplamYuzde = girilmisler.reduce((acc, s) => acc + (s.yuzde || 0), 0);
+function DanismanDetay({ danisman, sonuclar, onGeri }) {
+  const girilmisler = sonuclar.filter(s => s.yuzde !== null);
+  const toplamYuzde = girilmisler.reduce((acc, s) => acc + s.yuzde, 0);
   const genelOrtalama = girilmisler.length > 0 ? (toplamYuzde / girilmisler.length).toFixed(1) : null;
   const ortNum = genelOrtalama ? parseFloat(genelOrtalama) : null;
 
@@ -57,23 +51,17 @@ function DanismanDetay({ danisman, okullar, satirlar, onGeri }) {
 
       <div style={s.summaryRow}>
         <div style={s.summaryCard}>
-          <div style={s.summaryNum}>{okullar.length}</div>
-          <div style={s.summaryLabel}>Toplam Okul</div>
+          <div style={s.summaryNum}>{sonuclar.length}</div>
+          <div style={s.summaryLabel}>Toplam Sınav</div>
         </div>
         <div style={s.summaryCard}>
           <div style={{ ...s.summaryNum, color: "#0891b2" }}>{girilmisler.length}</div>
           <div style={s.summaryLabel}>Tamamlanan</div>
         </div>
-        <div style={s.summaryCard}>
-          <div style={{ ...s.summaryNum, color: "#64748b" }}>{okullar.length - girilmisler.length}</div>
-          <div style={s.summaryLabel}>Girilmemiş</div>
-        </div>
-        {genelOrtalama && (
-          <div style={{ ...s.summaryCard, background: ortNum >= 80 ? "#f0fdf4" : ortNum >= 50 ? "#fffbeb" : "#fef2f2", border: `1px solid ${ortNum >= 80 ? "#86efac" : ortNum >= 50 ? "#fde68a" : "#fca5a5"}` }}>
+        <div style={{ ...s.summaryCard, background: ortNum >= 80 ? "#f0fdf4" : ortNum >= 50 ? "#fffbeb" : "#fef2f2", border: `1px solid ${ortNum >= 80 ? "#86efac" : ortNum >= 50 ? "#fde68a" : "#fca5a5"}` }}>
             <div style={{ ...s.summaryNum, color: ortNum >= 80 ? "#166534" : ortNum >= 50 ? "#92400e" : "#991b1b" }}>%{genelOrtalama}</div>
             <div style={s.summaryLabel}>Genel Ortalama</div>
           </div>
-        )}
       </div>
 
       <div style={s.tableCard}>
@@ -94,26 +82,26 @@ function DanismanDetay({ danisman, okullar, satirlar, onGeri }) {
               {sonuclar.map((item, i) => {
                 const pct = item.yuzde;
                 const renk = pct === null ? "#94a3b8" : pct >= 80 ? "#166534" : pct >= 50 ? "#92400e" : "#991b1b";
-                const bg = pct === null ? "#f8fafc" : pct >= 80 ? "#f0fdf4" : pct >= 50 ? "#fffbeb" : "#fef2f2";
+                const bg = pct >= 80 ? "#f0fdf4" : pct >= 50 ? "#fffbeb" : "#fef2f2";
                 return (
                   <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}
                     onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                     <td style={{ ...s.td, fontWeight: "600", color: "#0f172a" }}>{item.okul}</td>
-                    <td style={{ ...s.td, fontFamily: "monospace", color: item.sonuc ? "#0f172a" : "#94a3b8" }}>{item.sonuc || "—"}</td>
+                    <td style={{ ...s.td, fontFamily: "monospace", color: "#0f172a" }}>{item.sonuc}</td>
                     <td style={s.td}>
-                      {pct !== null ? (
+                      {item.yuzde !== null ? (
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                           <div style={{ flex: 1, height: "6px", background: "#e2e8f0", borderRadius: "99px", overflow: "hidden" }}>
-                            <div style={{ width: `${pct}%`, height: "100%", background: pct >= 80 ? "#22c55e" : pct >= 50 ? "#f59e0b" : "#ef4444", borderRadius: "99px" }} />
+                            <div style={{ width: `${item.yuzde}%`, height: "100%", background: item.yuzde >= 80 ? "#22c55e" : item.yuzde >= 50 ? "#f59e0b" : "#ef4444", borderRadius: "99px" }} />
                           </div>
-                          <span style={{ fontSize: "12px", fontWeight: "700", color: renk, minWidth: "40px" }}>%{pct}</span>
+                          <span style={{ fontSize: "12px", fontWeight: "700", color: renk, minWidth: "40px" }}>%{item.yuzde}</span>
                         </div>
                       ) : <span style={{ color: "#94a3b8" }}>—</span>}
                     </td>
                     <td style={s.td}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: "700", background: bg, color: renk }}>
-                        {item.sonuc ? "✓ Tamamlandı" : "— Girilmedi"}
+                        ✓ Tamamlandı
                       </span>
                     </td>
                   </tr>
@@ -134,8 +122,7 @@ export default function PerformansAnalizi() {
   const isAdmin = ["admin", "director", "owner"].includes(rol);
   const isManager = rol === "manager";
 
-  const [okullar, setOkullar] = useState([]);
-  const [satirlar, setSatirlar] = useState([]);
+  const [cevaplar, setCevaplar] = useState([]);
   const [personelList, setPersonelList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -144,13 +131,19 @@ export default function PerformansAnalizi() {
   useEffect(() => {
     if (!user) { navigate("/"); return; }
     Promise.all([
-      fetch(DANISMAN_URL).then(r => r.text()),
+      fetch(CEVAPLAR_URL).then(r => r.text()),
       fetch(PERSONEL_URL).then(r => r.text()),
-    ]).then(([danismanCsv, personelCsv]) => {
-      const dRows = parseCSV(danismanCsv);
-      if (dRows.length < 2) throw new Error("Sınav verisi bulunamadı");
-      setOkullar(dRows[0].slice(1));
-      setSatirlar(dRows.slice(1));
+    ]).then(([cevaplarCsv, personelCsv]) => {
+      const cRows = parseCSV(cevaplarCsv);
+      if (cRows.length < 2) throw new Error("Sınav verisi bulunamadı");
+      // Header: Tarih, Danışman, Quiz Başlığı, Doğru, Yanlış, Atlanan, Toplam Soru, Doğruluk (%)
+      const dataRows = cRows.slice(1).map(r => ({
+        danisman: r[1]?.trim(),
+        okul: r[2]?.trim(),
+        yuzde: parseFloat(r[7]) || null,
+        sonuc: r[7] ? `%${parseFloat(r[7]).toFixed(2)}` : null,
+      })).filter(r => r.danisman && r.okul);
+      setCevaplar(dataRows);
 
       const pRows = parseCSV(personelCsv);
       const pHeaders = pRows[0];
@@ -164,7 +157,7 @@ export default function PerformansAnalizi() {
       .finally(() => setLoading(false));
   }, []);
 
-  const danismanlar = satirlar.map(r => r[0]?.trim()).filter(Boolean);
+  const danismanlar = [...new Set(cevaplar.map(r => r.danisman))].filter(Boolean);
 
   let gorunecekler = [];
   if (isAdmin) {
@@ -180,6 +173,10 @@ export default function PerformansAnalizi() {
   }
 
   const tekKisi = gorunecekler.length === 1;
+
+  function getSonuclar(danisman) {
+    return cevaplar.filter(r => r.danisman.toLowerCase() === danisman.toLowerCase());
+  }
 
   return (
     <div style={s.root}>
@@ -242,8 +239,7 @@ export default function PerformansAnalizi() {
           tekKisi || seciliDanisman ? (
             <DanismanDetay
               danisman={seciliDanisman || gorunecekler[0]}
-              okullar={okullar}
-              satirlar={satirlar}
+              sonuclar={getSonuclar(seciliDanisman || gorunecekler[0])}
               onGeri={!tekKisi ? () => setSeciliDanisman(null) : null}
             />
           ) : (
@@ -264,10 +260,9 @@ export default function PerformansAnalizi() {
                   </thead>
                   <tbody>
                     {gorunecekler.map((d, i) => {
-                      const satir = satirlar.find(r => r[0]?.trim().toLowerCase() === d.toLowerCase());
-                      const girilenler = okullar.map((_, j) => satir ? satir[j + 1] : null).filter(Boolean);
-                      const ort = girilenler.length > 0
-                        ? (girilenler.reduce((acc, v) => acc + (parseYuzde(v) || 0), 0) / girilenler.length).toFixed(1)
+                      const dSonuclar = getSonuclar(d);
+                      const ort = dSonuclar.length > 0
+                        ? (dSonuclar.reduce((acc, v) => acc + (v.yuzde || 0), 0) / dSonuclar.length).toFixed(1)
                         : null;
                       const ortNum = ort ? parseFloat(ort) : null;
                       return (
@@ -276,8 +271,8 @@ export default function PerformansAnalizi() {
                           onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                           <td style={{ ...s.td, fontWeight: "600", color: "#0f172a" }}>{d}</td>
                           <td style={s.td}>
-                            <span style={{ color: "#0891b2", fontWeight: "600" }}>{girilenler.length}</span>
-                            <span style={{ color: "#94a3b8" }}> / {okullar.length}</span>
+                            <span style={{ color: "#0891b2", fontWeight: "600" }}>{dSonuclar.length}</span>
+                            <span style={{ color: "#94a3b8" }}> sınav</span>
                           </td>
                           <td style={s.td}>
                             {ort ? (
