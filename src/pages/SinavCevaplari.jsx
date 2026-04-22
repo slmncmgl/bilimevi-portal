@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSession } from "../utils/sheets";    
+import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQ2X2Vh9vxF1RO3D5o3UVWj0DHgxDdWHyYdLThI32i6kwcR0MUKswcfeVjpOXL6bZC/exec";
-const KEYS_SHEET_URL = "https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/export?format=csv&gid=1926186097"; 
+const KEYS_SHEET_URL = "https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/export?format=csv&gid=1926186097";
 const GEMINI_MODEL = "gemini-2.5-flash";
 
 export default function SinavCevaplari() {
