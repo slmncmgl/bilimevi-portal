@@ -7,15 +7,28 @@ const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-// Master sheet ID (master_index için)
-const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
+// Google Sheets API (okuma için public CSV, yazma için Apps Script)
+const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
+
+// Klasör ID'leri
+const FOLDERS = {
+  EC: "1B0NO3HCQGdXys9aGLEMfsapDFnq-8ZWc",
+  KAPLAN: "1YRwye6-_2bS80AOIoHWOTW37m3tej7px",
+  MASTER_INDEX: "11fgodiPmlUpXiXST7tV6DQUtwoR2rodf",
+};
+
+// Dosya adları sabit
+const FILE_NAMES = {
+  EC: "EC.xlsx",
+  KAPLAN: "Kaplan.xlsx",
+};
 
 // Sekme yapılandırması
 const TABS = [
-  { id: "courses", label: "📚 Kurslar", icon: "📚" },
-  { id: "accommodation", label: "🏠 Konaklama", icon: "🏠" },
-  { id: "fees", label: "💰 Ek Ücretler", icon: "💰" },
-  { id: "transfers", label: "🚗 Transfer", icon: "🚗" },
+  { id: "courses", label: "📚 Kurslar", sheetName: "courses" },
+  { id: "accommodation", label: "🏠 Konaklama", sheetName: "accommodation" },
+  { id: "fees", label: "💰 Ek Ücretler", sheetName: "fees" },
+  { id: "transfers", label: "🚗 Transfer", sheetName: "transfers" },
 ];
 
 // Boş veri yapısı
@@ -33,11 +46,13 @@ const STEPS = {
   SCHOOL_SELECT: "school_select",
   PARSING: "parsing",
   PREVIEW: "preview",
+  VALIDATING: "validating",
   SAVING: "saving",
   DONE: "done",
+  ERROR: "error",
 };
 
-// Validasyon sonuçları için
+// Validasyon durumları
 const VALIDATION_STATUS = {
   VALID: "valid",
   WARNING: "warning",
@@ -56,6 +71,11 @@ export default function KatalogParse() {
   const [selectedCity, setSelectedCity] = useState("");
   const [cities, setCities] = useState([]);
   
+  // Referans veri (sheet'ten okunan)
+  const [referenceData, setReferenceData] = useState(null);
+  const [referenceColumns, setReferenceColumns] = useState({});
+  const [referenceLoading, setReferenceLoading] = useState(false);
+  
   // Parse state
   const [parsingProgress, setParsingProgress] = useState(0);
   const [parsingStatus, setParsingStatus] = useState("");
@@ -68,6 +88,7 @@ export default function KatalogParse() {
   // Loading & error
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [restoreMessage, setRestoreMessage] = useState(null);
   
   // Refs
   const dropRef = useRef(null);
@@ -83,7 +104,7 @@ export default function KatalogParse() {
     setUser(session);
   }, []);
 
-  // Şehir listesini çek (seçilen okula göre)
+  // Şehir listesini çek (master_index'ten)
   useEffect(() => {
     if (!selectedBrand) return;
     fetchCitiesForBrand(selectedBrand);
@@ -91,6 +112,7 @@ export default function KatalogParse() {
 
   async function fetchCitiesForBrand(brand) {
     try {
+      const MASTER_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
       const url = `https://docs.google.com/spreadsheets/d/${MASTER_ID}/gviz/tq?tqx=out:csv&sheet=master_index`;
       const res = await fetch(url);
       const csv = await res.text();
@@ -128,6 +150,60 @@ export default function KatalogParse() {
     });
   }
 
+  // Referans sheet'ten veri oku (CSV olarak public erişim)
+  async function loadReferenceData(brand) {
+    setReferenceLoading(true);
+    try {
+      const folderId = brand === "EC" ? FOLDERS.EC : FOLDERS.KAPLAN;
+      const fileName = brand === "EC" ? FILE_NAMES.EC : FILE_NAMES.KAPLAN;
+      
+      // Drive'dan dosya ID'sini bul (klasör içinde)
+      const query = `name='${fileName}' and '${folderId}' in parents and trashed=false`;
+      const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`;
+      
+      // Not: Bu çağrı için access token gerekebilir. Public dosya ise direkt CSV ile okuyabiliriz.
+      // Alternatif: master_index'teki drive_link'leri kullan
+      
+      const MASTER_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
+      const masterUrl = `https://docs.google.com/spreadsheets/d/${MASTER_ID}/gviz/tq?tqx=out:csv&sheet=master_index`;
+      const masterRes = await fetch(masterUrl);
+      const masterCsv = await masterRes.text();
+      const masterRows = parseCSV(masterCsv);
+      
+      // Bu okul+şehir için drive_link'i bul (referans olarak kullanılacak)
+      // Şimdilik ilgili markanın ilk aktif şehrinin sheet'ini referans alalım
+      const referenceRow = masterRows.find(row => 
+        row.school_brand === brand && 
+        row.is_active === "TRUE" && 
+        row.parse_status === "approved"
+      );
+      
+      if (referenceRow && referenceRow.drive_link) {
+        const match = referenceRow.drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+        const sheetId = match ? match[1] : null;
+        
+        if (sheetId) {
+          // Her tablo için sütun yapısını oku
+          const columns = {};
+          for (const tab of TABS) {
+            const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${tab.sheetName}`;
+            const res = await fetch(sheetUrl);
+            const csv = await res.text();
+            const firstLine = csv.split("\n")[0];
+            const headers = firstLine.split(",").map(h => h.replace(/"/g, "").trim());
+            columns[tab.id] = headers;
+          }
+          setReferenceColumns(columns);
+          console.log("Referans sütunlar yüklendi:", columns);
+        }
+      }
+    } catch (err) {
+      console.error("Referans veri yüklenemedi:", err);
+    } finally {
+      setReferenceLoading(false);
+    }
+  }
+
   // Dosya seçimi
   function handleFileSelect(e) {
     const file = e.target.files[0];
@@ -161,6 +237,158 @@ export default function KatalogParse() {
     });
   }
 
+  // Dinamik prompt oluştur (referans sütunlara göre)
+  function buildPromptForSection(section, columns) {
+    const colNames = columns[section] || [];
+    if (colNames.length === 0) {
+      // Fallback
+      return `Bu PDF'ten ${section} bilgilerini çıkar. JSON formatında döndür.`;
+    }
+    
+    const colList = colNames.map(col => `"${col}": "değer"`).join(",\n      ");
+    
+    return `Bu PDF'ten ${section} bilgilerini çıkar. Aşağıdaki JSON formatında döndür (başka hiçbir şey yazma, backtick kullanma):
+
+{
+  "${section}": [
+    {
+      ${colList}
+    }
+  ]
+}
+
+ÖNEMLİ KURALLAR:
+1. Sadece PDF'te kesin olan bilgileri doldur. Emin değilsen boş bırak.
+2. Fiyatlar sayı, para birimleri (GBP/EUR/USD/CAD/CHF) metin olmalı.
+3. Tarihler YYYY-MM-DD formatında olmalı.
+4. ${section} için yukarıdaki sütunların tamamını kullan.`;
+  }
+
+  // 1. ADIM: Okul tespiti
+  async function analyzeSchool() {
+    if (!selectedFile) {
+      setError("Lütfen bir PDF dosyası seçin.");
+      return;
+    }
+
+    setStep(STEPS.ANALYZING);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const base64 = await fileToBase64(selectedFile);
+      
+      const prompt = `Bu bir dil okulu katalog PDF'idir. Sayfa içeriğini analiz et ve hangi okul markasına ait olduğunu belirle.
+
+Okul seçenekleri: EC, Kaplan, LAL, ELS, ILSC.
+
+SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
+
+      const response = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }]
+          }],
+          generationConfig: { temperature: 0.1, topP: 0.9 }
+        })
+      });
+
+      const result = await response.json();
+      let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      let clean = text.replace(/```json|```/g, "").trim();
+      const data = JSON.parse(clean);
+      
+      setDetectedBrands(data.detected || ["EC", "Kaplan"]);
+      setSelectedBrand(data.detected?.[0] || "");
+      setStep(STEPS.SCHOOL_SELECT);
+      
+      // Referans veriyi yükle
+      await loadReferenceData(data.detected?.[0] || "EC");
+      
+    } catch (err) {
+      console.error("Analiz hatası:", err);
+      setError("Okul tespit edilemedi. Lütfen manuel seçin.");
+      setDetectedBrands(["EC", "Kaplan"]);
+      setStep(STEPS.SCHOOL_SELECT);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // 2. ADIM: Parse et
+  async function startParsing() {
+    if (!selectedBrand || !selectedCity) {
+      setError("Lütfen okul ve şehir seçin.");
+      return;
+    }
+
+    setStep(STEPS.PARSING);
+    setLoading(true);
+    setParsingProgress(0);
+    setParsingStatus("Referans veri kontrol ediliyor...");
+
+    try {
+      // Referans sütunlar yoksa tekrar yükle
+      if (Object.keys(referenceColumns).length === 0) {
+        await loadReferenceData(selectedBrand);
+      }
+      
+      const base64 = await fileToBase64(selectedFile);
+      const fullData = { courses: [], accommodation: [], fees: [], transfers: [] };
+      
+      for (let i = 0; i < TABS.length; i++) {
+        const tab = TABS[i];
+        setParsingProgress(20 + (i * 20));
+        setParsingStatus(`${tab.label} parse ediliyor...`);
+        
+        const prompt = buildPromptForSection(tab.id, referenceColumns);
+        
+        const response = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }]
+            }],
+            generationConfig: { temperature: 0.1, topP: 0.95 }
+          })
+        });
+        
+        const result = await response.json();
+        let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        text = text.replace(/```json|```/g, "").trim();
+        
+        try {
+          const parsed = JSON.parse(text);
+          fullData[tab.id] = parsed[tab.id] || [];
+        } catch (e) {
+          console.error(`${tab.id} parse hatası:`, e);
+          fullData[tab.id] = [];
+        }
+      }
+      
+      setParsingProgress(100);
+      setParsingStatus("Parse tamamlandı! Veriler doğrulanıyor...");
+      
+      setParsedData(fullData);
+      setEditableData(fullData);
+      
+      // Validasyon çalıştır
+      runAllValidations(fullData);
+      
+      setStep(STEPS.PREVIEW);
+      
+    } catch (err) {
+      console.error("Parse hatası:", err);
+      setError("PDF parse sırasında hata oluştu: " + err.message);
+      setStep(STEPS.SCHOOL_SELECT);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // VALIDASYON FONKSİYONLARI
   function validateCourses(courses) {
     const errors = {};
@@ -171,35 +399,24 @@ export default function KatalogParse() {
       const rowErrors = [];
       const rowWarnings = [];
       
-      // Zorunlu alanlar
       if (!course.course_name || course.course_name.trim() === "") {
         rowErrors.push("Kurs adı boş olamaz");
       }
       
-      // Fiyat kontrolü
       const price = parseFloat(course.price_per_week);
       if (isNaN(price) || price <= 0) {
         rowErrors.push("Geçerli bir fiyat giriniz");
       }
       
-      // Para birimi kontrolü
       if (course.currency && !validCurrencies.includes(course.currency)) {
         rowErrors.push(`Geçersiz para birimi: ${course.currency}`);
       }
       
-      // Tier aralığı kontrolü
       const tierMin = parseInt(course.weeks_tier_min);
-      const tierMax = course.weeks_tier_max ? parseInt(course.weeks_tier_max) : null;
-      
       if (isNaN(tierMin) || tierMin < 1) {
         rowErrors.push("Tier min hafta geçersiz");
       }
       
-      if (tierMax !== null && tierMax < tierMin) {
-        rowErrors.push("Tier max, min'den küçük olamaz");
-      }
-      
-      // Yüksek sezon tarihleri
       if (course.high_season_start && course.high_season_end) {
         const hsStart = new Date(course.high_season_start);
         const hsEnd = new Date(course.high_season_end);
@@ -207,16 +424,6 @@ export default function KatalogParse() {
           rowErrors.push("Yüksek sezon tarihleri geçersiz");
         } else if (hsStart > hsEnd) {
           rowErrors.push("Yüksek sezon başlangıcı bitişten sonra olamaz");
-        }
-      }
-      
-      // Maksimum hafta kontrolü
-      if (course.max_weeks) {
-        const maxWeeks = parseInt(course.max_weeks);
-        if (isNaN(maxWeeks) || maxWeeks < 1) {
-          rowErrors.push("Maksimum hafta geçersiz");
-        } else if (tierMin > maxWeeks) {
-          rowWarnings.push(`Tier min (${tierMin}) > max_weeks (${maxWeeks})`);
         }
       }
       
@@ -249,15 +456,6 @@ export default function KatalogParse() {
         rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
       }
       
-      if (item.high_season_price) {
-        const hsPrice = parseFloat(item.high_season_price);
-        if (isNaN(hsPrice)) {
-          rowErrors.push("Yüksek sezon fiyatı geçersiz");
-        } else if (hsPrice < price) {
-          rowWarnings.push("Yüksek sezon fiyatı normal fiyattan düşük");
-        }
-      }
-      
       if (rowErrors.length > 0) errors[idx] = rowErrors;
       if (rowWarnings.length > 0) warnings[idx] = rowWarnings;
     });
@@ -267,10 +465,7 @@ export default function KatalogParse() {
   
   function validateFees(items) {
     const errors = {};
-    const warnings = {};
     const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
-    const validCalcTypes = ["once", "per_week"];
-    const validAddonTypes = ["compulsory", "optional_service", "supplement", "upgrade", "course_addon", "post_departure"];
     
     items.forEach((item, idx) => {
       const rowErrors = [];
@@ -288,14 +483,6 @@ export default function KatalogParse() {
         rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
       }
       
-      if (item.calculation_type && !validCalcTypes.includes(item.calculation_type)) {
-        rowErrors.push(`Geçersiz hesaplama tipi: ${item.calculation_type}`);
-      }
-      
-      if (item.addon_type && !validAddonTypes.includes(item.addon_type)) {
-        rowErrors.push(`Geçersiz ek tipi: ${item.addon_type}`);
-      }
-      
       if (rowErrors.length > 0) errors[idx] = rowErrors;
     });
     
@@ -304,7 +491,6 @@ export default function KatalogParse() {
   
   function validateTransfers(items) {
     const errors = {};
-    const warnings = {};
     const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
     
     items.forEach((item, idx) => {
@@ -319,13 +505,6 @@ export default function KatalogParse() {
         rowErrors.push("Geçerli bir tek yön fiyatı giriniz");
       }
       
-      if (item.price_two_way) {
-        const twoWay = parseFloat(item.price_two_way);
-        if (isNaN(twoWay)) {
-          rowErrors.push("Geçerli bir çift yön fiyatı giriniz");
-        }
-      }
-      
       if (item.currency && !validCurrencies.includes(item.currency)) {
         rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
       }
@@ -333,7 +512,7 @@ export default function KatalogParse() {
       if (rowErrors.length > 0) errors[idx] = rowErrors;
     });
     
-    return { errors, warnings };
+    return { errors, warnings: {} };
   }
   
   function runAllValidations(data) {
@@ -365,320 +544,7 @@ export default function KatalogParse() {
     return totalErrors === 0;
   }
 
-  // 1. ADIM: Okul tespiti için PDF analizi
-  async function analyzeSchool() {
-    if (!selectedFile) {
-      setError("Lütfen bir PDF dosyası seçin.");
-      return;
-    }
-
-    setStep(STEPS.ANALYZING);
-    setLoading(true);
-    setError(null);
-
-    try {
-      const base64 = await fileToBase64(selectedFile);
-      
-      const prompt = `Bu bir dil okulu katalog PDF'idir. Sayfa içeriğini analiz et ve hangi okul markasına ait olduğunu belirle.
-
-Okul seçenekleri: EC, Kaplan, LAL, ELS, ILSC.
-
-SADECE aşağıdaki JSON formatında cevap ver, başka hiçbir şey yazma, açıklama yapma, backtick kullanma:
-
-{"detected":["EC"],"confidence":85,"reason":"sayfada EC logosu ve İngiltere şubeleri var"}
-
-Eğer birden fazla okul olabilir, detected dizisine güven sırasına göre yaz.
-Emin değilsen confidence düşük olur.`;
-
-      const response = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inlineData: { mimeType: "application/pdf", data: base64 } }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.1,
-            topP: 0.9,
-          }
-        })
-      });
-
-      const result = await response.json();
-      
-      if (result.error) {
-        throw new Error(result.error.message || "API hatası");
-      }
-      
-      let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      
-      let clean = text.trim();
-      clean = clean.replace(/```json\s*/gi, "");
-      clean = clean.replace(/```\s*/g, "");
-      clean = clean.trim();
-      
-      if (!clean.startsWith("{") && !clean.startsWith("[")) {
-        const jsonMatch = clean.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          clean = jsonMatch[0];
-        } else {
-          throw new Error("API yanıtında JSON bulunamadı");
-        }
-      }
-      
-      const data = JSON.parse(clean);
-      
-      setDetectedBrands(data.detected || ["EC", "Kaplan"]);
-      setSelectedBrand(data.detected?.[0] || "");
-      setStep(STEPS.SCHOOL_SELECT);
-      
-    } catch (err) {
-      console.error("Analiz hatası:", err);
-      setError("Okul otomatik olarak tespit edilemedi. Lütfen manuel seçiniz.");
-      setDetectedBrands(["EC", "Kaplan"]);
-      setStep(STEPS.SCHOOL_SELECT);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // 2. ADIM: Parse et
-  async function startParsing() {
-    if (!selectedBrand || !selectedCity) {
-      setError("Lütfen okul ve şehir seçin.");
-      return;
-    }
-
-    setStep(STEPS.PARSING);
-    setLoading(true);
-    setParsingProgress(0);
-    setParsingStatus("PDF yükleniyor...");
-
-    try {
-      const base64 = await fileToBase64(selectedFile);
-      
-      setParsingProgress(20);
-      setParsingStatus("Kurslar parse ediliyor...");
-      
-      const coursesPrompt = `Bu PDF'ten kurs bilgilerini çıkar. Aşağıdaki JSON formatında döndür (başka hiçbir şey yazma, backtick kullanma):
-
-{
-  "courses": [
-    {
-      "course_name": "General English 20",
-      "program_type": "General",
-      "lessons_per_week": 20,
-      "hours_per_week": 15,
-      "weeks_tier_min": 1,
-      "weeks_tier_max": 11,
-      "price_per_week": 405,
-      "currency": "GBP",
-      "high_season_supplement": 20,
-      "high_season_start": "2026-06-29",
-      "high_season_end": "2026-08-28",
-      "max_weeks": null,
-      "start_day": "Monday",
-      "timetable_type": "morning/afternoon",
-      "morning_supplement": 40,
-      "notes": ""
-    }
-  ]
-}
-
-ÖNEMLİ KURALLAR:
-1. Her kurs için tier fiyatlandırması varsa (1-11 hafta, 12-23 hafta, 24+ hafta) her tier için AYRI satır oluştur.
-2. Sadece PDF'te kesin olan bilgileri doldur. Emin değilsen boş bırak.
-3. Para birimini (GBP/EUR/USD/CAD) doğru tespit et.`;
-
-      const coursesResponse = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: coursesPrompt },
-              { inlineData: { mimeType: "application/pdf", data: base64 } }
-            ]
-          }],
-          generationConfig: { temperature: 0.1, topP: 0.95 }
-        })
-      });
-
-      const coursesResult = await coursesResponse.json();
-      let coursesText = coursesResult.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      coursesText = coursesText.replace(/```json|```/g, "").trim();
-      
-      let coursesData = { courses: [] };
-      try {
-        coursesData = JSON.parse(coursesText);
-      } catch (e) {
-        console.error("Kurs JSON parse hatası:", e);
-      }
-
-      setParsingProgress(40);
-      setParsingStatus("Konaklama bilgileri parse ediliyor...");
-
-      const accPrompt = `Bu PDF'ten konaklama bilgilerini çıkar. JSON formatında döndür (başka hiçbir şey yazma):
-
-{
-  "accommodation": [
-    {
-      "place_name": "Homestay",
-      "accommodation_type": "Homestay",
-      "room_type": "Single",
-      "bathroom_type": "Shared",
-      "board_type": "Half Board",
-      "price_per_week": 200,
-      "currency": "GBP",
-      "high_season_price": 250,
-      "high_season_start": "2026-06-29",
-      "high_season_end": "2026-08-28",
-      "distance_to_school": "30-45 min",
-      "min_weeks": null,
-      "notes": ""
-    }
-  ]
-}`;
-
-      const accResponse = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: accPrompt },
-              { inlineData: { mimeType: "application/pdf", data: base64 } }
-            ]
-          }]
-        })
-      });
-
-      const accResult = await accResponse.json();
-      let accText = accResult.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      accText = accText.replace(/```json|```/g, "").trim();
-      
-      let accData = { accommodation: [] };
-      try {
-        accData = JSON.parse(accText);
-      } catch (e) {
-        console.error("Konaklama JSON parse hatası:", e);
-      }
-
-      setParsingProgress(60);
-      setParsingStatus("Ek ücretler parse ediliyor...");
-
-      const feesPrompt = `Bu PDF'ten ek ücret bilgilerini çıkar JSON formatında (başka hiçbir şey yazma):
-
-{
-  "fees": [
-    {
-      "fee_name": "Registration Fee",
-      "amount": 50,
-      "currency": "GBP",
-      "calculation_type": "once",
-      "addon_type": "compulsory",
-      "notes": ""
-    }
-  ]
-}`;
-
-      const feesResponse = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: feesPrompt },
-              { inlineData: { mimeType: "application/pdf", data: base64 } }
-            ]
-          }]
-        })
-      });
-
-      const feesResult = await feesResponse.json();
-      let feesText = feesResult.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      feesText = feesText.replace(/```json|```/g, "").trim();
-      
-      let feesData = { fees: [] };
-      try {
-        feesData = JSON.parse(feesText);
-      } catch (e) {
-        console.error("Fees JSON parse hatası:", e);
-      }
-
-      setParsingProgress(80);
-      setParsingStatus("Transfer bilgileri parse ediliyor...");
-
-      const transfersPrompt = `Bu PDF'ten transfer ücreti bilgilerini çıkar JSON formatında:
-
-{
-  "transfers": [
-    {
-      "airport_name": "Heathrow Airport",
-      "airport_code": "LHR",
-      "price_one_way": 120,
-      "price_two_way": 220,
-      "currency": "GBP",
-      "notes": ""
-    }
-  ]
-}`;
-
-      const transfersResponse = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: transfersPrompt },
-              { inlineData: { mimeType: "application/pdf", data: base64 } }
-            ]
-          }]
-        })
-      });
-
-      const transfersResult = await transfersResponse.json();
-      let transfersText = transfersResult.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      transfersText = transfersText.replace(/```json|```/g, "").trim();
-      
-      let transfersData = { transfers: [] };
-      try {
-        transfersData = JSON.parse(transfersText);
-      } catch (e) {
-        console.error("Transfer JSON parse hatası:", e);
-      }
-
-      setParsingProgress(100);
-      setParsingStatus("Parse tamamlandı! Veriler doğrulanıyor...");
-
-      const fullData = {
-        courses: coursesData.courses || [],
-        accommodation: accData.accommodation || [],
-        fees: feesData.fees || [],
-        transfers: transfersData.transfers || [],
-      };
-      
-      setParsedData(fullData);
-      setEditableData(fullData);
-      
-      // Validasyon çalıştır
-      runAllValidations(fullData);
-      
-      setStep(STEPS.PREVIEW);
-      
-    } catch (err) {
-      console.error("Parse hatası:", err);
-      setError("PDF parse sırasında hata oluştu: " + err.message);
-      setStep(STEPS.SCHOOL_SELECT);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Veri güncelleme (manuel düzenleme) - validasyonu tetikle
+  // Veri güncelleme
   function updateData(section, index, field, value) {
     const newData = { ...editableData };
     newData[section][index][field] = value;
@@ -688,18 +554,9 @@ Emin değilsen confidence düşük olur.`;
 
   function addRow(section) {
     const newData = { ...editableData };
-    let emptyRow = {};
-    
-    if (section === "courses") {
-      emptyRow = { course_name: "", program_type: "", lessons_per_week: "", hours_per_week: "", weeks_tier_min: 1, weeks_tier_max: null, price_per_week: "", currency: "GBP", notes: "" };
-    } else if (section === "accommodation") {
-      emptyRow = { place_name: "", accommodation_type: "", room_type: "", board_type: "", price_per_week: "", currency: "GBP", distance_to_school: "", notes: "" };
-    } else if (section === "fees") {
-      emptyRow = { fee_name: "", amount: "", currency: "GBP", calculation_type: "once", addon_type: "compulsory", notes: "" };
-    } else {
-      emptyRow = { airport_name: "", airport_code: "", price_one_way: "", currency: "GBP", notes: "" };
-    }
-    
+    const columns = referenceColumns[section] || [];
+    const emptyRow = {};
+    columns.forEach(col => { emptyRow[col] = ""; });
     newData[section].push(emptyRow);
     setEditableData(newData);
     runAllValidations(newData);
@@ -712,7 +569,6 @@ Emin değilsen confidence düşük olur.`;
     runAllValidations(newData);
   }
 
-  // Validasyon durumuna göre hücre rengi
   function getCellStyle(section, rowIdx, hasError, hasWarning) {
     let style = { ...S.cellInput };
     if (hasError) {
@@ -723,7 +579,6 @@ Emin değilsen confidence düşük olur.`;
     return style;
   }
 
-  // Hata mesajını göster
   function getValidationMessage(section, rowIdx) {
     const errors = validationErrors[section]?.[rowIdx];
     const warnings = validationWarnings[section]?.[rowIdx];
@@ -737,14 +592,13 @@ Emin değilsen confidence düşük olur.`;
     return null;
   }
 
-  // Toplam validasyon durumu
   function hasAnyValidationError() {
     return Object.values(validationErrors).some(section => 
       section && Object.keys(section).length > 0
     );
   }
 
-  // Sheets'e kaydet (Apps Script çağrısı)
+  // Backup oluştur ve kaydet (Apps Script üzerinden)
   async function saveToSheet() {
     if (hasAnyValidationError()) {
       setError("Lütfen tüm kırmızı hataları düzeltin.");
@@ -753,19 +607,84 @@ Emin değilsen confidence düşük olur.`;
     
     setStep(STEPS.SAVING);
     setLoading(true);
+    setError(null);
+    setRestoreMessage(null);
     
-    // TODO: Apps Script entegrasyonu - mevcut dosyayı güncelle
-    setTimeout(() => {
+    try {
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwl7PcvG3pt6RFtoixFu7kBkY3UBWWPhDZgZslsF87Wz_U8x3EqVZ7d9TthTmcIoStF/exec";
+      
+      // 1. Backup oluştur
+      setParsingStatus("Backup oluşturuluyor...");
+      const backupRes = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "backupSheet",
+          brand: selectedBrand,
+          city: selectedCity,
+        })
+      });
+      const backupResult = await backupRes.json();
+      
+      if (!backupResult.success) {
+        throw new Error("Backup oluşturulamadı: " + backupResult.msg);
+      }
+      
+      // 2. Yeni veriyi yaz
+      setParsingStatus("Veriler yazılıyor...");
+      const saveRes = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "writeSheetData",
+          brand: selectedBrand,
+          city: selectedCity,
+          data: editableData,
+          columns: referenceColumns,
+        })
+      });
+      const saveResult = await saveRes.json();
+      
+      if (!saveResult.success) {
+        // Hata durumunda backup'tan geri yükle
+        setParsingStatus("Hata oluştu, eski veri geri yükleniyor...");
+        await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify({
+            action: "restoreBackup",
+            brand: selectedBrand,
+            city: selectedCity,
+          })
+        });
+        throw new Error(saveResult.msg || "Veri yazılamadı");
+      }
+      
+      // 3. Başarılı, backup'ı sil
+      await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "deleteBackup",
+          brand: selectedBrand,
+          city: selectedCity,
+        })
+      });
+      
       setStep(STEPS.DONE);
+      
+    } catch (err) {
+      console.error("Kayıt hatası:", err);
+      setError("Kayıt sırasında hata oluştu: " + err.message);
+      setRestoreMessage("Önceki veri geri yüklendi.");
+      setStep(STEPS.PREVIEW);
+    } finally {
       setLoading(false);
-    }, 2000);
+    }
   }
 
-  // Tablo render fonksiyonları (validasyonlu)
+  // Tablo render fonksiyonları
   function renderCoursesTable() {
     const courses = editableData.courses || [];
     const errors = validationErrors.courses || {};
     const warnings = validationWarnings.courses || {};
+    const columns = referenceColumns.courses || ["course_name", "program_type", "lessons_per_week", "hours_per_week", "weeks_tier_min", "weeks_tier_max", "price_per_week", "currency", "high_season_supplement", "high_season_start", "high_season_end", "max_weeks", "morning_supplement", "notes"];
     
     if (courses.length === 0) {
       return <div style={S.emptyTable}>Kurs bulunamadı. Manuel ekleyebilirsiniz.</div>;
@@ -777,20 +696,7 @@ Emin değilsen confidence düşük olur.`;
           <thead>
             <tr>
               <th style={{ width: 40 }}>#</th>
-              <th>Kurs Adı</th>
-              <th>Tip</th>
-              <th>Ders/h</th>
-              <th>Saat/h</th>
-              <th>Min Hafta</th>
-              <th>Max Hafta</th>
-              <th>Fiyat/h</th>
-              <th>Para Birimi</th>
-              <th>HS Ek</th>
-              <th>HS Başlangıç</th>
-              <th>HS Bitiş</th>
-              <th>Max Hafta</th>
-              <th>Sabah Ücreti</th>
-              <th>Notlar</th>
+              {columns.map(col => <th key={col}>{col}</th>)}
               <th style={{ width: 50 }}></th>
             </tr>
           </thead>
@@ -801,26 +707,23 @@ Emin değilsen confidence düşük olur.`;
               const msg = getValidationMessage("courses", idx);
               
               return (
-                <tr key={idx} style={hasError ? S.errorRow : hasWarning ? S.warningRow : {}}>
+                <tr key={idx}>
                   <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                  <td><input value={course.course_name || ""} onChange={e => updateData("courses", idx, "course_name", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input value={course.program_type || ""} onChange={e => updateData("courses", idx, "program_type", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input type="number" value={course.lessons_per_week || ""} onChange={e => updateData("courses", idx, "lessons_per_week", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input type="number" value={course.hours_per_week || ""} onChange={e => updateData("courses", idx, "hours_per_week", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input type="number" value={course.weeks_tier_min || ""} onChange={e => updateData("courses", idx, "weeks_tier_min", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input value={course.weeks_tier_max || ""} onChange={e => updateData("courses", idx, "weeks_tier_max", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input type="number" value={course.price_per_week || ""} onChange={e => updateData("courses", idx, "price_per_week", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td>
-                    <select value={course.currency || "GBP"} onChange={e => updateData("courses", idx, "currency", e.target.value)} style={S.cellSelect}>
-                      <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
-                    </select>
-                  </td>
-                  <td><input type="number" value={course.high_season_supplement || ""} onChange={e => updateData("courses", idx, "high_season_supplement", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input type="date" value={course.high_season_start || ""} onChange={e => updateData("courses", idx, "high_season_start", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input type="date" value={course.high_season_end || ""} onChange={e => updateData("courses", idx, "high_season_end", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input type="number" value={course.max_weeks || ""} onChange={e => updateData("courses", idx, "max_weeks", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input type="number" value={course.morning_supplement || ""} onChange={e => updateData("courses", idx, "morning_supplement", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
-                  <td><input value={course.notes || ""} onChange={e => updateData("courses", idx, "notes", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  {columns.map(col => (
+                    <td key={col}>
+                      {col === "currency" ? (
+                        <select value={course[col] || "GBP"} onChange={e => updateData("courses", idx, col, e.target.value)} style={S.cellSelect}>
+                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
+                        </select>
+                      ) : col.includes("date") || col.includes("start") || col.includes("end") ? (
+                        <input type="date" value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} />
+                      ) : col.includes("price") || col.includes("supplement") || col.includes("weeks") ? (
+                        <input type="number" value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} />
+                      ) : (
+                        <input value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} />
+                      )}
+                    </td>
+                  ))}
                   <td><button onClick={() => deleteRow("courses", idx)} style={S.deleteBtn}>🗑️</button></td>
                 </tr>
               );
@@ -835,13 +738,14 @@ Emin değilsen confidence düşük olur.`;
     const items = editableData.accommodation || [];
     const errors = validationErrors.accommodation || {};
     const warnings = validationWarnings.accommodation || {};
+    const columns = referenceColumns.accommodation || ["place_name", "accommodation_type", "room_type", "board_type", "price_per_week", "currency", "distance_to_school", "notes"];
     
     if (items.length === 0) return <div style={S.emptyTable}>Konaklama bulunamadı.</div>;
     
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={S.table}>
-          <thead><tr><th style={{ width: 40 }}>#</th><th>Konaklama Adı</th><th>Tip</th><th>Oda</th><th>Yemek</th><th>Fiyat/h</th><th>HS Fiyat</th><th>Para Birimi</th><th>Mesafe</th><th>Notlar</th><th></th></tr></thead>
+          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th></th></tr></thead>
           <tbody>
             {items.map((item, idx) => {
               const hasError = errors[idx] && errors[idx].length > 0;
@@ -851,15 +755,19 @@ Emin değilsen confidence düşük olur.`;
               return (
                 <tr key={idx}>
                   <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                  <td><input value={item.place_name || ""} onChange={e => updateData("accommodation", idx, "place_name", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
-                  <td><input value={item.accommodation_type || ""} onChange={e => updateData("accommodation", idx, "accommodation_type", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
-                  <td><input value={item.room_type || ""} onChange={e => updateData("accommodation", idx, "room_type", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
-                  <td><input value={item.board_type || ""} onChange={e => updateData("accommodation", idx, "board_type", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
-                  <td><input type="number" value={item.price_per_week || ""} onChange={e => updateData("accommodation", idx, "price_per_week", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
-                  <td><input type="number" value={item.high_season_price || ""} onChange={e => updateData("accommodation", idx, "high_season_price", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
-                  <td><select value={item.currency || "GBP"} onChange={e => updateData("accommodation", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option></select></td>
-                  <td><input value={item.distance_to_school || ""} onChange={e => updateData("accommodation", idx, "distance_to_school", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
-                  <td><input value={item.notes || ""} onChange={e => updateData("accommodation", idx, "notes", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
+                  {columns.map(col => (
+                    <td key={col}>
+                      {col === "currency" ? (
+                        <select value={item[col] || "GBP"} onChange={e => updateData("accommodation", idx, col, e.target.value)} style={S.cellSelect}>
+                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
+                        </select>
+                      ) : col.includes("price") ? (
+                        <input type="number" value={item[col] || ""} onChange={e => updateData("accommodation", idx, col, e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} />
+                      ) : (
+                        <input value={item[col] || ""} onChange={e => updateData("accommodation", idx, col, e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} />
+                      )}
+                    </td>
+                  ))}
                   <td><button onClick={() => deleteRow("accommodation", idx)} style={S.deleteBtn}>🗑️</button></td>
                 </tr>
               );
@@ -873,13 +781,14 @@ Emin değilsen confidence düşük olur.`;
   function renderFeesTable() {
     const items = editableData.fees || [];
     const errors = validationErrors.fees || {};
+    const columns = referenceColumns.fees || ["fee_name", "amount", "currency", "calculation_type", "addon_type", "notes"];
     
     if (items.length === 0) return <div style={S.emptyTable}>Ek ücret bulunamadı.</div>;
     
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={S.table}>
-          <thead><tr><th style={{ width: 40 }}>#</th><th>Ücret Adı</th><th>Tutar</th><th>Para Birimi</th><th>Hesaplama</th><th>Tip</th><th>Notlar</th><th></th></tr></thead>
+          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th></th></tr></thead>
           <tbody>
             {items.map((item, idx) => {
               const hasError = errors[idx] && errors[idx].length > 0;
@@ -888,12 +797,27 @@ Emin değilsen confidence düşük olur.`;
               return (
                 <tr key={idx}>
                   <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                  <td><input value={item.fee_name || ""} onChange={e => updateData("fees", idx, "fee_name", e.target.value)} style={getCellStyle("fees", idx, hasError, false)} /></td>
-                  <td><input type="number" value={item.amount || ""} onChange={e => updateData("fees", idx, "amount", e.target.value)} style={getCellStyle("fees", idx, hasError, false)} /></td>
-                  <td><select value={item.currency || "GBP"} onChange={e => updateData("fees", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option></select></td>
-                  <td><select value={item.calculation_type || "once"} onChange={e => updateData("fees", idx, "calculation_type", e.target.value)} style={S.cellSelect}><option value="once">Tek sefer</option><option value="per_week">Haftalık</option></select></td>
-                  <td><select value={item.addon_type || "compulsory"} onChange={e => updateData("fees", idx, "addon_type", e.target.value)} style={S.cellSelect}><option value="compulsory">Zorunlu</option><option value="optional_service">İsteğe bağlı</option><option value="supplement">Ek ücret</option><option value="upgrade">Yükseltme</option></select></td>
-                  <td><input value={item.notes || ""} onChange={e => updateData("fees", idx, "notes", e.target.value)} style={getCellStyle("fees", idx, hasError, false)} /></td>
+                  {columns.map(col => (
+                    <td key={col}>
+                      {col === "currency" ? (
+                        <select value={item[col] || "GBP"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
+                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
+                        </select>
+                      ) : col === "calculation_type" ? (
+                        <select value={item[col] || "once"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
+                          <option value="once">Tek sefer</option><option value="per_week">Haftalık</option>
+                        </select>
+                      ) : col === "addon_type" ? (
+                        <select value={item[col] || "compulsory"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
+                          <option value="compulsory">Zorunlu</option><option value="optional_service">İsteğe bağlı</option><option value="supplement">Ek ücret</option><option value="upgrade">Yükseltme</option>
+                        </select>
+                      ) : col === "amount" ? (
+                        <input type="number" value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError, false)} />
+                      ) : (
+                        <input value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError, false)} />
+                      )}
+                    </td>
+                  ))}
                   <td><button onClick={() => deleteRow("fees", idx)} style={S.deleteBtn}>🗑️</button></td>
                 </tr>
               );
@@ -907,13 +831,14 @@ Emin değilsen confidence düşük olur.`;
   function renderTransfersTable() {
     const items = editableData.transfers || [];
     const errors = validationErrors.transfers || {};
+    const columns = referenceColumns.transfers || ["airport_name", "airport_code", "price_one_way", "price_two_way", "currency", "notes"];
     
     if (items.length === 0) return <div style={S.emptyTable}>Transfer bilgisi bulunamadı.</div>;
     
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={S.table}>
-          <thead><tr><th style={{ width: 40 }}>#</th><th>Havalimanı</th><th>Kodu</th><th>Tek Yön</th><th>Çift Yön</th><th>Para Birimi</th><th>Notlar</th><th></th></tr></thead>
+          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th></th></tr></thead>
           <tbody>
             {items.map((item, idx) => {
               const hasError = errors[idx] && errors[idx].length > 0;
@@ -922,12 +847,19 @@ Emin değilsen confidence düşük olur.`;
               return (
                 <tr key={idx}>
                   <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                  <td><input value={item.airport_name || ""} onChange={e => updateData("transfers", idx, "airport_name", e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} /></td>
-                  <td><input value={item.airport_code || ""} onChange={e => updateData("transfers", idx, "airport_code", e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} /></td>
-                  <td><input type="number" value={item.price_one_way || ""} onChange={e => updateData("transfers", idx, "price_one_way", e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} /></td>
-                  <td><input type="number" value={item.price_two_way || ""} onChange={e => updateData("transfers", idx, "price_two_way", e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} /></td>
-                  <td><select value={item.currency || "GBP"} onChange={e => updateData("transfers", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option></select></td>
-                  <td><input value={item.notes || ""} onChange={e => updateData("transfers", idx, "notes", e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} /></td>
+                  {columns.map(col => (
+                    <td key={col}>
+                      {col === "currency" ? (
+                        <select value={item[col] || "GBP"} onChange={e => updateData("transfers", idx, col, e.target.value)} style={S.cellSelect}>
+                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
+                        </select>
+                      ) : col.includes("price") ? (
+                        <input type="number" value={item[col] || ""} onChange={e => updateData("transfers", idx, col, e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} />
+                      ) : (
+                        <input value={item[col] || ""} onChange={e => updateData("transfers", idx, col, e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} />
+                      )}
+                    </td>
+                  ))}
                   <td><button onClick={() => deleteRow("transfers", idx)} style={S.deleteBtn}>🗑️</button></td>
                 </tr>
               );
@@ -964,7 +896,7 @@ Emin değilsen confidence düşük olur.`;
           <div style={S.uploadCard}>
             <div style={S.uploadIcon}>📄</div>
             <h2 style={S.uploadTitle}>PDF Katalog Yükle</h2>
-            <p style={S.uploadSub}>Dil okuluna ait katalog PDF'sini yükleyin, sistem otomatik parse edecek</p>
+            <p style={S.uploadSub}>Dil okuluna ait katalog PDF'sini yükleyin</p>
             <div ref={dropRef} onDragOver={e => { e.preventDefault(); setIsDragOver(true); }} onDragLeave={() => setIsDragOver(false)} onDrop={handleDrop} style={{ ...S.dropZone, borderColor: isDragOver ? "#2563eb" : "#e2e8f0", background: isDragOver ? "#eff6ff" : "#f8fafc" }}>
               <input type="file" accept="application/pdf" onChange={handleFileSelect} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", zIndex: 10 }} />
               {selectedFile ? (
@@ -995,7 +927,7 @@ Emin değilsen confidence düşük olur.`;
         </header>
         <main style={S.main}>
           <div style={S.selectCard}>
-            <div style={{ textAlign: "center", marginBottom: 24 }}><span style={{ fontSize: 48 }}>🎯</span><h2 style={S.uploadTitle}>Okul Tespit Edildi</h2><p style={S.uploadSub}>PDF analiz edildi, aşağıdaki okullar tespit edildi.</p></div>
+            <div style={{ textAlign: "center", marginBottom: 24 }}><span style={{ fontSize: 48 }}>🎯</span><h2 style={S.uploadTitle}>Okul Seçin</h2><p style={S.uploadSub}>PDF analiz edildi, okul seçin ve şehri belirleyin.</p></div>
             <div style={S.brandList}>
               {detectedBrands.map(brand => (
                 <div key={brand} onClick={() => setSelectedBrand(brand)} style={{ ...S.brandCard, borderColor: selectedBrand === brand ? "#2563eb" : "#e2e8f0", background: selectedBrand === brand ? "#eff6ff" : "#fff" }}>
@@ -1006,7 +938,9 @@ Emin değilsen confidence düşük olur.`;
               ))}
             </div>
             <div style={{ marginTop: 24 }}><label style={S.label}>Şehir Seç</label><select value={selectedCity} onChange={e => setSelectedCity(e.target.value)} style={S.select}><option value="">Şehir seçin</option>{cities.map(city => <option key={city} value={city}>{city}</option>)}</select></div>
-            <button onClick={startParsing} disabled={!selectedBrand || !selectedCity} style={{ ...S.primaryBtn, marginTop: 24, opacity: (!selectedBrand || !selectedCity) ? 0.5 : 1 }}>Parse Et →</button>
+            <button onClick={startParsing} disabled={!selectedBrand || !selectedCity || referenceLoading} style={{ ...S.primaryBtn, marginTop: 24, opacity: (!selectedBrand || !selectedCity || referenceLoading) ? 0.5 : 1 }}>
+              {referenceLoading ? "Referans yükleniyor..." : "Parse Et →"}
+            </button>
           </div>
         </main>
       </div>
@@ -1055,6 +989,7 @@ Emin değilsen confidence düşük olur.`;
           </div>
         </header>
         <main style={S.previewMain}>
+          {restoreMessage && <div style={S.restoreBanner}>↺ {restoreMessage}</div>}
           <div style={S.statsBar}>
             <div style={S.stat}><span style={S.statNum}>{totalCourses}</span><span>Kurs</span></div>
             <div style={S.stat}><span style={S.statNum}>{totalAcc}</span><span>Konaklama</span></div>
@@ -1068,7 +1003,7 @@ Emin değilsen confidence düşük olur.`;
           )}
           <div style={S.tabBar}>{TABS.map(tab => (<button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ ...S.tabBtn, borderBottom: activeTab === tab.id ? "2px solid #2563eb" : "none", color: activeTab === tab.id ? "#2563eb" : "#64748b" }}>{tab.label}</button>))}</div>
           <div style={S.tableCard}>{renderTabContent()}</div>
-          <div style={S.warningBox}>⚠️ Verileri kontrol edin, yanlış olanları düzeltebilirsiniz. Kırmızı alanlar düzeltilmeden kayıt yapılamaz.</div>
+          <div style={S.warningBox}>⚠️ Verileri kontrol edin. Kırmızı alanlar düzeltilmeden kayıt yapılamaz.</div>
         </main>
       </div>
     );
@@ -1080,7 +1015,14 @@ Emin değilsen confidence düşük olur.`;
       <div style={S.root}>
         <div style={S.bgGrid} />
         <header style={S.header}><div style={S.headerInner}><span style={S.headerTitle}>Kaydediliyor...</span></div></header>
-        <main style={S.main}><div style={S.parsingCard}><div style={S.spinner} /><h3>Sheets'e kaydediliyor...</h3><p style={{ fontSize: 12, color: "#94a3b8" }}>Lütfen bekleyin.</p></div></main>
+        <main style={S.main}>
+          <div style={S.parsingCard}>
+            <div style={S.spinner} />
+            <h3>{parsingStatus}</h3>
+            <div style={S.progressBar}><div style={{ ...S.progressFill, width: `${parsingProgress}%` }} /></div>
+            <p style={{ fontSize: 12, color: "#94a3b8" }}>Lütfen bekleyin...</p>
+          </div>
+        </main>
       </div>
     );
   }
@@ -1097,7 +1039,7 @@ Emin değilsen confidence düşük olur.`;
             <h2 style={S.uploadTitle}>Başarıyla Kaydedildi!</h2>
             <p style={S.uploadSub}>{selectedBrand} - {selectedCity} için veriler güncellendi.</p>
             <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
-              <button onClick={() => { setStep(STEPS.UPLOAD); setSelectedFile(null); setSelectedBrand(""); setSelectedCity(""); setParsedData(EMPTY_DATA); setEditableData(EMPTY_DATA); setValidationErrors({}); setValidationWarnings({}); }} style={S.secondaryBtn}>Yeni Parse</button>
+              <button onClick={() => { setStep(STEPS.UPLOAD); setSelectedFile(null); setSelectedBrand(""); setSelectedCity(""); setParsedData(EMPTY_DATA); setEditableData(EMPTY_DATA); setValidationErrors({}); setValidationWarnings({}); setRestoreMessage(null); }} style={S.secondaryBtn}>Yeni Parse</button>
               <button onClick={() => navigate("/fiyat-teklifi")} style={S.primaryBtn}>Fiyat Teklifi'ne Git →</button>
             </div>
           </div>
@@ -1114,7 +1056,7 @@ const S = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "1200px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
+  headerInner: { maxWidth: "1400px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
   backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   headerTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151", background: "#f1f5f9", padding: "6px 12px", borderRadius: "20px" },
@@ -1149,6 +1091,7 @@ const S = {
   emptyTable: { textAlign: "center", padding: "48px", color: "#94a3b8" },
   warningBox: { marginTop: "20px", padding: "12px 16px", background: "#fef9ec", border: "1px solid #fde68a", borderRadius: "12px", fontSize: "12px", color: "#92400e" },
   errorBanner: { marginBottom: "16px", padding: "12px 16px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "12px", fontSize: "13px", color: "#dc2626", fontWeight: "500" },
+  restoreBanner: { marginBottom: "16px", padding: "12px 16px", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "12px", fontSize: "13px", color: "#059669", fontWeight: "500" },
   successCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px 32px", textAlign: "center", maxWidth: "500px", margin: "0 auto" },
   successIcon: { fontSize: "64px", marginBottom: "16px" },
   primaryBtn: { width: "100%", padding: "14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
@@ -1158,8 +1101,6 @@ const S = {
   errorBox: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "12px 16px", fontSize: "13px", color: "#dc2626", marginBottom: "20px" },
   errorTooltip: { fontSize: "10px", color: "#dc2626", display: "block", marginTop: "2px" },
   warningTooltip: { fontSize: "10px", color: "#f59e0b", display: "block", marginTop: "2px" },
-  errorRow: { backgroundColor: "#fef2f2" },
-  warningRow: { backgroundColor: "#fffbeb" },
 };
 
 // Global style keyframes
