@@ -173,6 +173,7 @@ function isCourseValid(course, weeks) {
   return course?.tiers?.some(t => weeks >= t.min && (t.max === null || weeks <= t.max));
 }
 
+// High Season Supplement hesaplama - KURS
 function getHighSeasonSupplement(course, weeks, startDate) {
   if (!course?.hs_supp || !course?.hs_start || !course?.hs_end) {
     return { amount: 0, isActive: false };
@@ -203,6 +204,36 @@ function getHighSeasonSupplement(course, weeks, startDate) {
   };
 }
 
+// High Season Supplement hesaplama - KONAKLAMA
+function getAccommodationHighSeasonSupplement(acc, weeks, startDate) {
+  if (!acc?.hs_price || !acc?.hs_start || !acc?.hs_end || acc.hs_price === acc.price) {
+    return { amount: 0, isActive: false, supplementPerWeek: 0 };
+  }
+
+  const start = new Date(startDate);
+  const hsStart = new Date(acc.hs_start);
+  const hsEnd = new Date(acc.hs_end);
+
+  let isActive = start >= hsStart && start <= hsEnd;
+
+  if (acc.min_weeks && weeks < acc.min_weeks) {
+    isActive = false;
+  }
+
+  const supplementPerWeek = isActive ? (acc.hs_price - acc.price) : 0;
+  const amount = supplementPerWeek * weeks;
+
+  return {
+    amount,
+    isActive,
+    supplementPerWeek,
+    startDate: acc.hs_start,
+    endDate: acc.hs_end,
+    hsPrice: acc.hs_price,
+    basePrice: acc.price,
+  };
+}
+
 function getTotalCoursePrice(course, weeks, startDate) {
   const basePrice = getPrice(course, weeks);
   const hs = getHighSeasonSupplement(course, weeks, startDate);
@@ -214,6 +245,22 @@ function getTotalCoursePrice(course, weeks, startDate) {
     hsPerWeek: hs.supplementPerWeek,
     hsStart: hs.startDate,
     hsEnd: hs.endDate,
+  };
+}
+
+function getTotalAccommodationPrice(acc, weeks, startDate) {
+  if (!acc) return { basePrice: 0, hsAmount: 0, totalPrice: 0, hsActive: false };
+  const basePrice = acc.price * weeks;
+  const hs = getAccommodationHighSeasonSupplement(acc, weeks, startDate);
+  return {
+    basePrice,
+    hsAmount: hs.amount,
+    totalPrice: basePrice + hs.amount,
+    hsActive: hs.isActive,
+    hsPerWeek: hs.supplementPerWeek,
+    hsStart: hs.startDate,
+    hsEnd: hs.endDate,
+    hsPrice: hs.hsPrice,
   };
 }
 
@@ -276,9 +323,13 @@ const emptyDest = (sd = "2026-07-06") => ({
   addons: [],
   transfer: null,
   courseBasePrice: 0,
-  hsAmount: 0,
+  courseHsAmount: 0,
   courseTotalPrice: 0,
-  hsActive: false,
+  courseHsActive: false,
+  accBasePrice: 0,
+  accHsAmount: 0,
+  accTotalPrice: 0,
+  accHsActive: false,
 });
 
 const EC_LIVE = [
@@ -323,7 +374,7 @@ export default function FiyatTeklifi() {
         ...p,
         cityData: data,
         cityLoading: false,
-        transfer: data.transfers?.[0] || null,
+        transfer: null,
       })));
   }, [cur.city, cur.brand, nav.schoolSheets, cur.isOnline, cur.cityData]);
 
@@ -334,14 +385,14 @@ export default function FiyatTeklifi() {
     : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type);
   
   const coursePriceData = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice: 0, hsAmount: 0, totalPrice: 0, hsActive: false };
-  const cCost = coursePriceData.basePrice;
-  const hsAmount = coursePriceData.hsAmount;
-  const courseTotal = coursePriceData.totalPrice;
+  const accPriceData = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.weeks, cur.startDate) : { basePrice: 0, hsAmount: 0, totalPrice: 0, hsActive: false };
   
-  const aCost = cur.acc ? cur.acc.price * cur.weeks : 0;
+  const courseTotal = coursePriceData.totalPrice;
+  const accTotal = accPriceData.totalPrice;
+  
   const addonsCost = (cur.addons||[]).reduce((s,a) => s+(a.totalAmount||0), 0);
   const transferCost = cur.transfer?.one_way || 0;
-  const currentTotal = courseTotal + aCost + (feesData.total || 0) + addonsCost + transferCost;
+  const currentTotal = courseTotal + accTotal + (feesData.total || 0) + addonsCost + transferCost;
 
   const canNext = [
     !!(student.name && student.gender && student.age),
@@ -361,7 +412,8 @@ export default function FiyatTeklifi() {
 
   const next = () => {
     if (step === 4 || (step === 2 && cur.isOnline)) {
-      const priceData = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice: 0, hsAmount: 0, totalPrice: 0, hsActive: false };
+      const coursePrice = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice: 0, hsAmount: 0, totalPrice: 0, hsActive: false };
+      const accPrice = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.weeks, cur.startDate) : { basePrice: 0, hsAmount: 0, totalPrice: 0, hsActive: false };
       
       const isDup = destinations.some(d =>
         d.city === cur.city && d.course?.name === cur.course?.name && d.acc?.name === cur.acc?.name
@@ -369,13 +421,20 @@ export default function FiyatTeklifi() {
       if (!isDup) {
         setDestinations(p => [...p, { 
           ...cur, 
-          courseBasePrice: priceData.basePrice,
-          hsAmount: priceData.hsAmount,
-          courseTotalPrice: priceData.totalPrice,
-          hsActive: priceData.hsActive,
-          hsPerWeek: priceData.hsPerWeek,
-          hsStart: priceData.hsStart,
-          hsEnd: priceData.hsEnd,
+          courseBasePrice: coursePrice.basePrice,
+          courseHsAmount: coursePrice.hsAmount,
+          courseTotalPrice: coursePrice.totalPrice,
+          courseHsActive: coursePrice.hsActive,
+          courseHsPerWeek: coursePrice.hsPerWeek,
+          courseHsStart: coursePrice.hsStart,
+          courseHsEnd: coursePrice.hsEnd,
+          accBasePrice: accPrice.basePrice,
+          accHsAmount: accPrice.hsAmount,
+          accTotalPrice: accPrice.totalPrice,
+          accHsActive: accPrice.hsActive,
+          accHsPerWeek: accPrice.hsPerWeek,
+          accHsStart: accPrice.hsStart,
+          accHsEnd: accPrice.hsEnd,
         }]);
       }
       setStep(5);
@@ -623,16 +682,22 @@ export default function FiyatTeklifi() {
                       <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:10 }}>
                         {accs.filter(a => a.type === accType).map((a,i) => {
                           const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board;
+                          const hsActive = getAccommodationHighSeasonSupplement(a, cur.weeks, cur.startDate).isActive;
                           return (
                             <div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a}))}>
                               <div>
                                 <div style={{ fontWeight:600 }}>{a.name}</div>
                                 <div style={{ fontSize:12, color: sel?"inherit":"#64748b", marginTop:2 }}>{a.room} · {a.board} · {a.distance}</div>
+                                {hsActive && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>⚠️ Yüksek sezon fiyatı geçerli</div>}
                                 {a.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{a.notes}</div>}
                               </div>
                               <div style={{ textAlign:"right", flexShrink:0 }}>
-                                <div style={{ fontWeight:700 }}>{a.currency} {a.price}/h</div>
-                                <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>{cur.weeks}h: {a.currency} {(a.price*cur.weeks).toLocaleString("tr-TR")}</div>
+                                <div style={{ fontWeight:700, color: hsActive ? "#f59e0b" : "inherit" }}>
+                                  {a.currency} {hsActive ? a.hs_price : a.price}/h
+                                </div>
+                                <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>
+                                  {cur.weeks}h: {a.currency} {((hsActive ? a.hs_price : a.price) * cur.weeks).toLocaleString("tr-TR")}
+                                </div>
                               </div>
                             </div>
                           );
@@ -755,7 +820,6 @@ export default function FiyatTeklifi() {
               {destinations.map((d,i) => {
                 const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
                 const cur2 = d.course?.currency || f.currency;
-                const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur2] || cur2;
                 
                 const sD = d.startDate ? new Date(d.startDate) : null;
                 const eD = sD ? addWeeksToDate(sD, d.weeks) : null;
@@ -765,10 +829,8 @@ export default function FiyatTeklifi() {
 
                 const destNotes = [];
                 if (d.course?.morning) destNotes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
-                if (!d.hsActive && d.course?.hs_supp > 0) destNotes.push(`Yüksek sezon eki: ${cur2} ${d.course.hs_supp}/hafta (${formatDateShort(d.course.hs_start)} – ${formatDateShort(d.course.hs_end)})`);
-                if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) destNotes.push(`Yüksek sezonda konaklama: ${cur2} ${d.acc.hs_price}/hafta`);
-                if (d.course?.notes) destNotes.push(d.course.notes);
-                if (d.acc?.notes) destNotes.push(d.acc.notes);
+                if (d.course?.notes && !d.courseHsActive) destNotes.push(d.course.notes);
+                if (d.acc?.notes && !d.accHsActive) destNotes.push(d.acc.notes);
                 if (!d.transfer && d.cityData?.transfers?.length > 0) {
                   const t = d.cityData.transfers[0];
                   destNotes.push(`Transfer: ${t.airport} (${t.code}) — ${cur2} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`);
@@ -781,17 +843,18 @@ export default function FiyatTeklifi() {
                       <span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span>
                     </div>
 
+                    {/* KURS BÖLÜMÜ */}
                     <div style={{ marginBottom:10 }}>
                       <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Kurs</div>
                       <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
                         <span style={{ fontWeight:600 }}>{d.course?.name}</span>
                         <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span>
                       </div>
-                      {d.hsAmount > 0 && (
+                      {d.courseHsAmount > 0 && (
                         <>
                           <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}>
-                            <span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.hsStart)} – {formatDateShort(d.hsEnd)})</span>
-                            <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.hsAmount, cur2)}</span>
+                            <span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.courseHsStart)} – {formatDateShort(d.courseHsEnd)})</span>
+                            <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.courseHsAmount, cur2)}</span>
                           </div>
                           <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:6, borderTop:"1px dashed #e2e8f0", paddingTop:4 }}>
                             <span style={{ fontWeight:600 }}>Kurs Toplamı</span>
@@ -804,13 +867,26 @@ export default function FiyatTeklifi() {
                       </div>}
                     </div>
 
+                    {/* KONAKLAMA BÖLÜMÜ */}
                     {d.acc && !d.isOnline && (
                       <div style={{ marginBottom:10 }}>
                         <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
                         <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
                           <span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board}</span>
-                          <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.acc.price * d.weeks, cur2)}</span>
+                          <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span>
                         </div>
+                        {d.accHsAmount > 0 && (
+                          <>
+                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}>
+                              <span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span>
+                              <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span>
+                            </div>
+                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:6, borderTop:"1px dashed #e2e8f0", paddingTop:4 }}>
+                              <span style={{ fontWeight:600 }}>Konaklama Toplamı</span>
+                              <span style={{ fontWeight:700, color:CYAN }}>{fmt(d.accTotalPrice, cur2)}</span>
+                            </div>
+                          </>
+                        )}
                         {accSD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
                           📅 {fmtDate(accSD)} — {fmtDate(accED)}
                         </div>}
@@ -838,7 +914,7 @@ export default function FiyatTeklifi() {
 
                     <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}>
                       <span>Toplam</span>
-                      <span style={{ color:CYAN }}>{fmt(d.courseTotalPrice + (d.acc ? d.acc.price * d.weeks : 0) + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0), cur2)}</span>
+                      <span style={{ color:CYAN }}>{fmt(d.courseTotalPrice + d.accTotalPrice + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0), cur2)}</span>
                     </div>
 
                     {destNotes.length > 0 && (
@@ -876,7 +952,12 @@ export default function FiyatTeklifi() {
             {courseTotal > 0 && isCourseValid(cur.course, cur.weeks) && (
               <div style={S.liveTotal}>
                 Anlık: {fmt(currentTotal, cur.course?.currency || feesData.currency)}
-                {hsAmount > 0 && <span style={{ fontSize:10, color:"#f59e0b", display:"block" }}>(+{fmt(hsAmount, cur.course?.currency)} high season)</span>}
+                {(coursePriceData.hsAmount > 0 || accPriceData.hsAmount > 0) && (
+                  <span style={{ fontSize:10, color:"#f59e0b", display:"block" }}>
+                    {coursePriceData.hsAmount > 0 && `(+${fmt(coursePriceData.hsAmount, cur.course?.currency)} kurs HS)`}
+                    {accPriceData.hsAmount > 0 && `(+${fmt(accPriceData.hsAmount, cur.acc?.currency)} konaklama HS)`}
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -920,10 +1001,8 @@ function PdfTemplate({ destinations, student, user }) {
 
         const notes = [];
         if (d.course?.morning) notes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
-        if (!d.hsActive && d.course?.hs_supp > 0) notes.push(`Yüksek sezon eki: ${cur} ${d.course.hs_supp}/hafta (${formatDateShort(d.course.hs_start)} – ${formatDateShort(d.course.hs_end)})`);
-        if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) notes.push(`Yüksek sezonda konaklama: ${cur} ${d.acc.hs_price}/hafta`);
-        if (d.course?.notes) notes.push(d.course.notes);
-        if (d.acc?.notes) notes.push(d.acc.notes);
+        if (d.course?.notes && !d.courseHsActive) notes.push(d.course.notes);
+        if (d.acc?.notes && !d.accHsActive) notes.push(d.acc.notes);
         if (!d.transfer && d.cityData?.transfers?.length > 0) {
           const t = d.cityData.transfers[0];
           notes.push(`Transfer bilgisi: ${t.airport} (${t.code}) — ${cur} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`);
@@ -955,6 +1034,7 @@ function PdfTemplate({ destinations, student, user }) {
 
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"9pt" }}>
               <tbody>
+                {/* KURS - BASE */}
                 <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                   <td style={{ padding:"4mm 2mm 4mm 0", fontWeight:"bold", verticalAlign:"top", width:"20%", color:"#111" }}>Kurs</td>
                   <td style={{ padding:"4mm 2mm", verticalAlign:"top", width:"58%" }}>
@@ -967,20 +1047,22 @@ function PdfTemplate({ destinations, student, user }) {
                   <td style={{ padding:"4mm 0 4mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.courseBasePrice).toLocaleString("tr-TR")},00</td>
                 </tr>
 
-                {d.hsAmount > 0 && (
+                {/* KURS HIGH SEASON */}
+                {d.courseHsAmount > 0 && (
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid", background:"#fef9ec" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", verticalAlign:"top", color:"#92400e" }}></td>
                     <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#92400e" }}>
-                      High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.hsStart)} – {formatDateShort(d.hsEnd)})</span>
+                      High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.courseHsStart)} – {formatDateShort(d.courseHsEnd)})</span>
                       <div style={{ fontSize:"7pt", color:"#b45309", marginTop:"1mm" }}>+{d.course?.hs_supp} {cur}/hafta</div>
                     </td>
                     <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", color:"#92400e", fontWeight:"500" }}>
-                      +{Number(d.hsAmount).toLocaleString("tr-TR")},00
+                      +{Number(d.courseHsAmount).toLocaleString("tr-TR")},00
                     </td>
                   </tr>
                 )}
 
-                {d.hsAmount > 0 && (
+                {/* KURS TOPLAMI */}
+                {d.courseHsAmount > 0 && (
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight:"bold", verticalAlign:"top" }}>Kurs Toplamı</td>
                     <td style={{ padding:"3mm 2mm", verticalAlign:"top" }}></td>
@@ -990,6 +1072,7 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 )}
 
+                {/* KONAKLAMA - BASE */}
                 {d.acc && !d.isOnline && (
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"4mm 2mm 4mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Konaklama</td>
@@ -1000,10 +1083,36 @@ function PdfTemplate({ destinations, student, user }) {
                       </div>
                       <div style={{ fontSize:"8pt", color:"#777", marginTop:"1mm" }}>{d.acc.room} · {d.acc.bathroom} · Okula {d.acc.distance}</div>
                     </td>
-                    <td style={{ padding:"4mm 0 4mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.acc.price * d.weeks).toLocaleString("tr-TR")},00</td>
+                    <td style={{ padding:"4mm 0 4mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.accBasePrice).toLocaleString("tr-TR")},00</td>
                   </tr>
                 )}
 
+                {/* KONAKLAMA HIGH SEASON */}
+                {d.acc && !d.isOnline && d.accHsAmount > 0 && (
+                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid", background:"#fef9ec" }}>
+                    <td style={{ padding:"3mm 2mm 3mm 0", verticalAlign:"top", color:"#92400e" }}></td>
+                    <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#92400e" }}>
+                      High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span>
+                      <div style={{ fontSize:"7pt", color:"#b45309", marginTop:"1mm" }}>+{(d.accHsPrice - d.acc.price)} {cur}/hafta</div>
+                    </td>
+                    <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", color:"#92400e", fontWeight:"500" }}>
+                      +{Number(d.accHsAmount).toLocaleString("tr-TR")},00
+                    </td>
+                  </tr>
+                )}
+
+                {/* KONAKLAMA TOPLAMI */}
+                {d.acc && !d.isOnline && d.accHsAmount > 0 && (
+                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
+                    <td style={{ padding:"3mm 2mm 3mm 0", fontWeight:"bold", verticalAlign:"top" }}>Konaklama Toplamı</td>
+                    <td style={{ padding:"3mm 2mm", verticalAlign:"top" }}></td>
+                    <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
+                      {Number(d.accTotalPrice).toLocaleString("tr-TR")},00
+                    </td>
+                  </tr>
+                )}
+
+                {/* DİĞER ÜCRETLER */}
                 {f.items?.length > 0 && f.items.map((fi, fii) => (
                   <tr key={fii} style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight: fii===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: fii===0 ? "inherit" : "9pt" }}>
@@ -1016,6 +1125,7 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 ))}
 
+                {/* ADD-ONS */}
                 {(d.addons||[]).length > 0 && (d.addons||[]).map((a, ai) => (
                   <tr key={ai} style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight: ai===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: ai===0 ? "inherit" : "9pt" }}>
@@ -1028,6 +1138,7 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 ))}
 
+                {/* TRANSFER */}
                 {d.transfer && (
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Transfer</td>
@@ -1044,7 +1155,7 @@ function PdfTemplate({ destinations, student, user }) {
 
             <div style={{ borderTop:"2.5px solid #111", marginTop:"3mm", padding:"3mm 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <span style={{ fontWeight:"bold", fontSize:"12pt", textTransform:"uppercase" }}>Toplam Tutar {cur}</span>
-              <span style={{ fontWeight:"bold", fontSize:"18pt" }}>{curSym} {Number(d.courseTotalPrice + (d.acc ? d.acc.price * d.weeks : 0) + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0)).toLocaleString("tr-TR")},00</span>
+              <span style={{ fontWeight:"bold", fontSize:"18pt" }}>{curSym} {Number(d.courseTotalPrice + d.accTotalPrice + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0)).toLocaleString("tr-TR")},00</span>
             </div>
 
             {notes.length > 0 && (
