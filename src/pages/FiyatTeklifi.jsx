@@ -634,4 +634,460 @@ export default function FiyatTeklifi() {
                 const eD = sD ? addWeeksToDate(sD, d.weeks) : null;
                 
                 const accSD = sD ? (() => { const x = new Date(sD); x.setDate(sD.getDate() - 1); return x; })() : null;
-                const accED = eD ? (() => {
+                const accED = eD ? (() => { const x = new Date(eD); x.setDate(eD.getDate() + 2); return x; })() : null;
+
+                const destNotes = [];
+                if (d.course?.morning) destNotes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
+                if (!d.hsActive && d.course?.hs_supp > 0) destNotes.push(`Yüksek sezon eki: ${cur2} ${d.course.hs_supp}/hafta (${formatDateShort(d.course.hs_start)} – ${formatDateShort(d.course.hs_end)})`);
+                if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) destNotes.push(`Yüksek sezonda konaklama: ${cur2} ${d.acc.hs_price}/hafta`);
+                if (d.course?.notes) destNotes.push(d.course.notes);
+                if (d.acc?.notes) destNotes.push(d.acc.notes);
+                if (!d.transfer && d.cityData?.transfers?.length > 0) {
+                  const t = d.cityData.transfers[0];
+                  destNotes.push(`Transfer: ${t.airport} (${t.code}) — ${cur2} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`);
+                }
+
+                return (
+                  <div key={i} style={S.summaryCard}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}>
+                      <strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong>
+                      <span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span>
+                    </div>
+
+                    {/* KURS BÖLÜMÜ - High Season Supplement dahil */}
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Kurs</div>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                        <span style={{ fontWeight:600 }}>{d.course?.name}</span>
+                        <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span>
+                      </div>
+                      {d.hsAmount > 0 && (
+                        <>
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}>
+                            <span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.hsStart)} – {formatDateShort(d.hsEnd)})</span>
+                            <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.hsAmount, cur2)}</span>
+                          </div>
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:6, borderTop:"1px dashed #e2e8f0", paddingTop:4 }}>
+                            <span style={{ fontWeight:600 }}>Kurs Toplamı</span>
+                            <span style={{ fontWeight:700, color:CYAN }}>{fmt(d.courseTotalPrice, cur2)}</span>
+                          </div>
+                        </>
+                      )}
+                      {sD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
+                        📅 {fmtDate(sD)} — {fmtDate(eD)}
+                      </div>}
+                    </div>
+
+                    {d.acc && !d.isOnline && (
+                      <div style={{ marginBottom:10 }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                          <span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board}</span>
+                          <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.acc.price * d.weeks, cur2)}</span>
+                        </div>
+                        {accSD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
+                          📅 {fmtDate(accSD)} — {fmtDate(accED)}
+                        </div>}
+                      </div>
+                    )}
+
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}>
+                      <span style={{ color:"#64748b" }}>Kayıt + Materyal</span>
+                      <span style={{ fontWeight:600 }}>{fmt(f.total, cur2)}</span>
+                    </div>
+
+                    {(d.addons || []).length > 0 && (d.addons || []).map((a, ai) => (
+                      <div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}>
+                        <span style={{ color:"#64748b" }}>{a.name}</span>
+                        <span>{fmt(a.totalAmount, cur2)}</span>
+                      </div>
+                    ))}
+
+                    {d.transfer && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}>
+                        <span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport})</span>
+                        <span>{fmt(d.transfer.one_way, d.transfer.currency)}</span>
+                      </div>
+                    )}
+
+                    <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}>
+                      <span>Toplam</span>
+                      <span style={{ color:CYAN }}>{fmt(d.courseTotalPrice + (d.acc ? d.acc.price * d.weeks : 0) + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0), cur2)}</span>
+                    </div>
+
+                    {destNotes.length > 0 && (
+                      <div style={{ marginTop:12, padding:"10px 12px", background:"#fef9ec", borderRadius:8, border:"1px solid #fde68a" }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:"#92400e", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Notlar</div>
+                        {destNotes.map((n,ni) => (
+                          <div key={ni} style={{ fontSize:12, color:"#78350f", marginBottom:3 }}>— {n}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <button onClick={addNew} style={S.addBtn}>+ Yeni Destinasyon Ekle</button>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div style={{ animation:"fadeUp 0.3s" }}>
+              <h2 style={S.ttl}>Ek Hizmetler — {cur.brand} {cur.city}</h2>
+              {(() => {
+                const allFees = cur.cityData?.fees || [];
+                const age = parseInt(student.age) || 0;
+                const startD = cur.startDate ? new Date(cur.startDate) : null;
+
+                const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type).items;
+
+                const optional = allFees.filter(f => {
+                  if (!["optional_service","supplement","upgrade","course_addon","post_departure"].includes(f.addon_type)) return false;
+                  if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
+                  if (f.min_age && age < f.min_age) return false;
+                  if (f.max_age && age > f.max_age) return false;
+                  if (f.date_start && startD && new Date(f.date_start) > startD) return false;
+                  if (f.date_end && startD && new Date(f.date_end) < startD) return false;
+                  return true;
+                });
+
+                if (compulsory.length === 0 && optional.length === 0) {
+                  return <p style={{ color:"#94a3b8", fontSize:13 }}>Bu kurs ve tarih için eklenebilecek add-on bulunmuyor.</p>;
+                }
+
+                return (
+                  <>
+                    {compulsory.length > 0 && (
+                      <div style={{ marginBottom:20 }}>
+                        <p style={S.slbl}>Zorunlu Ücretler</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                          {compulsory.map((f,i) => (
+                            <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", background:"#f8fafc", borderRadius:10, border:"1px solid #e2e8f0", fontSize:13 }}>
+                              <span style={{ fontWeight:600 }}>{f.name}</span>
+                              <span style={{ fontWeight:600, color:"#64748b" }}>{f.currency} {Number(f.amount).toLocaleString("tr-TR")}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {optional.length > 0 && (
+                      <div>
+                        <p style={S.slbl}>İsteğe Bağlı Eklemeler</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                          {optional.map((f,i) => {
+                            const sel = cur.addons?.some(a => a.name === f.name);
+                            const amt = f.calc_type === "per_week" ? f.amount * cur.weeks : f.amount;
+                            return (
+                              <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${sel ? CYAN : "#e2e8f0"}`, background: sel ? "#f0fdff" : "#fff", cursor:"pointer" }}
+                                onClick={() => setCur(p => ({
+                                  ...p,
+                                  addons: sel
+                                    ? (p.addons||[]).filter(a => a.name !== f.name)
+                                    : [...(p.addons||[]), { ...f, totalAmount: amt }]
+                                }))}>
+                                <div>
+                                  <div style={{ fontWeight:600, fontSize:13, color: sel ? CYAN : "#0f172a" }}>{f.name}</div>
+                                  {f.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{f.notes}</div>}
+                                  {f.addon_type === "supplement" && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>Ek ücret</div>}
+                                </div>
+                                <div style={{ textAlign:"right", flexShrink:0 }}>
+                                  <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>
+                                    {f.currency} {Number(amt).toLocaleString("tr-TR")}
+                                  </div>
+                                  {f.calc_type === "per_week" && <div style={{ fontSize:11, color:"#94a3b8" }}>{f.amount}/h × {cur.weeks}h</div>}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {cur.cityData?.transfers?.length > 0 && (
+                <div style={{ marginTop:20 }}>
+                  <p style={S.slbl}>Transfer</p>
+                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                    {cur.cityData.transfers.map((t, ti) => {
+                      const sel = cur.transfer?.airport === t.airport && cur.transfer?.code === t.code;
+                      return (
+                        <div key={ti}
+                          style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${sel ? CYAN : "#e2e8f0"}`, background: sel ? "#f0fdff" : "#fff", cursor:"pointer" }}
+                          onClick={() => setCur(p => ({ ...p, transfer: sel ? null : t }))}>
+                          <div>
+                            <div style={{ fontWeight:600, fontSize:13, color: sel ? CYAN : "#0f172a" }}>{t.airport} ({t.code})</div>
+                            {t.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{t.notes}</div>}
+                          </div>
+                          <div style={{ textAlign:"right", flexShrink:0 }}>
+                            <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{t.currency} {Number(t.one_way).toLocaleString("tr-TR")}</div>
+                            <div style={{ fontSize:11, color:"#94a3b8" }}>Tek yön</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={S.navBox}>
+            {step > 0 && <button onClick={() => setStep(s => s-1)} style={S.btnBack}>← Geri</button>}
+            <div style={{ display:"flex", gap:10 }}>
+              {step === 5 && <button onClick={reset} style={{ ...S.btnBack, border:`1px solid #e2e8f0`, padding:"10px 20px", borderRadius:10 }}>Yeni Teklif</button>}
+              {step < 5 && <button style={S.btnNext} disabled={!canNext} onClick={next}>{step===4||(step===2&&cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>}
+            </div>
+          </div>
+        </main>
+
+        <aside style={S.side}>
+          <h3 style={S.sideTtl}>Anlık Özet</h3>
+          <div style={S.liveBox}>
+            {cur.lang && <div style={{ marginBottom:4 }}>📍 {cur.lang}{cur.country ? ` / ${cur.country}` : ""}{cur.city ? ` / ${cur.city}` : ""}</div>}
+            {cur.course && <div style={{ marginBottom:4 }}>📚 {cur.course.name} ({cur.weeks}h)</div>}
+            {cur.acc && <div style={{ marginBottom:4 }}>🏠 {cur.acc.name}</div>}
+            {courseTotal > 0 && isCourseValid(cur.course, cur.weeks) && (
+              <div style={S.liveTotal}>
+                Anlık: {fmt(currentTotal, cur.course?.currency || feesData.currency)}
+                {hsAmount > 0 && <span style={{ fontSize:10, color:"#f59e0b", display:"block" }}>(+{fmt(hsAmount, cur.course?.currency)} high season)</span>}
+              </div>
+            )}
+          </div>
+          {destinations.length > 0 && destinations.map((d,i) => (
+            <div key={i} style={{ fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" }}>
+              <strong>{d.city}</strong> · {d.weeks}h · {d.course?.name?.slice(0,20)}
+            </div>
+          ))}
+          {step === 5 && destinations.length > 0 && (
+            <button onClick={generatePDF} style={S.pdfBtn}>📄 PDF Oluştur</button>
+          )}
+        </aside>
+      </div>
+    </div>
+
+    {/* PDF TEMPLATE */}
+    <PdfTemplate destinations={destinations} student={student} user={user} />
+    </>
+  );
+}
+
+// ─── PDF TEMPLATE ───
+function PdfTemplate({ destinations, student, user }) {
+  if (!destinations?.length) return null;
+  const phone = user?.phone || "905419189177";
+  const validUntil = (() => { const d = new Date(); d.setDate(d.getDate()+7); return fmtDate(d); })();
+
+  return (
+    <div id="pdf-area" style={{ display:"none", fontFamily:"Arial, Helvetica, sans-serif", background:"#fff" }}>
+      {destinations.map((d, idx) => {
+        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+        const cur = d.course?.currency || f.currency || "GBP";
+        const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur] || cur;
+        const startD = d.startDate ? new Date(d.startDate) : new Date();
+        const endD = addWeeksToDate(startD, d.weeks);
+        const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
+        const accEndD = new Date(endD); accEndD.setDate(endD.getDate() + 2);
+
+        const notes = [];
+        if (d.course?.morning) notes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
+        if (!d.hsActive && d.course?.hs_supp > 0) notes.push(`Yüksek sezon eki: ${cur} ${d.course.hs_supp}/hafta (${formatDateShort(d.course.hs_start)} – ${formatDateShort(d.course.hs_end)})`);
+        if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) notes.push(`Yüksek sezonda konaklama: ${cur} ${d.acc.hs_price}/hafta`);
+        if (d.course?.notes) notes.push(d.course.notes);
+        if (d.acc?.notes) notes.push(d.acc.notes);
+        if (!d.transfer && d.cityData?.transfers?.length > 0) {
+          const t = d.cityData.transfers[0];
+          notes.push(`Transfer bilgisi: ${t.airport} (${t.code}) — ${cur} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`);
+        }
+
+        return (
+          <div key={idx} className="pdf-block" style={{ width:"210mm", padding:"12mm 18mm 10mm", boxSizing:"border-box", background:"#fff", display:"block", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", paddingBottom:"5mm", borderBottom:"0.4px solid #aaa", marginBottom:"8mm" }}>
+              <div>
+                <div style={{ fontSize:"7pt", color:"#999", marginBottom:"1mm" }}>Bilimevi Eğitim Danışmanınız</div>
+                <div style={{ fontSize:"11pt", fontWeight:"bold", color:"#111" }}>{user?.name || "—"}</div>
+                <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}>{user?.email || ""}</div>
+              </div>
+              <img src={LOGO_ASSET} alt="Bilimevi" style={{ height:"10mm" }} />
+            </div>
+
+            <div style={{ fontSize:"54pt", fontWeight:"900", color:CYAN, lineHeight:1, marginBottom:"3mm", letterSpacing:"-1px" }}>{d.city}</div>
+
+            <div style={{ fontSize:"20pt", fontWeight:"bold", color:"#111", marginBottom:"8mm", lineHeight:1.2 }}>
+              {fmtDate(startD)}<br/>— {fmtDate(endD)}
+            </div>
+
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:"10pt", marginBottom:"1mm" }}>
+              <span>Teklifinize neler dahil?</span>
+              <span style={{ color:"#aaa" }}>{curSym}</span>
+            </div>
+            <div style={{ fontSize:"10pt", fontWeight:"bold", color:CYAN, marginBottom:"2mm" }}>Hafta Sayısı: {d.weeks}</div>
+            <div style={{ borderTop:"2px solid #111", marginBottom:"0" }} />
+
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"9pt" }}>
+              <tbody>
+                {/* KURS - BASE */}
+                <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
+                  <td style={{ padding:"4mm 2mm 4mm 0", fontWeight:"bold", verticalAlign:"top", width:"20%", color:"#111" }}>Kurs</td>
+                  <td style={{ padding:"4mm 2mm", verticalAlign:"top", width:"58%" }}>
+                    <div style={{ fontWeight:"bold", fontSize:"10pt" }}>{d.brand} — {d.course?.name}</div>
+                    <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}>
+                      <strong>Başlangıç:</strong> {fmtDate(startD)} &nbsp;|&nbsp; <strong>Bitiş:</strong> {fmtDate(endD)}
+                    </div>
+                    {d.course?.lessons > 0 && <div style={{ fontSize:"8pt", color:"#777", marginTop:"1mm" }}>{d.course.lessons} ders/hafta · {d.course.hours} saat</div>}
+                  </td>
+                  <td style={{ padding:"4mm 0 4mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.courseBasePrice).toLocaleString("tr-TR")},00</td>
+                </tr>
+
+                {/* HIGH SEASON SUPPLEMENT */}
+                {d.hsAmount > 0 && (
+                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid", background:"#fef9ec" }}>
+                    <td style={{ padding:"3mm 2mm 3mm 0", verticalAlign:"top", color:"#92400e" }}></td>
+                    <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#92400e" }}>
+                      High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.hsStart)} – {formatDateShort(d.hsEnd)})</span>
+                      <div style={{ fontSize:"7pt", color:"#b45309", marginTop:"1mm" }}>+{d.course?.hs_supp} {cur}/hafta</div>
+                    </td>
+                    <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", color:"#92400e", fontWeight:"500" }}>
+                      +{Number(d.hsAmount).toLocaleString("tr-TR")},00
+                    </td>
+                  </tr>
+                )}
+
+                {/* KURS TOPLAMI */}
+                {d.hsAmount > 0 && (
+                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
+                    <td style={{ padding:"3mm 2mm 3mm 0", fontWeight:"bold", verticalAlign:"top" }}>Kurs Toplamı</td>
+                    <td style={{ padding:"3mm 2mm", verticalAlign:"top" }}></td>
+                    <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
+                      {Number(d.courseTotalPrice).toLocaleString("tr-TR")},00
+                    </td>
+                  </tr>
+                )}
+
+                {/* KONAKLAMA */}
+                {d.acc && !d.isOnline && (
+                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
+                    <td style={{ padding:"4mm 2mm 4mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Konaklama</td>
+                    <td style={{ padding:"4mm 2mm", verticalAlign:"top" }}>
+                      <div style={{ fontWeight:"bold", fontSize:"10pt" }}>{d.acc.name} <span style={{ fontWeight:"normal", fontSize:"9pt" }}>({d.acc.board})</span></div>
+                      <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}>
+                        <strong>Giriş:</strong> {fmtDate(accStartD)} &nbsp;|&nbsp; <strong>Çıkış:</strong> {fmtDate(accEndD)}
+                      </div>
+                      <div style={{ fontSize:"8pt", color:"#777", marginTop:"1mm" }}>{d.acc.room} · {d.acc.bathroom} · Okula {d.acc.distance}</div>
+                    </td>
+                    <td style={{ padding:"4mm 0 4mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.acc.price * d.weeks).toLocaleString("tr-TR")},00</td>
+                  </tr>
+                )}
+
+                {/* DİĞER ÜCRETLER */}
+                {f.items?.length > 0 && f.items.map((fi, fii) => (
+                  <tr key={fii} style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
+                    <td style={{ padding:"3mm 2mm 3mm 0", fontWeight: fii===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: fii===0 ? "inherit" : "9pt" }}>
+                      {fii === 0 ? "Diğer" : ""}
+                    </td>
+                    <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{fi.name}</td>
+                    <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
+                      {Number(fi.amount).toLocaleString("tr-TR")},00
+                    </td>
+                  </tr>
+                ))}
+
+                {/* ADD-ONS */}
+                {(d.addons||[]).length > 0 && (d.addons||[]).map((a, ai) => (
+                  <tr key={ai} style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
+                    <td style={{ padding:"3mm 2mm 3mm 0", fontWeight: ai===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: ai===0 ? "inherit" : "9pt" }}>
+                      {ai === 0 ? "Ek Hizmetler" : ""}
+                    </td>
+                    <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{a.name}{a.notes ? ` — ${a.notes}` : ""}</td>
+                    <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
+                      {Number(a.totalAmount||0).toLocaleString("tr-TR")},00
+                    </td>
+                  </tr>
+                ))}
+
+                {/* TRANSFER */}
+                {d.transfer && (
+                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
+                    <td style={{ padding:"3mm 2mm 3mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Transfer</td>
+                    <td style={{ padding:"3mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>
+                      {d.transfer.airport} ({d.transfer.code}){d.transfer.notes ? ` — ${d.transfer.notes}` : ""}
+                    </td>
+                    <td style={{ padding:"3mm 0 3mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>
+                      {d.transfer.currency} {Number(d.transfer.one_way).toLocaleString("tr-TR")},00
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* TOPLAM */}
+            <div style={{ borderTop:"2.5px solid #111", marginTop:"3mm", padding:"3mm 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span style={{ fontWeight:"bold", fontSize:"12pt", textTransform:"uppercase" }}>Toplam Tutar {cur}</span>
+              <span style={{ fontWeight:"bold", fontSize:"18pt" }}>{curSym} {Number(d.courseTotalPrice + (d.acc ? d.acc.price * d.weeks : 0) + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0)).toLocaleString("tr-TR")},00</span>
+            </div>
+
+            {/* NOTLAR */}
+            {notes.length > 0 && (
+              <div style={{ marginTop:"4mm", background:"#f9f9f9", padding:"3mm 4mm", borderRadius:"3mm", fontSize:"7.5pt", color:"#555", border:"0.5px solid #eee" }}>
+                <div style={{ fontWeight:"bold", marginBottom:"2mm", textTransform:"uppercase", fontSize:"7pt", color:"#888" }}>Önemli Notlar</div>
+                {notes.map((n,i) => <div key={i} style={{ marginBottom:"1mm" }}>— {n}</div>)}
+              </div>
+            )}
+
+            <div style={{ textAlign:"center", marginTop:"6mm" }}>
+              <a href={`https://wa.me/${phone}`}
+                style={{ display:"inline-block", background:CYAN, color:"#fff", padding:"3mm 10mm", borderRadius:"8mm", fontSize:"10pt", fontWeight:"bold", textDecoration:"none" }}>
+                Eğitim Danışmanınıza Şimdi Ulaşın
+              </a>
+            </div>
+
+            <div style={{ marginTop:"16mm", paddingTop:"4mm", borderTop:"0.5px solid #eee", display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
+              <div style={{ fontSize:"8pt", color:"#333" }}>www.bilimevi.com</div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function addWeeksToDate(date, weeks) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + weeks * 7);
+  return d;
+}
+
+const S = {
+  root: { minHeight:"100vh", background:"#f8fafc", fontFamily:"'Sora',sans-serif" },
+  hdr: { background:"#fff", borderBottom:"1px solid #e2e8f0", position:"sticky", top:0, zIndex:10 },
+  cnt: { maxWidth:1100, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" },
+  htitle: { fontSize:15, fontWeight:600, color:"#0f172a" },
+  backBtn: { background:"none", border:"1px solid #e2e8f0", padding:"8px 16px", borderRadius:10, cursor:"pointer", fontSize:13 },
+  body: { maxWidth:1100, margin:"20px auto", padding:"0 20px", display:"grid", gridTemplateColumns:"1fr 280px", gap:20 },
+  main: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:"28px 32px" },
+  ttl: { fontSize:17, fontWeight:700, marginBottom:20, color:"#0f172a" },
+  slbl: { fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", margin:"16px 0 8px" },
+  r2: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 },
+  fld: { display:"flex", flexDirection:"column", gap:6, marginBottom:12 },
+  lbl: { fontSize:12, color:"#64748b" },
+  fti: { padding:"10px 14px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, fontFamily:"inherit" },
+  g3: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:10 },
+  sel: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, background:"#fff" },
+  selActive: { padding:12, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
+  selDisabled: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"not-allowed", fontSize:13, background:"#f8fafc", opacity:0.5, color:"#94a3b8" },
+  selOnline: { padding:12, border:"1.5px solid #3b82f6", color:"#3b82f6", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13 },
+  selOnlineActive: { padding:12, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
+  acc: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:14, border:"1.5px solid #e2e8f0", borderRadius:12, cursor:"pointer", fontSize:13, background:"#fff" },
+  accActive: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:14, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, cursor:"pointer", fontSize:13 },
+  navBox: { marginTop:36, display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:20, borderTop:"1px solid #f1f5f9" },
+  btnBack: { background:"none", border:"none", cursor:"pointer", color:"#64748b", fontSize:14 },
+  btnNext: { background:CYAN, color:"#fff", border:"none", padding:"11px 32px", borderRadius:10, fontWeight:600, cursor:"pointer", fontSize:14 },
+  side: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:20, position:"sticky", top:80, height:"fit-content" },
+  sideTtl: { fontSize:13, fontWeight:700, borderBottom:"1px solid #eee", paddingBottom:10, marginBottom:14 },
+  liveBox: { background:"#f0fdff", padding:12, borderRadius:10, fontSize:12, marginBottom:14, border:`1px solid ${CYAN}` },
+  liveTotal: { marginTop:8, fontWeight:700, fontSize:14, color:CYAN },
+  summaryCard: { border:"1.5px solid #e2e8f0", borderRadius:14, padding:"16px 20px", marginBottom:12 },
+  addBtn: { background:"none", border:`1.5px dashed ${CYAN}`, color:CYAN, width:"100%", padding:"10px 0", borderRadius:10, cursor:"pointer", fontSize:13, marginTop:10 },
+  pdfBtn: { width:"100%", marginTop:16, padding:"12px 0", background:CYAN, color:"#fff", border:"none", borderRadius:10, fontWeight:700, cursor:"pointer", fontSize:14 },
+};
