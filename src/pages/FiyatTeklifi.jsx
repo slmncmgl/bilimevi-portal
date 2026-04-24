@@ -185,12 +185,10 @@ function getHighSeasonSupplement(course, weeks, startDate) {
 
   let isActive = start >= hsStart && start <= hsEnd;
 
-  // weeks_less_than_12 koşulu: sadece 12 haftadan az olanlar
   if (course.hs_cond === "weeks_less_than_12" && weeks >= 12) {
     isActive = false;
   }
 
-  // max_weeks kontrolü
   if (course.max_weeks && weeks > course.max_weeks) {
     isActive = false;
   }
@@ -279,7 +277,6 @@ const emptyDest = (sd = "2026-07-06") => ({
   isOnline: false, cityData: null, cityLoading: false,
   addons: [],
   transfer: null,
-  // High season için eklenecek alanlar
   courseBasePrice: 0,
   hsAmount: 0,
   courseTotalPrice: 0,
@@ -299,7 +296,6 @@ const formatDateShort = (dateStr) => {
   const d = new Date(dateStr);
   return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 };
-const addWeeksToDate = (dateStr, w) => { const d = new Date(dateStr); d.setDate(d.getDate() + w * 7); return d; };
 
 // ─── ANA COMPONENT ───
 export default function FiyatTeklifi() {
@@ -319,7 +315,6 @@ export default function FiyatTeklifi() {
     fetchNav().then(setNav).catch(console.error);
   }, []);
 
-  // Şehir + marka seçilince ve nav yüklenince city data çek
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline || cur.cityData) return;
     const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
@@ -340,7 +335,6 @@ export default function FiyatTeklifi() {
     ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
     : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type);
   
-  // Kurs fiyatları (high season dahil)
   const coursePriceData = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice: 0, hsAmount: 0, totalPrice: 0, hsActive: false };
   const cCost = coursePriceData.basePrice;
   const hsAmount = coursePriceData.hsAmount;
@@ -369,7 +363,6 @@ export default function FiyatTeklifi() {
 
   const next = () => {
     if (step === 4 || (step === 2 && cur.isOnline)) {
-      // Kurs fiyatlarını hesapla ve destinasyona ekle
       const priceData = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice: 0, hsAmount: 0, totalPrice: 0, hsActive: false };
       
       const isDup = destinations.some(d =>
@@ -422,7 +415,6 @@ export default function FiyatTeklifi() {
         input:focus { outline:none; border-color:${CYAN} !important; }
       `}</style>
 
-      {/* HEADER */}
       <header style={S.hdr}>
         <div style={S.cnt}>
           <button onClick={() => navigate("/dashboard")} style={S.backBtn}>← Dashboard</button>
@@ -431,7 +423,6 @@ export default function FiyatTeklifi() {
         </div>
       </header>
 
-      {/* ADIM ÇUBUĞU */}
       <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0" }}>
         <div style={{ maxWidth:1100, margin:"0 auto", padding:"12px 24px", display:"flex", alignItems:"center" }}>
           {STEPS.map((s, i) => (
@@ -448,10 +439,8 @@ export default function FiyatTeklifi() {
         </div>
       </div>
 
-      {/* BODY */}
       <div style={S.body}>
         <main style={S.main}>
-          {/* ADIM 0: ÖĞRENCİ */}
           {step === 0 && (
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>Öğrenci Bilgileri</h2>
@@ -470,7 +459,6 @@ export default function FiyatTeklifi() {
             </div>
           )}
 
-          {/* ADIM 1: DESTINASYON */}
           {step === 1 && (
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>Destinasyon Seçimi</h2>
@@ -542,7 +530,6 @@ export default function FiyatTeklifi() {
             </div>
           )}
 
-          {/* ADIM 2: KURS */}
           {step === 2 && (
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>
@@ -586,7 +573,6 @@ export default function FiyatTeklifi() {
             </div>
           )}
 
-          {/* ADIM 3: KONAKLAMA */}
           {step === 3 && (
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>
@@ -635,10 +621,17 @@ export default function FiyatTeklifi() {
             </div>
           )}
 
-          {/* ADIM 5: ÖZET */}
           {step === 5 && (
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>Teklif Özeti</h2>
               {destinations.length === 0 && <p style={{ color:"#94a3b8" }}>Henüz destinasyon eklenmedi.</p>}
               {destinations.map((d,i) => {
-                const f = d.isOnline ?
+                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+                const cur2 = d.course?.currency || f.currency;
+                const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur2] || cur2;
+                
+                const sD = d.startDate ? new Date(d.startDate) : null;
+                const eD = sD ? addWeeksToDate(sD, d.weeks) : null;
+                
+                const accSD = sD ? (() => { const x = new Date(sD); x.setDate(sD.getDate() - 1); return x; })() : null;
+                const accED = eD ? (() => {
