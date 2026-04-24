@@ -173,7 +173,6 @@ function isCourseValid(course, weeks) {
   return course?.tiers?.some(t => weeks >= t.min && (t.max === null || weeks <= t.max));
 }
 
-// High Season Supplement hesaplama
 function getHighSeasonSupplement(course, weeks, startDate) {
   if (!course?.hs_supp || !course?.hs_start || !course?.hs_end) {
     return { amount: 0, isActive: false };
@@ -204,7 +203,6 @@ function getHighSeasonSupplement(course, weeks, startDate) {
   };
 }
 
-// Toplam kurs fiyatını hesapla
 function getTotalCoursePrice(course, weeks, startDate) {
   const basePrice = getPrice(course, weeks);
   const hs = getHighSeasonSupplement(course, weeks, startDate);
@@ -445,16 +443,42 @@ export default function FiyatTeklifi() {
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>Öğrenci Bilgileri</h2>
               <div style={S.r2}>
-                <div style={S.fld}><label style={S.lbl}>Ad Soyad</label><input style={S.fti} value={student.name} onChange={e => setStudent(p => ({...p, name:e.target.value}))} /></div>
-                <div style={S.fld}><label style={S.lbl}>Yaş</label><input style={S.fti} type="number" value={student.age} onChange={e => setStudent(p => ({...p, age:e.target.value}))} /></div>
+                <div style={S.fld}>
+                  <label style={S.lbl}>Ad Soyad</label>
+                  <input style={S.fti} value={student.name} onChange={e => setStudent(p => ({...p, name:e.target.value}))} />
+                </div>
+                <div style={S.fld}>
+                  <label style={S.lbl}>Yaş</label>
+                  <input style={S.fti} type="number" value={student.age} onChange={e => setStudent(p => ({...p, age:e.target.value}))} />
+                </div>
               </div>
+              
               <div style={S.fld}>
                 <label style={S.lbl}>Cinsiyet</label>
-                <div style={{ display:"flex", gap:10, marginTop:6 }}>
+                <div style={{ display:"flex", gap:12, marginTop:6 }}>
                   {["Erkek","Kadın"].map(g => (
-                    <div key={g} style={student.gender===g ? S.selActive : S.sel} onClick={() => setStudent(p => ({...p, gender:g}))}>{g}</div>
+                    <div 
+                      key={g} 
+                      style={{ 
+                        ...S.cinsiyetBtn, 
+                        ...(student.gender === g ? S.cinsiyetBtnActive : {})
+                      }} 
+                      onClick={() => setStudent(p => ({...p, gender:g}))}
+                    >
+                      {g}
+                    </div>
                   ))}
                 </div>
+              </div>
+
+              <div style={{ display:"flex", justifyContent:"flex-end", marginTop:24 }}>
+                <button 
+                  onClick={next} 
+                  disabled={!canNext} 
+                  style={{ ...S.btnNext, opacity: !canNext ? 0.5 : 1, cursor: !canNext ? "not-allowed" : "pointer" }}
+                >
+                  İleri →
+                </button>
               </div>
             </div>
           )}
@@ -621,115 +645,6 @@ export default function FiyatTeklifi() {
             </div>
           )}
 
-          {step === 5 && (
-            <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>Teklif Özeti</h2>
-              {destinations.length === 0 && <p style={{ color:"#94a3b8" }}>Henüz destinasyon eklenmedi.</p>}
-              {destinations.map((d,i) => {
-                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
-                const cur2 = d.course?.currency || f.currency;
-                const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur2] || cur2;
-                
-                const sD = d.startDate ? new Date(d.startDate) : null;
-                const eD = sD ? addWeeksToDate(sD, d.weeks) : null;
-                
-                const accSD = sD ? (() => { const x = new Date(sD); x.setDate(sD.getDate() - 1); return x; })() : null;
-                const accED = eD ? (() => { const x = new Date(eD); x.setDate(eD.getDate() + 2); return x; })() : null;
-
-                const destNotes = [];
-                if (d.course?.morning) destNotes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
-                if (!d.hsActive && d.course?.hs_supp > 0) destNotes.push(`Yüksek sezon eki: ${cur2} ${d.course.hs_supp}/hafta (${formatDateShort(d.course.hs_start)} – ${formatDateShort(d.course.hs_end)})`);
-                if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) destNotes.push(`Yüksek sezonda konaklama: ${cur2} ${d.acc.hs_price}/hafta`);
-                if (d.course?.notes) destNotes.push(d.course.notes);
-                if (d.acc?.notes) destNotes.push(d.acc.notes);
-                if (!d.transfer && d.cityData?.transfers?.length > 0) {
-                  const t = d.cityData.transfers[0];
-                  destNotes.push(`Transfer: ${t.airport} (${t.code}) — ${cur2} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`);
-                }
-
-                return (
-                  <div key={i} style={S.summaryCard}>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}>
-                      <strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong>
-                      <span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span>
-                    </div>
-
-                    {/* KURS BÖLÜMÜ - High Season Supplement dahil */}
-                    <div style={{ marginBottom:10 }}>
-                      <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Kurs</div>
-                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
-                        <span style={{ fontWeight:600 }}>{d.course?.name}</span>
-                        <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span>
-                      </div>
-                      {d.hsAmount > 0 && (
-                        <>
-                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}>
-                            <span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.hsStart)} – {formatDateShort(d.hsEnd)})</span>
-                            <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.hsAmount, cur2)}</span>
-                          </div>
-                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:6, borderTop:"1px dashed #e2e8f0", paddingTop:4 }}>
-                            <span style={{ fontWeight:600 }}>Kurs Toplamı</span>
-                            <span style={{ fontWeight:700, color:CYAN }}>{fmt(d.courseTotalPrice, cur2)}</span>
-                          </div>
-                        </>
-                      )}
-                      {sD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
-                        📅 {fmtDate(sD)} — {fmtDate(eD)}
-                      </div>}
-                    </div>
-
-                    {d.acc && !d.isOnline && (
-                      <div style={{ marginBottom:10 }}>
-                        <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
-                          <span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board}</span>
-                          <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.acc.price * d.weeks, cur2)}</span>
-                        </div>
-                        {accSD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
-                          📅 {fmtDate(accSD)} — {fmtDate(accED)}
-                        </div>}
-                      </div>
-                    )}
-
-                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}>
-                      <span style={{ color:"#64748b" }}>Kayıt + Materyal</span>
-                      <span style={{ fontWeight:600 }}>{fmt(f.total, cur2)}</span>
-                    </div>
-
-                    {(d.addons || []).length > 0 && (d.addons || []).map((a, ai) => (
-                      <div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}>
-                        <span style={{ color:"#64748b" }}>{a.name}</span>
-                        <span>{fmt(a.totalAmount, cur2)}</span>
-                      </div>
-                    ))}
-
-                    {d.transfer && (
-                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}>
-                        <span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport})</span>
-                        <span>{fmt(d.transfer.one_way, d.transfer.currency)}</span>
-                      </div>
-                    )}
-
-                    <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}>
-                      <span>Toplam</span>
-                      <span style={{ color:CYAN }}>{fmt(d.courseTotalPrice + (d.acc ? d.acc.price * d.weeks : 0) + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0), cur2)}</span>
-                    </div>
-
-                    {destNotes.length > 0 && (
-                      <div style={{ marginTop:12, padding:"10px 12px", background:"#fef9ec", borderRadius:8, border:"1px solid #fde68a" }}>
-                        <div style={{ fontSize:11, fontWeight:600, color:"#92400e", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Notlar</div>
-                        {destNotes.map((n,ni) => (
-                          <div key={ni} style={{ fontSize:12, color:"#78350f", marginBottom:3 }}>— {n}</div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              <button onClick={addNew} style={S.addBtn}>+ Yeni Destinasyon Ekle</button>
-            </div>
-          )}
-
           {step === 4 && (
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>Ek Hizmetler — {cur.brand} {cur.city}</h2>
@@ -833,12 +748,122 @@ export default function FiyatTeklifi() {
             </div>
           )}
 
-          <div style={S.navBox}>
-            {step > 0 && <button onClick={() => setStep(s => s-1)} style={S.btnBack}>← Geri</button>}
-            <div style={{ display:"flex", gap:10 }}>
-              {step === 5 && <button onClick={reset} style={{ ...S.btnBack, border:`1px solid #e2e8f0`, padding:"10px 20px", borderRadius:10 }}>Yeni Teklif</button>}
-              {step < 5 && <button style={S.btnNext} disabled={!canNext} onClick={next}>{step===4||(step===2&&cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>}
+          {step === 5 && (
+            <div style={{ animation:"fadeUp 0.3s" }}>
+              <h2 style={S.ttl}>Teklif Özeti</h2>
+              {destinations.length === 0 && <p style={{ color:"#94a3b8" }}>Henüz destinasyon eklenmedi.</p>}
+              {destinations.map((d,i) => {
+                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+                const cur2 = d.course?.currency || f.currency;
+                const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur2] || cur2;
+                
+                const sD = d.startDate ? new Date(d.startDate) : null;
+                const eD = sD ? addWeeksToDate(sD, d.weeks) : null;
+                
+                const accSD = sD ? (() => { const x = new Date(sD); x.setDate(sD.getDate() - 1); return x; })() : null;
+                const accED = eD ? (() => { const x = new Date(eD); x.setDate(eD.getDate() + 2); return x; })() : null;
+
+                const destNotes = [];
+                if (d.course?.morning) destNotes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
+                if (!d.hsActive && d.course?.hs_supp > 0) destNotes.push(`Yüksek sezon eki: ${cur2} ${d.course.hs_supp}/hafta (${formatDateShort(d.course.hs_start)} – ${formatDateShort(d.course.hs_end)})`);
+                if (d.acc?.hs_price > 0 && d.acc.hs_price !== d.acc.price) destNotes.push(`Yüksek sezonda konaklama: ${cur2} ${d.acc.hs_price}/hafta`);
+                if (d.course?.notes) destNotes.push(d.course.notes);
+                if (d.acc?.notes) destNotes.push(d.acc.notes);
+                if (!d.transfer && d.cityData?.transfers?.length > 0) {
+                  const t = d.cityData.transfers[0];
+                  destNotes.push(`Transfer: ${t.airport} (${t.code}) — ${cur2} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`);
+                }
+
+                return (
+                  <div key={i} style={S.summaryCard}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}>
+                      <strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong>
+                      <span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span>
+                    </div>
+
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Kurs</div>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                        <span style={{ fontWeight:600 }}>{d.course?.name}</span>
+                        <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span>
+                      </div>
+                      {d.hsAmount > 0 && (
+                        <>
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}>
+                            <span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.hsStart)} – {formatDateShort(d.hsEnd)})</span>
+                            <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.hsAmount, cur2)}</span>
+                          </div>
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:6, borderTop:"1px dashed #e2e8f0", paddingTop:4 }}>
+                            <span style={{ fontWeight:600 }}>Kurs Toplamı</span>
+                            <span style={{ fontWeight:700, color:CYAN }}>{fmt(d.courseTotalPrice, cur2)}</span>
+                          </div>
+                        </>
+                      )}
+                      {sD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
+                        📅 {fmtDate(sD)} — {fmtDate(eD)}
+                      </div>}
+                    </div>
+
+                    {d.acc && !d.isOnline && (
+                      <div style={{ marginBottom:10 }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                          <span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board}</span>
+                          <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.acc.price * d.weeks, cur2)}</span>
+                        </div>
+                        {accSD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>
+                          📅 {fmtDate(accSD)} — {fmtDate(accED)}
+                        </div>}
+                      </div>
+                    )}
+
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}>
+                      <span style={{ color:"#64748b" }}>Kayıt + Materyal</span>
+                      <span style={{ fontWeight:600 }}>{fmt(f.total, cur2)}</span>
+                    </div>
+
+                    {(d.addons || []).length > 0 && (d.addons || []).map((a, ai) => (
+                      <div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}>
+                        <span style={{ color:"#64748b" }}>{a.name}</span>
+                        <span>{fmt(a.totalAmount, cur2)}</span>
+                      </div>
+                    ))}
+
+                    {d.transfer && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}>
+                        <span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport})</span>
+                        <span>{fmt(d.transfer.one_way, d.transfer.currency)}</span>
+                      </div>
+                    )}
+
+                    <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}>
+                      <span>Toplam</span>
+                      <span style={{ color:CYAN }}>{fmt(d.courseTotalPrice + (d.acc ? d.acc.price * d.weeks : 0) + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0), cur2)}</span>
+                    </div>
+
+                    {destNotes.length > 0 && (
+                      <div style={{ marginTop:12, padding:"10px 12px", background:"#fef9ec", borderRadius:8, border:"1px solid #fde68a" }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:"#92400e", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Notlar</div>
+                        {destNotes.map((n,ni) => (
+                          <div key={ni} style={{ fontSize:12, color:"#78350f", marginBottom:3 }}>— {n}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <button onClick={addNew} style={S.addBtn}>+ Yeni Destinasyon Ekle</button>
             </div>
+          )}
+
+          <div style={S.navBox}>
+            {step > 0 && step !== 5 && <button onClick={() => setStep(s => s-1)} style={S.btnBack}>← Geri</button>}
+            {step === 5 && destinations.length > 0 && <button onClick={reset} style={{ ...S.btnBack, border:`1px solid #e2e8f0`, padding:"10px 20px", borderRadius:10 }}>Yeni Teklif</button>}
+            {step < 5 && step !== 0 && (
+              <button style={S.btnNext} disabled={!canNext} onClick={next}>
+                {step === 4 || (step === 2 && cur.isOnline) ? "Özete Geç →" : "İleri →"}
+              </button>
+            )}
           </div>
         </main>
 
@@ -867,17 +892,20 @@ export default function FiyatTeklifi() {
       </div>
     </div>
 
-    {/* PDF TEMPLATE */}
     <PdfTemplate destinations={destinations} student={student} user={user} />
     </>
   );
 }
 
-// ─── PDF TEMPLATE ───
+function addWeeksToDate(date, weeks) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + weeks * 7);
+  return d;
+}
+
 function PdfTemplate({ destinations, student, user }) {
   if (!destinations?.length) return null;
   const phone = user?.phone || "905419189177";
-  const validUntil = (() => { const d = new Date(); d.setDate(d.getDate()+7); return fmtDate(d); })();
 
   return (
     <div id="pdf-area" style={{ display:"none", fontFamily:"Arial, Helvetica, sans-serif", background:"#fff" }}>
@@ -927,7 +955,6 @@ function PdfTemplate({ destinations, student, user }) {
 
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"9pt" }}>
               <tbody>
-                {/* KURS - BASE */}
                 <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                   <td style={{ padding:"4mm 2mm 4mm 0", fontWeight:"bold", verticalAlign:"top", width:"20%", color:"#111" }}>Kurs</td>
                   <td style={{ padding:"4mm 2mm", verticalAlign:"top", width:"58%" }}>
@@ -940,7 +967,6 @@ function PdfTemplate({ destinations, student, user }) {
                   <td style={{ padding:"4mm 0 4mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.courseBasePrice).toLocaleString("tr-TR")},00</td>
                 </tr>
 
-                {/* HIGH SEASON SUPPLEMENT */}
                 {d.hsAmount > 0 && (
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid", background:"#fef9ec" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", verticalAlign:"top", color:"#92400e" }}></td>
@@ -954,7 +980,6 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 )}
 
-                {/* KURS TOPLAMI */}
                 {d.hsAmount > 0 && (
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight:"bold", verticalAlign:"top" }}>Kurs Toplamı</td>
@@ -965,7 +990,6 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 )}
 
-                {/* KONAKLAMA */}
                 {d.acc && !d.isOnline && (
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"4mm 2mm 4mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Konaklama</td>
@@ -980,7 +1004,6 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 )}
 
-                {/* DİĞER ÜCRETLER */}
                 {f.items?.length > 0 && f.items.map((fi, fii) => (
                   <tr key={fii} style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight: fii===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: fii===0 ? "inherit" : "9pt" }}>
@@ -993,7 +1016,6 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 ))}
 
-                {/* ADD-ONS */}
                 {(d.addons||[]).length > 0 && (d.addons||[]).map((a, ai) => (
                   <tr key={ai} style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight: ai===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: ai===0 ? "inherit" : "9pt" }}>
@@ -1006,7 +1028,6 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 ))}
 
-                {/* TRANSFER */}
                 {d.transfer && (
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"3mm 2mm 3mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Transfer</td>
@@ -1021,13 +1042,11 @@ function PdfTemplate({ destinations, student, user }) {
               </tbody>
             </table>
 
-            {/* TOPLAM */}
             <div style={{ borderTop:"2.5px solid #111", marginTop:"3mm", padding:"3mm 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
               <span style={{ fontWeight:"bold", fontSize:"12pt", textTransform:"uppercase" }}>Toplam Tutar {cur}</span>
               <span style={{ fontWeight:"bold", fontSize:"18pt" }}>{curSym} {Number(d.courseTotalPrice + (d.acc ? d.acc.price * d.weeks : 0) + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0)).toLocaleString("tr-TR")},00</span>
             </div>
 
-            {/* NOTLAR */}
             {notes.length > 0 && (
               <div style={{ marginTop:"4mm", background:"#f9f9f9", padding:"3mm 4mm", borderRadius:"3mm", fontSize:"7.5pt", color:"#555", border:"0.5px solid #eee" }}>
                 <div style={{ fontWeight:"bold", marginBottom:"2mm", textTransform:"uppercase", fontSize:"7pt", color:"#888" }}>Önemli Notlar</div>
@@ -1050,12 +1069,6 @@ function PdfTemplate({ destinations, student, user }) {
       })}
     </div>
   );
-}
-
-function addWeeksToDate(date, weeks) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + weeks * 7);
-  return d;
 }
 
 const S = {
@@ -1090,4 +1103,22 @@ const S = {
   summaryCard: { border:"1.5px solid #e2e8f0", borderRadius:14, padding:"16px 20px", marginBottom:12 },
   addBtn: { background:"none", border:`1.5px dashed ${CYAN}`, color:CYAN, width:"100%", padding:"10px 0", borderRadius:10, cursor:"pointer", fontSize:13, marginTop:10 },
   pdfBtn: { width:"100%", marginTop:16, padding:"12px 0", background:CYAN, color:"#fff", border:"none", borderRadius:10, fontWeight:700, cursor:"pointer", fontSize:14 },
+  cinsiyetBtn: {
+    flex: 1,
+    textAlign: "center",
+    padding: "12px",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: "12px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    background: "#fff",
+    transition: "all 0.2s",
+  },
+  cinsiyetBtnActive: {
+    borderColor: CYAN,
+    background: "#f0fdff",
+    color: CYAN,
+    fontWeight: "600",
+  },
 };
