@@ -7,7 +7,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhEpYKU6xGlzyr-JNoc
 const MODULE_CONFIG = [
   {
     key: "izin",
-    title: "İzin Yönetimi",
+    title: "(BETA) İzin Yönetimi",
     desc: "İzin talepleri ve personel takibi",
     path: "/izin",
     icon: (
@@ -100,7 +100,7 @@ const MODULE_CONFIG = [
 },
 {
   key: "fiyatteklifi",
-  title: "Fiyat Teklifi",
+  title: "(BETA) Fiyat Teklifi",
   desc: "Dil okulu fiyat teklifi oluştur",
   path: "/fiyat-teklifi",
   icon: (
@@ -116,7 +116,7 @@ const MODULE_CONFIG = [
 },
 {
   key: "katalogparse",
-  title: "Katalog Parse",
+  title: "(BETA) Katalog Parse",
   desc: "Okul PDF kataloglarını veritabanına aktar",
   path: "/katalog-parse",
   icon: (
