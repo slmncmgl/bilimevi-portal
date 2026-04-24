@@ -256,6 +256,7 @@ export default function FiyatTeklifi() {
   const [destinations, setDestinations] = useState([]);
   const [cur, setCur] = useState(emptyDest());
   const [nav, setNav] = useState({ languages:[], countries:{}, citiesByLang:{}, brandsByCity:{}, schoolSheets:{} });
+  const [accType, setAccType] = useState("");
   useEffect(() => {
     const session = getSession();
     if (!session) return navigate("/");
@@ -522,24 +523,46 @@ export default function FiyatTeklifi() {
                 {cur.cityLoading && <span style={{ fontSize:11, color:"#94a3b8", fontWeight:400, marginLeft:8 }}>yükleniyor...</span>}
               </h2>
               {accs.length === 0 && !cur.cityLoading && <p style={{ color:"#94a3b8", fontSize:13 }}>Konaklama verisi bulunamadı.</p>}
-              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                {accs.map((a,i) => {
-                  const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board;
-                  return (
-                    <div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a}))}>
-                      <div>
-                        <div style={{ fontWeight:600 }}>{a.name} <span style={{ fontWeight:400, fontSize:12 }}>({a.type})</span></div>
-                        <div style={{ fontSize:12, color: sel?"inherit":"#64748b", marginTop:2 }}>{a.room} · {a.board} · {a.distance}</div>
-                        {a.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{a.notes}</div>}
-                      </div>
-                      <div style={{ textAlign:"right", flexShrink:0 }}>
-                        <div style={{ fontWeight:700 }}>{a.currency} {a.price}/h</div>
-                        <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>{cur.weeks}h: {a.currency} {(a.price*cur.weeks).toLocaleString("tr-TR")}</div>
-                      </div>
+
+              {/* Tip kartlari */}
+              {accs.length > 0 && (() => {
+                const types = [...new Set(accs.map(a => a.type))];
+                return (
+                  <>
+                    <div style={S.g3}>
+                      {types.map(t => (
+                        <div key={t}
+                          style={accType === t ? S.selActive : S.sel}
+                          onClick={() => { setAccType(t); setCur(p => ({...p, acc:null})); }}>
+                          {t}
+                        </div>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
+
+                    {/* Secilen tipe ait secenekler */}
+                    {accType && (
+                      <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:10 }}>
+                        {accs.filter(a => a.type === accType).map((a,i) => {
+                          const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board;
+                          return (
+                            <div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a}))}>
+                              <div>
+                                <div style={{ fontWeight:600 }}>{a.name}</div>
+                                <div style={{ fontSize:12, color: sel?"inherit":"#64748b", marginTop:2 }}>{a.room} · {a.board} · {a.distance}</div>
+                                {a.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{a.notes}</div>}
+                              </div>
+                              <div style={{ textAlign:"right", flexShrink:0 }}>
+                                <div style={{ fontWeight:700 }}>{a.currency} {a.price}/h</div>
+                                <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>{cur.weeks}h: {a.currency} {(a.price*cur.weeks).toLocaleString("tr-TR")}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
 
