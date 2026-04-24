@@ -523,12 +523,11 @@ Emin değilsen confidence düşük olur.`;
           <tbody>
             {courses.map((course, idx) => (
               <tr key={idx}>
-                <tr><input value={course.course_name || ""} onChange={e => updateData("courses", idx, "course_name", e.target.value)} style={S.cellInput} /></td>
-                <td><input value={course.program_type || ""} onChange={e => updateData("courses", idx, "program_type", e.target.value)} style={S.cellInput} /></td>
-                <td><input type="number" value={course.lessons_per_week || ""} onChange={e => updateData("courses", idx, "lessons_per_week", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><input type="number" value={course.hours_per_week || ""} onChange={e => updateData("courses", idx, "hours_per_week", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><input type="number" value={course.weeks_tier_min || ""} onChange={e => updateData("courses", idx, "weeks_tier_min", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><input value={course.weeks_tier_max || ""} onChange={e => updateData("courses", idx, "weeks_tier_max", e.target.value)} style={S.cellInputSmall} /></td>
+                <td><input value={course.course_name || ""} onChange={e => updateData("courses", idx, "course_name", e.target.value)} style={S.cellInput} /></td>
+<td><input value={course.program_type || ""} onChange={e => updateData("courses", idx, "program_type", e.target.value)} style={S.cellInput} /></td>
+<td><input type="number" value={course.lessons_per_week || ""} onChange={e => updateData("courses", idx, "lessons_per_week", e.target.value)} style={S.cellInputSmall} /></td>
+<td><input type="number" value={course.hours_per_week || ""} onChange={e => updateData("courses", idx, "hours_per_week", e.target.value)} style={S.cellInputSmall} /></td>
+<td><input type="number" value={course.weeks_tier_min || ""} onChange={e => updateData("courses", idx, "weeks_tier_min", e.target.value)} style={S.cellInputSmall} /></td>
                 <td><input type="number" value={course.price_per_week || ""} onChange={e => updateData("courses", idx, "price_per_week", e.target.value)} style={S.cellInputSmall} /></td>
                 <td><select value={course.currency || "GBP"} onChange={e => updateData("courses", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option></select></td>
                 <td><input value={course.notes || ""} onChange={e => updateData("courses", idx, "notes", e.target.value)} style={S.cellInput} /></td>
