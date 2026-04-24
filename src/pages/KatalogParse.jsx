@@ -10,9 +10,6 @@ const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 // Master sheet ID (master_index için)
 const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
 
-// Okul listesi (master_index'ten çekilecek)
-const SCHOOL_BRANDS = ["EC", "Kaplan", "LAL", "ELS", "ILSC"];
-
 // Sekme yapılandırması
 const TABS = [
   { id: "courses", label: "📚 Kurslar", icon: "📚" },
@@ -40,6 +37,13 @@ const STEPS = {
   DONE: "done",
 };
 
+// Validasyon sonuçları için
+const VALIDATION_STATUS = {
+  VALID: "valid",
+  WARNING: "warning",
+  ERROR: "error",
+};
+
 export default function KatalogParse() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -58,13 +62,14 @@ export default function KatalogParse() {
   const [parsedData, setParsedData] = useState(EMPTY_DATA);
   const [editableData, setEditableData] = useState(EMPTY_DATA);
   const [activeTab, setActiveTab] = useState("courses");
+  const [validationErrors, setValidationErrors] = useState({});
+  const [validationWarnings, setValidationWarnings] = useState({});
   
   // Loading & error
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
   // Refs
-  const fileInputRef = useRef(null);
   const dropRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -156,6 +161,210 @@ export default function KatalogParse() {
     });
   }
 
+  // VALIDASYON FONKSİYONLARI
+  function validateCourses(courses) {
+    const errors = {};
+    const warnings = {};
+    const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
+    
+    courses.forEach((course, idx) => {
+      const rowErrors = [];
+      const rowWarnings = [];
+      
+      // Zorunlu alanlar
+      if (!course.course_name || course.course_name.trim() === "") {
+        rowErrors.push("Kurs adı boş olamaz");
+      }
+      
+      // Fiyat kontrolü
+      const price = parseFloat(course.price_per_week);
+      if (isNaN(price) || price <= 0) {
+        rowErrors.push("Geçerli bir fiyat giriniz");
+      }
+      
+      // Para birimi kontrolü
+      if (course.currency && !validCurrencies.includes(course.currency)) {
+        rowErrors.push(`Geçersiz para birimi: ${course.currency}`);
+      }
+      
+      // Tier aralığı kontrolü
+      const tierMin = parseInt(course.weeks_tier_min);
+      const tierMax = course.weeks_tier_max ? parseInt(course.weeks_tier_max) : null;
+      
+      if (isNaN(tierMin) || tierMin < 1) {
+        rowErrors.push("Tier min hafta geçersiz");
+      }
+      
+      if (tierMax !== null && tierMax < tierMin) {
+        rowErrors.push("Tier max, min'den küçük olamaz");
+      }
+      
+      // Yüksek sezon tarihleri
+      if (course.high_season_start && course.high_season_end) {
+        const hsStart = new Date(course.high_season_start);
+        const hsEnd = new Date(course.high_season_end);
+        if (isNaN(hsStart) || isNaN(hsEnd)) {
+          rowErrors.push("Yüksek sezon tarihleri geçersiz");
+        } else if (hsStart > hsEnd) {
+          rowErrors.push("Yüksek sezon başlangıcı bitişten sonra olamaz");
+        }
+      }
+      
+      // Maksimum hafta kontrolü
+      if (course.max_weeks) {
+        const maxWeeks = parseInt(course.max_weeks);
+        if (isNaN(maxWeeks) || maxWeeks < 1) {
+          rowErrors.push("Maksimum hafta geçersiz");
+        } else if (tierMin > maxWeeks) {
+          rowWarnings.push(`Tier min (${tierMin}) > max_weeks (${maxWeeks})`);
+        }
+      }
+      
+      if (rowErrors.length > 0) errors[idx] = rowErrors;
+      if (rowWarnings.length > 0) warnings[idx] = rowWarnings;
+    });
+    
+    return { errors, warnings };
+  }
+  
+  function validateAccommodation(items) {
+    const errors = {};
+    const warnings = {};
+    const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
+    
+    items.forEach((item, idx) => {
+      const rowErrors = [];
+      const rowWarnings = [];
+      
+      if (!item.place_name || item.place_name.trim() === "") {
+        rowErrors.push("Konaklama adı boş olamaz");
+      }
+      
+      const price = parseFloat(item.price_per_week);
+      if (isNaN(price) || price <= 0) {
+        rowErrors.push("Geçerli bir fiyat giriniz");
+      }
+      
+      if (item.currency && !validCurrencies.includes(item.currency)) {
+        rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
+      }
+      
+      if (item.high_season_price) {
+        const hsPrice = parseFloat(item.high_season_price);
+        if (isNaN(hsPrice)) {
+          rowErrors.push("Yüksek sezon fiyatı geçersiz");
+        } else if (hsPrice < price) {
+          rowWarnings.push("Yüksek sezon fiyatı normal fiyattan düşük");
+        }
+      }
+      
+      if (rowErrors.length > 0) errors[idx] = rowErrors;
+      if (rowWarnings.length > 0) warnings[idx] = rowWarnings;
+    });
+    
+    return { errors, warnings };
+  }
+  
+  function validateFees(items) {
+    const errors = {};
+    const warnings = {};
+    const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
+    const validCalcTypes = ["once", "per_week"];
+    const validAddonTypes = ["compulsory", "optional_service", "supplement", "upgrade", "course_addon", "post_departure"];
+    
+    items.forEach((item, idx) => {
+      const rowErrors = [];
+      
+      if (!item.fee_name || item.fee_name.trim() === "") {
+        rowErrors.push("Ücret adı boş olamaz");
+      }
+      
+      const amount = parseFloat(item.amount);
+      if (isNaN(amount) || amount < 0) {
+        rowErrors.push("Geçerli bir tutar giriniz");
+      }
+      
+      if (item.currency && !validCurrencies.includes(item.currency)) {
+        rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
+      }
+      
+      if (item.calculation_type && !validCalcTypes.includes(item.calculation_type)) {
+        rowErrors.push(`Geçersiz hesaplama tipi: ${item.calculation_type}`);
+      }
+      
+      if (item.addon_type && !validAddonTypes.includes(item.addon_type)) {
+        rowErrors.push(`Geçersiz ek tipi: ${item.addon_type}`);
+      }
+      
+      if (rowErrors.length > 0) errors[idx] = rowErrors;
+    });
+    
+    return { errors, warnings: {} };
+  }
+  
+  function validateTransfers(items) {
+    const errors = {};
+    const warnings = {};
+    const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
+    
+    items.forEach((item, idx) => {
+      const rowErrors = [];
+      
+      if (!item.airport_name || item.airport_name.trim() === "") {
+        rowErrors.push("Havalimanı adı boş olamaz");
+      }
+      
+      const oneWay = parseFloat(item.price_one_way);
+      if (isNaN(oneWay) || oneWay < 0) {
+        rowErrors.push("Geçerli bir tek yön fiyatı giriniz");
+      }
+      
+      if (item.price_two_way) {
+        const twoWay = parseFloat(item.price_two_way);
+        if (isNaN(twoWay)) {
+          rowErrors.push("Geçerli bir çift yön fiyatı giriniz");
+        }
+      }
+      
+      if (item.currency && !validCurrencies.includes(item.currency)) {
+        rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
+      }
+      
+      if (rowErrors.length > 0) errors[idx] = rowErrors;
+    });
+    
+    return { errors, warnings };
+  }
+  
+  function runAllValidations(data) {
+    const courseValidation = validateCourses(data.courses);
+    const accValidation = validateAccommodation(data.accommodation);
+    const feesValidation = validateFees(data.fees);
+    const transfersValidation = validateTransfers(data.transfers);
+    
+    setValidationErrors({
+      courses: courseValidation.errors,
+      accommodation: accValidation.errors,
+      fees: feesValidation.errors,
+      transfers: transfersValidation.errors,
+    });
+    
+    setValidationWarnings({
+      courses: courseValidation.warnings,
+      accommodation: accValidation.warnings,
+      fees: feesValidation.warnings,
+      transfers: transfersValidation.warnings,
+    });
+    
+    const totalErrors = 
+      Object.keys(courseValidation.errors).length +
+      Object.keys(accValidation.errors).length +
+      Object.keys(feesValidation.errors).length +
+      Object.keys(transfersValidation.errors).length;
+    
+    return totalErrors === 0;
+  }
+
   // 1. ADIM: Okul tespiti için PDF analizi
   async function analyzeSchool() {
     if (!selectedFile) {
@@ -206,7 +415,6 @@ Emin değilsen confidence düşük olur.`;
       
       let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
       
-      // JSON temizleme
       let clean = text.trim();
       clean = clean.replace(/```json\s*/gi, "");
       clean = clean.replace(/```\s*/g, "");
@@ -444,7 +652,7 @@ Emin değilsen confidence düşük olur.`;
       }
 
       setParsingProgress(100);
-      setParsingStatus("Parse tamamlandı!");
+      setParsingStatus("Parse tamamlandı! Veriler doğrulanıyor...");
 
       const fullData = {
         courses: coursesData.courses || [],
@@ -455,6 +663,10 @@ Emin değilsen confidence düşük olur.`;
       
       setParsedData(fullData);
       setEditableData(fullData);
+      
+      // Validasyon çalıştır
+      runAllValidations(fullData);
+      
       setStep(STEPS.PREVIEW);
       
     } catch (err) {
@@ -466,11 +678,12 @@ Emin değilsen confidence düşük olur.`;
     }
   }
 
-  // Veri güncelleme (manuel düzenleme)
+  // Veri güncelleme (manuel düzenleme) - validasyonu tetikle
   function updateData(section, index, field, value) {
     const newData = { ...editableData };
     newData[section][index][field] = value;
     setEditableData(newData);
+    runAllValidations(newData);
   }
 
   function addRow(section) {
@@ -489,29 +702,71 @@ Emin değilsen confidence düşük olur.`;
     
     newData[section].push(emptyRow);
     setEditableData(newData);
+    runAllValidations(newData);
   }
 
   function deleteRow(section, index) {
     const newData = { ...editableData };
     newData[section].splice(index, 1);
     setEditableData(newData);
+    runAllValidations(newData);
   }
 
-  // Sheets'e kaydet (Apps Script çağrısı - sonra implement edilecek)
+  // Validasyon durumuna göre hücre rengi
+  function getCellStyle(section, rowIdx, hasError, hasWarning) {
+    let style = { ...S.cellInput };
+    if (hasError) {
+      style = { ...style, borderColor: "#dc2626", backgroundColor: "#fef2f2" };
+    } else if (hasWarning) {
+      style = { ...style, borderColor: "#f59e0b", backgroundColor: "#fffbeb" };
+    }
+    return style;
+  }
+
+  // Hata mesajını göster
+  function getValidationMessage(section, rowIdx) {
+    const errors = validationErrors[section]?.[rowIdx];
+    const warnings = validationWarnings[section]?.[rowIdx];
+    
+    if (errors && errors.length > 0) {
+      return <span style={S.errorTooltip}>⚠️ {errors.join(", ")}</span>;
+    }
+    if (warnings && warnings.length > 0) {
+      return <span style={S.warningTooltip}>⚠️ {warnings.join(", ")}</span>;
+    }
+    return null;
+  }
+
+  // Toplam validasyon durumu
+  function hasAnyValidationError() {
+    return Object.values(validationErrors).some(section => 
+      section && Object.keys(section).length > 0
+    );
+  }
+
+  // Sheets'e kaydet (Apps Script çağrısı)
   async function saveToSheet() {
+    if (hasAnyValidationError()) {
+      setError("Lütfen tüm kırmızı hataları düzeltin.");
+      return;
+    }
+    
     setStep(STEPS.SAVING);
     setLoading(true);
     
-    // TODO: Apps Script entegrasyonu
+    // TODO: Apps Script entegrasyonu - mevcut dosyayı güncelle
     setTimeout(() => {
       setStep(STEPS.DONE);
       setLoading(false);
     }, 2000);
   }
 
-  // Tablo render fonksiyonları (kısaltılmış)
+  // Tablo render fonksiyonları (validasyonlu)
   function renderCoursesTable() {
     const courses = editableData.courses || [];
+    const errors = validationErrors.courses || {};
+    const warnings = validationWarnings.courses || {};
+    
     if (courses.length === 0) {
       return <div style={S.emptyTable}>Kurs bulunamadı. Manuel ekleyebilirsiniz.</div>;
     }
@@ -519,21 +774,57 @@ Emin değilsen confidence düşük olur.`;
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={S.table}>
-          <thead><tr><th>Kurs Adı</th><th>Tip</th><th>Ders/h</th><th>Saat/h</th><th>Min Hafta</th><th>Max Hafta</th><th>Fiyat/h</th><th>Para Birimi</th><th>Notlar</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th style={{ width: 40 }}>#</th>
+              <th>Kurs Adı</th>
+              <th>Tip</th>
+              <th>Ders/h</th>
+              <th>Saat/h</th>
+              <th>Min Hafta</th>
+              <th>Max Hafta</th>
+              <th>Fiyat/h</th>
+              <th>Para Birimi</th>
+              <th>HS Ek</th>
+              <th>HS Başlangıç</th>
+              <th>HS Bitiş</th>
+              <th>Max Hafta</th>
+              <th>Sabah Ücreti</th>
+              <th>Notlar</th>
+              <th style={{ width: 50 }}></th>
+            </tr>
+          </thead>
           <tbody>
-            {courses.map((course, idx) => (
-              <tr key={idx}>
-                <td><input value={course.course_name || ""} onChange={e => updateData("courses", idx, "course_name", e.target.value)} style={S.cellInput} /></td>
-<td><input value={course.program_type || ""} onChange={e => updateData("courses", idx, "program_type", e.target.value)} style={S.cellInput} /></td>
-<td><input type="number" value={course.lessons_per_week || ""} onChange={e => updateData("courses", idx, "lessons_per_week", e.target.value)} style={S.cellInputSmall} /></td>
-<td><input type="number" value={course.hours_per_week || ""} onChange={e => updateData("courses", idx, "hours_per_week", e.target.value)} style={S.cellInputSmall} /></td>
-<td><input type="number" value={course.weeks_tier_min || ""} onChange={e => updateData("courses", idx, "weeks_tier_min", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><input type="number" value={course.price_per_week || ""} onChange={e => updateData("courses", idx, "price_per_week", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><select value={course.currency || "GBP"} onChange={e => updateData("courses", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option></select></td>
-                <td><input value={course.notes || ""} onChange={e => updateData("courses", idx, "notes", e.target.value)} style={S.cellInput} /></td>
-                <td><button onClick={() => deleteRow("courses", idx)} style={S.deleteBtn}>🗑️</button></td>
-              </tr>
-            ))}
+            {courses.map((course, idx) => {
+              const hasError = errors[idx] && errors[idx].length > 0;
+              const hasWarning = warnings[idx] && warnings[idx].length > 0;
+              const msg = getValidationMessage("courses", idx);
+              
+              return (
+                <tr key={idx} style={hasError ? S.errorRow : hasWarning ? S.warningRow : {}}>
+                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
+                  <td><input value={course.course_name || ""} onChange={e => updateData("courses", idx, "course_name", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input value={course.program_type || ""} onChange={e => updateData("courses", idx, "program_type", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input type="number" value={course.lessons_per_week || ""} onChange={e => updateData("courses", idx, "lessons_per_week", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input type="number" value={course.hours_per_week || ""} onChange={e => updateData("courses", idx, "hours_per_week", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input type="number" value={course.weeks_tier_min || ""} onChange={e => updateData("courses", idx, "weeks_tier_min", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input value={course.weeks_tier_max || ""} onChange={e => updateData("courses", idx, "weeks_tier_max", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input type="number" value={course.price_per_week || ""} onChange={e => updateData("courses", idx, "price_per_week", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td>
+                    <select value={course.currency || "GBP"} onChange={e => updateData("courses", idx, "currency", e.target.value)} style={S.cellSelect}>
+                      <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
+                    </select>
+                  </td>
+                  <td><input type="number" value={course.high_season_supplement || ""} onChange={e => updateData("courses", idx, "high_season_supplement", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input type="date" value={course.high_season_start || ""} onChange={e => updateData("courses", idx, "high_season_start", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input type="date" value={course.high_season_end || ""} onChange={e => updateData("courses", idx, "high_season_end", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input type="number" value={course.max_weeks || ""} onChange={e => updateData("courses", idx, "max_weeks", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input type="number" value={course.morning_supplement || ""} onChange={e => updateData("courses", idx, "morning_supplement", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><input value={course.notes || ""} onChange={e => updateData("courses", idx, "notes", e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} /></td>
+                  <td><button onClick={() => deleteRow("courses", idx)} style={S.deleteBtn}>🗑️</button></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -542,26 +833,37 @@ Emin değilsen confidence düşük olur.`;
 
   function renderAccommodationTable() {
     const items = editableData.accommodation || [];
+    const errors = validationErrors.accommodation || {};
+    const warnings = validationWarnings.accommodation || {};
+    
     if (items.length === 0) return <div style={S.emptyTable}>Konaklama bulunamadı.</div>;
+    
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={S.table}>
-          <thead><tr><th>Konaklama Adı</th><th>Tip</th><th>Oda</th><th>Yemek</th><th>Fiyat/h</th><th>HS Fiyat</th><th>Para Birimi</th><th>Mesafe</th><th>Notlar</th><th></th></tr></thead>
+          <thead><tr><th style={{ width: 40 }}>#</th><th>Konaklama Adı</th><th>Tip</th><th>Oda</th><th>Yemek</th><th>Fiyat/h</th><th>HS Fiyat</th><th>Para Birimi</th><th>Mesafe</th><th>Notlar</th><th></th></tr></thead>
           <tbody>
-            {items.map((item, idx) => (
-              <tr key={idx}>
-                <td><input value={item.place_name || ""} onChange={e => updateData("accommodation", idx, "place_name", e.target.value)} style={S.cellInput} /></td>
-                <td><input value={item.accommodation_type || ""} onChange={e => updateData("accommodation", idx, "accommodation_type", e.target.value)} style={S.cellInput} /></td>
-                <td><input value={item.room_type || ""} onChange={e => updateData("accommodation", idx, "room_type", e.target.value)} style={S.cellInput} /></td>
-                <td><input value={item.board_type || ""} onChange={e => updateData("accommodation", idx, "board_type", e.target.value)} style={S.cellInput} /></td>
-                <td><input type="number" value={item.price_per_week || ""} onChange={e => updateData("accommodation", idx, "price_per_week", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><input type="number" value={item.high_season_price || ""} onChange={e => updateData("accommodation", idx, "high_season_price", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><select value={item.currency || "GBP"} onChange={e => updateData("accommodation", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option></select></td>
-                <td><input value={item.distance_to_school || ""} onChange={e => updateData("accommodation", idx, "distance_to_school", e.target.value)} style={S.cellInput} /></td>
-                <td><input value={item.notes || ""} onChange={e => updateData("accommodation", idx, "notes", e.target.value)} style={S.cellInput} /></td>
-                <td><button onClick={() => deleteRow("accommodation", idx)} style={S.deleteBtn}>🗑️</button></td>
-              </tr>
-            ))}
+            {items.map((item, idx) => {
+              const hasError = errors[idx] && errors[idx].length > 0;
+              const hasWarning = warnings[idx] && warnings[idx].length > 0;
+              const msg = getValidationMessage("accommodation", idx);
+              
+              return (
+                <tr key={idx}>
+                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
+                  <td><input value={item.place_name || ""} onChange={e => updateData("accommodation", idx, "place_name", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
+                  <td><input value={item.accommodation_type || ""} onChange={e => updateData("accommodation", idx, "accommodation_type", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
+                  <td><input value={item.room_type || ""} onChange={e => updateData("accommodation", idx, "room_type", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
+                  <td><input value={item.board_type || ""} onChange={e => updateData("accommodation", idx, "board_type", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
+                  <td><input type="number" value={item.price_per_week || ""} onChange={e => updateData("accommodation", idx, "price_per_week", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
+                  <td><input type="number" value={item.high_season_price || ""} onChange={e => updateData("accommodation", idx, "high_season_price", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
+                  <td><select value={item.currency || "GBP"} onChange={e => updateData("accommodation", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option></select></td>
+                  <td><input value={item.distance_to_school || ""} onChange={e => updateData("accommodation", idx, "distance_to_school", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
+                  <td><input value={item.notes || ""} onChange={e => updateData("accommodation", idx, "notes", e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} /></td>
+                  <td><button onClick={() => deleteRow("accommodation", idx)} style={S.deleteBtn}>🗑️</button></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -570,23 +872,32 @@ Emin değilsen confidence düşük olur.`;
 
   function renderFeesTable() {
     const items = editableData.fees || [];
+    const errors = validationErrors.fees || {};
+    
     if (items.length === 0) return <div style={S.emptyTable}>Ek ücret bulunamadı.</div>;
+    
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={S.table}>
-          <thead><tr><th>Ücret Adı</th><th>Tutar</th><th>Para Birimi</th><th>Hesaplama</th><th>Tip</th><th>Notlar</th><th></th></tr></thead>
+          <thead><tr><th style={{ width: 40 }}>#</th><th>Ücret Adı</th><th>Tutar</th><th>Para Birimi</th><th>Hesaplama</th><th>Tip</th><th>Notlar</th><th></th></tr></thead>
           <tbody>
-            {items.map((item, idx) => (
-              <tr key={idx}>
-                <td><input value={item.fee_name || ""} onChange={e => updateData("fees", idx, "fee_name", e.target.value)} style={S.cellInput} /></td>
-                <td><input type="number" value={item.amount || ""} onChange={e => updateData("fees", idx, "amount", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><select value={item.currency || "GBP"} onChange={e => updateData("fees", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option></select></td>
-                <td><select value={item.calculation_type || "once"} onChange={e => updateData("fees", idx, "calculation_type", e.target.value)} style={S.cellSelect}><option value="once">Tek sefer</option><option value="per_week">Haftalık</option></select></td>
-                <td><select value={item.addon_type || "compulsory"} onChange={e => updateData("fees", idx, "addon_type", e.target.value)} style={S.cellSelect}><option value="compulsory">Zorunlu</option><option value="optional_service">İsteğe bağlı</option></select></td>
-                <td><input value={item.notes || ""} onChange={e => updateData("fees", idx, "notes", e.target.value)} style={S.cellInput} /></td>
-                <td><button onClick={() => deleteRow("fees", idx)} style={S.deleteBtn}>🗑️</button></td>
-              </tr>
-            ))}
+            {items.map((item, idx) => {
+              const hasError = errors[idx] && errors[idx].length > 0;
+              const msg = getValidationMessage("fees", idx);
+              
+              return (
+                <tr key={idx}>
+                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
+                  <td><input value={item.fee_name || ""} onChange={e => updateData("fees", idx, "fee_name", e.target.value)} style={getCellStyle("fees", idx, hasError, false)} /></td>
+                  <td><input type="number" value={item.amount || ""} onChange={e => updateData("fees", idx, "amount", e.target.value)} style={getCellStyle("fees", idx, hasError, false)} /></td>
+                  <td><select value={item.currency || "GBP"} onChange={e => updateData("fees", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option></select></td>
+                  <td><select value={item.calculation_type || "once"} onChange={e => updateData("fees", idx, "calculation_type", e.target.value)} style={S.cellSelect}><option value="once">Tek sefer</option><option value="per_week">Haftalık</option></select></td>
+                  <td><select value={item.addon_type || "compulsory"} onChange={e => updateData("fees", idx, "addon_type", e.target.value)} style={S.cellSelect}><option value="compulsory">Zorunlu</option><option value="optional_service">İsteğe bağlı</option><option value="supplement">Ek ücret</option><option value="upgrade">Yükseltme</option></select></td>
+                  <td><input value={item.notes || ""} onChange={e => updateData("fees", idx, "notes", e.target.value)} style={getCellStyle("fees", idx, hasError, false)} /></td>
+                  <td><button onClick={() => deleteRow("fees", idx)} style={S.deleteBtn}>🗑️</button></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -595,23 +906,32 @@ Emin değilsen confidence düşük olur.`;
 
   function renderTransfersTable() {
     const items = editableData.transfers || [];
+    const errors = validationErrors.transfers || {};
+    
     if (items.length === 0) return <div style={S.emptyTable}>Transfer bilgisi bulunamadı.</div>;
+    
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={S.table}>
-          <thead><tr><th>Havalimanı</th><th>Kodu</th><th>Tek Yön</th><th>Çift Yön</th><th>Para Birimi</th><th>Notlar</th><th></th></tr></thead>
+          <thead><tr><th style={{ width: 40 }}>#</th><th>Havalimanı</th><th>Kodu</th><th>Tek Yön</th><th>Çift Yön</th><th>Para Birimi</th><th>Notlar</th><th></th></tr></thead>
           <tbody>
-            {items.map((item, idx) => (
-              <tr key={idx}>
-                <td><input value={item.airport_name || ""} onChange={e => updateData("transfers", idx, "airport_name", e.target.value)} style={S.cellInput} /></td>
-                <td><input value={item.airport_code || ""} onChange={e => updateData("transfers", idx, "airport_code", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><input type="number" value={item.price_one_way || ""} onChange={e => updateData("transfers", idx, "price_one_way", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><input type="number" value={item.price_two_way || ""} onChange={e => updateData("transfers", idx, "price_two_way", e.target.value)} style={S.cellInputSmall} /></td>
-                <td><select value={item.currency || "GBP"} onChange={e => updateData("transfers", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option></select></td>
-                <td><input value={item.notes || ""} onChange={e => updateData("transfers", idx, "notes", e.target.value)} style={S.cellInput} /></td>
-                <td><button onClick={() => deleteRow("transfers", idx)} style={S.deleteBtn}>🗑️</button></td>
-              </tr>
-            ))}
+            {items.map((item, idx) => {
+              const hasError = errors[idx] && errors[idx].length > 0;
+              const msg = getValidationMessage("transfers", idx);
+              
+              return (
+                <tr key={idx}>
+                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
+                  <td><input value={item.airport_name || ""} onChange={e => updateData("transfers", idx, "airport_name", e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} /></td>
+                  <td><input value={item.airport_code || ""} onChange={e => updateData("transfers", idx, "airport_code", e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} /></td>
+                  <td><input type="number" value={item.price_one_way || ""} onChange={e => updateData("transfers", idx, "price_one_way", e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} /></td>
+                  <td><input type="number" value={item.price_two_way || ""} onChange={e => updateData("transfers", idx, "price_two_way", e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} /></td>
+                  <td><select value={item.currency || "GBP"} onChange={e => updateData("transfers", idx, "currency", e.target.value)} style={S.cellSelect}><option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option></select></td>
+                  <td><input value={item.notes || ""} onChange={e => updateData("transfers", idx, "notes", e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} /></td>
+                  <td><button onClick={() => deleteRow("transfers", idx)} style={S.deleteBtn}>🗑️</button></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -661,7 +981,7 @@ Emin değilsen confidence düşük olur.`;
     );
   }
 
-  // RENDER - SCHOOL SELECT (kısaltılmış)
+  // RENDER - SCHOOL SELECT
   if (step === STEPS.SCHOOL_SELECT) {
     return (
       <div style={S.root}>
@@ -716,6 +1036,7 @@ Emin değilsen confidence düşük olur.`;
     const totalAcc = editableData.accommodation?.length || 0;
     const totalFees = editableData.fees?.length || 0;
     const totalTransfers = editableData.transfers?.length || 0;
+    const hasErrors = hasAnyValidationError();
 
     return (
       <div style={S.root}>
@@ -724,14 +1045,30 @@ Emin değilsen confidence düşük olur.`;
           <div style={S.headerInner}>
             <button onClick={() => setStep(STEPS.SCHOOL_SELECT)} style={S.backBtn}>← Geri</button>
             <span style={S.headerTitle}>{selectedBrand} - {selectedCity}<span style={{ fontSize: 11, marginLeft: 8, color: "#94a3b8" }}>Parse Sonucu</span></span>
-            <div style={{ display: "flex", gap: 12 }}><button onClick={() => addRow(activeTab)} style={S.addRowBtn}>+ Satır Ekle</button><button onClick={saveToSheet} style={S.saveBtn}>✓ Sheets'e Kaydet</button><div style={S.userChip}>{user?.name}</div></div>
+            <div style={{ display: "flex", gap: 12 }}>
+              <button onClick={() => addRow(activeTab)} style={S.addRowBtn}>+ Satır Ekle</button>
+              <button onClick={saveToSheet} disabled={hasErrors} style={{ ...S.saveBtn, opacity: hasErrors ? 0.5 : 1, cursor: hasErrors ? "not-allowed" : "pointer" }}>
+                {hasErrors ? "⚠️ Hataları Düzeltin" : "✓ Sheets'e Kaydet"}
+              </button>
+              <div style={S.userChip}>{user?.name}</div>
+            </div>
           </div>
         </header>
         <main style={S.previewMain}>
-          <div style={S.statsBar}><div style={S.stat}><span style={S.statNum}>{totalCourses}</span><span>Kurs</span></div><div style={S.stat}><span style={S.statNum}>{totalAcc}</span><span>Konaklama</span></div><div style={S.stat}><span style={S.statNum}>{totalFees}</span><span>Ek Ücret</span></div><div style={S.stat}><span style={S.statNum}>{totalTransfers}</span><span>Transfer</span></div></div>
+          <div style={S.statsBar}>
+            <div style={S.stat}><span style={S.statNum}>{totalCourses}</span><span>Kurs</span></div>
+            <div style={S.stat}><span style={S.statNum}>{totalAcc}</span><span>Konaklama</span></div>
+            <div style={S.stat}><span style={S.statNum}>{totalFees}</span><span>Ek Ücret</span></div>
+            <div style={S.stat}><span style={S.statNum}>{totalTransfers}</span><span>Transfer</span></div>
+          </div>
+          {hasErrors && (
+            <div style={S.errorBanner}>
+              ⚠️ Kırmızı işaretli alanlarda hata var. Lütfen düzeltin.
+            </div>
+          )}
           <div style={S.tabBar}>{TABS.map(tab => (<button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ ...S.tabBtn, borderBottom: activeTab === tab.id ? "2px solid #2563eb" : "none", color: activeTab === tab.id ? "#2563eb" : "#64748b" }}>{tab.label}</button>))}</div>
           <div style={S.tableCard}>{renderTabContent()}</div>
-          <div style={S.warningBox}>⚠️ Verileri kontrol edin, yanlış olanları düzeltebilirsiniz. Onaylayınca {selectedBrand}_{selectedCity}_2026.xlsx oluşturulacak.</div>
+          <div style={S.warningBox}>⚠️ Verileri kontrol edin, yanlış olanları düzeltebilirsiniz. Kırmızı alanlar düzeltilmeden kayıt yapılamaz.</div>
         </main>
       </div>
     );
@@ -758,9 +1095,9 @@ Emin değilsen confidence düşük olur.`;
           <div style={S.successCard}>
             <div style={S.successIcon}>✅</div>
             <h2 style={S.uploadTitle}>Başarıyla Kaydedildi!</h2>
-            <p style={S.uploadSub}>{selectedBrand}_{selectedCity}_{new Date().getFullYear()}.xlsx oluşturuldu.</p>
+            <p style={S.uploadSub}>{selectedBrand} - {selectedCity} için veriler güncellendi.</p>
             <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
-              <button onClick={() => { setStep(STEPS.UPLOAD); setSelectedFile(null); setSelectedBrand(""); setSelectedCity(""); setParsedData(EMPTY_DATA); setEditableData(EMPTY_DATA); }} style={S.secondaryBtn}>Yeni Parse</button>
+              <button onClick={() => { setStep(STEPS.UPLOAD); setSelectedFile(null); setSelectedBrand(""); setSelectedCity(""); setParsedData(EMPTY_DATA); setEditableData(EMPTY_DATA); setValidationErrors({}); setValidationWarnings({}); }} style={S.secondaryBtn}>Yeni Parse</button>
               <button onClick={() => navigate("/fiyat-teklifi")} style={S.primaryBtn}>Fiyat Teklifi'ne Git →</button>
             </div>
           </div>
@@ -782,7 +1119,7 @@ const S = {
   headerTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151", background: "#f1f5f9", padding: "6px 12px", borderRadius: "20px" },
   main: { maxWidth: "800px", margin: "0 auto", padding: "48px 24px", position: "relative", zIndex: 1 },
-  previewMain: { maxWidth: "1200px", margin: "0 auto", padding: "32px 24px", position: "relative", zIndex: 1 },
+  previewMain: { maxWidth: "1400px", margin: "0 auto", padding: "32px 24px", position: "relative", zIndex: 1 },
   uploadCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px 32px", textAlign: "center", animation: "fadeUp 0.4s ease-out" },
   uploadIcon: { width: "80px", height: "80px", background: "#eff6ff", borderRadius: "40px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: "40px" },
   uploadTitle: { fontSize: "24px", fontWeight: "700", color: "#0f172a", marginBottom: "8px" },
@@ -804,12 +1141,14 @@ const S = {
   tabBtn: { padding: "12px 20px", border: "none", background: "none", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "'Sora', sans-serif" },
   tableCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "0 0 12px 12px", padding: "20px", overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "12px" },
+  cellIndex: { padding: "6px 8px", textAlign: "center", fontWeight: "600", color: "#64748b", width: "40px" },
   cellInput: { width: "100%", padding: "6px 8px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", fontFamily: "'Sora', sans-serif" },
   cellInputSmall: { width: "70px", padding: "6px 4px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", textAlign: "center" },
   cellSelect: { padding: "6px 4px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", background: "#fff" },
   deleteBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "4px 8px", borderRadius: "6px" },
   emptyTable: { textAlign: "center", padding: "48px", color: "#94a3b8" },
   warningBox: { marginTop: "20px", padding: "12px 16px", background: "#fef9ec", border: "1px solid #fde68a", borderRadius: "12px", fontSize: "12px", color: "#92400e" },
+  errorBanner: { marginBottom: "16px", padding: "12px 16px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "12px", fontSize: "13px", color: "#dc2626", fontWeight: "500" },
   successCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px 32px", textAlign: "center", maxWidth: "500px", margin: "0 auto" },
   successIcon: { fontSize: "64px", marginBottom: "16px" },
   primaryBtn: { width: "100%", padding: "14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
@@ -817,6 +1156,10 @@ const S = {
   saveBtn: { padding: "8px 20px", background: "#059669", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer" },
   addRowBtn: { padding: "8px 16px", background: "#fff", color: "#2563eb", border: "1.5px solid #2563eb", borderRadius: "8px", fontSize: "12px", fontWeight: "600", cursor: "pointer" },
   errorBox: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "12px 16px", fontSize: "13px", color: "#dc2626", marginBottom: "20px" },
+  errorTooltip: { fontSize: "10px", color: "#dc2626", display: "block", marginTop: "2px" },
+  warningTooltip: { fontSize: "10px", color: "#f59e0b", display: "block", marginTop: "2px" },
+  errorRow: { backgroundColor: "#fef2f2" },
+  warningRow: { backgroundColor: "#fffbeb" },
 };
 
 // Global style keyframes
