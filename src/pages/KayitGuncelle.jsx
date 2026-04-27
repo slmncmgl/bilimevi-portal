@@ -78,9 +78,17 @@ function Toast({ toast }) {
   );
 }
 
-function FieldInput({ label, value, onChange }) {
+function FieldInput({ label, value, onChange, taksitSayisi }) {
   const isDropdown = !!DROPDOWN_OPTIONS[label];
-  const isReadonly = READONLY_FIELDS.includes(label);
+
+  const taksitIndex = (() => {
+    const m = label.match(/^(\d+)\. Taksit (Dönemi|Tutarı)$/);
+    return m ? parseInt(m[1], 10) : null;
+  })();
+  const isTaksitField = taksitIndex !== null;
+  const taksitPasif = isTaksitField && taksitIndex > (parseInt(taksitSayisi, 10) || 0);
+
+  const isReadonly = READONLY_FIELDS.includes(label) || taksitPasif;
   const isOnlyLetters = ONLY_LETTERS.includes(label);
   const isOnlyNumbers = ONLY_NUMBERS.includes(label) || TAKSIT_TUTAR.includes(label);
   const isDate = ["Doğum Tarihi", "Program Başlangıç Tarihi", "Program Bitiş Tarihi"].includes(label) || TAKSIT_DONEM.includes(label);
@@ -302,7 +310,7 @@ export default function KayitGuncelle() {
                 {TAB_FIELDS[activeTab]?.map(key => (
                   <div key={key} style={key === "Adres" ? { gridColumn: "1 / -1" } : {}}>
                     <label style={s.fieldLabel}>{key}</label>
-                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} />
+                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} />
                   </div>
                 ))}
               </div>
