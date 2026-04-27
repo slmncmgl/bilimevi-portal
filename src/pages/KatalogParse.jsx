@@ -7,21 +7,8 @@ const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-// Google Sheets API (okuma için public CSV, yazma için Apps Script)
-const SHEETS_API_URL = "https://sheets.googleapis.com/v4/spreadsheets";
-
-// Klasör ID'leri
-const FOLDERS = {
-  EC: "1B0NO3HCQGdXys9aGLEMfsapDFnq-8ZWc",
-  KAPLAN: "1YRwye6-_2bS80AOIoHWOTW37m3tej7px",
-  MASTER_INDEX: "11fgodiPmlUpXiXST7tV6DQUtwoR2rodf",
-};
-
-// Dosya adları sabit
-const FILE_NAMES = {
-  EC: "EC.xlsx",
-  KAPLAN: "Kaplan.xlsx",
-};
+// Master sheet ID (master_index için)
+const MASTER_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 
 // Sekme yapılandırması
 const TABS = [
@@ -46,10 +33,8 @@ const STEPS = {
   SCHOOL_SELECT: "school_select",
   PARSING: "parsing",
   PREVIEW: "preview",
-  VALIDATING: "validating",
   SAVING: "saving",
   DONE: "done",
-  ERROR: "error",
 };
 
 // Validasyon durumları
@@ -71,8 +56,7 @@ export default function KatalogParse() {
   const [selectedCity, setSelectedCity] = useState("");
   const [cities, setCities] = useState([]);
   
-  // Referans veri (sheet'ten okunan)
-  const [referenceData, setReferenceData] = useState(null);
+  // Referans veri (sheet'ten okunan sütun yapısı)
   const [referenceColumns, setReferenceColumns] = useState({});
   const [referenceLoading, setReferenceLoading] = useState(false);
   
@@ -112,7 +96,6 @@ export default function KatalogParse() {
 
   async function fetchCitiesForBrand(brand) {
     try {
-      const MASTER_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
       const url = `https://docs.google.com/spreadsheets/d/${MASTER_ID}/gviz/tq?tqx=out:csv&sheet=master_index`;
       const res = await fetch(url);
       const csv = await res.text();
@@ -150,53 +133,78 @@ export default function KatalogParse() {
     });
   }
 
-  // Referans sheet'ten veri oku (CSV olarak public erişim)
-  async function loadReferenceData(brand) {
+  // master_index'ten okulun drive_link'ini bul ve sütun yapısını oku
+  async function loadReferenceData(brand, city) {
     setReferenceLoading(true);
+    setParsingProgress(5);
+    setParsingStatus("📁 Mevcut Okul Fiyat Dosyası Okunuyor...");
+    
     try {
-      const folderId = brand === "EC" ? FOLDERS.EC : FOLDERS.KAPLAN;
-      const fileName = brand === "EC" ? FILE_NAMES.EC : FILE_NAMES.KAPLAN;
-      
-      // Drive'dan dosya ID'sini bul (klasör içinde)
-      const query = `name='${fileName}' and '${folderId}' in parents and trashed=false`;
-      const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`;
-      
-      // Not: Bu çağrı için access token gerekebilir. Public dosya ise direkt CSV ile okuyabiliriz.
-      // Alternatif: master_index'teki drive_link'leri kullan
-      
-      const MASTER_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
+      // 1. master_index'ten drive_link'i bul
       const masterUrl = `https://docs.google.com/spreadsheets/d/${MASTER_ID}/gviz/tq?tqx=out:csv&sheet=master_index`;
       const masterRes = await fetch(masterUrl);
       const masterCsv = await masterRes.text();
       const masterRows = parseCSV(masterCsv);
       
-      // Bu okul+şehir için drive_link'i bul (referans olarak kullanılacak)
-      // Şimdilik ilgili markanın ilk aktif şehrinin sheet'ini referans alalım
-      const referenceRow = masterRows.find(row => 
+      // İlgili okul+şehir satırını bul (veya ilgili okulun herhangi bir aktif satırını)
+      let targetRow = masterRows.find(row => 
         row.school_brand === brand && 
+        row.city === city &&
         row.is_active === "TRUE" && 
         row.parse_status === "approved"
       );
       
-      if (referenceRow && referenceRow.drive_link) {
-        const match = referenceRow.drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-        const sheetId = match ? match[1] : null;
-        
-        if (sheetId) {
-          // Her tablo için sütun yapısını oku
-          const columns = {};
-          for (const tab of TABS) {
-            const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${tab.sheetName}`;
-            const res = await fetch(sheetUrl);
-            const csv = await res.text();
-            const firstLine = csv.split("\n")[0];
-            const headers = firstLine.split(",").map(h => h.replace(/"/g, "").trim());
-            columns[tab.id] = headers;
-          }
-          setReferenceColumns(columns);
-          console.log("Referans sütunlar yüklendi:", columns);
+      // Şehir bazlı bulunamazsa, okulun herhangi bir aktif şehrini al
+      if (!targetRow) {
+        targetRow = masterRows.find(row => 
+          row.school_brand === brand && 
+          row.is_active === "TRUE" && 
+          row.parse_status === "approved"
+        );
+      }
+      
+      if (!targetRow || !targetRow.drive_link) {
+        console.warn("Drive link bulunamadı, varsayılan sütunlar kullanılacak");
+        // Varsayılan sütunlar
+        setReferenceColumns({
+          courses: ["course_name", "program_type", "lessons_per_week", "hours_per_week", "weeks_tier_min", "weeks_tier_max", "price_per_week", "currency", "high_season_supplement", "high_season_start", "high_season_end", "max_weeks", "morning_supplement", "notes"],
+          accommodation: ["place_name", "accommodation_type", "room_type", "board_type", "price_per_week", "currency", "distance_to_school", "notes"],
+          fees: ["fee_name", "amount", "currency", "calculation_type", "addon_type", "notes"],
+          transfers: ["airport_name", "airport_code", "price_one_way", "price_two_way", "currency", "notes"],
+        });
+        return;
+      }
+      
+      const match = targetRow.drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+      const sheetId = match ? match[1] : null;
+      
+      if (!sheetId) {
+        console.warn("Sheet ID bulunamadı");
+        return;
+      }
+      
+      // 2. Her tablo için sütun başlıklarını oku
+      setParsingProgress(10);
+      setParsingStatus("🔍 Parse Kuralları İnceleniyor...");
+      
+      const columns = {};
+      for (const tab of TABS) {
+        try {
+          const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${tab.sheetName}`;
+          const res = await fetch(sheetUrl);
+          const csv = await res.text();
+          const firstLine = csv.split("\n")[0];
+          const headers = firstLine.split(",").map(h => h.replace(/"/g, "").trim());
+          columns[tab.id] = headers.filter(h => h && h.length > 0);
+        } catch (err) {
+          console.error(`${tab.id} sütunları okunamadı:`, err);
+          columns[tab.id] = [];
         }
       }
+      
+      setReferenceColumns(columns);
+      console.log("Referans sütunlar yüklendi:", columns);
+      
     } catch (err) {
       console.error("Referans veri yüklenemedi:", err);
     } finally {
@@ -241,7 +249,6 @@ export default function KatalogParse() {
   function buildPromptForSection(section, columns) {
     const colNames = columns[section] || [];
     if (colNames.length === 0) {
-      // Fallback
       return `Bu PDF'ten ${section} bilgilerini çıkar. JSON formatında döndür.`;
     }
     
@@ -304,9 +311,6 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
       setSelectedBrand(data.detected?.[0] || "");
       setStep(STEPS.SCHOOL_SELECT);
       
-      // Referans veriyi yükle
-      await loadReferenceData(data.detected?.[0] || "EC");
-      
     } catch (err) {
       console.error("Analiz hatası:", err);
       setError("Okul tespit edilemedi. Lütfen manuel seçin.");
@@ -317,7 +321,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     }
   }
 
-  // 2. ADIM: Parse et
+  // 2. ADIM: Parse et (aşamalı gösterimli)
   async function startParsing() {
     if (!selectedBrand || !selectedCity) {
       setError("Lütfen okul ve şehir seçin.");
@@ -326,22 +330,38 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
 
     setStep(STEPS.PARSING);
     setLoading(true);
-    setParsingProgress(0);
-    setParsingStatus("Referans veri kontrol ediliyor...");
-
+    
     try {
-      // Referans sütunlar yoksa tekrar yükle
-      if (Object.keys(referenceColumns).length === 0) {
-        await loadReferenceData(selectedBrand);
-      }
+      // Aşama 1-2: Mevcut dosyayı oku ve kuralları incele
+      setParsingProgress(5);
+      setParsingStatus("📁 Mevcut Okul Fiyat Dosyası Okunuyor...");
+      
+      await loadReferenceData(selectedBrand, selectedCity);
+      
+      setParsingProgress(10);
+      setParsingStatus("🔍 Parse Kuralları İnceleniyor...");
+      await new Promise(r => setTimeout(r, 300));
+      
+      // Aşama 3: PDF hazırlanıyor
+      setParsingProgress(15);
+      setParsingStatus("📄 PDF Dosyası Hazırlanıyor...");
       
       const base64 = await fileToBase64(selectedFile);
       const fullData = { courses: [], accommodation: [], fees: [], transfers: [] };
       
-      for (let i = 0; i < TABS.length; i++) {
-        const tab = TABS[i];
-        setParsingProgress(20 + (i * 20));
-        setParsingStatus(`${tab.label} parse ediliyor...`);
+      // Aşama 4-7: Her tablo için parse
+      const tabSteps = [
+        { id: "courses", label: "Kurslar", progressStart: 20, progressEnd: 35 },
+        { id: "accommodation", label: "Konaklama", progressStart: 35, progressEnd: 50 },
+        { id: "fees", label: "Ek Ücretler", progressStart: 50, progressEnd: 65 },
+        { id: "transfers", label: "Transfer", progressStart: 65, progressEnd: 80 }
+      ];
+      
+      let stepIndex = 0;
+      for (const tab of tabSteps) {
+        stepIndex++;
+        setParsingProgress(tab.progressStart);
+        setParsingStatus(`📚 ${tab.label} Parse Ediliyor (${stepIndex}/4)...`);
         
         const prompt = buildPromptForSection(tab.id, referenceColumns);
         
@@ -367,17 +387,23 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
           console.error(`${tab.id} parse hatası:`, e);
           fullData[tab.id] = [];
         }
+        
+        setParsingProgress(tab.progressEnd);
       }
       
-      setParsingProgress(100);
-      setParsingStatus("Parse tamamlandı! Veriler doğrulanıyor...");
+      // Aşama 8: Doğrulama
+      setParsingProgress(90);
+      setParsingStatus("✅ Veriler Doğrulanıyor...");
       
       setParsedData(fullData);
       setEditableData(fullData);
-      
-      // Validasyon çalıştır
       runAllValidations(fullData);
       
+      // Aşama 9: Tamam
+      setParsingProgress(100);
+      setParsingStatus("🎉 Parse Tamamlandı!");
+      
+      await new Promise(r => setTimeout(r, 500));
       setStep(STEPS.PREVIEW);
       
     } catch (err) {
@@ -598,7 +624,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     );
   }
 
-  // Backup oluştur ve kaydet (Apps Script üzerinden)
+  // Backup oluştur ve kaydet
   async function saveToSheet() {
     if (hasAnyValidationError()) {
       setError("Lütfen tüm kırmızı hataları düzeltin.");
@@ -644,8 +670,6 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
       const saveResult = await saveRes.json();
       
       if (!saveResult.success) {
-        // Hata durumunda backup'tan geri yükle
-        setParsingStatus("Hata oluştu, eski veri geri yükleniyor...");
         await fetch(SCRIPT_URL, {
           method: "POST",
           body: JSON.stringify({
@@ -818,7 +842,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
                       )}
                     </td>
                   ))}
-                  <td><button onClick={() => deleteRow("fees", idx)} style={S.deleteBtn}>🗑️</button></td>
+                  ｜DSML｜<button onClick={() => deleteRow("fees", idx)} style={S.deleteBtn}>🗑️</button></td>
                 </tr>
               );
             })}
@@ -938,16 +962,14 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
               ))}
             </div>
             <div style={{ marginTop: 24 }}><label style={S.label}>Şehir Seç</label><select value={selectedCity} onChange={e => setSelectedCity(e.target.value)} style={S.select}><option value="">Şehir seçin</option>{cities.map(city => <option key={city} value={city}>{city}</option>)}</select></div>
-            <button onClick={startParsing} disabled={!selectedBrand || !selectedCity || referenceLoading} style={{ ...S.primaryBtn, marginTop: 24, opacity: (!selectedBrand || !selectedCity || referenceLoading) ? 0.5 : 1 }}>
-              {referenceLoading ? "Referans yükleniyor..." : "Parse Et →"}
-            </button>
+            <button onClick={startParsing} disabled={!selectedBrand || !selectedCity} style={{ ...S.primaryBtn, marginTop: 24 }}>Parse Et →</button>
           </div>
         </main>
       </div>
     );
   }
 
-  // RENDER - PARSING
+  // RENDER - PARSING (aşamalı gösterim)
   if (step === STEPS.PARSING) {
     return (
       <div style={S.root}>
@@ -955,9 +977,12 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
         <header style={S.header}><div style={S.headerInner}><span style={S.headerTitle}>PDF Parse Ediliyor</span><div style={S.userChip}>{user?.name}</div></div></header>
         <main style={S.main}>
           <div style={S.parsingCard}>
-            <div style={S.spinner} /><h3>{parsingStatus}</h3>
-            <div style={S.progressBar}><div style={{ ...S.progressFill, width: `${parsingProgress}%` }} /></div>
-            <p style={{ fontSize: 12, color: "#94a3b8" }}>Bu işlem 1-2 dakika sürebilir...</p>
+            <div style={S.spinner} />
+            <h3>{parsingStatus}</h3>
+            <div style={S.progressBar}>
+              <div style={{ ...S.progressFill, width: `${parsingProgress}%` }} />
+            </div>
+            <p style={{ fontSize: 12, color: "#94a3b8" }}>{Math.floor(parsingProgress)}% tamamlandı...</p>
           </div>
         </main>
       </div>
@@ -1018,8 +1043,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
         <main style={S.main}>
           <div style={S.parsingCard}>
             <div style={S.spinner} />
-            <h3>{parsingStatus}</h3>
-            <div style={S.progressBar}><div style={{ ...S.progressFill, width: `${parsingProgress}%` }} /></div>
+            <h3>{parsingStatus || "Sheets'e kaydediliyor..."}</h3>
             <p style={{ fontSize: 12, color: "#94a3b8" }}>Lütfen bekleyin...</p>
           </div>
         </main>
@@ -1072,10 +1096,10 @@ const S = {
   brandCard: { display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", border: "1.5px solid", borderRadius: "12px", cursor: "pointer", transition: "all 0.2s" },
   label: { fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "6px" },
   select: { width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "'Sora', sans-serif", background: "#fff" },
-  parsingCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px", textAlign: "center", maxWidth: "400px", margin: "0 auto" },
+  parsingCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px", textAlign: "center", maxWidth: "500px", margin: "0 auto" },
   spinner: { width: "48px", height: "48px", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" },
-  progressBar: { width: "100%", height: "6px", background: "#e2e8f0", borderRadius: "3px", marginTop: "16px", overflow: "hidden" },
-  progressFill: { height: "100%", background: "#2563eb", borderRadius: "3px", transition: "width 0.3s" },
+  progressBar: { width: "100%", height: "8px", background: "#e2e8f0", borderRadius: "4px", marginTop: "16px", overflow: "hidden" },
+  progressFill: { height: "100%", background: "#2563eb", borderRadius: "4px", transition: "width 0.3s ease" },
   statsBar: { display: "flex", gap: "12px", marginBottom: "24px" },
   stat: { flex: 1, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "16px", textAlign: "center" },
   statNum: { fontSize: "28px", fontWeight: "700", color: "#0f172a", display: "block" },
@@ -1085,7 +1109,6 @@ const S = {
   table: { width: "100%", borderCollapse: "collapse", fontSize: "12px" },
   cellIndex: { padding: "6px 8px", textAlign: "center", fontWeight: "600", color: "#64748b", width: "40px" },
   cellInput: { width: "100%", padding: "6px 8px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", fontFamily: "'Sora', sans-serif" },
-  cellInputSmall: { width: "70px", padding: "6px 4px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", textAlign: "center" },
   cellSelect: { padding: "6px 4px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", background: "#fff" },
   deleteBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "4px 8px", borderRadius: "6px" },
   emptyTable: { textAlign: "center", padding: "48px", color: "#94a3b8" },
