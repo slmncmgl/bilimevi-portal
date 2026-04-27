@@ -802,97 +802,69 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     );
   }
 
-  function renderFeesTable() {
-    const items = editableData.fees || [];
-    const errors = validationErrors.fees || {};
-    const columns = referenceColumns.fees || ["fee_name", "amount", "currency", "calculation_type", "addon_type", "notes"];
-    
-    if (items.length === 0) return <div style={S.emptyTable}>Ek ücret bulunamadı.</div>;
-    
-    return (
-      <div style={{ overflowX: "auto" }}>
-        <table style={S.table}>
-          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th></th></tr></thead>
-          <tbody>
-            {items.map((item, idx) => {
-              const hasError = errors[idx] && errors[idx].length > 0;
-              const msg = getValidationMessage("fees", idx);
-              
-              return (
-                <tr key={idx}>
-                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                  {columns.map(col => (
-                    <td key={col}>
-                      {col === "currency" ? (
-                        <select value={item[col] || "GBP"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
-                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
-                        </select>
-                      ) : col === "calculation_type" ? (
-                        <select value={item[col] || "once"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
-                          <option value="once">Tek sefer</option><option value="per_week">Haftalık</option>
-                        </select>
-                      ) : col === "addon_type" ? (
-                        <select value={item[col] || "compulsory"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
-                          <option value="compulsory">Zorunlu</option><option value="optional_service">İsteğe bağlı</option><option value="supplement">Ek ücret</option><option value="upgrade">Yükseltme</option>
-                        </select>
-                      ) : col === "amount" ? (
-                        <input type="number" value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError, false)} />
-                      ) : (
-                        <input value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError, false)} />
-                      )}
-                    </td>
-                  ))}
-                  ｜DSML｜<button onClick={() => deleteRow("fees", idx)} style={S.deleteBtn}>🗑️</button></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  function renderTransfersTable() {
-    const items = editableData.transfers || [];
-    const errors = validationErrors.transfers || {};
-    const columns = referenceColumns.transfers || ["airport_name", "airport_code", "price_one_way", "price_two_way", "currency", "notes"];
-    
-    if (items.length === 0) return <div style={S.emptyTable}>Transfer bilgisi bulunamadı.</div>;
-    
-    return (
-      <div style={{ overflowX: "auto" }}>
-        <table style={S.table}>
-          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th></th></tr></thead>
-          <tbody>
-            {items.map((item, idx) => {
-              const hasError = errors[idx] && errors[idx].length > 0;
-              const msg = getValidationMessage("transfers", idx);
-              
-              return (
-                <tr key={idx}>
-                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                  {columns.map(col => (
-                    <td key={col}>
-                      {col === "currency" ? (
-                        <select value={item[col] || "GBP"} onChange={e => updateData("transfers", idx, col, e.target.value)} style={S.cellSelect}>
-                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
-                        </select>
-                      ) : col.includes("price") ? (
-                        <input type="number" value={item[col] || ""} onChange={e => updateData("transfers", idx, col, e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} />
-                      ) : (
-                        <input value={item[col] || ""} onChange={e => updateData("transfers", idx, col, e.target.value)} style={getCellStyle("transfers", idx, hasError, false)} />
-                      )}
-                    </td>
-                  ))}
-                  <td><button onClick={() => deleteRow("transfers", idx)} style={S.deleteBtn}>🗑️</button></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
+ function renderFeesTable() {
+  const items = editableData.fees || [];
+  const errors = validationErrors.fees || {};
+  const columns = referenceColumns.fees || ["fee_name", "amount", "currency", "calculation_type", "addon_type", "notes"];
+  
+  if (items.length === 0) return <div style={S.emptyTable}>Ek ücret bulunamadı.</div>;
+  
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={S.table}>
+        <thead>
+          <tr>
+            <th style={{ width: 40 }}>#</th>
+            {columns.map(col => <th key={col}>{col}</th>)}
+            <th style={{ width: 50 }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, idx) => {
+            const hasError = errors[idx] && errors[idx].length > 0;
+            const msg = getValidationMessage("fees", idx);
+            
+            return (
+              <tr key={idx}>
+                <td style={S.cellIndex}>{idx + 1}{msg}</td>
+                {columns.map(col => (
+                  <td key={col}>
+                    {col === "currency" ? (
+                      <select value={item[col] || "GBP"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
+                        <option value="GBP">GBP</option>
+                        <option value="EUR">EUR</option>
+                        <option value="USD">USD</option>
+                        <option value="CAD">CAD</option>
+                        <option value="CHF">CHF</option>
+                      </select>
+                    ) : col === "calculation_type" ? (
+                      <select value={item[col] || "once"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
+                        <option value="once">Tek sefer</option>
+                        <option value="per_week">Haftalık</option>
+                      </select>
+                    ) : col === "addon_type" ? (
+                      <select value={item[col] || "compulsory"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
+                        <option value="compulsory">Zorunlu</option>
+                        <option value="optional_service">İsteğe bağlı</option>
+                        <option value="supplement">Ek ücret</option>
+                        <option value="upgrade">Yükseltme</option>
+                      </select>
+                    ) : col === "amount" ? (
+                      <input type="number" value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError, false)} />
+                    ) : (
+                      <input value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError, false)} />
+                    )}
+                  </td>
+                ))}
+                <td><button onClick={() => deleteRow("fees", idx)} style={S.deleteBtn}>🗑️</button></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
   function renderTabContent() {
     switch (activeTab) {
