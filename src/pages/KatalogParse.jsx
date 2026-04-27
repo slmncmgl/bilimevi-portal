@@ -7,8 +7,8 @@ const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-// Master sheet ID (master_index için)
-const MASTER_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
+// DOĞRU master_index ID'si
+const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
 
 // Sekme yapılandırması
 const TABS = [
@@ -37,13 +37,6 @@ const STEPS = {
   DONE: "done",
 };
 
-// Validasyon durumları
-const VALIDATION_STATUS = {
-  VALID: "valid",
-  WARNING: "warning",
-  ERROR: "error",
-};
-
 export default function KatalogParse() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -58,12 +51,10 @@ export default function KatalogParse() {
   
   // Referans veri (sheet'ten okunan sütun yapısı)
   const [referenceColumns, setReferenceColumns] = useState({});
-  const [referenceLoading, setReferenceLoading] = useState(false);
   
   // Parse state
   const [parsingProgress, setParsingProgress] = useState(0);
   const [parsingStatus, setParsingStatus] = useState("");
-  const [parsedData, setParsedData] = useState(EMPTY_DATA);
   const [editableData, setEditableData] = useState(EMPTY_DATA);
   const [activeTab, setActiveTab] = useState("courses");
   const [validationErrors, setValidationErrors] = useState({});
@@ -135,18 +126,16 @@ export default function KatalogParse() {
 
   // master_index'ten okulun drive_link'ini bul ve sütun yapısını oku
   async function loadReferenceData(brand, city) {
-    setReferenceLoading(true);
     setParsingProgress(5);
     setParsingStatus("📁 Mevcut Okul Fiyat Dosyası Okunuyor...");
     
     try {
-      // 1. master_index'ten drive_link'i bul
       const masterUrl = `https://docs.google.com/spreadsheets/d/${MASTER_ID}/gviz/tq?tqx=out:csv&sheet=master_index`;
       const masterRes = await fetch(masterUrl);
       const masterCsv = await masterRes.text();
       const masterRows = parseCSV(masterCsv);
       
-      // İlgili okul+şehir satırını bul (veya ilgili okulun herhangi bir aktif satırını)
+      // İlgili okul+şehir satırını bul
       let targetRow = masterRows.find(row => 
         row.school_brand === brand && 
         row.city === city &&
@@ -154,7 +143,6 @@ export default function KatalogParse() {
         row.parse_status === "approved"
       );
       
-      // Şehir bazlı bulunamazsa, okulun herhangi bir aktif şehrini al
       if (!targetRow) {
         targetRow = masterRows.find(row => 
           row.school_brand === brand && 
@@ -165,7 +153,6 @@ export default function KatalogParse() {
       
       if (!targetRow || !targetRow.drive_link) {
         console.warn("Drive link bulunamadı, varsayılan sütunlar kullanılacak");
-        // Varsayılan sütunlar
         setReferenceColumns({
           courses: ["course_name", "program_type", "lessons_per_week", "hours_per_week", "weeks_tier_min", "weeks_tier_max", "price_per_week", "currency", "high_season_supplement", "high_season_start", "high_season_end", "max_weeks", "morning_supplement", "notes"],
           accommodation: ["place_name", "accommodation_type", "room_type", "board_type", "price_per_week", "currency", "distance_to_school", "notes"],
@@ -177,13 +164,8 @@ export default function KatalogParse() {
       
       const match = targetRow.drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
       const sheetId = match ? match[1] : null;
+      if (!sheetId) return;
       
-      if (!sheetId) {
-        console.warn("Sheet ID bulunamadı");
-        return;
-      }
-      
-      // 2. Her tablo için sütun başlıklarını oku
       setParsingProgress(10);
       setParsingStatus("🔍 Parse Kuralları İnceleniyor...");
       
@@ -201,14 +183,9 @@ export default function KatalogParse() {
           columns[tab.id] = [];
         }
       }
-      
       setReferenceColumns(columns);
-      console.log("Referans sütunlar yüklendi:", columns);
-      
     } catch (err) {
       console.error("Referans veri yüklenemedi:", err);
-    } finally {
-      setReferenceLoading(false);
     }
   }
 
@@ -284,12 +261,7 @@ export default function KatalogParse() {
 
     try {
       const base64 = await fileToBase64(selectedFile);
-      
-      const prompt = `Bu bir dil okulu katalog PDF'idir. Sayfa içeriğini analiz et ve hangi okul markasına ait olduğunu belirle.
-
-Okul seçenekleri: EC, Kaplan, LAL, ELS, ILSC.
-
-SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
+      const prompt = `Bu bir dil okulu katalog PDF'idir. Sayfa içeriğini analiz et ve hangi okul markasına ait olduğunu belirle. Okul seçenekleri: EC, Kaplan, LAL, ELS, ILSC. SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
 
       const response = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
         method: "POST",
@@ -310,7 +282,6 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
       setDetectedBrands(data.detected || ["EC", "Kaplan"]);
       setSelectedBrand(data.detected?.[0] || "");
       setStep(STEPS.SCHOOL_SELECT);
-      
     } catch (err) {
       console.error("Analiz hatası:", err);
       setError("Okul tespit edilemedi. Lütfen manuel seçin.");
@@ -332,24 +303,13 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     setLoading(true);
     
     try {
-      // Aşama 1-2: Mevcut dosyayı oku ve kuralları incele
-      setParsingProgress(5);
-      setParsingStatus("📁 Mevcut Okul Fiyat Dosyası Okunuyor...");
-      
       await loadReferenceData(selectedBrand, selectedCity);
       
-      setParsingProgress(10);
-      setParsingStatus("🔍 Parse Kuralları İnceleniyor...");
-      await new Promise(r => setTimeout(r, 300));
-      
-      // Aşama 3: PDF hazırlanıyor
       setParsingProgress(15);
       setParsingStatus("📄 PDF Dosyası Hazırlanıyor...");
-      
       const base64 = await fileToBase64(selectedFile);
       const fullData = { courses: [], accommodation: [], fees: [], transfers: [] };
       
-      // Aşama 4-7: Her tablo için parse
       const tabSteps = [
         { id: "courses", label: "Kurslar", progressStart: 20, progressEnd: 35 },
         { id: "accommodation", label: "Konaklama", progressStart: 35, progressEnd: 50 },
@@ -357,14 +317,12 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
         { id: "transfers", label: "Transfer", progressStart: 65, progressEnd: 80 }
       ];
       
-      let stepIndex = 0;
-      for (const tab of tabSteps) {
-        stepIndex++;
+      for (let i = 0; i < tabSteps.length; i++) {
+        const tab = tabSteps[i];
         setParsingProgress(tab.progressStart);
-        setParsingStatus(`📚 ${tab.label} Parse Ediliyor (${stepIndex}/4)...`);
+        setParsingStatus(`📚 ${tab.label} Parse Ediliyor (${i+1}/4)...`);
         
         const prompt = buildPromptForSection(tab.id, referenceColumns);
-        
         const response = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -387,25 +345,19 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
           console.error(`${tab.id} parse hatası:`, e);
           fullData[tab.id] = [];
         }
-        
         setParsingProgress(tab.progressEnd);
       }
       
-      // Aşama 8: Doğrulama
       setParsingProgress(90);
       setParsingStatus("✅ Veriler Doğrulanıyor...");
       
-      setParsedData(fullData);
       setEditableData(fullData);
       runAllValidations(fullData);
       
-      // Aşama 9: Tamam
       setParsingProgress(100);
       setParsingStatus("🎉 Parse Tamamlandı!");
-      
       await new Promise(r => setTimeout(r, 500));
       setStep(STEPS.PREVIEW);
-      
     } catch (err) {
       console.error("Parse hatası:", err);
       setError("PDF parse sırasında hata oluştu: " + err.message);
@@ -423,121 +375,57 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     
     courses.forEach((course, idx) => {
       const rowErrors = [];
-      const rowWarnings = [];
-      
-      if (!course.course_name || course.course_name.trim() === "") {
-        rowErrors.push("Kurs adı boş olamaz");
-      }
-      
+      if (!course.course_name || course.course_name.trim() === "") rowErrors.push("Kurs adı boş olamaz");
       const price = parseFloat(course.price_per_week);
-      if (isNaN(price) || price <= 0) {
-        rowErrors.push("Geçerli bir fiyat giriniz");
-      }
-      
-      if (course.currency && !validCurrencies.includes(course.currency)) {
-        rowErrors.push(`Geçersiz para birimi: ${course.currency}`);
-      }
-      
+      if (isNaN(price) || price <= 0) rowErrors.push("Geçerli bir fiyat giriniz");
+      if (course.currency && !validCurrencies.includes(course.currency)) rowErrors.push(`Geçersiz para birimi: ${course.currency}`);
       const tierMin = parseInt(course.weeks_tier_min);
-      if (isNaN(tierMin) || tierMin < 1) {
-        rowErrors.push("Tier min hafta geçersiz");
-      }
-      
-      if (course.high_season_start && course.high_season_end) {
-        const hsStart = new Date(course.high_season_start);
-        const hsEnd = new Date(course.high_season_end);
-        if (isNaN(hsStart) || isNaN(hsEnd)) {
-          rowErrors.push("Yüksek sezon tarihleri geçersiz");
-        } else if (hsStart > hsEnd) {
-          rowErrors.push("Yüksek sezon başlangıcı bitişten sonra olamaz");
-        }
-      }
+      if (isNaN(tierMin) || tierMin < 1) rowErrors.push("Tier min hafta geçersiz");
       
       if (rowErrors.length > 0) errors[idx] = rowErrors;
-      if (rowWarnings.length > 0) warnings[idx] = rowWarnings;
     });
-    
     return { errors, warnings };
   }
   
   function validateAccommodation(items) {
     const errors = {};
-    const warnings = {};
     const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
-    
     items.forEach((item, idx) => {
       const rowErrors = [];
-      const rowWarnings = [];
-      
-      if (!item.place_name || item.place_name.trim() === "") {
-        rowErrors.push("Konaklama adı boş olamaz");
-      }
-      
+      if (!item.place_name || item.place_name.trim() === "") rowErrors.push("Konaklama adı boş olamaz");
       const price = parseFloat(item.price_per_week);
-      if (isNaN(price) || price <= 0) {
-        rowErrors.push("Geçerli bir fiyat giriniz");
-      }
-      
-      if (item.currency && !validCurrencies.includes(item.currency)) {
-        rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
-      }
-      
+      if (isNaN(price) || price <= 0) rowErrors.push("Geçerli bir fiyat giriniz");
+      if (item.currency && !validCurrencies.includes(item.currency)) rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
       if (rowErrors.length > 0) errors[idx] = rowErrors;
-      if (rowWarnings.length > 0) warnings[idx] = rowWarnings;
     });
-    
-    return { errors, warnings };
+    return { errors, warnings: {} };
   }
   
   function validateFees(items) {
     const errors = {};
     const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
-    
     items.forEach((item, idx) => {
       const rowErrors = [];
-      
-      if (!item.fee_name || item.fee_name.trim() === "") {
-        rowErrors.push("Ücret adı boş olamaz");
-      }
-      
+      if (!item.fee_name || item.fee_name.trim() === "") rowErrors.push("Ücret adı boş olamaz");
       const amount = parseFloat(item.amount);
-      if (isNaN(amount) || amount < 0) {
-        rowErrors.push("Geçerli bir tutar giriniz");
-      }
-      
-      if (item.currency && !validCurrencies.includes(item.currency)) {
-        rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
-      }
-      
+      if (isNaN(amount) || amount < 0) rowErrors.push("Geçerli bir tutar giriniz");
+      if (item.currency && !validCurrencies.includes(item.currency)) rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
       if (rowErrors.length > 0) errors[idx] = rowErrors;
     });
-    
     return { errors, warnings: {} };
   }
   
   function validateTransfers(items) {
     const errors = {};
     const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
-    
     items.forEach((item, idx) => {
       const rowErrors = [];
-      
-      if (!item.airport_name || item.airport_name.trim() === "") {
-        rowErrors.push("Havalimanı adı boş olamaz");
-      }
-      
+      if (!item.airport_name || item.airport_name.trim() === "") rowErrors.push("Havalimanı adı boş olamaz");
       const oneWay = parseFloat(item.price_one_way);
-      if (isNaN(oneWay) || oneWay < 0) {
-        rowErrors.push("Geçerli bir tek yön fiyatı giriniz");
-      }
-      
-      if (item.currency && !validCurrencies.includes(item.currency)) {
-        rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
-      }
-      
+      if (isNaN(oneWay) || oneWay < 0) rowErrors.push("Geçerli bir tek yön fiyatı giriniz");
+      if (item.currency && !validCurrencies.includes(item.currency)) rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
       if (rowErrors.length > 0) errors[idx] = rowErrors;
     });
-    
     return { errors, warnings: {} };
   }
   
@@ -553,24 +441,14 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
       fees: feesValidation.errors,
       transfers: transfersValidation.errors,
     });
+    setValidationWarnings({ courses: {}, accommodation: {}, fees: {}, transfers: {} });
     
-    setValidationWarnings({
-      courses: courseValidation.warnings,
-      accommodation: accValidation.warnings,
-      fees: feesValidation.warnings,
-      transfers: transfersValidation.warnings,
-    });
-    
-    const totalErrors = 
-      Object.keys(courseValidation.errors).length +
-      Object.keys(accValidation.errors).length +
-      Object.keys(feesValidation.errors).length +
-      Object.keys(transfersValidation.errors).length;
-    
-    return totalErrors === 0;
+    return Object.keys(courseValidation.errors).length === 0 &&
+           Object.keys(accValidation.errors).length === 0 &&
+           Object.keys(feesValidation.errors).length === 0 &&
+           Object.keys(transfersValidation.errors).length === 0;
   }
 
-  // Veri güncelleme
   function updateData(section, index, field, value) {
     const newData = { ...editableData };
     newData[section][index][field] = value;
@@ -595,25 +473,18 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     runAllValidations(newData);
   }
 
-  function getCellStyle(section, rowIdx, hasError, hasWarning) {
+  function getCellStyle(section, rowIdx, hasError) {
     let style = { ...S.cellInput };
     if (hasError) {
       style = { ...style, borderColor: "#dc2626", backgroundColor: "#fef2f2" };
-    } else if (hasWarning) {
-      style = { ...style, borderColor: "#f59e0b", backgroundColor: "#fffbeb" };
     }
     return style;
   }
 
   function getValidationMessage(section, rowIdx) {
     const errors = validationErrors[section]?.[rowIdx];
-    const warnings = validationWarnings[section]?.[rowIdx];
-    
     if (errors && errors.length > 0) {
       return <span style={S.errorTooltip}>⚠️ {errors.join(", ")}</span>;
-    }
-    if (warnings && warnings.length > 0) {
-      return <span style={S.warningTooltip}>⚠️ {warnings.join(", ")}</span>;
     }
     return null;
   }
@@ -624,7 +495,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     );
   }
 
-  // Backup oluştur ve kaydet
+  // Sheets'e kaydet (Backup alınır, backup silinmez)
   async function saveToSheet() {
     if (hasAnyValidationError()) {
       setError("Lütfen tüm kırmızı hataları düzeltin.");
@@ -650,10 +521,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
         })
       });
       const backupResult = await backupRes.json();
-      
-      if (!backupResult.success) {
-        throw new Error("Backup oluşturulamadı: " + backupResult.msg);
-      }
+      if (!backupResult.success) throw new Error("Backup oluşturulamadı: " + backupResult.msg);
       
       // 2. Yeni veriyi yaz
       setParsingStatus("Veriler yazılıyor...");
@@ -668,7 +536,6 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
         })
       });
       const saveResult = await saveRes.json();
-      
       if (!saveResult.success) {
         await fetch(SCRIPT_URL, {
           method: "POST",
@@ -681,18 +548,17 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
         throw new Error(saveResult.msg || "Veri yazılamadı");
       }
       
-      // 3. Başarılı, backup'ı sil
+      // Backup SİLİNMİYOR – sadece kaydı temizleniyor (dosya kalır)
       await fetch(SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({
-          action: "deleteBackup",
+          action: "deleteBackupRecord",
           brand: selectedBrand,
           city: selectedCity,
         })
       });
       
       setStep(STEPS.DONE);
-      
     } catch (err) {
       console.error("Kayıt hatası:", err);
       setError("Kayıt sırasında hata oluştu: " + err.message);
@@ -703,33 +569,22 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     }
   }
 
-  // Tablo render fonksiyonları
+  // -------------------- RENDER TABLOLARI --------------------
   function renderCoursesTable() {
     const courses = editableData.courses || [];
     const errors = validationErrors.courses || {};
-    const warnings = validationWarnings.courses || {};
     const columns = referenceColumns.courses || ["course_name", "program_type", "lessons_per_week", "hours_per_week", "weeks_tier_min", "weeks_tier_max", "price_per_week", "currency", "high_season_supplement", "high_season_start", "high_season_end", "max_weeks", "morning_supplement", "notes"];
     
-    if (courses.length === 0) {
-      return <div style={S.emptyTable}>Kurs bulunamadı. Manuel ekleyebilirsiniz.</div>;
-    }
+    if (courses.length === 0) return <div style={S.emptyTable}>Kurs bulunamadı. Manuel ekleyebilirsiniz.</div>;
     
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={S.table}>
-          <thead>
-            <tr>
-              <th style={{ width: 40 }}>#</th>
-              {columns.map(col => <th key={col}>{col}</th>)}
-              <th style={{ width: 50 }}></th>
-            </tr>
-          </thead>
+          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th style={{ width: 50 }}></th></tr></thead>
           <tbody>
             {courses.map((course, idx) => {
               const hasError = errors[idx] && errors[idx].length > 0;
-              const hasWarning = warnings[idx] && warnings[idx].length > 0;
               const msg = getValidationMessage("courses", idx);
-              
               return (
                 <tr key={idx}>
                   <td style={S.cellIndex}>{idx + 1}{msg}</td>
@@ -740,11 +595,11 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
                           <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
                         </select>
                       ) : col.includes("date") || col.includes("start") || col.includes("end") ? (
-                        <input type="date" value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} />
+                        <input type="date" value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError)} />
                       ) : col.includes("price") || col.includes("supplement") || col.includes("weeks") ? (
-                        <input type="number" value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} />
+                        <input type="number" value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError)} />
                       ) : (
-                        <input value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError, hasWarning)} />
+                        <input value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError)} />
                       )}
                     </td>
                   ))}
@@ -761,11 +616,8 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
   function renderAccommodationTable() {
     const items = editableData.accommodation || [];
     const errors = validationErrors.accommodation || {};
-    const warnings = validationWarnings.accommodation || {};
     const columns = referenceColumns.accommodation || ["place_name", "accommodation_type", "room_type", "board_type", "price_per_week", "currency", "distance_to_school", "notes"];
-    
     if (items.length === 0) return <div style={S.emptyTable}>Konaklama bulunamadı.</div>;
-    
     return (
       <div style={{ overflowX: "auto" }}>
         <table style={S.table}>
@@ -773,9 +625,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
           <tbody>
             {items.map((item, idx) => {
               const hasError = errors[idx] && errors[idx].length > 0;
-              const hasWarning = warnings[idx] && warnings[idx].length > 0;
               const msg = getValidationMessage("accommodation", idx);
-              
               return (
                 <tr key={idx}>
                   <td style={S.cellIndex}>{idx + 1}{msg}</td>
@@ -786,9 +636,9 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
                           <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
                         </select>
                       ) : col.includes("price") ? (
-                        <input type="number" value={item[col] || ""} onChange={e => updateData("accommodation", idx, col, e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} />
+                        <input type="number" value={item[col] || ""} onChange={e => updateData("accommodation", idx, col, e.target.value)} style={getCellStyle("accommodation", idx, hasError)} />
                       ) : (
-                        <input value={item[col] || ""} onChange={e => updateData("accommodation", idx, col, e.target.value)} style={getCellStyle("accommodation", idx, hasError, hasWarning)} />
+                        <input value={item[col] || ""} onChange={e => updateData("accommodation", idx, col, e.target.value)} style={getCellStyle("accommodation", idx, hasError)} />
                       )}
                     </td>
                   ))}
@@ -802,69 +652,91 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     );
   }
 
- function renderFeesTable() {
-  const items = editableData.fees || [];
-  const errors = validationErrors.fees || {};
-  const columns = referenceColumns.fees || ["fee_name", "amount", "currency", "calculation_type", "addon_type", "notes"];
-  
-  if (items.length === 0) return <div style={S.emptyTable}>Ek ücret bulunamadı.</div>;
-  
-  return (
-    <div style={{ overflowX: "auto" }}>
-      <table style={S.table}>
-        <thead>
-          <tr>
-            <th style={{ width: 40 }}>#</th>
-            {columns.map(col => <th key={col}>{col}</th>)}
-            <th style={{ width: 50 }}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item, idx) => {
-            const hasError = errors[idx] && errors[idx].length > 0;
-            const msg = getValidationMessage("fees", idx);
-            
-            return (
-              <tr key={idx}>
-                <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                {columns.map(col => (
-                  <td key={col}>
-                    {col === "currency" ? (
-                      <select value={item[col] || "GBP"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
-                        <option value="GBP">GBP</option>
-                        <option value="EUR">EUR</option>
-                        <option value="USD">USD</option>
-                        <option value="CAD">CAD</option>
-                        <option value="CHF">CHF</option>
-                      </select>
-                    ) : col === "calculation_type" ? (
-                      <select value={item[col] || "once"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
-                        <option value="once">Tek sefer</option>
-                        <option value="per_week">Haftalık</option>
-                      </select>
-                    ) : col === "addon_type" ? (
-                      <select value={item[col] || "compulsory"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
-                        <option value="compulsory">Zorunlu</option>
-                        <option value="optional_service">İsteğe bağlı</option>
-                        <option value="supplement">Ek ücret</option>
-                        <option value="upgrade">Yükseltme</option>
-                      </select>
-                    ) : col === "amount" ? (
-                      <input type="number" value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError, false)} />
-                    ) : (
-                      <input value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError, false)} />
-                    )}
-                  </td>
-                ))}
-                <td><button onClick={() => deleteRow("fees", idx)} style={S.deleteBtn}>🗑️</button></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+  function renderFeesTable() {
+    const items = editableData.fees || [];
+    const errors = validationErrors.fees || {};
+    const columns = referenceColumns.fees || ["fee_name", "amount", "currency", "calculation_type", "addon_type", "notes"];
+    if (items.length === 0) return <div style={S.emptyTable}>Ek ücret bulunamadı.</div>;
+    return (
+      <div style={{ overflowX: "auto" }}>
+        <table style={S.table}>
+          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th></th></tr></thead>
+          <tbody>
+            {items.map((item, idx) => {
+              const hasError = errors[idx] && errors[idx].length > 0;
+              const msg = getValidationMessage("fees", idx);
+              return (
+                <tr key={idx}>
+                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
+                  {columns.map(col => (
+                    <td key={col}>
+                      {col === "currency" ? (
+                        <select value={item[col] || "GBP"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
+                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
+                        </select>
+                      ) : col === "calculation_type" ? (
+                        <select value={item[col] || "once"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
+                          <option value="once">Tek sefer</option><option value="per_week">Haftalık</option>
+                        </select>
+                      ) : col === "addon_type" ? (
+                        <select value={item[col] || "compulsory"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
+                          <option value="compulsory">Zorunlu</option><option value="optional_service">İsteğe bağlı</option><option value="supplement">Ek ücret</option><option value="upgrade">Yükseltme</option>
+                        </select>
+                      ) : col === "amount" ? (
+                        <input type="number" value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError)} />
+                      ) : (
+                        <input value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError)} />
+                      )}
+                    </td>
+                  ))}
+                  <td><button onClick={() => deleteRow("fees", idx)} style={S.deleteBtn}>🗑️</button></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  function renderTransfersTable() {
+    const items = editableData.transfers || [];
+    const errors = validationErrors.transfers || {};
+    const columns = referenceColumns.transfers || ["airport_name", "airport_code", "price_one_way", "price_two_way", "currency", "notes"];
+    if (items.length === 0) return <div style={S.emptyTable}>Transfer bilgisi bulunamadı.</div>;
+    return (
+      <div style={{ overflowX: "auto" }}>
+        <table style={S.table}>
+          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th></th></tr></thead>
+          <tbody>
+            {items.map((item, idx) => {
+              const hasError = errors[idx] && errors[idx].length > 0;
+              const msg = getValidationMessage("transfers", idx);
+              return (
+                <tr key={idx}>
+                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
+                  {columns.map(col => (
+                    <td key={col}>
+                      {col === "currency" ? (
+                        <select value={item[col] || "GBP"} onChange={e => updateData("transfers", idx, col, e.target.value)} style={S.cellSelect}>
+                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
+                        </select>
+                      ) : col.includes("price") ? (
+                        <input type="number" value={item[col] || ""} onChange={e => updateData("transfers", idx, col, e.target.value)} style={getCellStyle("transfers", idx, hasError)} />
+                      ) : (
+                        <input value={item[col] || ""} onChange={e => updateData("transfers", idx, col, e.target.value)} style={getCellStyle("transfers", idx, hasError)} />
+                      )}
+                    </td>
+                  ))}
+                  <td><button onClick={() => deleteRow("transfers", idx)} style={S.deleteBtn}>🗑️</button></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
   function renderTabContent() {
     switch (activeTab) {
@@ -876,7 +748,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     }
   }
 
-  // RENDER - UPLOAD
+  // -------------------- RENDER --------------------
   if (step === STEPS.UPLOAD) {
     return (
       <div style={S.root}>
@@ -909,7 +781,6 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     );
   }
 
-  // RENDER - SCHOOL SELECT
   if (step === STEPS.SCHOOL_SELECT) {
     return (
       <div style={S.root}>
@@ -941,7 +812,6 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     );
   }
 
-  // RENDER - PARSING (aşamalı gösterim)
   if (step === STEPS.PARSING) {
     return (
       <div style={S.root}>
@@ -951,9 +821,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
           <div style={S.parsingCard}>
             <div style={S.spinner} />
             <h3>{parsingStatus}</h3>
-            <div style={S.progressBar}>
-              <div style={{ ...S.progressFill, width: `${parsingProgress}%` }} />
-            </div>
+            <div style={S.progressBar}><div style={{ ...S.progressFill, width: `${parsingProgress}%` }} /></div>
             <p style={{ fontSize: 12, color: "#94a3b8" }}>{Math.floor(parsingProgress)}% tamamlandı...</p>
           </div>
         </main>
@@ -961,7 +829,6 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     );
   }
 
-  // RENDER - PREVIEW
   if (step === STEPS.PREVIEW) {
     const totalCourses = editableData.courses?.length || 0;
     const totalAcc = editableData.accommodation?.length || 0;
@@ -993,11 +860,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
             <div style={S.stat}><span style={S.statNum}>{totalFees}</span><span>Ek Ücret</span></div>
             <div style={S.stat}><span style={S.statNum}>{totalTransfers}</span><span>Transfer</span></div>
           </div>
-          {hasErrors && (
-            <div style={S.errorBanner}>
-              ⚠️ Kırmızı işaretli alanlarda hata var. Lütfen düzeltin.
-            </div>
-          )}
+          {hasErrors && <div style={S.errorBanner}>⚠️ Kırmızı işaretli alanlarda hata var. Lütfen düzeltin.</div>}
           <div style={S.tabBar}>{TABS.map(tab => (<button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ ...S.tabBtn, borderBottom: activeTab === tab.id ? "2px solid #2563eb" : "none", color: activeTab === tab.id ? "#2563eb" : "#64748b" }}>{tab.label}</button>))}</div>
           <div style={S.tableCard}>{renderTabContent()}</div>
           <div style={S.warningBox}>⚠️ Verileri kontrol edin. Kırmızı alanlar düzeltilmeden kayıt yapılamaz.</div>
@@ -1006,7 +869,6 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     );
   }
 
-  // RENDER - SAVING
   if (step === STEPS.SAVING) {
     return (
       <div style={S.root}>
@@ -1023,7 +885,6 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
     );
   }
 
-  // RENDER - DONE
   if (step === STEPS.DONE) {
     return (
       <div style={S.root}>
@@ -1035,7 +896,7 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
             <h2 style={S.uploadTitle}>Başarıyla Kaydedildi!</h2>
             <p style={S.uploadSub}>{selectedBrand} - {selectedCity} için veriler güncellendi.</p>
             <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
-              <button onClick={() => { setStep(STEPS.UPLOAD); setSelectedFile(null); setSelectedBrand(""); setSelectedCity(""); setParsedData(EMPTY_DATA); setEditableData(EMPTY_DATA); setValidationErrors({}); setValidationWarnings({}); setRestoreMessage(null); }} style={S.secondaryBtn}>Yeni Parse</button>
+              <button onClick={() => { setStep(STEPS.UPLOAD); setSelectedFile(null); setSelectedBrand(""); setSelectedCity(""); setEditableData(EMPTY_DATA); setValidationErrors({}); setRestoreMessage(null); }} style={S.secondaryBtn}>Yeni Parse</button>
               <button onClick={() => navigate("/fiyat-teklifi")} style={S.primaryBtn}>Fiyat Teklifi'ne Git →</button>
             </div>
           </div>
@@ -1047,40 +908,40 @@ SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
   return null;
 }
 
-// ─── STYLES ────────────────────────────────────────────────────────────────
+// -------------------- STYLES --------------------
 const S = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
   headerInner: { maxWidth: "1400px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer" },
   headerTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151", background: "#f1f5f9", padding: "6px 12px", borderRadius: "20px" },
   main: { maxWidth: "800px", margin: "0 auto", padding: "48px 24px", position: "relative", zIndex: 1 },
   previewMain: { maxWidth: "1400px", margin: "0 auto", padding: "32px 24px", position: "relative", zIndex: 1 },
   uploadCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px 32px", textAlign: "center", animation: "fadeUp 0.4s ease-out" },
   uploadIcon: { width: "80px", height: "80px", background: "#eff6ff", borderRadius: "40px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: "40px" },
-  uploadTitle: { fontSize: "24px", fontWeight: "700", color: "#0f172a", marginBottom: "8px" },
+  uploadTitle: { fontSize: "24px", fontWeight: "700", marginBottom: "8px" },
   uploadSub: { fontSize: "14px", color: "#64748b", marginBottom: "24px" },
   dropZone: { position: "relative", border: "2px dashed", borderRadius: "16px", padding: "48px 24px", cursor: "pointer", transition: "all 0.2s", marginBottom: "24px", minHeight: "200px", display: "flex", alignItems: "center", justifyContent: "center" },
   selectCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "32px", maxWidth: "500px", margin: "0 auto" },
   brandList: { display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" },
   brandCard: { display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", border: "1.5px solid", borderRadius: "12px", cursor: "pointer", transition: "all 0.2s" },
   label: { fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "6px" },
-  select: { width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "'Sora', sans-serif", background: "#fff" },
+  select: { width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", background: "#fff" },
   parsingCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px", textAlign: "center", maxWidth: "500px", margin: "0 auto" },
   spinner: { width: "48px", height: "48px", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" },
   progressBar: { width: "100%", height: "8px", background: "#e2e8f0", borderRadius: "4px", marginTop: "16px", overflow: "hidden" },
   progressFill: { height: "100%", background: "#2563eb", borderRadius: "4px", transition: "width 0.3s ease" },
   statsBar: { display: "flex", gap: "12px", marginBottom: "24px" },
   stat: { flex: 1, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "16px", textAlign: "center" },
-  statNum: { fontSize: "28px", fontWeight: "700", color: "#0f172a", display: "block" },
+  statNum: { fontSize: "28px", fontWeight: "700", display: "block" },
   tabBar: { display: "flex", gap: "4px", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0", padding: "0 8px" },
-  tabBtn: { padding: "12px 20px", border: "none", background: "none", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "'Sora', sans-serif" },
+  tabBtn: { padding: "12px 20px", border: "none", background: "none", cursor: "pointer", fontSize: "13px", fontWeight: "600" },
   tableCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "0 0 12px 12px", padding: "20px", overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "12px" },
   cellIndex: { padding: "6px 8px", textAlign: "center", fontWeight: "600", color: "#64748b", width: "40px" },
-  cellInput: { width: "100%", padding: "6px 8px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", fontFamily: "'Sora', sans-serif" },
+  cellInput: { width: "100%", padding: "6px 8px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px" },
   cellSelect: { padding: "6px 4px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", background: "#fff" },
   deleteBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "4px 8px", borderRadius: "6px" },
   emptyTable: { textAlign: "center", padding: "48px", color: "#94a3b8" },
@@ -1089,16 +950,15 @@ const S = {
   restoreBanner: { marginBottom: "16px", padding: "12px 16px", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "12px", fontSize: "13px", color: "#059669", fontWeight: "500" },
   successCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px 32px", textAlign: "center", maxWidth: "500px", margin: "0 auto" },
   successIcon: { fontSize: "64px", marginBottom: "16px" },
-  primaryBtn: { width: "100%", padding: "14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
-  secondaryBtn: { padding: "12px 24px", background: "#fff", color: "#2563eb", border: "1.5px solid #2563eb", borderRadius: "12px", fontSize: "14px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  primaryBtn: { width: "100%", padding: "14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer" },
+  secondaryBtn: { padding: "12px 24px", background: "#fff", color: "#2563eb", border: "1.5px solid #2563eb", borderRadius: "12px", fontSize: "14px", fontWeight: "600", cursor: "pointer" },
   saveBtn: { padding: "8px 20px", background: "#059669", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer" },
   addRowBtn: { padding: "8px 16px", background: "#fff", color: "#2563eb", border: "1.5px solid #2563eb", borderRadius: "8px", fontSize: "12px", fontWeight: "600", cursor: "pointer" },
   errorBox: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "12px 16px", fontSize: "13px", color: "#dc2626", marginBottom: "20px" },
   errorTooltip: { fontSize: "10px", color: "#dc2626", display: "block", marginTop: "2px" },
-  warningTooltip: { fontSize: "10px", color: "#f59e0b", display: "block", marginTop: "2px" },
 };
 
-// Global style keyframes
+// Global keyframes
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } @keyframes spin { to { transform: rotate(360deg); } }`;
 document.head.appendChild(styleSheet);
