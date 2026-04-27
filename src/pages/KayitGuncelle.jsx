@@ -161,16 +161,12 @@ export default function KayitGuncelle() {
   }
 
   async function sorgula(tcParam) {
-    // TC değerini her zaman temiz bir string olarak al
     const targetTC = String(tcParam || tc).trim().replace(/\D/g, "");
-    
     if (targetTC.length !== 11) {
       return showToast("Geçerli bir TC Kimlik No girin (11 hane)", "error");
     }
-
     if (tcParam) setTc(targetTC);
     setLoading(true);
-    
     try {
       const res = await fetch(`${FETCH_URL}?tc=${targetTC}`);
       const json = await res.json();
@@ -240,7 +236,6 @@ export default function KayitGuncelle() {
 
   return (
     <div style={s.root}>
-      {/* Arka planları tıklanmaz yaptık */}
       <div style={s.bgGrid} />
       <div style={s.bgGlow} />
 
@@ -255,7 +250,6 @@ export default function KayitGuncelle() {
       </header>
 
       <main style={s.main}>
-        {/* Arama Alanı */}
         <div style={s.searchCard}>
           <div style={s.searchLabel}>TC Kimlik No ile Sorgula</div>
           <div style={s.searchRow}>
@@ -361,7 +355,7 @@ const s = {
   tabBar: { display: "flex", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0" },
   tabBtn: { flex: 1, padding: "12px", border: "none", background: "none", cursor: "pointer", fontSize: "13px" },
   formCard: { background: "#fff", border: "1px solid #e2e8f0", padding: "20px", borderRadius: "0 0 15px 15px" },
-  fieldGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "15px" },
+  fieldGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "15px" },
   fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "5px" },
   submitRow: { marginTop: "20px", display: "flex", justifyContent: "flex-end" },
   submitBtn: { padding: "15px 30px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer" },
