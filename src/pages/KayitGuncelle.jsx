@@ -237,7 +237,7 @@ export default function KayitGuncelle() {
       };
 
       const fields = [
-        { label: "ogrenci_kayit_formu_otomatik", value: "evet" },
+        { label: "Öğrenci Kayıt Formu Otomatik Gönderilsin Mi?", value: "evet" },
         ...Object.entries(data)
           .filter(([k]) => !HIDDEN_FIELDS.includes(k) && k !== "row_number")
           .map(([label, value]) => ({ label: LABEL_MAP[label] || label, value: value ?? "" })),
