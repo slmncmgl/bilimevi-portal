@@ -152,6 +152,8 @@ export default function KayitGuncelle() {
   const [successModal, setSuccessModal] = useState(false);
   const [ogrencilerim, setOgrencilerim] = useState([]);
   const [ogrencilerLoading, setOgrencilerLoading] = useState(false);
+  const [sayfa, setSayfa] = useState(1);
+  const SAYFA_BOYUTU = 10;
 
   useEffect(() => {
     if (!user?.name) return;
@@ -264,7 +266,9 @@ export default function KayitGuncelle() {
 
       <header style={s.header}>
         <div style={s.headerInner}>
-          <button onClick={() => navigate("/dashboard")} style={s.backBtn}>Geri</button>
+          <button onClick={() => data ? (setData(null), setTc("")) : navigate("/dashboard")} style={s.backBtn}>
+            {data ? "← Listeye Dön" : "Geri"}
+          </button>
           <div style={s.headerTitle}>
             <div style={s.headerTitleText}>Kayıt Güncelle</div>
             <div style={s.headerSub}>{user?.name} | Bilimevi</div>
@@ -293,18 +297,45 @@ export default function KayitGuncelle() {
           <div style={s.listCard}>
             <div style={s.listHeader}>Öğrencilerim ({ogrencilerim.length})</div>
             <table style={s.table}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                  <th style={s.th}>Öğrenci Adı Soyadı</th>
+                  <th style={s.th}>TC Kimlik No</th>
+                  <th style={s.th}>Sözleşme Durumu</th>
+                  <th style={s.th}></th>
+                </tr>
+              </thead>
               <tbody>
-                {ogrencilerim.map((ogr, i) => (
-                  <tr key={i}>
-                    <td>{ogr["Öğrenci Adı Soyadı"]}</td>
-                    <td>{ogr["TC Kimlik No"]}</td>
-                    <td style={{ textAlign: "right" }}>
+                {ogrencilerim.slice((sayfa - 1) * SAYFA_BOYUTU, sayfa * SAYFA_BOYUTU).map((ogr, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                    <td style={s.td}>{ogr["Öğrenci Adı Soyadı"]}</td>
+                    <td style={s.td}>{ogr["TC Kimlik No"]}</td>
+                    <td style={s.td}>
+                      <span style={{
+                        padding: "3px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600",
+                        background: ogr["Onay Durumu"] === "Sözleşme ve KVKK Onaylandı" ? "#f0fdf4" : "#fef9c3",
+                        color: ogr["Onay Durumu"] === "Sözleşme ve KVKK Onaylandı" ? "#166534" : "#854d0e",
+                      }}>{ogr["Onay Durumu"] || "Bekliyor"}</span>
+                    </td>
+                    <td style={{ ...s.td, textAlign: "right" }}>
                       <button onClick={() => sorgula(ogr["TC Kimlik No"])} style={s.editBtn}>Düzenle</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {ogrencilerim.length > SAYFA_BOYUTU && (
+              <div style={s.pagination}>
+                {Array.from({ length: Math.ceil(ogrencilerim.length / SAYFA_BOYUTU) }, (_, i) => i + 1).map(p => (
+                  <button key={p} onClick={() => setSayfa(p)} style={{
+                    ...s.pageBtn,
+                    background: sayfa === p ? "#0891b2" : "#f1f5f9",
+                    color: sayfa === p ? "#fff" : "#475569",
+                    fontWeight: sayfa === p ? "700" : "400",
+                  }}>{p}</button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -382,6 +413,10 @@ const s = {
   listCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
   listHeader: { fontWeight: "700", marginBottom: "15px", fontSize: "14px" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
+  th: { padding: "10px 12px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" },
+  td: { padding: "12px 12px", fontSize: "13px", color: "#0f172a" },
+  pagination: { display: "flex", gap: "6px", justifyContent: "center", marginTop: "16px" },
+  pageBtn: { width: "32px", height: "32px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px" },
   editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer" },
   infoCard: { background: "#ecfeff", border: "1px solid #a5f3fc", padding: "12px", borderRadius: "10px", marginBottom: "15px", fontSize: "13px" },
   tabBar: { display: "flex", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0" },
