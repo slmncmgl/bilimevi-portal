@@ -223,9 +223,12 @@ export default function KayitGuncelle() {
         "Depozito Miktarı": "Depozito Tutarı",
       };
 
-      const fields = Object.entries(data)
-        .filter(([k]) => !HIDDEN_FIELDS.includes(k) && k !== "row_number")
-        .map(([label, value]) => ({ label: LABEL_MAP[label] || label, value: value ?? "" }));
+      const fields = [
+        { label: "ogrenci_kayit_formu_otomatik", value: "evet" },
+        ...Object.entries(data)
+          .filter(([k]) => !HIDDEN_FIELDS.includes(k) && k !== "row_number")
+          .map(([label, value]) => ({ label: LABEL_MAP[label] || label, value: value ?? "" })),
+      ];
 
       const payload = {
         eventType: "FORM_RESPONSE",
