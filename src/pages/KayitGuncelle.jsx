@@ -41,7 +41,7 @@ const TAB_FIELDS = {
     "Okul Adı", "Eğitim Dili", "Kalkış Şehri", "Öğrenci Hangi Gruba Kayıtlı",
     "Hedef Ülke", "Okul Lokasyonu", "Program Adı",
     "Program Başlangıç Tarihi", "Program Bitiş Tarihi",
-    "Haftalık Ders Saati", "Kurs Süresi",
+    "Haftalık Ders Saati",
   ],
   "Konaklama": ["Konaklama Tipi", "Oda Tipi", "Öğle Yemeği", "Vize Harcı Dahil Mi?"],
   "Taksit": [
@@ -56,7 +56,7 @@ const TAB_FIELDS = {
 };
 
 const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı", "Okul Lokasyonu"];
-const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi"];
+const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi", "Haftalık Ders Saati"];
 const TAKSIT_TUTAR = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Tutarı`);
 const TAKSIT_DONEM = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Dönemi`);
 
@@ -204,6 +204,17 @@ export default function KayitGuncelle() {
       const tutar = data[`${i}. Taksit Tutarı`];
       if (!donem || !tutar) {
         return showToast(`${i}. taksit için eksik alan var, lütfen doldurun`, "error");
+      }
+    }
+
+    // Taksit toplamı kontrolü
+    const toplamUcret = parseFloat(data["Toplam Program Ücreti"]) || 0;
+    if (toplamUcret > 0 && taksitSayisi > 0) {
+      const taksitToplam = Array.from({ length: taksitSayisi }, (_, i) =>
+        parseFloat(data[`${i + 1}. Taksit Tutarı`]) || 0
+      ).reduce((a, b) => a + b, 0);
+      if (Math.abs(taksitToplam - toplamUcret) > 0.01) {
+        return showToast(`Taksit toplamı (${taksitToplam}) Toplam Program Ücreti (${toplamUcret}) ile eşleşmiyor`, "error");
       }
     }
 
