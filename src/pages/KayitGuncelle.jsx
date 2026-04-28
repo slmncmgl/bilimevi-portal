@@ -254,11 +254,14 @@ export default function KayitGuncelle() {
         },
       };
 
-      const res = await fetch(SUBMIT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const [res] = await Promise.all([
+        fetch(SUBMIT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }),
+        new Promise(r => setTimeout(r, 2000)),
+      ]);
 
       if (!res.ok) throw new Error("Hata");
       setSuccessModal(true);
@@ -304,7 +307,17 @@ export default function KayitGuncelle() {
           </div>
         </div>
 
-        {!data && ogrencilerim.length > 0 && (
+        {!data && ogrencilerLoading && (
+          <div style={{ textAlign: "center", padding: "40px" }}>
+            <span style={{
+              width: "28px", height: "28px", border: "3px solid #e2e8f0",
+              borderTop: "3px solid #0891b2", borderRadius: "50%",
+              display: "inline-block", animation: "spin 0.8s linear infinite"
+            }} />
+          </div>
+        )}
+
+        {!data && !ogrencilerLoading && ogrencilerim.length > 0 && (
           <div style={s.listCard}>
             <div style={s.listHeader}>Öğrencilerim ({ogrencilerim.length})</div>
             <table style={s.table}>
