@@ -22,7 +22,7 @@ const DROPDOWN_OPTIONS = {
   ],
 };
 
-const READONLY_FIELDS = ["TC Kimlik No", "Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi"];
+const READONLY_FIELDS = ["Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi", "Danışman Adı", "Şirket Adı", "Sözleşme Türü"];
 
 const HIDDEN_FIELDS = [
   "row_number", "Sözleşme Onay Linki", "Öğrenci Takip URL", "Öğrenci Sheet Linki",
@@ -55,8 +55,8 @@ const TAB_FIELDS = {
   ],
 };
 
-const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı"];
-const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti"];
+const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı", "Okul Lokasyonu"];
+const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi"];
 const TAKSIT_TUTAR = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Tutarı`);
 const TAKSIT_DONEM = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Dönemi`);
 
@@ -194,6 +194,17 @@ export default function KayitGuncelle() {
 
   async function gonder() {
     if (!data) return;
+
+    // Aktif taksit satırlarında boş alan kontrolü
+    const taksitSayisi = parseInt(data["Taksit Sayısı"], 10) || 0;
+    for (let i = 1; i <= taksitSayisi; i++) {
+      const donem = data[`${i}. Taksit Dönemi`];
+      const tutar = data[`${i}. Taksit Tutarı`];
+      if (!donem || !tutar) {
+        return showToast(`${i}. taksit için eksik alan var, lütfen doldurun`, "error");
+      }
+    }
+
     setSubmitting(true);
     try {
       const LABEL_MAP = {
@@ -244,6 +255,7 @@ export default function KayitGuncelle() {
 
   return (
     <div style={s.root}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <div style={s.bgGrid} />
       <div style={s.bgGlow} />
 
@@ -317,7 +329,16 @@ export default function KayitGuncelle() {
             </div>
             <div style={s.submitRow}>
               <button onClick={gonder} disabled={submitting} style={s.submitBtn}>
-                {submitting ? "Gönderiliyor..." : "Düzelt ve Sözleşmeyi Gönder"}
+                {submitting ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{
+                      width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.4)",
+                      borderTop: "2px solid #fff", borderRadius: "50%",
+                      animation: "spin 0.8s linear infinite", display: "inline-block"
+                    }} />
+                    Gönderiliyor...
+                  </span>
+                ) : "Düzelt ve Sözleşmeyi Gönder"}
               </button>
             </div>
           </>
