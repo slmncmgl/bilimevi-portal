@@ -22,7 +22,7 @@ const DROPDOWN_OPTIONS = {
   ],
 };
 
-const READONLY_FIELDS = ["Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi", "Danışman Adı", "Şirket Adı", "Sözleşme Türü"];
+const READONLY_FIELDS = ["Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi", "Danışman Adı", "Şirket Adı", "Sözleşme Türü", "Toplam Program Ücreti"];
 
 const HIDDEN_FIELDS = [
   "row_number", "Sözleşme Onay Linki", "Öğrenci Takip URL", "Öğrenci Sheet Linki",
@@ -191,7 +191,15 @@ export default function KayitGuncelle() {
   }
 
   function updateField(key, val) {
-    setData(prev => ({ ...prev, [key]: val }));
+    setData(prev => {
+      const updated = { ...prev, [key]: val };
+      if (key === "Program Ücreti" || key === "Konaklama Ücreti") {
+        const program = parseFloat(key === "Program Ücreti" ? val : prev["Program Ücreti"]) || 0;
+        const konaklama = parseFloat(key === "Konaklama Ücreti" ? val : prev["Konaklama Ücreti"]) || 0;
+        updated["Toplam Program Ücreti"] = String(program + konaklama);
+      }
+      return updated;
+    });
   }
 
   async function gonder() {
