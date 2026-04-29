@@ -2,963 +2,734 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-// Gemini API yapılandırması
-const GEMINI_MODEL = "gemini-2.5-flash";
+// ─── SABİTLER ────────────────────────────────────────────────
+const GEMINI_MODEL   = "gemini-2.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-// DOĞRU master_index ID'si
-const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwjXswPVqgqNc8R9LJjjUr1ZSuOOLliojYocbEpIJL0ALKgZmflosP6S_DvtsFXLPpD/exec";
 
-// Sekme yapılandırması
-const TABS = [
-  { id: "courses", label: "📚 Kurslar", sheetName: "courses" },
-  { id: "accommodation", label: "🏠 Konaklama", sheetName: "accommodation" },
-  { id: "fees", label: "💰 Ek Ücretler", sheetName: "fees" },
-  { id: "transfers", label: "🚗 Transfer", sheetName: "transfers" },
-];
-
-// Boş veri yapısı
-const EMPTY_DATA = {
-  courses: [],
-  accommodation: [],
-  fees: [],
-  transfers: [],
+const SHEET_URLS = {
+  EC:     "https://docs.google.com/spreadsheets/d/1PMuw11fAUcnX1iz56OOH2HUBe1IUZUdP12VkX9-nt8Q",
+  Kaplan: "https://docs.google.com/spreadsheets/d/1R72duyWM84S7CRzgpkvTVxNiUrgDWm83IQ2ShwJHqgQ",
 };
 
-// Progress step'leri
+// Parse edilecek sekmeler (visa/discounts hariç)
+const PARSE_TABS = {
+  EC:     ["courses", "accommodation", "fees", "transfers"],
+  Kaplan: ["courses", "accommodation", "fees", "transfers", "junior_packages"],
+};
+
+const KNOWN_BRANDS = ["EC", "Kaplan", "LAL", "ELS", "ILSC"];
+
 const STEPS = {
-  UPLOAD: "upload",
-  ANALYZING: "analyzing",
-  SCHOOL_SELECT: "school_select",
-  PARSING: "parsing",
-  PREVIEW: "preview",
-  SAVING: "saving",
-  DONE: "done",
+  UPLOAD:       "upload",
+  SCHOOL_CONFIRM: "school_confirm",
+  PARSING:      "parsing",
+  DIFF:         "diff",
+  SAVING:       "saving",
+  REVIEW:       "review",
+  DONE:         "done",
 };
 
+// ─── ANA COMPONENT ───────────────────────────────────────────
 export default function KatalogParse() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  
-  // UI state
-  const [step, setStep] = useState(STEPS.UPLOAD);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [selectedBrand, setSelectedBrand] = useState("");
-  const [detectedBrands, setDetectedBrands] = useState([]);
-  const [selectedCity, setSelectedCity] = useState("");
-  const [cities, setCities] = useState([]);
-  
-  // Referans veri (sheet'ten okunan sütun yapısı)
-  const [referenceColumns, setReferenceColumns] = useState({});
-  
-  // Parse state
-  const [parsingProgress, setParsingProgress] = useState(0);
-  const [parsingStatus, setParsingStatus] = useState("");
-  const [editableData, setEditableData] = useState(EMPTY_DATA);
-  const [activeTab, setActiveTab] = useState("courses");
-  const [validationErrors, setValidationErrors] = useState({});
-  const [validationWarnings, setValidationWarnings] = useState({});
-  
-  // Loading & error
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [restoreMessage, setRestoreMessage] = useState(null);
-  
-  // Refs
-  const dropRef = useRef(null);
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [user, setUser]           = useState(null);
+  const [step, setStep]           = useState(STEPS.UPLOAD);
+  const [error, setError]         = useState(null);
 
-  // Session kontrolü
+  // PDF
+  const [selectedFile, setSelectedFile]   = useState(null);
+  const [isDragOver, setIsDragOver]       = useState(false);
+  const dropRef = useRef(null);
+
+  // Okul tespiti
+  const [detectedBrand, setDetectedBrand] = useState("");
+  const [selectedBrand, setSelectedBrand] = useState("");
+  const [detectLoading, setDetectLoading] = useState(false);
+
+  // Parse
+  const [progress, setProgress]       = useState(0);
+  const [progressMsg, setProgressMsg] = useState("");
+  const [sheetHeaders, setSheetHeaders] = useState({});
+  const [parsedData, setParsedData]   = useState({});
+
+  // Diff
+  const [currentData, setCurrentData] = useState({});
+  const [diffSummary, setDiffSummary] = useState(null);
+
+  // Yeni sütun uyarısı
+  const [unknownCols, setUnknownCols] = useState({});
+  const [unknownColDecisions, setUnknownColDecisions] = useState({});
+
+  // Kayıt
+  const [backupInfo, setBackupInfo]   = useState(null);
+  const [saveError, setSaveError]     = useState(null);
+
   useEffect(() => {
     const session = getSession();
-    if (!session) {
-      navigate("/");
-      return;
-    }
+    if (!session) { navigate("/"); return; }
     setUser(session);
   }, []);
 
-  // Şehir listesini çek (master_index'ten)
-  useEffect(() => {
-    if (!selectedBrand) return;
-    fetchCitiesForBrand(selectedBrand);
-  }, [selectedBrand]);
-
-  async function fetchCitiesForBrand(brand) {
-    try {
-      const url = `https://docs.google.com/spreadsheets/d/${MASTER_ID}/gviz/tq?tqx=out:csv&sheet=master_index`;
-      const res = await fetch(url);
-      const csv = await res.text();
-      const rows = parseCSV(csv);
-      const cityList = rows
-        .filter(row => row.school_brand === brand && row.is_active === "TRUE" && row.parse_status === "approved")
-        .map(row => row.city)
-        .filter(Boolean)
-        .sort();
-      setCities(cityList);
-    } catch (err) {
-      console.error("Şehir listesi alınamadı:", err);
-    }
-  }
-
-  function parseCSV(csv) {
-    const lines = csv.trim().split("\n");
-    const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
-    return lines.slice(1).map(line => {
-      const values = [];
-      let cur = "", inQ = false;
-      for (const ch of line) {
-        if (ch === '"') inQ = !inQ;
-        else if (ch === "," && !inQ) {
-          values.push(cur.trim());
-          cur = "";
-        } else cur += ch;
-      }
-      values.push(cur.trim());
-      const row = {};
-      headers.forEach((h, i) => {
-        row[h] = (values[i] || "").replace(/^"|"$/g, "");
-      });
-      return row;
-    });
-  }
-
-  // master_index'ten okulun drive_link'ini bul ve sütun yapısını oku
-  async function loadReferenceData(brand, city) {
-    setParsingProgress(5);
-    setParsingStatus("📁 Mevcut Okul Fiyat Dosyası Okunuyor...");
-    
-    try {
-      const masterUrl = `https://docs.google.com/spreadsheets/d/${MASTER_ID}/gviz/tq?tqx=out:csv&sheet=master_index`;
-      const masterRes = await fetch(masterUrl);
-      const masterCsv = await masterRes.text();
-      const masterRows = parseCSV(masterCsv);
-      
-      // İlgili okul+şehir satırını bul
-      let targetRow = masterRows.find(row => 
-        row.school_brand === brand && 
-        row.city === city &&
-        row.is_active === "TRUE" && 
-        row.parse_status === "approved"
-      );
-      
-      if (!targetRow) {
-        targetRow = masterRows.find(row => 
-          row.school_brand === brand && 
-          row.is_active === "TRUE" && 
-          row.parse_status === "approved"
-        );
-      }
-      
-      if (!targetRow || !targetRow.drive_link) {
-        console.warn("Drive link bulunamadı, varsayılan sütunlar kullanılacak");
-        setReferenceColumns({
-          courses: ["course_name", "program_type", "lessons_per_week", "hours_per_week", "weeks_tier_min", "weeks_tier_max", "price_per_week", "currency", "high_season_supplement", "high_season_start", "high_season_end", "max_weeks", "morning_supplement", "notes"],
-          accommodation: ["place_name", "accommodation_type", "room_type", "board_type", "price_per_week", "currency", "distance_to_school", "notes"],
-          fees: ["fee_name", "amount", "currency", "calculation_type", "addon_type", "notes"],
-          transfers: ["airport_name", "airport_code", "price_one_way", "price_two_way", "currency", "notes"],
-        });
-        return;
-      }
-      
-      const match = targetRow.drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-      const sheetId = match ? match[1] : null;
-      if (!sheetId) return;
-      
-      setParsingProgress(10);
-      setParsingStatus("🔍 Parse Kuralları İnceleniyor...");
-      
-      const columns = {};
-      for (const tab of TABS) {
-        try {
-          const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${tab.sheetName}`;
-          const res = await fetch(sheetUrl);
-          const csv = await res.text();
-          const firstLine = csv.split("\n")[0];
-          const headers = firstLine.split(",").map(h => h.replace(/"/g, "").trim());
-          columns[tab.id] = headers.filter(h => h && h.length > 0);
-        } catch (err) {
-          console.error(`${tab.id} sütunları okunamadı:`, err);
-          columns[tab.id] = [];
-        }
-      }
-      setReferenceColumns(columns);
-    } catch (err) {
-      console.error("Referans veri yüklenemedi:", err);
-    }
-  }
-
-  // Dosya seçimi
+  // ── Dosya seçimi ──────────────────────────────────────────
   function handleFileSelect(e) {
     const file = e.target.files[0];
-    if (file && file.type === "application/pdf") {
-      setSelectedFile(file);
-      setError(null);
-    } else {
-      setError("Lütfen geçerli bir PDF dosyası seçin.");
-    }
+    if (file?.type === "application/pdf") { setSelectedFile(file); setError(null); }
+    else setError("Lütfen geçerli bir PDF dosyası seçin.");
   }
 
   function handleDrop(e) {
-    e.preventDefault();
-    setIsDragOver(false);
+    e.preventDefault(); setIsDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.type === "application/pdf") {
-      setSelectedFile(file);
-      setError(null);
-    } else {
-      setError("Lütfen geçerli bir PDF dosyası seçin.");
-    }
+    if (file?.type === "application/pdf") { setSelectedFile(file); setError(null); }
+    else setError("Lütfen geçerli bir PDF dosyası seçin.");
   }
 
-  // PDF'i base64'e çevir
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(",")[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(",")[1]);
+      r.onerror = reject;
+      r.readAsDataURL(file);
     });
   }
 
-  // Dinamik prompt oluştur (referans sütunlara göre)
-  function buildPromptForSection(section, columns) {
-    const colNames = columns[section] || [];
-    if (colNames.length === 0) {
-      return `Bu PDF'ten ${section} bilgilerini çıkar. JSON formatında döndür.`;
-    }
-    
-    const colList = colNames.map(col => `"${col}": "değer"`).join(",\n      ");
-    
-    return `Bu PDF'ten ${section} bilgilerini çıkar. Aşağıdaki JSON formatında döndür (başka hiçbir şey yazma, backtick kullanma):
-
-{
-  "${section}": [
-    {
-      ${colList}
-    }
-  ]
-}
-
-ÖNEMLİ KURALLAR:
-1. Sadece PDF'te kesin olan bilgileri doldur. Emin değilsen boş bırak.
-2. Fiyatlar sayı, para birimleri (GBP/EUR/USD/CAD/CHF) metin olmalı.
-3. Tarihler YYYY-MM-DD formatında olmalı.
-4. ${section} için yukarıdaki sütunların tamamını kullan.`;
-  }
-
-  // 1. ADIM: Okul tespiti
-  async function analyzeSchool() {
-    if (!selectedFile) {
-      setError("Lütfen bir PDF dosyası seçin.");
-      return;
-    }
-
-    setStep(STEPS.ANALYZING);
-    setLoading(true);
-    setError(null);
-
-    try {
-      const base64 = await fileToBase64(selectedFile);
-      const prompt = `Bu bir dil okulu katalog PDF'idir. Sayfa içeriğini analiz et ve hangi okul markasına ait olduğunu belirle. Okul seçenekleri: EC, Kaplan, LAL, ELS, ILSC. SADECE JSON formatında cevap ver: {"detected":["EC"],"confidence":85}`;
-
-      const response = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }]
-          }],
-          generationConfig: { temperature: 0.1, topP: 0.9 }
-        })
-      });
-
-      const result = await response.json();
-      let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      let clean = text.replace(/```json|```/g, "").trim();
-      const data = JSON.parse(clean);
-      
-      setDetectedBrands(data.detected || ["EC", "Kaplan"]);
-      setSelectedBrand(data.detected?.[0] || "");
-      setStep(STEPS.SCHOOL_SELECT);
-    } catch (err) {
-      console.error("Analiz hatası:", err);
-      setError("Okul tespit edilemedi. Lütfen manuel seçin.");
-      setDetectedBrands(["EC", "Kaplan"]);
-      setStep(STEPS.SCHOOL_SELECT);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // 2. ADIM: Parse et (aşamalı gösterimli)
-  async function startParsing() {
-    if (!selectedBrand || !selectedCity) {
-      setError("Lütfen okul ve şehir seçin.");
-      return;
-    }
-
-    setStep(STEPS.PARSING);
-    setLoading(true);
-    
-    try {
-      await loadReferenceData(selectedBrand, selectedCity);
-      
-      setParsingProgress(15);
-      setParsingStatus("📄 PDF Dosyası Hazırlanıyor...");
-      const base64 = await fileToBase64(selectedFile);
-      const fullData = { courses: [], accommodation: [], fees: [], transfers: [] };
-      
-      const tabSteps = [
-        { id: "courses", label: "Kurslar", progressStart: 20, progressEnd: 35 },
-        { id: "accommodation", label: "Konaklama", progressStart: 35, progressEnd: 50 },
-        { id: "fees", label: "Ek Ücretler", progressStart: 50, progressEnd: 65 },
-        { id: "transfers", label: "Transfer", progressStart: 65, progressEnd: 80 }
-      ];
-      
-      for (let i = 0; i < tabSteps.length; i++) {
-        const tab = tabSteps[i];
-        setParsingProgress(tab.progressStart);
-        setParsingStatus(`📚 ${tab.label} Parse Ediliyor (${i+1}/4)...`);
-        
-        const prompt = buildPromptForSection(tab.id, referenceColumns);
-        const response = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }]
-            }],
-            generationConfig: { temperature: 0.1, topP: 0.95 }
-          })
-        });
-        
-        const result = await response.json();
-        let text = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        text = text.replace(/```json|```/g, "").trim();
-        
-        try {
-          const parsed = JSON.parse(text);
-          fullData[tab.id] = parsed[tab.id] || [];
-        } catch (e) {
-          console.error(`${tab.id} parse hatası:`, e);
-          fullData[tab.id] = [];
-        }
-        setParsingProgress(tab.progressEnd);
-      }
-      
-      setParsingProgress(90);
-      setParsingStatus("✅ Veriler Doğrulanıyor...");
-      
-      setEditableData(fullData);
-      runAllValidations(fullData);
-      
-      setParsingProgress(100);
-      setParsingStatus("🎉 Parse Tamamlandı!");
-      await new Promise(r => setTimeout(r, 500));
-      setStep(STEPS.PREVIEW);
-    } catch (err) {
-      console.error("Parse hatası:", err);
-      setError("PDF parse sırasında hata oluştu: " + err.message);
-      setStep(STEPS.SCHOOL_SELECT);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // VALIDASYON FONKSİYONLARI
-  function validateCourses(courses) {
-    const errors = {};
-    const warnings = {};
-    const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
-    
-    courses.forEach((course, idx) => {
-      const rowErrors = [];
-      if (!course.course_name || course.course_name.trim() === "") rowErrors.push("Kurs adı boş olamaz");
-      const price = parseFloat(course.price_per_week);
-      if (isNaN(price) || price <= 0) rowErrors.push("Geçerli bir fiyat giriniz");
-      if (course.currency && !validCurrencies.includes(course.currency)) rowErrors.push(`Geçersiz para birimi: ${course.currency}`);
-      const tierMin = parseInt(course.weeks_tier_min);
-      if (isNaN(tierMin) || tierMin < 1) rowErrors.push("Tier min hafta geçersiz");
-      
-      if (rowErrors.length > 0) errors[idx] = rowErrors;
-    });
-    return { errors, warnings };
-  }
-  
-  function validateAccommodation(items) {
-    const errors = {};
-    const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
-    items.forEach((item, idx) => {
-      const rowErrors = [];
-      if (!item.place_name || item.place_name.trim() === "") rowErrors.push("Konaklama adı boş olamaz");
-      const price = parseFloat(item.price_per_week);
-      if (isNaN(price) || price <= 0) rowErrors.push("Geçerli bir fiyat giriniz");
-      if (item.currency && !validCurrencies.includes(item.currency)) rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
-      if (rowErrors.length > 0) errors[idx] = rowErrors;
-    });
-    return { errors, warnings: {} };
-  }
-  
-  function validateFees(items) {
-    const errors = {};
-    const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
-    items.forEach((item, idx) => {
-      const rowErrors = [];
-      if (!item.fee_name || item.fee_name.trim() === "") rowErrors.push("Ücret adı boş olamaz");
-      const amount = parseFloat(item.amount);
-      if (isNaN(amount) || amount < 0) rowErrors.push("Geçerli bir tutar giriniz");
-      if (item.currency && !validCurrencies.includes(item.currency)) rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
-      if (rowErrors.length > 0) errors[idx] = rowErrors;
-    });
-    return { errors, warnings: {} };
-  }
-  
-  function validateTransfers(items) {
-    const errors = {};
-    const validCurrencies = ["GBP", "EUR", "USD", "CAD", "CHF"];
-    items.forEach((item, idx) => {
-      const rowErrors = [];
-      if (!item.airport_name || item.airport_name.trim() === "") rowErrors.push("Havalimanı adı boş olamaz");
-      const oneWay = parseFloat(item.price_one_way);
-      if (isNaN(oneWay) || oneWay < 0) rowErrors.push("Geçerli bir tek yön fiyatı giriniz");
-      if (item.currency && !validCurrencies.includes(item.currency)) rowErrors.push(`Geçersiz para birimi: ${item.currency}`);
-      if (rowErrors.length > 0) errors[idx] = rowErrors;
-    });
-    return { errors, warnings: {} };
-  }
-  
-  function runAllValidations(data) {
-    const courseValidation = validateCourses(data.courses);
-    const accValidation = validateAccommodation(data.accommodation);
-    const feesValidation = validateFees(data.fees);
-    const transfersValidation = validateTransfers(data.transfers);
-    
-    setValidationErrors({
-      courses: courseValidation.errors,
-      accommodation: accValidation.errors,
-      fees: feesValidation.errors,
-      transfers: transfersValidation.errors,
-    });
-    setValidationWarnings({ courses: {}, accommodation: {}, fees: {}, transfers: {} });
-    
-    return Object.keys(courseValidation.errors).length === 0 &&
-           Object.keys(accValidation.errors).length === 0 &&
-           Object.keys(feesValidation.errors).length === 0 &&
-           Object.keys(transfersValidation.errors).length === 0;
-  }
-
-  function updateData(section, index, field, value) {
-    const newData = { ...editableData };
-    newData[section][index][field] = value;
-    setEditableData(newData);
-    runAllValidations(newData);
-  }
-
-  function addRow(section) {
-    const newData = { ...editableData };
-    const columns = referenceColumns[section] || [];
-    const emptyRow = {};
-    columns.forEach(col => { emptyRow[col] = ""; });
-    newData[section].push(emptyRow);
-    setEditableData(newData);
-    runAllValidations(newData);
-  }
-
-  function deleteRow(section, index) {
-    const newData = { ...editableData };
-    newData[section].splice(index, 1);
-    setEditableData(newData);
-    runAllValidations(newData);
-  }
-
-  function getCellStyle(section, rowIdx, hasError) {
-    let style = { ...S.cellInput };
-    if (hasError) {
-      style = { ...style, borderColor: "#dc2626", backgroundColor: "#fef2f2" };
-    }
-    return style;
-  }
-
-  function getValidationMessage(section, rowIdx) {
-    const errors = validationErrors[section]?.[rowIdx];
-    if (errors && errors.length > 0) {
-      return <span style={S.errorTooltip}>⚠️ {errors.join(", ")}</span>;
-    }
+  // ── Okul tespiti ──────────────────────────────────────────
+  function detectBrandFromFileName(name) {
+    const n = name.toLowerCase();
+    if (n.includes("kaplan"))       return "Kaplan";
+    if (n.includes(" ec ") || n.includes("ec_") || n.includes("ec english") || n.includes("ec-")) return "EC";
+    if (n.includes("lal"))          return "LAL";
+    if (n.includes("els"))          return "ELS";
+    if (n.includes("ilsc"))         return "ILSC";
     return null;
   }
 
-  function hasAnyValidationError() {
-    return Object.values(validationErrors).some(section => 
-      section && Object.keys(section).length > 0
-    );
+  async function detectBrandFromContent(base64) {
+    const prompt = `Bu bir dil okulu katalog PDF'idir. İlk sayfayı analiz et, okul markasını belirle.
+Seçenekler: EC, Kaplan, LAL, ELS, ILSC
+SADECE JSON döndür: {"brand":"EC","confidence":90}`;
+    const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }] }],
+        generationConfig: { temperature: 0.1 }
+      })
+    });
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const json = JSON.parse(text.replace(/```json|```/g, "").trim());
+    return json.brand;
   }
 
-  // Sheets'e kaydet (Backup alınır, backup silinmez)
-  async function saveToSheet() {
-    if (hasAnyValidationError()) {
-      setError("Lütfen tüm kırmızı hataları düzeltin.");
-      return;
-    }
-    
-    setStep(STEPS.SAVING);
-    setLoading(true);
-    setError(null);
-    setRestoreMessage(null);
-    
-    try {
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwl7PcvG3pt6RFtoixFu7kBkY3UBWWPhDZgZslsF87Wz_U8x3EqVZ7d9TthTmcIoStF/exec";
-      
-      // 1. Backup oluştur
-      setParsingStatus("Backup oluşturuluyor...");
-      const backupRes = await fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "backupSheet",
-          brand: selectedBrand,
-          city: selectedCity,
-        })
-      });
-      const backupResult = await backupRes.json();
-      if (!backupResult.success) throw new Error("Backup oluşturulamadı: " + backupResult.msg);
-      
-      // 2. Yeni veriyi yaz
-      setParsingStatus("Veriler yazılıyor...");
-      const saveRes = await fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "writeSheetData",
-          brand: selectedBrand,
-          city: selectedCity,
-          data: editableData,
-          columns: referenceColumns,
-        })
-      });
-      const saveResult = await saveRes.json();
-      if (!saveResult.success) {
-        await fetch(SCRIPT_URL, {
-          method: "POST",
-          body: JSON.stringify({
-            action: "restoreBackup",
-            brand: selectedBrand,
-            city: selectedCity,
-          })
-        });
-        throw new Error(saveResult.msg || "Veri yazılamadı");
+  async function analyzeFile() {
+    if (!selectedFile) return;
+    setDetectLoading(true); setError(null);
+
+    // 1. Dosya adından dene
+    let brand = detectBrandFromFileName(selectedFile.name);
+
+    // 2. Gemini fallback
+    if (!brand) {
+      try {
+        const base64 = await fileToBase64(selectedFile);
+        brand = await detectBrandFromContent(base64);
+      } catch {
+        brand = null;
       }
-      
-      // Backup SİLİNMİYOR – sadece kaydı temizleniyor (dosya kalır)
-      await fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "deleteBackupRecord",
-          brand: selectedBrand,
-          city: selectedCity,
-        })
+    }
+
+    setDetectedBrand(brand || "");
+    setSelectedBrand(brand || "");
+    setDetectLoading(false);
+    setStep(STEPS.SCHOOL_CONFIRM);
+  }
+
+  // ── Parse işlemi ──────────────────────────────────────────
+  async function callAppsScript(action, body) {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({ action, ...body }),
+    });
+    return res.json();
+  }
+
+  async function startParsing() {
+    if (!selectedBrand) { setError("Lütfen okul seçin."); return; }
+    setStep(STEPS.PARSING); setError(null);
+
+    try {
+      // Adım 1: Sheet header'larını çek
+      setProgress(5); setProgressMsg("📁 Mevcut sheet sütunları okunuyor...");
+      const headersResult = await callAppsScript("getSheetHeaders", { brand: selectedBrand });
+      if (!headersResult.success) throw new Error("Header okunamadı: " + headersResult.msg);
+      const headers = headersResult.headers;
+      setSheetHeaders(headers);
+
+      // Adım 2: Mevcut veriyi çek (diff için)
+      setProgress(10); setProgressMsg("🔍 Mevcut veriler alınıyor...");
+      const currentResult = await callAppsScript("getCurrentData", { brand: selectedBrand });
+      if (currentResult.success) setCurrentData(currentResult.data || {});
+
+      // Adım 3: PDF hazırla
+      setProgress(15); setProgressMsg("📄 PDF hazırlanıyor...");
+      const base64 = await fileToBase64(selectedFile);
+
+      // Adım 4: Tek Gemini çağrısında tüm sekmeleri parse et
+      setProgress(20); setProgressMsg("🤖 Gemini ile parse ediliyor...");
+      const tabs = PARSE_TABS[selectedBrand] || ["courses", "accommodation", "fees", "transfers"];
+      const parsed = await parseAllTabsAtOnce(base64, selectedBrand, headers, tabs);
+
+      setProgress(90); setProgressMsg("✅ Veriler doğrulanıyor...");
+
+      // Adım 5: Yeni sütun tespiti
+      const unknown = detectUnknownColumns(parsed, headers, tabs);
+      setUnknownCols(unknown);
+      setParsedData(parsed);
+
+      // Adım 6: Diff hesapla
+      const diff = computeDiff(currentResult.data || {}, parsed, tabs);
+      setDiffSummary(diff);
+
+      setProgress(100); setProgressMsg("🎉 Parse tamamlandı!");
+      await new Promise(r => setTimeout(r, 400));
+      setStep(STEPS.DIFF);
+
+    } catch (err) {
+      setError("Parse hatası: " + err.message);
+      setStep(STEPS.SCHOOL_CONFIRM);
+    }
+  }
+
+  // Tek Gemini çağrısında tüm tablolar
+  async function parseAllTabsAtOnce(base64, brand, headers, tabs) {
+    const tabSections = tabs.map(tab => {
+      const cols = headers[tab] || [];
+      const colList = cols.length > 0
+        ? cols.map(c => `"${c}": "değer"`).join(",\n      ")
+        : '"name": "", "value": ""';
+      return `
+"${tab}": [
+  {
+    ${colList}
+  }
+]`;
+    }).join(",");
+
+    const prompt = `Bu bir ${brand} dil okulu katalog PDF'idir.
+Aşağıdaki JSON formatında TÜM tabloları çıkar. Başka hiçbir şey yazma, backtick kullanma.
+
+{
+  ${tabSections}
+}
+
+KURALLAR:
+1. Sadece PDF'te kesin olan bilgileri doldur. Emin değilsen boş bırak ("").
+2. Fiyatlar sayı (string değil), para birimleri GBP/EUR/USD/CAD/CHF metin.
+3. Tarihler YYYY-MM-DD formatında.
+4. Her tablo için tüm şehirlerin verilerini dahil et.
+5. Boş array döndürme — veri yoksa bile en az 1 satır dene.`;
+
+    const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }] }],
+        generationConfig: { temperature: 0.1, topP: 0.95, maxOutputTokens: 8192 }
+      })
+    });
+
+    const data = await res.json();
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    text = text.replace(/```json|```/g, "").trim();
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      // Parse hatası — boş dön
+      const empty = {};
+      tabs.forEach(t => { empty[t] = []; });
+      return empty;
+    }
+  }
+
+  // Yeni sütun tespiti
+  function detectUnknownColumns(parsed, headers, tabs) {
+    const unknown = {};
+    tabs.forEach(tab => {
+      const knownCols = new Set(headers[tab] || []);
+      const rows = parsed[tab] || [];
+      const extraCols = new Set();
+      rows.forEach(row => {
+        Object.keys(row).forEach(key => {
+          if (!knownCols.has(key) && key.trim()) extraCols.add(key);
+        });
       });
-      
+      if (extraCols.size > 0) {
+        unknown[tab] = [...extraCols].map(col => ({
+          col,
+          count: rows.filter(r => r[col] && String(r[col]).trim()).length,
+        }));
+      }
+    });
+    return unknown;
+  }
+
+  // Diff hesaplama
+  function computeDiff(current, parsed, tabs) {
+    const diff = {};
+    tabs.forEach(tab => {
+      const cur = current[tab] || [];
+      const nw  = parsed[tab]  || [];
+      diff[tab] = { before: cur.length, after: nw.length, delta: nw.length - cur.length };
+    });
+    return diff;
+  }
+
+  // ── Kaydetme ──────────────────────────────────────────────
+  async function saveDraft() {
+    setStep(STEPS.SAVING); setSaveError(null);
+
+    try {
+      // Backup
+      setProgressMsg("📦 Backup oluşturuluyor...");
+      const bkp = await callAppsScript("backupSheet", { brand: selectedBrand });
+      if (!bkp.success) throw new Error("Backup hatası: " + bkp.msg);
+      setBackupInfo(bkp);
+
+      // Bilinmeyen sütunları kararına göre işle
+      const finalData = applyUnknownColDecisions(parsedData, unknownColDecisions, sheetHeaders);
+      const finalColumns = buildFinalColumns(sheetHeaders, unknownColDecisions);
+
+      // Draft yaz
+      setProgressMsg("✏️ Taslak sekmeler yazılıyor...");
+      const write = await callAppsScript("writeDraftData", {
+        brand: selectedBrand,
+        data: finalData,
+        columns: finalColumns,
+      });
+      if (!write.success) throw new Error("Yazma hatası: " + write.msg);
+
+      setStep(STEPS.REVIEW);
+    } catch (err) {
+      setSaveError(err.message);
+      setStep(STEPS.DIFF);
+    }
+  }
+
+  function applyUnknownColDecisions(data, decisions, headers) {
+    const result = {};
+    Object.keys(data).forEach(tab => {
+      const rows = data[tab] || [];
+      const tabDecisions = decisions[tab] || {};
+      result[tab] = rows.map(row => {
+        const newRow = {};
+        // Bilinen sütunlar
+        (headers[tab] || []).forEach(col => { newRow[col] = row[col] ?? ""; });
+        // Bilinmeyen — "ekle" kararı verilenleri dahil et
+        Object.keys(tabDecisions).forEach(col => {
+          if (tabDecisions[col] === "add") newRow[col] = row[col] ?? "";
+          // "ignore" ise zaten dahil edilmez
+        });
+        return newRow;
+      });
+    });
+    return result;
+  }
+
+  function buildFinalColumns(headers, decisions) {
+    const result = {};
+    Object.keys(headers).forEach(tab => {
+      const base = [...(headers[tab] || [])];
+      const tabDec = decisions[tab] || {};
+      Object.keys(tabDec).forEach(col => {
+        if (tabDec[col] === "add" && !base.includes(col)) base.push(col);
+      });
+      result[tab] = base;
+    });
+    return result;
+  }
+
+  // ── Onayla / Reddet ───────────────────────────────────────
+  async function publishDraft() {
+    setStep(STEPS.SAVING);
+    setProgressMsg("🚀 Taslak canlıya alınıyor...");
+    try {
+      const res = await callAppsScript("publishDraft", { brand: selectedBrand });
+      if (!res.success) throw new Error(res.msg);
       setStep(STEPS.DONE);
     } catch (err) {
-      console.error("Kayıt hatası:", err);
-      setError("Kayıt sırasında hata oluştu: " + err.message);
-      setRestoreMessage("Önceki veri geri yüklendi.");
-      setStep(STEPS.PREVIEW);
-    } finally {
-      setLoading(false);
+      setSaveError(err.message);
+      setStep(STEPS.REVIEW);
     }
   }
 
-  // -------------------- RENDER TABLOLARI --------------------
-  function renderCoursesTable() {
-    const courses = editableData.courses || [];
-    const errors = validationErrors.courses || {};
-    const columns = referenceColumns.courses || ["course_name", "program_type", "lessons_per_week", "hours_per_week", "weeks_tier_min", "weeks_tier_max", "price_per_week", "currency", "high_season_supplement", "high_season_start", "high_season_end", "max_weeks", "morning_supplement", "notes"];
-    
-    if (courses.length === 0) return <div style={S.emptyTable}>Kurs bulunamadı. Manuel ekleyebilirsiniz.</div>;
-    
-    return (
-      <div style={{ overflowX: "auto" }}>
-        <table style={S.table}>
-          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th style={{ width: 50 }}></th></tr></thead>
-          <tbody>
-            {courses.map((course, idx) => {
-              const hasError = errors[idx] && errors[idx].length > 0;
-              const msg = getValidationMessage("courses", idx);
-              return (
-                <tr key={idx}>
-                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                  {columns.map(col => (
-                    <td key={col}>
-                      {col === "currency" ? (
-                        <select value={course[col] || "GBP"} onChange={e => updateData("courses", idx, col, e.target.value)} style={S.cellSelect}>
-                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
-                        </select>
-                      ) : col.includes("date") || col.includes("start") || col.includes("end") ? (
-                        <input type="date" value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError)} />
-                      ) : col.includes("price") || col.includes("supplement") || col.includes("weeks") ? (
-                        <input type="number" value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError)} />
-                      ) : (
-                        <input value={course[col] || ""} onChange={e => updateData("courses", idx, col, e.target.value)} style={getCellStyle("courses", idx, hasError)} />
-                      )}
-                    </td>
-                  ))}
-                  <td><button onClick={() => deleteRow("courses", idx)} style={S.deleteBtn}>🗑️</button></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+  async function discardDraft() {
+    await callAppsScript("discardDraft", { brand: selectedBrand });
+    resetAll();
+  }
+
+  function resetAll() {
+    setStep(STEPS.UPLOAD);
+    setSelectedFile(null);
+    setSelectedBrand("");
+    setDetectedBrand("");
+    setParsedData({});
+    setCurrentData({});
+    setDiffSummary(null);
+    setUnknownCols({});
+    setUnknownColDecisions({});
+    setBackupInfo(null);
+    setSaveError(null);
+    setError(null);
+    setProgress(0);
+    setProgressMsg("");
+  }
+
+  // ─── RENDER ───────────────────────────────────────────────
+  if (!user) return null;
+
+  // UPLOAD
+  if (step === STEPS.UPLOAD) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Katalog Parse" user={user} onBack={() => navigate("/dashboard")}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={S.bigIcon}>📄</div>
+          <h2 style={S.cardTitle}>PDF Katalog Yükle</h2>
+          <p style={S.cardSub}>Dil okuluna ait katalog PDF'sini yükleyin</p>
+          <div
+            ref={dropRef}
+            onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
+            style={{ ...S.dropZone, borderColor: isDragOver ? "#2563eb" : "#e2e8f0", background: isDragOver ? "#eff6ff" : "#f8fafc" }}
+          >
+            <input type="file" accept="application/pdf" onChange={handleFileSelect}
+              style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0, cursor:"pointer", zIndex:10 }}/>
+            {selectedFile ? (
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:36}}>📄</div>
+                <p style={{fontWeight:700,marginTop:8}}>{selectedFile.name}</p>
+                <p style={{fontSize:12,color:"#64748b"}}>{(selectedFile.size/1024/1024).toFixed(2)} MB</p>
+              </div>
+            ) : (
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:48}}>📁</div>
+                <p style={{fontWeight:500,marginTop:8}}>PDF sürükle veya tıkla seç</p>
+                <p style={{fontSize:12,color:"#94a3b8"}}>Maks. 100MB</p>
+              </div>
+            )}
+          </div>
+          {error && <div style={S.errorBox}>{error}</div>}
+          <button onClick={analyzeFile} disabled={!selectedFile || detectLoading}
+            style={{...S.primaryBtn, opacity:(!selectedFile||detectLoading)?0.5:1}}>
+            {detectLoading ? "Analiz ediliyor..." : "📊 PDF'i Analiz Et"}
+          </button>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // SCHOOL CONFIRM
+  if (step === STEPS.SCHOOL_CONFIRM) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Okul Onayı" user={user} onBack={() => setStep(STEPS.UPLOAD)}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={S.bigIcon}>🎯</div>
+          <h2 style={S.cardTitle}>Okul Onaylayın</h2>
+          {detectedBrand
+            ? <p style={S.cardSub}>PDF analizi tamamlandı. Tespit edilen okul: <strong>{detectedBrand}</strong></p>
+            : <p style={S.cardSub}>Okul tespit edilemedi. Lütfen manuel seçin.</p>
+          }
+
+          <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
+            {KNOWN_BRANDS.map(brand => (
+              <div key={brand} onClick={() => setSelectedBrand(brand)}
+                style={{...S.brandCard, borderColor: selectedBrand===brand?"#2563eb":"#e2e8f0", background: selectedBrand===brand?"#eff6ff":"#fff"}}>
+                <span style={{fontSize:22}}>{brand==="EC"?"🇬🇧":brand==="Kaplan"?"🇺🇸":"🏫"}</span>
+                <div>
+                  <div style={{fontWeight:700}}>{brand}</div>
+                  {detectedBrand===brand && <div style={{fontSize:11,color:"#2563eb"}}>✓ Tespit edildi</div>}
+                </div>
+                {selectedBrand===brand && <span style={{color:"#2563eb",marginLeft:"auto",fontWeight:700}}>✓</span>}
+              </div>
+            ))}
+          </div>
+
+          {error && <div style={S.errorBox}>{error}</div>}
+          <button onClick={startParsing} disabled={!selectedBrand}
+            style={{...S.primaryBtn, opacity:!selectedBrand?0.5:1}}>
+            {selectedBrand ? `${selectedBrand} olarak Parse Et →` : "Okul seçin"}
+          </button>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // PARSING
+  if (step === STEPS.PARSING) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Parse Ediliyor" user={user}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={S.spinner}/>
+          <h3 style={{fontSize:16,fontWeight:600,color:"#0f172a",marginBottom:8}}>{progressMsg}</h3>
+          <div style={S.progressBar}><div style={{...S.progressFill,width:`${progress}%`}}/></div>
+          <p style={{fontSize:12,color:"#94a3b8",marginTop:8}}>{Math.floor(progress)}% tamamlandı</p>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // DIFF
+  if (step === STEPS.DIFF) {
+    const tabs = PARSE_TABS[selectedBrand] || [];
+    const hasUnknown = Object.keys(unknownCols).length > 0;
+    const allDecided = !hasUnknown || Object.keys(unknownCols).every(tab =>
+      unknownCols[tab].every(({col}) => unknownColDecisions[tab]?.[col])
     );
-  }
 
-  function renderAccommodationTable() {
-    const items = editableData.accommodation || [];
-    const errors = validationErrors.accommodation || {};
-    const columns = referenceColumns.accommodation || ["place_name", "accommodation_type", "room_type", "board_type", "price_per_week", "currency", "distance_to_school", "notes"];
-    if (items.length === 0) return <div style={S.emptyTable}>Konaklama bulunamadı.</div>;
-    return (
-      <div style={{ overflowX: "auto" }}>
-        <table style={S.table}>
-          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th></th></tr></thead>
-          <tbody>
-            {items.map((item, idx) => {
-              const hasError = errors[idx] && errors[idx].length > 0;
-              const msg = getValidationMessage("accommodation", idx);
-              return (
-                <tr key={idx}>
-                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                  {columns.map(col => (
-                    <td key={col}>
-                      {col === "currency" ? (
-                        <select value={item[col] || "GBP"} onChange={e => updateData("accommodation", idx, col, e.target.value)} style={S.cellSelect}>
-                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
-                        </select>
-                      ) : col.includes("price") ? (
-                        <input type="number" value={item[col] || ""} onChange={e => updateData("accommodation", idx, col, e.target.value)} style={getCellStyle("accommodation", idx, hasError)} />
-                      ) : (
-                        <input value={item[col] || ""} onChange={e => updateData("accommodation", idx, col, e.target.value)} style={getCellStyle("accommodation", idx, hasError)} />
-                      )}
-                    </td>
-                  ))}
-                  <td><button onClick={() => deleteRow("accommodation", idx)} style={S.deleteBtn}>🗑️</button></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  function renderFeesTable() {
-    const items = editableData.fees || [];
-    const errors = validationErrors.fees || {};
-    const columns = referenceColumns.fees || ["fee_name", "amount", "currency", "calculation_type", "addon_type", "notes"];
-    if (items.length === 0) return <div style={S.emptyTable}>Ek ücret bulunamadı.</div>;
-    return (
-      <div style={{ overflowX: "auto" }}>
-        <table style={S.table}>
-          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th></th></tr></thead>
-          <tbody>
-            {items.map((item, idx) => {
-              const hasError = errors[idx] && errors[idx].length > 0;
-              const msg = getValidationMessage("fees", idx);
-              return (
-                <tr key={idx}>
-                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                  {columns.map(col => (
-                    <td key={col}>
-                      {col === "currency" ? (
-                        <select value={item[col] || "GBP"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
-                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
-                        </select>
-                      ) : col === "calculation_type" ? (
-                        <select value={item[col] || "once"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
-                          <option value="once">Tek sefer</option><option value="per_week">Haftalık</option>
-                        </select>
-                      ) : col === "addon_type" ? (
-                        <select value={item[col] || "compulsory"} onChange={e => updateData("fees", idx, col, e.target.value)} style={S.cellSelect}>
-                          <option value="compulsory">Zorunlu</option><option value="optional_service">İsteğe bağlı</option><option value="supplement">Ek ücret</option><option value="upgrade">Yükseltme</option>
-                        </select>
-                      ) : col === "amount" ? (
-                        <input type="number" value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError)} />
-                      ) : (
-                        <input value={item[col] || ""} onChange={e => updateData("fees", idx, col, e.target.value)} style={getCellStyle("fees", idx, hasError)} />
-                      )}
-                    </td>
-                  ))}
-                  <td><button onClick={() => deleteRow("fees", idx)} style={S.deleteBtn}>🗑️</button></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  function renderTransfersTable() {
-    const items = editableData.transfers || [];
-    const errors = validationErrors.transfers || {};
-    const columns = referenceColumns.transfers || ["airport_name", "airport_code", "price_one_way", "price_two_way", "currency", "notes"];
-    if (items.length === 0) return <div style={S.emptyTable}>Transfer bilgisi bulunamadı.</div>;
-    return (
-      <div style={{ overflowX: "auto" }}>
-        <table style={S.table}>
-          <thead><tr><th style={{ width: 40 }}>#</th>{columns.map(col => <th key={col}>{col}</th>)}<th></th></tr></thead>
-          <tbody>
-            {items.map((item, idx) => {
-              const hasError = errors[idx] && errors[idx].length > 0;
-              const msg = getValidationMessage("transfers", idx);
-              return (
-                <tr key={idx}>
-                  <td style={S.cellIndex}>{idx + 1}{msg}</td>
-                  {columns.map(col => (
-                    <td key={col}>
-                      {col === "currency" ? (
-                        <select value={item[col] || "GBP"} onChange={e => updateData("transfers", idx, col, e.target.value)} style={S.cellSelect}>
-                          <option value="GBP">GBP</option><option value="EUR">EUR</option><option value="USD">USD</option><option value="CAD">CAD</option><option value="CHF">CHF</option>
-                        </select>
-                      ) : col.includes("price") ? (
-                        <input type="number" value={item[col] || ""} onChange={e => updateData("transfers", idx, col, e.target.value)} style={getCellStyle("transfers", idx, hasError)} />
-                      ) : (
-                        <input value={item[col] || ""} onChange={e => updateData("transfers", idx, col, e.target.value)} style={getCellStyle("transfers", idx, hasError)} />
-                      )}
-                    </td>
-                  ))}
-                  <td><button onClick={() => deleteRow("transfers", idx)} style={S.deleteBtn}>🗑️</button></td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  function renderTabContent() {
-    switch (activeTab) {
-      case "courses": return renderCoursesTable();
-      case "accommodation": return renderAccommodationTable();
-      case "fees": return renderFeesTable();
-      case "transfers": return renderTransfersTable();
-      default: return null;
-    }
-  }
-
-  // -------------------- RENDER --------------------
-  if (step === STEPS.UPLOAD) {
     return (
       <div style={S.root}>
-        <div style={S.bgGrid} />
-        <header style={S.header}>
-          <div style={S.headerInner}>
-            <button onClick={() => navigate("/dashboard")} style={S.backBtn}>← Dashboard</button>
-            <span style={S.headerTitle}>Katalog Parse</span>
-            <div style={S.userChip}>{user?.name}</div>
-          </div>
-        </header>
-        <main style={S.main}>
-          <div style={S.uploadCard}>
-            <div style={S.uploadIcon}>📄</div>
-            <h2 style={S.uploadTitle}>PDF Katalog Yükle</h2>
-            <p style={S.uploadSub}>Dil okuluna ait katalog PDF'sini yükleyin</p>
-            <div ref={dropRef} onDragOver={e => { e.preventDefault(); setIsDragOver(true); }} onDragLeave={() => setIsDragOver(false)} onDrop={handleDrop} style={{ ...S.dropZone, borderColor: isDragOver ? "#2563eb" : "#e2e8f0", background: isDragOver ? "#eff6ff" : "#f8fafc" }}>
-              <input type="file" accept="application/pdf" onChange={handleFileSelect} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", zIndex: 10 }} />
-              {selectedFile ? (
-                <div style={{ textAlign: "center" }}><span style={{ fontSize: 32 }}>📄</span><p style={{ fontWeight: 600, marginTop: 8 }}>{selectedFile.name}</p><p style={{ fontSize: 12, color: "#64748b" }}>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p></div>
-              ) : (
-                <div style={{ textAlign: "center" }}><span style={{ fontSize: 48 }}>📁</span><p style={{ fontWeight: 500, marginTop: 8 }}>PDF sürükle veya tıkla seç</p><p style={{ fontSize: 12, color: "#94a3b8" }}>Maks. 50MB</p></div>
-              )}
+        <div style={S.bgGrid}/>
+        <Header title={`${selectedBrand} — Parse Sonucu`} user={user} onBack={() => setStep(STEPS.SCHOOL_CONFIRM)}/>
+        <main style={{...S.main, maxWidth:700}}>
+
+          {/* Diff özeti */}
+          <div style={S.sectionCard}>
+            <h3 style={S.sectionTitle}>📊 Veri Karşılaştırması</h3>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
+              {tabs.map(tab => {
+                const d = diffSummary?.[tab];
+                if (!d) return null;
+                const delta = d.delta;
+                return (
+                  <div key={tab} style={S.diffCard}>
+                    <div style={{fontSize:12,color:"#64748b",textTransform:"capitalize"}}>{tab}</div>
+                    <div style={{fontSize:22,fontWeight:700,color:"#0f172a"}}>{d.after}</div>
+                    <div style={{fontSize:11, color: delta>0?"#059669":delta<0?"#dc2626":"#94a3b8"}}>
+                      {delta>0?`+${delta}`:delta===0?"değişmedi":delta} satır
+                    </div>
+                    <div style={{fontSize:10,color:"#cbd5e1"}}>Önce: {d.before}</div>
+                  </div>
+                );
+              })}
             </div>
-            {error && <div style={S.errorBox}>{error}</div>}
-            <button onClick={analyzeSchool} disabled={!selectedFile || loading} style={{ ...S.primaryBtn, opacity: (!selectedFile || loading) ? 0.5 : 1 }}>{loading ? "Analiz ediliyor..." : "📊 PDF'i Analiz Et"}</button>
           </div>
-        </main>
-      </div>
-    );
-  }
 
-  if (step === STEPS.SCHOOL_SELECT) {
-    return (
-      <div style={S.root}>
-        <div style={S.bgGrid} />
-        <header style={S.header}>
-          <div style={S.headerInner}>
-            <button onClick={() => setStep(STEPS.UPLOAD)} style={S.backBtn}>← Geri</button>
-            <span style={S.headerTitle}>Okul Seçimi</span>
-            <div style={S.userChip}>{user?.name}</div>
-          </div>
-        </header>
-        <main style={S.main}>
-          <div style={S.selectCard}>
-            <div style={{ textAlign: "center", marginBottom: 24 }}><span style={{ fontSize: 48 }}>🎯</span><h2 style={S.uploadTitle}>Okul Seçin</h2><p style={S.uploadSub}>PDF analiz edildi, okul seçin ve şehri belirleyin.</p></div>
-            <div style={S.brandList}>
-              {detectedBrands.map(brand => (
-                <div key={brand} onClick={() => setSelectedBrand(brand)} style={{ ...S.brandCard, borderColor: selectedBrand === brand ? "#2563eb" : "#e2e8f0", background: selectedBrand === brand ? "#eff6ff" : "#fff" }}>
-                  <span style={{ fontSize: 24 }}>{brand === "EC" ? "🇬🇧" : brand === "Kaplan" ? "🇺🇸" : "🏫"}</span>
-                  <div><div style={{ fontWeight: 700 }}>{brand}</div><div style={{ fontSize: 11, color: "#64748b" }}>{brand === "EC" ? "25+ şehir" : brand === "Kaplan" ? "50+ şehir" : ""}</div></div>
-                  {selectedBrand === brand && <span style={{ color: "#2563eb", marginLeft: "auto" }}>✓</span>}
+          {/* Bilinmeyen sütun uyarısı */}
+          {hasUnknown && (
+            <div style={S.sectionCard}>
+              <h3 style={S.sectionTitle}>⚠️ Tanımlanmayan Sütunlar</h3>
+              <p style={{fontSize:13,color:"#64748b",marginBottom:16}}>
+                Gemini aşağıdaki sütunları çıkardı ancak bunlar sheet'te yok. Ne yapılsın?
+              </p>
+              {Object.keys(unknownCols).map(tab => (
+                <div key={tab} style={{marginBottom:16}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"#475569",textTransform:"capitalize",marginBottom:8}}>{tab}</div>
+                  {unknownCols[tab].map(({col, count}) => (
+                    <div key={col} style={{display:"flex",alignItems:"center",gap:12,padding:"8px 12px",background:"#f8fafc",borderRadius:8,marginBottom:6}}>
+                      <span style={{flex:1,fontSize:13,fontWeight:600,color:"#0f172a"}}>{col}</span>
+                      <span style={{fontSize:11,color:"#94a3b8"}}>{count} satırda dolu</span>
+                      <button
+                        onClick={() => setUnknownColDecisions(p=>({...p,[tab]:{...p[tab],[col]:"add"}}))}
+                        style={{...S.miniBtn, background: unknownColDecisions[tab]?.[col]==="add"?"#059669":"#f1f5f9", color: unknownColDecisions[tab]?.[col]==="add"?"#fff":"#475569"}}>
+                        Sheet'e Ekle
+                      </button>
+                      <button
+                        onClick={() => setUnknownColDecisions(p=>({...p,[tab]:{...p[tab],[col]:"ignore"}}))}
+                        style={{...S.miniBtn, background: unknownColDecisions[tab]?.[col]==="ignore"?"#dc2626":"#f1f5f9", color: unknownColDecisions[tab]?.[col]==="ignore"?"#fff":"#475569"}}>
+                        Yoksay
+                      </button>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 24 }}><label style={S.label}>Şehir Seç</label><select value={selectedCity} onChange={e => setSelectedCity(e.target.value)} style={S.select}><option value="">Şehir seçin</option>{cities.map(city => <option key={city} value={city}>{city}</option>)}</select></div>
-            <button onClick={startParsing} disabled={!selectedBrand || !selectedCity} style={{ ...S.primaryBtn, marginTop: 24 }}>Parse Et →</button>
+          )}
+
+          {saveError && <div style={S.errorBox}>{saveError}</div>}
+
+          <div style={{display:"flex",gap:12,marginTop:8}}>
+            <button onClick={resetAll} style={S.secondaryBtn}>← Yeni Parse</button>
+            <button onClick={saveDraft} disabled={!allDecided}
+              style={{...S.primaryBtn, flex:1, opacity:!allDecided?0.5:1}}>
+              {allDecided ? "📤 Taslak Olarak Kaydet" : "⚠️ Sütun kararlarını verin"}
+            </button>
           </div>
         </main>
+        <Style/>
       </div>
     );
   }
 
-  if (step === STEPS.PARSING) {
+  // SAVING
+  if (step === STEPS.SAVING) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Kaydediliyor..." user={user}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={S.spinner}/>
+          <h3 style={{fontSize:16,fontWeight:600,color:"#0f172a"}}>{progressMsg || "İşlem yapılıyor..."}</h3>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // REVIEW (Drive'da kontrol)
+  if (step === STEPS.REVIEW) {
+    const sheetUrl = SHEET_URLS[selectedBrand];
     return (
       <div style={S.root}>
-        <div style={S.bgGrid} />
-        <header style={S.header}><div style={S.headerInner}><span style={S.headerTitle}>PDF Parse Ediliyor</span><div style={S.userChip}>{user?.name}</div></div></header>
-        <main style={S.main}>
-          <div style={S.parsingCard}>
-            <div style={S.spinner} />
-            <h3>{parsingStatus}</h3>
-            <div style={S.progressBar}><div style={{ ...S.progressFill, width: `${parsingProgress}%` }} /></div>
-            <p style={{ fontSize: 12, color: "#94a3b8" }}>{Math.floor(parsingProgress)}% tamamlandı...</p>
-          </div>
-        </main>
-      </div>
-    );
-  }
+        <div style={S.bgGrid}/>
+        <Header title="Drive'da Kontrol" user={user}/>
+        <main style={{...S.main, maxWidth:700}}>
 
-  if (step === STEPS.PREVIEW) {
-    const totalCourses = editableData.courses?.length || 0;
-    const totalAcc = editableData.accommodation?.length || 0;
-    const totalFees = editableData.fees?.length || 0;
-    const totalTransfers = editableData.transfers?.length || 0;
-    const hasErrors = hasAnyValidationError();
+          <div style={S.sectionCard}>
+            <div style={{fontSize:48,marginBottom:12}}>🔍</div>
+            <h2 style={S.cardTitle}>Taslak Kaydedildi</h2>
+            <p style={{fontSize:14,color:"#64748b",lineHeight:1.7,marginBottom:24}}>
+              Parse verileri <strong>{selectedBrand}</strong> sheet'inde <strong>sarı renkli taslak sekmelere</strong> yazıldı.
+              Orijinal veriler dokunulmadan korunuyor.
+            </p>
 
-    return (
-      <div style={S.root}>
-        <div style={S.bgGrid} />
-        <header style={S.header}>
-          <div style={S.headerInner}>
-            <button onClick={() => setStep(STEPS.SCHOOL_SELECT)} style={S.backBtn}>← Geri</button>
-            <span style={S.headerTitle}>{selectedBrand} - {selectedCity}<span style={{ fontSize: 11, marginLeft: 8, color: "#94a3b8" }}>Parse Sonucu</span></span>
-            <div style={{ display: "flex", gap: 12 }}>
-              <button onClick={() => addRow(activeTab)} style={S.addRowBtn}>+ Satır Ekle</button>
-              <button onClick={saveToSheet} disabled={hasErrors} style={{ ...S.saveBtn, opacity: hasErrors ? 0.5 : 1, cursor: hasErrors ? "not-allowed" : "pointer" }}>
-                {hasErrors ? "⚠️ Hataları Düzeltin" : "✓ Sheets'e Kaydet"}
+            {backupInfo && (
+              <div style={{padding:"10px 14px",background:"#ecfdf5",border:"1px solid #a7f3d0",borderRadius:10,fontSize:12,color:"#065f46",marginBottom:20}}>
+                ✅ Backup alındı: <strong>{backupInfo.backupFileName}</strong>
+              </div>
+            )}
+
+            <div style={{display:"flex",gap:12,marginBottom:24,flexWrap:"wrap"}}>
+              <a href={sheetUrl} target="_blank" rel="noreferrer" style={S.linkBtn}>
+                📊 Sheet'i Aç (Taslak Sekmeler)
+              </a>
+              {selectedFile && (
+                <button onClick={() => {
+                  const url = URL.createObjectURL(selectedFile);
+                  window.open(url, "_blank");
+                }} style={S.linkBtn}>
+                  📄 Orijinal PDF'i Görüntüle
+                </button>
+              )}
+            </div>
+
+            <div style={{padding:"12px 16px",background:"#fef9ec",border:"1px solid #fde68a",borderRadius:10,fontSize:13,color:"#92400e",marginBottom:24,lineHeight:1.6}}>
+              ⚠️ Sheet'te <strong>sarı sekmeler</strong> taslak veridir. PDF ile karşılaştırarak kontrol edin.
+              Onaylarsanız canlıya alın, yanlışsa reddedin.
+            </div>
+
+            {saveError && <div style={S.errorBox}>{saveError}</div>}
+
+            <div style={{display:"flex",gap:12}}>
+              <button onClick={discardDraft} style={{...S.secondaryBtn, borderColor:"#fecaca", color:"#dc2626"}}>
+                ✕ Reddet & Sil
               </button>
-              <div style={S.userChip}>{user?.name}</div>
+              <button onClick={publishDraft} style={{...S.primaryBtn, flex:1, background:"#059669"}}>
+                ✓ Onayla & Canlıya Al
+              </button>
             </div>
           </div>
-        </header>
-        <main style={S.previewMain}>
-          {restoreMessage && <div style={S.restoreBanner}>↺ {restoreMessage}</div>}
-          <div style={S.statsBar}>
-            <div style={S.stat}><span style={S.statNum}>{totalCourses}</span><span>Kurs</span></div>
-            <div style={S.stat}><span style={S.statNum}>{totalAcc}</span><span>Konaklama</span></div>
-            <div style={S.stat}><span style={S.statNum}>{totalFees}</span><span>Ek Ücret</span></div>
-            <div style={S.stat}><span style={S.statNum}>{totalTransfers}</span><span>Transfer</span></div>
-          </div>
-          {hasErrors && <div style={S.errorBanner}>⚠️ Kırmızı işaretli alanlarda hata var. Lütfen düzeltin.</div>}
-          <div style={S.tabBar}>{TABS.map(tab => (<button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{ ...S.tabBtn, borderBottom: activeTab === tab.id ? "2px solid #2563eb" : "none", color: activeTab === tab.id ? "#2563eb" : "#64748b" }}>{tab.label}</button>))}</div>
-          <div style={S.tableCard}>{renderTabContent()}</div>
-          <div style={S.warningBox}>⚠️ Verileri kontrol edin. Kırmızı alanlar düzeltilmeden kayıt yapılamaz.</div>
         </main>
+        <Style/>
       </div>
     );
   }
 
-  if (step === STEPS.SAVING) {
-    return (
-      <div style={S.root}>
-        <div style={S.bgGrid} />
-        <header style={S.header}><div style={S.headerInner}><span style={S.headerTitle}>Kaydediliyor...</span></div></header>
-        <main style={S.main}>
-          <div style={S.parsingCard}>
-            <div style={S.spinner} />
-            <h3>{parsingStatus || "Sheets'e kaydediliyor..."}</h3>
-            <p style={{ fontSize: 12, color: "#94a3b8" }}>Lütfen bekleyin...</p>
+  // DONE
+  if (step === STEPS.DONE) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="İşlem Tamamlandı" user={user}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={{fontSize:64,marginBottom:16}}>✅</div>
+          <h2 style={S.cardTitle}>Başarıyla Yayınlandı!</h2>
+          <p style={S.cardSub}><strong>{selectedBrand}</strong> fiyat verileri güncellendi.</p>
+          {backupInfo && (
+            <p style={{fontSize:12,color:"#94a3b8",marginTop:8}}>
+              Backup: {backupInfo.backupFileName} — Drive'da manuel silebilirsiniz.
+            </p>
+          )}
+          <div style={{display:"flex",gap:12,marginTop:24}}>
+            <button onClick={resetAll} style={S.secondaryBtn}>Yeni Parse</button>
+            <button onClick={() => navigate("/fiyat-teklifi")} style={{...S.primaryBtn,flex:1}}>
+              Fiyat Teklifi'ne Git →
+            </button>
           </div>
-        </main>
-      </div>
-    );
-  }
-
-  if (step === STEPS.DONE) {
-    return (
-      <div style={S.root}>
-        <div style={S.bgGrid} />
-        <header style={S.header}><div style={S.headerInner}><span style={S.headerTitle}>İşlem Tamamlandı</span><div style={S.userChip}>{user?.name}</div></div></header>
-        <main style={S.main}>
-          <div style={S.successCard}>
-            <div style={S.successIcon}>✅</div>
-            <h2 style={S.uploadTitle}>Başarıyla Kaydedildi!</h2>
-            <p style={S.uploadSub}>{selectedBrand} - {selectedCity} için veriler güncellendi.</p>
-            <div style={{ display: "flex", gap: 16, marginTop: 24 }}>
-              <button onClick={() => { setStep(STEPS.UPLOAD); setSelectedFile(null); setSelectedBrand(""); setSelectedCity(""); setEditableData(EMPTY_DATA); setValidationErrors({}); setRestoreMessage(null); }} style={S.secondaryBtn}>Yeni Parse</button>
-              <button onClick={() => navigate("/fiyat-teklifi")} style={S.primaryBtn}>Fiyat Teklifi'ne Git →</button>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
 
   return null;
 }
 
-// -------------------- STYLES --------------------
-const S = {
-  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative" },
-  bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
-  header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "1400px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer" },
-  headerTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a" },
-  userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151", background: "#f1f5f9", padding: "6px 12px", borderRadius: "20px" },
-  main: { maxWidth: "800px", margin: "0 auto", padding: "48px 24px", position: "relative", zIndex: 1 },
-  previewMain: { maxWidth: "1400px", margin: "0 auto", padding: "32px 24px", position: "relative", zIndex: 1 },
-  uploadCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px 32px", textAlign: "center", animation: "fadeUp 0.4s ease-out" },
-  uploadIcon: { width: "80px", height: "80px", background: "#eff6ff", borderRadius: "40px", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: "40px" },
-  uploadTitle: { fontSize: "24px", fontWeight: "700", marginBottom: "8px" },
-  uploadSub: { fontSize: "14px", color: "#64748b", marginBottom: "24px" },
-  dropZone: { position: "relative", border: "2px dashed", borderRadius: "16px", padding: "48px 24px", cursor: "pointer", transition: "all 0.2s", marginBottom: "24px", minHeight: "200px", display: "flex", alignItems: "center", justifyContent: "center" },
-  selectCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "32px", maxWidth: "500px", margin: "0 auto" },
-  brandList: { display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" },
-  brandCard: { display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", border: "1.5px solid", borderRadius: "12px", cursor: "pointer", transition: "all 0.2s" },
-  label: { fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "6px" },
-  select: { width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", background: "#fff" },
-  parsingCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px", textAlign: "center", maxWidth: "500px", margin: "0 auto" },
-  spinner: { width: "48px", height: "48px", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" },
-  progressBar: { width: "100%", height: "8px", background: "#e2e8f0", borderRadius: "4px", marginTop: "16px", overflow: "hidden" },
-  progressFill: { height: "100%", background: "#2563eb", borderRadius: "4px", transition: "width 0.3s ease" },
-  statsBar: { display: "flex", gap: "12px", marginBottom: "24px" },
-  stat: { flex: 1, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "16px", textAlign: "center" },
-  statNum: { fontSize: "28px", fontWeight: "700", display: "block" },
-  tabBar: { display: "flex", gap: "4px", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0", padding: "0 8px" },
-  tabBtn: { padding: "12px 20px", border: "none", background: "none", cursor: "pointer", fontSize: "13px", fontWeight: "600" },
-  tableCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "0 0 12px 12px", padding: "20px", overflowX: "auto" },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: "12px" },
-  cellIndex: { padding: "6px 8px", textAlign: "center", fontWeight: "600", color: "#64748b", width: "40px" },
-  cellInput: { width: "100%", padding: "6px 8px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px" },
-  cellSelect: { padding: "6px 4px", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", background: "#fff" },
-  deleteBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "16px", padding: "4px 8px", borderRadius: "6px" },
-  emptyTable: { textAlign: "center", padding: "48px", color: "#94a3b8" },
-  warningBox: { marginTop: "20px", padding: "12px 16px", background: "#fef9ec", border: "1px solid #fde68a", borderRadius: "12px", fontSize: "12px", color: "#92400e" },
-  errorBanner: { marginBottom: "16px", padding: "12px 16px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "12px", fontSize: "13px", color: "#dc2626", fontWeight: "500" },
-  restoreBanner: { marginBottom: "16px", padding: "12px 16px", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "12px", fontSize: "13px", color: "#059669", fontWeight: "500" },
-  successCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "24px", padding: "48px 32px", textAlign: "center", maxWidth: "500px", margin: "0 auto" },
-  successIcon: { fontSize: "64px", marginBottom: "16px" },
-  primaryBtn: { width: "100%", padding: "14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer" },
-  secondaryBtn: { padding: "12px 24px", background: "#fff", color: "#2563eb", border: "1.5px solid #2563eb", borderRadius: "12px", fontSize: "14px", fontWeight: "600", cursor: "pointer" },
-  saveBtn: { padding: "8px 20px", background: "#059669", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer" },
-  addRowBtn: { padding: "8px 16px", background: "#fff", color: "#2563eb", border: "1.5px solid #2563eb", borderRadius: "8px", fontSize: "12px", fontWeight: "600", cursor: "pointer" },
-  errorBox: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "12px 16px", fontSize: "13px", color: "#dc2626", marginBottom: "20px" },
-  errorTooltip: { fontSize: "10px", color: "#dc2626", display: "block", marginTop: "2px" },
-};
+// ─── ALT COMPONENT: Header ────────────────────────────────
+function Header({ title, user, onBack }) {
+  return (
+    <header style={S.header}>
+      <div style={S.headerInner}>
+        {onBack
+          ? <button onClick={onBack} style={S.backBtn}>← Geri</button>
+          : <div/>
+        }
+        <span style={S.headerTitle}>{title}</span>
+        <div style={S.userChip}>{user?.name}</div>
+      </div>
+    </header>
+  );
+}
 
-// Global keyframes
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } } @keyframes spin { to { transform: rotate(360deg); } }`;
-document.head.appendChild(styleSheet);
+// ─── STYLES ───────────────────────────────────────────────
+function Style() {
+  return (
+    <style>{`
+      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    `}</style>
+  );
+}
+
+const S = {
+  root:        { minHeight:"100vh", background:"#f8fafc", fontFamily:"'Sora',sans-serif", position:"relative" },
+  bgGrid:      { position:"fixed", inset:0, backgroundImage:"linear-gradient(#e2e8f018 1px,transparent 1px),linear-gradient(90deg,#e2e8f018 1px,transparent 1px)", backgroundSize:"40px 40px", zIndex:0 },
+  header:      { position:"sticky", top:0, background:"rgba(255,255,255,0.9)", backdropFilter:"blur(12px)", borderBottom:"1px solid #e2e8f0", zIndex:10 },
+  headerInner: { maxWidth:800, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" },
+  backBtn:     { background:"none", border:"none", color:"#2563eb", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"'Sora',sans-serif" },
+  headerTitle: { fontSize:16, fontWeight:700, color:"#0f172a" },
+  userChip:    { fontSize:13, fontWeight:500, color:"#374151", background:"#f1f5f9", padding:"6px 12px", borderRadius:20 },
+  main:        { maxWidth:560, margin:"0 auto", padding:"48px 24px 64px", position:"relative", zIndex:1 },
+  card:        { background:"#fff", border:"1.5px solid #e2e8f0", borderRadius:24, padding:"40px 32px", textAlign:"center", animation:"fadeUp 0.4s ease-out" },
+  sectionCard: { background:"#fff", border:"1.5px solid #e2e8f0", borderRadius:20, padding:"24px", marginBottom:16, animation:"fadeUp 0.4s ease-out" },
+  sectionTitle:{ fontSize:15, fontWeight:700, color:"#0f172a", marginBottom:16 },
+  bigIcon:     { fontSize:56, marginBottom:16 },
+  cardTitle:   { fontSize:22, fontWeight:700, color:"#0f172a", marginBottom:8 },
+  cardSub:     { fontSize:14, color:"#64748b", marginBottom:24, lineHeight:1.6 },
+  dropZone:    { position:"relative", border:"2px dashed", borderRadius:16, padding:"40px 24px", cursor:"pointer", transition:"all 0.2s", marginBottom:20, minHeight:160, display:"flex", alignItems:"center", justifyContent:"center" },
+  brandCard:   { display:"flex", alignItems:"center", gap:12, padding:"12px 16px", border:"1.5px solid", borderRadius:12, cursor:"pointer", transition:"all 0.2s", textAlign:"left" },
+  diffCard:    { background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:12, padding:"14px", textAlign:"center" },
+  miniBtn:     { padding:"5px 12px", borderRadius:8, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, fontFamily:"'Sora',sans-serif", transition:"all 0.15s" },
+  spinner:     { width:48, height:48, border:"3px solid #e2e8f0", borderTopColor:"#2563eb", borderRadius:"50%", animation:"spin 0.8s linear infinite", margin:"0 auto 20px" },
+  progressBar: { width:"100%", height:8, background:"#e2e8f0", borderRadius:4, marginTop:12, overflow:"hidden" },
+  progressFill:{ height:"100%", background:"#2563eb", borderRadius:4, transition:"width 0.3s ease" },
+  primaryBtn:  { display:"block", width:"100%", padding:"14px", background:"#2563eb", color:"#fff", border:"none", borderRadius:12, fontSize:15, fontWeight:600, cursor:"pointer", fontFamily:"'Sora',sans-serif", marginTop:8 },
+  secondaryBtn:{ padding:"12px 20px", background:"#fff", color:"#2563eb", border:"1.5px solid #2563eb", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'Sora',sans-serif" },
+  linkBtn:     { display:"inline-flex", alignItems:"center", gap:8, padding:"10px 18px", background:"#f1f5f9", color:"#0f172a", border:"1px solid #e2e8f0", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", textDecoration:"none", fontFamily:"'Sora',sans-serif" },
+  errorBox:    { background:"#fef2f2", border:"1px solid #fecaca", borderRadius:10, padding:"12px 16px", fontSize:13, color:"#dc2626", marginBottom:16, textAlign:"left" },
+};
