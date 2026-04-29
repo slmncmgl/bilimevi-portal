@@ -22,7 +22,7 @@ const DROPDOWN_OPTIONS = {
   ],
 };
 
-const READONLY_FIELDS = ["Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi", "Danışman Adı", "Şirket Adı", "Sözleşme Türü", "Toplam Program Ücreti"];
+const READONLY_FIELDS = ["TC Kimlik No", "Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi", "Danışman Adı", "Şirket Adı", "Sözleşme Türü", "Toplam Program Ücreti"];
 
 const HIDDEN_FIELDS = [
   "row_number", "Sözleşme Onay Linki", "Öğrenci Takip URL", "Öğrenci Sheet Linki",
