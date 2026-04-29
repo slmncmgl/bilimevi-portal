@@ -247,6 +247,7 @@ export default function KayitGuncelle() {
       const fields = [
         { label: "Öğrenci Kayıt Formu Otomatik Gönderilsin Mi?", value: "evet" },
         { label: "Sözleşme İmza Tarihi", value: new Date().toISOString().split("T")[0] },
+        { label: "Yeni TC Kimlik No", value: data["TC Kimlik No"] },
         ...Object.entries(data)
           .filter(([k]) => !HIDDEN_FIELDS.includes(k) && k !== "row_number")
           .map(([label, value]) => ({ label: LABEL_MAP[label] || label, value: value ?? "" })),
