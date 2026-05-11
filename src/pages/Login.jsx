@@ -6,15 +6,18 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "931368494993-gahav7f
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "https://bilimevi-portal.vercel.app/auth/callback";
 
 function handleGoogleLogin() {
-  const params = new URLSearchParams({
+  const params = new URLSearchParams(window.location.search);
+  const redirect = params.get("redirect");
+  const oauthParams = new URLSearchParams({
     client_id: CLIENT_ID,
     redirect_uri: REDIRECT_URI,
     response_type: "code",
     scope: "openid email profile",
     access_type: "offline",
     prompt: "select_account",
+    ...(redirect ? { state: encodeURIComponent(redirect) } : {}),
   });
-  window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${oauthParams}`;
 }
 
 export default function Login() {
@@ -31,7 +34,12 @@ export default function Login() {
   const [sifreMesaj, setSifreMesaj] = useState(null); // { type, msg }
 
   useEffect(() => {
-    if (getSession()) { navigate("/dashboard"); return; }
+    const params = new URLSearchParams(window.location.search);
+    const redirect = params.get("redirect");
+    if (getSession()) {
+      navigate(redirect ? decodeURIComponent(redirect) : "/dashboard");
+      return;
+    }
     const saved = localStorage.getItem("bilimevi_remember");
     if (saved) {
       try {
@@ -74,7 +82,9 @@ export default function Login() {
           localStorage.removeItem("bilimevi_remember");
         }
         saveSession(res.user);
-        navigate("/dashboard");
+        const params = new URLSearchParams(window.location.search);
+        const redirect = params.get("redirect");
+        navigate(redirect ? decodeURIComponent(redirect) : "/dashboard");
       } else {
         setError(res.msg);
       }
