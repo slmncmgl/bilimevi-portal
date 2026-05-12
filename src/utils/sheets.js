@@ -22,7 +22,7 @@ function parseCSV(csv) {
 }
 
 export async function loginWithCredentials(username, password) {
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhEpYKU6xGlzyr-JNocqhVsaxKkZHTTRYoC5siYB0lOhesTzX3vI-ab50qWdLnLDwM/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbzsiBnvqIft2biBdZh9OfjiqMtgr8Nq4Ss5V3ZgRlVk9-nqNseq7Ecdf2oc3nERY8/exec";
 
   // Apps Script üzerinden login — gviz CSV sıralama sorununu aşmak için
   const res = await fetch(SCRIPT_URL, {
