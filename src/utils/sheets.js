@@ -1,30 +1,5 @@
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=`;
-// 1. Spreadsheet ID'yi sabitlere ekle
-const EXAM_RESULTS_SHEET_ID = '1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY';
-
-// 2. Sınav sonuçlarını getiren fonksiyonu ekle
-export const getExamResults = async (accessToken) => {
-  try {
-    // "Cevaplar" sekmesindeki tüm verileri çekiyoruz (A'dan Z'ye)
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${EXAM_RESULTS_SHEET_ID}/values/Cevaplar!A:Z`;
-    
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-
-    if (!response.ok) throw new Error('Sheet verisi çekilemedi');
-    
-    const data = await response.json();
-    return data.values; // Bu bize satır satır dizi dönecek [['Zaman damgası', 'Danışman', 'Puan', ...], [...]]
-  } catch (error) {
-    console.error('getExamResults hatası:', error);
-    return null;
-  }
-};
-
 
 async function fetchSheet(sheetName) {
   const res = await fetch(`${BASE_URL}${encodeURIComponent(sheetName)}`);
@@ -47,7 +22,7 @@ function parseCSV(csv) {
 }
 
 export async function loginWithCredentials(username, password) {
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwl7PcvG3pt6RFtoixFu7kBkY3UBWWPhDZgZslsF87Wz_U8x3EqVZ7d9TthTmcIoStF/exec";
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyhEpYKU6xGlzyr-JNocqhVsaxKkZHTTRYoC5siYB0lOhesTzX3vI-ab50qWdLnLDwM/exec";
 
   // Apps Script üzerinden login — gviz CSV sıralama sorununu aşmak için
   const res = await fetch(SCRIPT_URL, {
@@ -58,7 +33,7 @@ export async function loginWithCredentials(username, password) {
 
   if (!json.success) return { success: false, msg: json.msg || "Hatalı kullanıcı adı veya şifre." };
 
-  // Personel ve modül bilgilerini gviz'den çek
+  // Personel ve modøl bilgilerini gviz'den çek
   const personel = await fetchSheet("Personel");
   const moduller = await fetchSheet("Modüller");
 
@@ -80,10 +55,6 @@ export async function loginWithCredentials(username, password) {
     bulten:    modulRow?.["Bülten Düzenleyici"]?.toLowerCase() === "evet",
     stm:       modulRow?.["STM"]?.toLowerCase() === "evet",
     sozlesme:  modulRow?.["Sözleşme"]?.toLowerCase() === "evet",
-    kayitguncelle: modulRow?.["Kayıt Güncelle"]?.toLowerCase() === "evet",
-    fiyatteklifi:  modulRow?.["Fiyat Teklifi"]?.toLowerCase() === "evet",
-    katalogparse:  modulRow?.["Katalog Parse"]?.toLowerCase() === "evet",
-    performansanalizi: modulRow?.["Performans Analizi"]?.toLowerCase() === "evet",
   };
 
   return {
@@ -92,7 +63,7 @@ export async function loginWithCredentials(username, password) {
       name:    user["Ad Soyad"],
       email:   user["E-posta"],
       company: user["Şirket"],
-      branch:  user["Şube"],
+      branch:  user["şube"],
       title:   (user["Title"] || "staff").toLowerCase(),
       rol:     (user["Title"] || "staff").toLowerCase(),
       modules,
