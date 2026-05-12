@@ -50,13 +50,21 @@ export default function InstagramDM() {
     fetchGeminiKey();
   }, []);
 
-  async function fetchGeminiKey() {
-    try {
-      const res = await fetch(`${SCRIPT_URL}?action=getApiKey`);
-      const data = await res.json();
-      setGeminiKey(data.key || "");
-    } catch (_) {}
+async function fetchGeminiKey() {
+  try {
+    const res = await fetch('https://docs.google.com/spreadsheets/d/1Fp2lZpA4N0U1Go1T2F2TCLGiV0t_0eq6K-Kqzv8bcxM/export?format=csv');
+    //                       ^^^^^^^^^^^ Direkt Google Sheets CSV
+    const text = await res.text(); // CSV text gelir: "key1\nkey2\n..."
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+    
+    if (lines.length > 0) {
+      setGeminiKey(lines[0]); // İlk satırdaki key'i al
+      console.log(`✅ Sheets'ten ${lines.length} adet key yüklendi`);
+    }
+  } catch (err) {
+    console.error('Sheets hatası:', err);
   }
+}
 
   // ── Görsel işleme ──────────────────────────────────────────────
   function handleFiles(newFiles) {
