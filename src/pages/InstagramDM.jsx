@@ -52,17 +52,23 @@ export default function InstagramDM() {
 
 async function fetchGeminiKey() {
   try {
-    const res = await fetch('https://docs.google.com/spreadsheets/d/1Fp2lZpA4N0U1Go1T2F2TCLGiV0t_0eq6K-Kqzv8bcxM/export?format=csv');
-    //                       ^^^^^^^^^^^ Direkt Google Sheets CSV
-    const text = await res.text(); // CSV text gelir: "key1\nkey2\n..."
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+    // YENİ SHEET ID (API sayfası):
+    const res = await fetch('https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=API');
+    const text = await res.text();
+    
+    // CSV parse et:
+    const lines = text.split('\n')
+      .map(line => line.replace(/"/g, '').trim())
+      .filter(line => line && line.startsWith('AIza'));
     
     if (lines.length > 0) {
-      setGeminiKey(lines[0]); // İlk satırdaki key'i al
+      setGeminiKey(lines[0]); // İlk key'i al
       console.log(`✅ Sheets'ten ${lines.length} adet key yüklendi`);
+    } else {
+      console.error('❌ Sheet\'te key bulunamadı');
     }
   } catch (err) {
-    console.error('Sheets hatası:', err);
+    console.error('❌ Sheets hatası:', err);
   }
 }
 
