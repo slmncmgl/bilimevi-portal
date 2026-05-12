@@ -86,6 +86,10 @@ export default function AuthCallback() {
             bulten:    moduller?.["Bülten Düzenleyici"]?.toLowerCase() === "evet",
             stm:       moduller?.["STM"]?.toLowerCase() === "evet",
             sozlesme:  moduller?.["Sözleşme"]?.toLowerCase() === "evet",
+            kayitguncelle: moduller?.["Kayıt Güncelle"]?.toLowerCase() === "evet",
+            fiyatteklifi:  moduller?.["Fiyat Teklifi"]?.toLowerCase() === "evet",
+            katalogparse:  moduller?.["Katalog Parse"]?.toLowerCase() === "evet",
+            performansanalizi: moduller?.["Performans Analizi"]?.toLowerCase() === "evet",
           },
         };
         saveSession(user);
