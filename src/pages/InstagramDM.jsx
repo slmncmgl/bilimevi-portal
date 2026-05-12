@@ -160,25 +160,28 @@ Müşteri bilgisi bulunamazsa ilgili alanı boş bırak. Asla uydurma.`
 
   // ── Pipeline & danışman ────────────────────────────────────────
   async function selectPipeline(key) {
-    setPipeline(key);
-    setSelectedOwner("");
-    setCrmDone(false);
-    setOwners([]);
-    setOwnersLoading(true);
-    try {
-      const cfg = PIPELINE_CONFIG[key];
-      const res = await fetch(`https://api.kylas.io/v1/pipelines/${cfg.id}/users`, {
-        headers: { "api-key": KYLAS_API_KEY, "Content-Type": "application/json" }
-      });
-      const data = await res.json();
-      const list = (data.data || data || []).map(u => ({ id: u.id, name: u.name || u.firstName + " " + (u.lastName || "") }));
-      setOwners(list);
-    } catch (err) {
-      console.error(err);
-    }
-    setOwnersLoading(false);
+  setPipeline(key);
+  setSelectedOwner("");
+  setCrmDone(false);
+  setOwners([]);
+  setOwnersLoading(true);
+  try {
+    const cfg = PIPELINE_CONFIG[key];
+    const res = await fetch(`https://api.kylas.io/v1/users?pipelineId=${cfg.id}`, {
+      headers: { "api-key": KYLAS_API_KEY, "Content-Type": "application/json" }
+    });
+    const data = await res.json();
+    const list = (data.content || []).map(u => ({ 
+      id: u.id, 
+      name: u.name || u.firstName + " " + (u.lastName || "") 
+    }));
+    setOwners(list);
+    console.log(`✅ ${list.length} danışman yüklendi`);
+  } catch (err) {
+    console.error('❌ Danışman yükleme hatası:', err);
   }
-
+  setOwnersLoading(false);
+}
   // ── CRM Gönder ─────────────────────────────────────────────────
   async function sendToCRM() {
     if (!pipeline) { setStatus({ type: "error", msg: "Lütfen pipeline seçin" }); return; }
