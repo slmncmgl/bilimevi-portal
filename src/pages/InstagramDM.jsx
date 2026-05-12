@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets"; 
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwbzsiBnvqIft2biBdZh9OfjiqMtgr8Nq4Ss5V3ZgRlVk9-nqNseq7Ecdf2oc3nERY8/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAjuJMQJyrNdwh2HuhwjFSw3c1kuIMExtHgVSeODc-D_gCtYjZS_vRy8TAp1h0m90E/exec";
 const GEMINI_MODEL = "gemini-2.5-flash";
 
 const PIPELINE_CONFIG = {
