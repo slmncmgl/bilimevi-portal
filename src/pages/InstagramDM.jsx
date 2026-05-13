@@ -487,7 +487,7 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
             </div>
 
             {/* Telefon + Email */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <div data-contact-grid style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <div style={s.card}>
                 <div style={s.sectionLabel}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
@@ -607,6 +607,19 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
         @media (min-width: 1024px) {
           [data-grid] {
             grid-template-columns: 340px 1fr;
+          }
+        }
+        
+        /* Telefon/Email grid - mobilde alt alta */
+        [data-contact-grid] {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        
+        @media (min-width: 640px) {
+          [data-contact-grid] {
+            grid-template-columns: 1fr 1fr;
           }
         }
         
