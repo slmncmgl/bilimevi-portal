@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxjrJDYRdKDIB34IBpn1VXdVGQtBhBxixTCJwmV58Eiyrx-llMgxjkHine0AwWwPCQF/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygqWOE9T4qJGVD6Q11ICrRS3qmDWhTEMVpLUhKHsG-PI91kPq7nxk_Ad544ygQaJKg/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -761,23 +761,28 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   async function onaylaIzin(row) {
     const key = row["Personel"] + row["Başlangıç"];
     setOnayLoading(key);
+    // Optimistic: satırı hemen listeden kaldır
+    setBekleyenIzinler(prev => prev.filter(r => !(r["Personel"] === row["Personel"] && r["Başlangıç"] === row["Başlangıç"])));
     await fetch(scriptUrl, {
       method: "POST", mode: "no-cors",
       body: JSON.stringify({ action: "onaylaIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], gunSayisi: row["Gün Sayısı"], izinTuru: row["Mazeret"], adminEmail }),
     });
     setOnayLoading(null);
-    fetchBekleyen();
+    // Apps Script'in sheet'e yazması için 3sn bekle, sonra yenile
+    setTimeout(() => fetchBekleyen(), 3000);
   }
 
   async function reddetIzin(row) {
     const key = row["Personel"] + row["Başlangıç"];
     setOnayLoading(key);
+    // Optimistic: satırı hemen listeden kaldır
+    setBekleyenIzinler(prev => prev.filter(r => !(r["Personel"] === row["Personel"] && r["Başlangıç"] === row["Başlangıç"])));
     await fetch(scriptUrl, {
       method: "POST", mode: "no-cors",
       body: JSON.stringify({ action: "reddetIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], izinTuru: row["Mazeret"], adminEmail }),
     });
     setOnayLoading(null);
-    fetchBekleyen();
+    setTimeout(() => fetchBekleyen(), 3000);
   }
 
   async function fetchSubeListAll() {
