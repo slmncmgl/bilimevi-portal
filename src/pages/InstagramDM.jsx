@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets"; 
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyAjuJMQJyrNdwh2HuhwjFSw3c1kuIMExtHgVSeODc-D_gCtYjZS_vRy8TAp1h0m90E/exec";
+const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
+const PERSONNEL_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Personel`;
+const ID_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=ID`;
 const GEMINI_MODEL = "gemini-2.5-flash";
 
 const PIPELINE_CONFIG = {
@@ -17,6 +19,7 @@ export default function InstagramDM() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [geminiKey, setGeminiKey] = useState("");
+  const [allOwners, setAllOwners] = useState([]); // Tüm danışmanlar (Sheets'ten)
 
   // Görsel
   const [files, setFiles] = useState([]);
@@ -48,6 +51,7 @@ export default function InstagramDM() {
     if (!session) { navigate("/"); return; }
     setUser(session);
     fetchGeminiKey();
+    loadOwners(); // Danışmanları yükle
   }, []);
 
 async function fetchGeminiKey() {
@@ -69,6 +73,66 @@ async function fetchGeminiKey() {
     console.error('❌ Sheets hatası:', err);
   }
 }
+
+  // ── CSV Parser ──
+  function parseCSV(text) {
+    const lines = text.trim().split('\n');
+    return lines.map(line => {
+      const cols = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+        else { cur += ch; }
+      }
+      cols.push(cur.trim());
+      return cols;
+    });
+  }
+
+  // ── Danışmanları Sheets'ten yükle ──
+  async function loadOwners() {
+    try {
+      const [persResp, idResp] = await Promise.all([
+        fetch(PERSONNEL_URL),
+        fetch(ID_URL)
+      ]);
+      
+      if (!persResp.ok || !idResp.ok) {
+        throw new Error("Personel listesi okunamadı");
+      }
+
+      const persRows = parseCSV(await persResp.text()).slice(1); // Başlık atla
+      const idRows = parseCSV(await idResp.text()).slice(1);
+
+      // email → ID map
+      const emailToId = {};
+      idRows.forEach(row => {
+        const email = (row[0] || '').toLowerCase().trim();
+        const id = parseInt((row[1] || '').trim(), 10);
+        if (email && !isNaN(id)) emailToId[email] = id;
+      });
+
+      // Personel listesi
+      const ownerList = [];
+      persRows.forEach(row => {
+        const name = (row[0] || '').trim();
+        const company = (row[1] || '').trim();
+        const email = (row[7] || '').toLowerCase().trim(); // H = index 7
+        const ownerId = emailToId[email];
+        if (name && company && ownerId) {
+          ownerList.push({ name, company, email, ownerId });
+        }
+      });
+      
+      setAllOwners(ownerList);
+      console.log(`✅ ${ownerList.length} danışman yüklendi`);
+    } catch (err) {
+      console.error("❌ Personel yükleme hatası:", err);
+      setStatus({ type: "error", msg: "⚠️ Danışman listesi yüklenemedi" });
+    }
+  }
 
   // ── Görsel işleme ──────────────────────────────────────────────
   function handleFiles(newFiles) {
@@ -160,28 +224,26 @@ Müşteri bilgisi bulunamazsa ilgili alanı boş bırak. Asla uydurma.`
 
   // ── Pipeline & danışman ────────────────────────────────────────
   async function selectPipeline(key) {
-  setPipeline(key);
-  setSelectedOwner("");
-  setCrmDone(false);
-  setOwners([]);
-  setOwnersLoading(true);
-  try {
-    const cfg = PIPELINE_CONFIG[key];
-    const res = await fetch(`https://api.kylas.io/v1/users?pipelineId=${cfg.id}`, {
-      headers: { "api-key": KYLAS_API_KEY, "Content-Type": "application/json" }
-    });
-    const data = await res.json();
-    const list = (data.content || []).map(u => ({ 
-      id: u.id, 
-      name: u.name || u.firstName + " " + (u.lastName || "") 
-    }));
-    setOwners(list);
-    console.log(`✅ ${list.length} danışman yüklendi`);
-  } catch (err) {
-    console.error('❌ Danışman yükleme hatası:', err);
+    setPipeline(key);
+    setSelectedOwner("");
+    setCrmDone(false);
+    setOwnersLoading(true);
+
+    const companyMap = {
+      bilimevi: 'bilimevi',
+      premium: 'premium vize',
+      fortis: 'fortis'
+    };
+    
+    const filter = companyMap[key] || '';
+    const filtered = allOwners.filter(o => 
+      o.company.toLowerCase().includes(filter)
+    );
+    
+    setOwners(filtered);
+    setOwnersLoading(false);
+    console.log(`✅ ${filtered.length} danışman filtrelendi (${key})`);
   }
-  setOwnersLoading(false);
-}
   // ── CRM Gönder ─────────────────────────────────────────────────
   async function sendToCRM() {
     if (!pipeline) { setStatus({ type: "error", msg: "Lütfen pipeline seçin" }); return; }
@@ -373,7 +435,7 @@ Müşteri bilgisi bulunamazsa ilgili alanı boş bırak. Asla uydurma.`
                 ) : (
                   <select value={selectedOwner} onChange={e => setSelectedOwner(e.target.value)} style={s.select}>
                     <option value="">{pipeline ? "— Danışman seçin —" : "— Önce pipeline seçin —"}</option>
-                    {owners.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    {owners.map(o => <option key={o.ownerId} value={o.ownerId}>{o.name}</option>)}
                   </select>
                 )
               )}
