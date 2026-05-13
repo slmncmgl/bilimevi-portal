@@ -144,7 +144,7 @@ export default function Izin() {
   const [izinSureleri, setIzinSureleri] = useState({});
   const [islemlerCache, setIslemlerCache] = useState([]);
   const [cakismaPopup, setCakismaPopup] = useState(null); // { kisiler, alternatifler }
-  const [adminTab, setAdminTab] = useState("personel"); // "personel" | "bekleyen"
+  const [adminTab, setAdminTab] = useState("bekleyen"); // "bekleyen" | "personel"
 
   const yarimGun = izinTuru === "Yarım Gün İzin";
   const digerIzin = DIGER_IZINLER.includes(izinTuru);
@@ -1086,7 +1086,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           </div>
         </div>
       )}
-      {/* Sekme başlığı */}
+      {/* Başlık + Yenile */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }} className="izin-admin-header">
         <h2 style={styles.adminTitle}>Yönetici Paneli</h2>
         <button onClick={onRefresh} style={styles.refreshBtn}>
@@ -1098,117 +1098,142 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
         </button>
       </div>
 
-      {/* Sekme butonları */}
-      <div style={{ display: "flex", gap: "8px", marginBottom: "24px", borderBottom: "2px solid #e2e8f0", paddingBottom: "0" }}>
-        {[["personel", "Personel Listesi"], ["bekleyen", "Bekleyen Onaylar"]].map(([key, label]) => (
-          <button key={key} onClick={() => setAdminTab(key)} style={{
-            padding: "9px 20px", border: "none", background: "none", cursor: "pointer",
-            fontWeight: adminTab === key ? "700" : "500",
-            color: adminTab === key ? "#2563eb" : "#64748b",
-            borderBottom: adminTab === key ? "2px solid #2563eb" : "2px solid transparent",
-            marginBottom: "-2px", fontSize: "13px", fontFamily: "Calibri, sans-serif",
-          }}>{label}{key === "bekleyen" && bekleyenIzinler.length > 0 && (
-            <span style={{ marginLeft: "6px", background: "#dc2626", color: "#fff", borderRadius: "100px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{bekleyenIzinler.length}</span>
-          )}</button>
-        ))}
-      </div>
-
-      {/* Bekleyen Onaylar içeriği */}
-      {adminTab === "bekleyen" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {bekleyenLoading ? (
-            <div style={styles.adminLoading}>Yükleniyor...</div>
-          ) : bekleyenIzinler.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "48px", color: "#94a3b8", fontSize: "14px" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" style={{ marginBottom: "12px", opacity: 0.4 }}>
-                <polyline points="20 6 9 17 4 12"/>
+      {/* Üst iki kart: Şube Yönetimi + Kullanıcı Yönetimi */}
+      {isAdmin && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+          {/* Şube Yönetimi */}
+          <div style={{ background: "#fff", border: "1.5px solid #bbf7d0", borderRadius: "16px", padding: "24px", cursor: "pointer", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            onClick={() => { setShowSubeler(true); fetchSubeListAll(); }}
+            onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(5,150,105,0.12)"}
+            onMouseLeave={e => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"}>
+            <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" width="22" height="22">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
-              <div>Bekleyen onay yok</div>
             </div>
-          ) : bekleyenIzinler.map((row, i) => {
-            const key = row["Personel"] + row["Başlangıç"];
-            const isProcessing = onayloading === key;
-            return (
-              <div key={i} style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "14px", padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>{row["Personel"]}</div>
-                  <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", marginBottom: "3px" }}>{(row["Mazeret"] || "").split(" - ")[0]}</div>
-                  <div style={{ fontSize: "12px", color: "#64748b" }}>
-                    {formatTarih(row["Başlangıç"])} – {formatTarih(row["Bitiş"])}
-                    {row["Gün Sayısı"] && <span style={{ marginLeft: "8px", fontWeight: "600", color: "#0f172a" }}>{row["Gün Sayısı"]} gün</span>}
-                  </div>
-                  {row["Açıklama"] && <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>{row["Açıklama"]}</div>}
-                </div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={() => onaylaIzin(row)} disabled={isProcessing}
-                    style={{ padding: "8px 16px", background: isProcessing ? "#a7f3d0" : "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
-                    {isProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
-                    Onayla
-                  </button>
-                  <button onClick={() => reddetIzin(row)} disabled={isProcessing}
-                    style={{ padding: "8px 16px", background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif" }}>
-                    Reddet
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+            <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>Şube Yönetimi</div>
+            <div style={{ fontSize: "12px", color: "#64748b" }}>Şube ekle, sil veya görüntüle</div>
+          </div>
+
+          {/* Kullanıcı Yönetimi */}
+          <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: "16px", padding: "24px", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+            onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.12)"}
+            onMouseLeave={e => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"}>
+            <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="22" height="22">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>Kullanıcı Yönetimi</div>
+            <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "16px" }}>Kullanıcı ekle veya düzenle</div>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button onClick={e => { e.stopPropagation(); setShowDuzenle(true); fetchDuzenleData(); }}
+                style={{ padding: "6px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
+                Düzenle
+              </button>
+              <button onClick={e => { e.stopPropagation(); setShowModal(true); }}
+                style={{ padding: "6px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
+                + Yeni Kullanıcı
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Personel Listesi içeriği */}
-      {adminTab === "personel" && (
-        <>
-          {/* Dashboard stilinde iki kart */}
-          {isAdmin && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "28px" }}>
-              {/* Şube Yönetimi kartı */}
-              <div style={{ background: "#fff", border: "1.5px solid #bbf7d0", borderRadius: "16px", padding: "24px", cursor: "pointer", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-                onClick={() => { setShowSubeler(true); fetchSubeListAll(); }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(5,150,105,0.12)"}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"}>
-                <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" width="22" height="22">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      {/* İzin Yönetimi kartı — tam genişlik */}
+      <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+        {/* Kart başlığı + sekme butonları */}
+        <div style={{ padding: "20px 24px 0", borderBottom: "2px solid #e2e8f0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" width="18" height="18">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>İzin Yönetimi</div>
+              <div style={{ fontSize: "12px", color: "#64748b" }}>Bekleyen talepler ve personel izin durumları</div>
+            </div>
+          </div>
+          {/* Sekmeler */}
+          <div style={{ display: "flex", gap: "4px" }}>
+            {[["bekleyen", "Bekleyen Talepler"], ["personel", "Personel Listesi"]].map(([key, label]) => (
+              <button key={key} onClick={() => setAdminTab(key)} style={{
+                padding: "8px 18px", border: "none", background: "none", cursor: "pointer",
+                fontWeight: adminTab === key ? "700" : "500",
+                color: adminTab === key ? "#2563eb" : "#64748b",
+                borderBottom: adminTab === key ? "2px solid #2563eb" : "2px solid transparent",
+                marginBottom: "-2px", fontSize: "13px", fontFamily: "Calibri, sans-serif",
+              }}>
+                {label}
+                {key === "bekleyen" && bekleyenIzinler.length > 0 && (
+                  <span style={{ marginLeft: "6px", background: "#dc2626", color: "#fff", borderRadius: "100px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{bekleyenIzinler.length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Sekme içerikleri */}
+        <div style={{ padding: "20px 24px 24px" }}>
+
+          {/* Bekleyen Talepler */}
+          {adminTab === "bekleyen" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {bekleyenLoading ? (
+                <div style={styles.adminLoading}>Yükleniyor...</div>
+              ) : bekleyenIzinler.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "48px", color: "#94a3b8", fontSize: "14px" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" style={{ marginBottom: "12px", opacity: 0.4, display: "block", margin: "0 auto 12px" }}>
+                    <polyline points="20 6 9 17 4 12"/>
                   </svg>
+                  Bekleyen onay yok
                 </div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>Şube Yönetimi</div>
-                <div style={{ fontSize: "12px", color: "#64748b" }}>Şube ekle, sil veya görüntüle</div>
-              </div>
-              {/* İzin Yönetimi kartı */}
-              <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: "16px", padding: "24px", cursor: "pointer", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.12)"}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"}>
-                <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="22" height="22">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                  </svg>
-                </div>
-                <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>Kullanıcı Yönetimi</div>
-                <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "16px" }}>Kullanıcı ekle veya düzenle</div>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <button onClick={e => { e.stopPropagation(); setShowDuzenle(true); fetchDuzenleData(); }}
-                    style={{ padding: "6px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
-                    Düzenle
-                  </button>
-                  <button onClick={e => { e.stopPropagation(); setShowModal(true); }}
-                    style={{ padding: "6px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
-                    + Yeni Kullanıcı
-                  </button>
-                </div>
-              </div>
+              ) : bekleyenIzinler.map((row, i) => {
+                const rowKey = row["Personel"] + row["Başlangıç"];
+                const isProcessing = onayloading === rowKey;
+                return (
+                  <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>{row["Personel"]}</div>
+                      <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", marginBottom: "3px" }}>{(row["Mazeret"] || "").split(" - ")[0]}</div>
+                      <div style={{ fontSize: "12px", color: "#64748b" }}>
+                        {formatTarih(row["Başlangıç"])} – {formatTarih(row["Bitiş"])}
+                        {row["Gün Sayısı"] && <span style={{ marginLeft: "8px", fontWeight: "600", color: "#0f172a" }}>{row["Gün Sayısı"]} gün</span>}
+                      </div>
+                      {row["Açıklama"] && <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>{row["Açıklama"]}</div>}
+                    </div>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button onClick={() => onaylaIzin(row)} disabled={isProcessing}
+                        style={{ padding: "8px 16px", background: isProcessing ? "#a7f3d0" : "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
+                        {isProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
+                        Onayla
+                      </button>
+                      <button onClick={() => reddetIzin(row)} disabled={isProcessing}
+                        style={{ padding: "8px 16px", background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif" }}>
+                        Reddet
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-          {loading ? <div style={styles.adminLoading}>Yükleniyor...</div> : (
-            <div style={styles.groupList}>
-              {Object.entries(grouped).sort().map(([dept, emps]) => (
-                <DeptGroup key={dept} dept={dept} emps={emps} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} isAdmin={isAdmin} roller={roller} />
-              ))}
-            </div>
+
+          {/* Personel Listesi */}
+          {adminTab === "personel" && (
+            loading ? <div style={styles.adminLoading}>Yükleniyor...</div> : (
+              <div style={styles.groupList}>
+                {Object.entries(grouped).sort().map(([dept, emps]) => (
+                  <DeptGroup key={dept} dept={dept} emps={emps} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} isAdmin={isAdmin} roller={roller} />
+                ))}
+              </div>
+            )
           )}
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
