@@ -166,15 +166,36 @@ async function fetchGeminiKey() {
     try {
       const parts = [
         {
-          text: `Bu Instagram DM ekran görüntülerini analiz et. Türkçe cevap ver.
-JSON formatında döndür (başka hiçbir şey yazma):
+          text: `Instagram DM ekran görüntüsünü analiz et. Sadece MESAJLAŞMAYI ayıkla.
+
+KURALLAR:
+1. Müşteri İsmi: Profil başlığından veya mesajlardan ("Merhaba Ahmet" gibi) al
+2. Telefon: Mesajlarda geçen telefon numaralarını al
+3. Email: Mesajlarda geçen email adreslerini al
+4. Mesaj Akışı: 
+   - SADECE mesajları yaz, form bilgisi/zaman damgası/link ekleme
+   - Her mesajı "A: [mesaj]" veya "B: [mesaj]" formatında yaz
+   - Her mesaj yeni satırda
+   - Konuşmacı değişince boş satır ekle
+   
+ÖRNEKLENDİRME:
+A: Merhaba, Schengen vizesi için bilgi almak istiyorum
+A: 0532 123 4567 numaram
+
+B: Merhaba, tabii yardımcı olabilirim
+B: Hangi ülke için vize başvurusu yapacaksınız?
+
+A: Almanya için
+
+JSON formatında döndür:
 {
-  "customerName": "müşteri adı soyadı",
-  "phone": "telefon numarası veya boş",
-  "email": "email veya boş",
-  "dialogue": "mesaj akışının özeti ve önemli noktalar"
+  "customerName": "müşteri adı",
+  "phone": "telefon",
+  "email": "email",
+  "dialogue": "A: ...\nB: ..."
 }
-Müşteri bilgisi bulunamazsa ilgili alanı boş bırak. Asla uydurma.`
+
+Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'a EKLEME!`
         }
       ];
 
@@ -325,8 +346,8 @@ Müşteri bilgisi bulunamazsa ilgili alanı boş bırak. Asla uydurma.`
               </svg>
               Dashboard
             </button>
-            <span style={s.headerSep}>·</span>
-            <span style={s.headerTitle}>Instagram DM Takibi</span>
+            <span style={s.headerSep} data-header-sep>·</span>
+            <span style={s.headerTitle} data-header-title>Instagram DM Takibi</span>
           </div>
           <div style={s.headerRight}>
             <div style={s.userChip}>
@@ -339,7 +360,7 @@ Müşteri bilgisi bulunamazsa ilgili alanı boş bırak. Asla uydurma.`
       </header>
 
       <main style={s.main}>
-        <div style={s.grid}>
+        <div data-grid style={s.grid}>
 
           {/* SOL KOLON */}
           <div style={s.leftCol}>
@@ -575,6 +596,29 @@ Müşteri bilgisi bulunamazsa ilgili alanı boş bırak. Asla uydurma.`
         textarea:focus, input:focus { outline: none; border-color: #2563eb !important; }
         select:focus { outline: none; border-color: #2563eb; }
         button:hover { opacity: 0.88; }
+        
+        /* Mobil responsive grid */
+        [data-grid] {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 20px;
+        }
+        
+        @media (min-width: 1024px) {
+          [data-grid] {
+            grid-template-columns: 340px 1fr;
+          }
+        }
+        
+        /* Mobil header */
+        @media (max-width: 640px) {
+          [data-header-title] {
+            font-size: 12px !important;
+          }
+          [data-header-sep] {
+            display: none;
+          }
+        }
       `}</style>
     </div>
   );
@@ -596,7 +640,7 @@ const s = {
   logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
 
   main: { maxWidth: "1000px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
-  grid: { display: "grid", gridTemplateColumns: "340px 1fr", gap: "20px", alignItems: "start" },
+  grid: { gap: "20px", alignItems: "start" },
   leftCol: { display: "flex", flexDirection: "column", gap: "16px" },
   rightCol: { display: "flex", flexDirection: "column", gap: "16px" },
 
