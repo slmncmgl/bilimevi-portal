@@ -1,5 +1,3 @@
- 
-
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
@@ -187,7 +185,7 @@ export default function Izin() {
       setPersonel(data);
       setIzinSureleri(sureler);
       const currentSession = getSession();
-      const gorIzni = (currentSession?.title || "staff").toLowerCase().trim();
+      const gorIzni = (currentSession?.rol || currentSession?.title || "staff").toLowerCase().trim();
       setRol(gorIzni);
 
       const bugun = new Date();
