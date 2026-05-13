@@ -1,3 +1,5 @@
+ 
+
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
@@ -761,28 +763,31 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   async function onaylaIzin(row) {
     const key = row["Personel"] + row["Başlangıç"];
     setOnayLoading(key);
-    // Optimistic: satırı hemen listeden kaldır
-    setBekleyenIzinler(prev => prev.filter(r => !(r["Personel"] === row["Personel"] && r["Başlangıç"] === row["Başlangıç"])));
     await fetch(scriptUrl, {
       method: "POST", mode: "no-cors",
       body: JSON.stringify({ action: "onaylaIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], gunSayisi: row["Gün Sayısı"], izinTuru: row["Mazeret"], adminEmail }),
     });
-    setOnayLoading(null);
-    // Apps Script'in sheet'e yazması için 3sn bekle, sonra yenile
-    setTimeout(() => fetchBekleyen(), 3000);
+    // 2sn spinner göster sonra kaldır
+    setTimeout(() => {
+      setOnayLoading(null);
+      setBekleyenIzinler(prev => prev.filter(r => !(r["Personel"] === row["Personel"] && r["Başlangıç"] === row["Başlangıç"])));
+      setTimeout(() => fetchBekleyen(), 3000);
+    }, 2000);
   }
 
   async function reddetIzin(row) {
     const key = row["Personel"] + row["Başlangıç"];
     setOnayLoading(key);
-    // Optimistic: satırı hemen listeden kaldır
-    setBekleyenIzinler(prev => prev.filter(r => !(r["Personel"] === row["Personel"] && r["Başlangıç"] === row["Başlangıç"])));
     await fetch(scriptUrl, {
       method: "POST", mode: "no-cors",
       body: JSON.stringify({ action: "reddetIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], izinTuru: row["Mazeret"], adminEmail }),
     });
-    setOnayLoading(null);
-    setTimeout(() => fetchBekleyen(), 3000);
+    // 2sn spinner göster sonra kaldır
+    setTimeout(() => {
+      setOnayLoading(null);
+      setBekleyenIzinler(prev => prev.filter(r => !(r["Personel"] === row["Personel"] && r["Başlangıç"] === row["Başlangıç"])));
+      setTimeout(() => fetchBekleyen(), 3000);
+    }, 2000);
   }
 
   async function fetchSubeListAll() {
