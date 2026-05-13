@@ -54,7 +54,7 @@ export default function Login() {
     setSifreLoading(true);
     setSifreMesaj(null);
     try {
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxjrJDYRdKDIB34IBpn1VXdVGQtBhBxixTCJwmV58Eiyrx-llMgxjkHine0AwWwPCQF/exec";
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbygqWOE9T4qJGVD6Q11ICrRS3qmDWhTEMVpLUhKHsG-PI91kPq7nxk_Ad544ygQaJKg/exec";
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ action: "sifreyiGonder", email: sifreUsername.trim() })
