@@ -93,8 +93,8 @@ export async function loginWithCredentials(username, password) {
       email:   user["E-posta"],
       company: user["Şirket"],
       branch:  user["Şube"],
-      title:   (user["Title"] || "staff").toLowerCase(),
-      rol:     (user["Title"] || "staff").toLowerCase(),
+      title:   (user["title"] || user["Title"] || "staff").toLowerCase(),
+      rol:     (user["title"] || user["Title"] || "staff").toLowerCase(),
       modules,
     }
   };
