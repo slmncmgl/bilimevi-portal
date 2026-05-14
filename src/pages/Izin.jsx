@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
@@ -373,7 +374,14 @@ export default function Izin() {
         izinTuru,
         aciklama,
         userEmail: user.email,
-        gunSayisi: isGunu || (DIGER_IZINLER.includes(izinTuru) ? (izinSureleri[izinTuru] || 1) : isGunu),
+        gunSayisi: (() => {
+          const bazGun = isGunu || (DIGER_IZINLER.includes(izinTuru) ? (izinSureleri[izinTuru] || 1) : isGunu);
+          if (personel?.["Şirket"] === "Fortis") {
+            const carpan = personel?.["Work Status"] === "part-time" ? 5 : 8;
+            return bazGun * carpan;
+          }
+          return bazGun;
+        })(),
         hakedistenDusen: hakedistenDusen,
         dosyaData,
         dosyaAdi,
