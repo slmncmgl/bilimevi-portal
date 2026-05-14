@@ -1,10 +1,8 @@
-
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxoY8SwVffCU1xFVObJkNtMyt_ESCVPHJSQh5Ihd_yFvLdXeXEejKqnzpaIrN2hquq7/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
@@ -765,7 +763,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     setOnayLoading(key);
     await fetch(scriptUrl, {
       method: "POST", mode: "no-cors",
-      body: JSON.stringify({ action: "onaylaIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], gunSayisi: row["Gün Sayısı"], izinTuru: row["Mazeret"], adminEmail }),
+      body: JSON.stringify({ action: "onaylaIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], gunSayisi: row["Talep Edilen İzin Günü"] || row["Gün Sayısı"], izinTuru: row["İzin Türü"] || row["Mazeret"], adminEmail }),
     });
     setTimeout(() => {
       setOnayLoading(null);
@@ -779,7 +777,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     setOnayLoading(key);
     await fetch(scriptUrl, {
       method: "POST", mode: "no-cors",
-      body: JSON.stringify({ action: "reddetIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], izinTuru: row["Mazeret"], adminEmail }),
+      body: JSON.stringify({ action: "reddetIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], izinTuru: row["İzin Türü"] || row["Mazeret"], adminEmail }),
     });
     setTimeout(() => {
       setOnayLoading(null);
@@ -1201,10 +1199,10 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                   <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>{row["Personel"]}</div>
-                      <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", marginBottom: "3px" }}>{(row["Mazeret"] || "").split(" - ")[0]}</div>
+                      <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", marginBottom: "3px" }}>{(row["İzin Türü"] || row["Mazeret"] || "").split(" - ")[0]}</div>
                       <div style={{ fontSize: "12px", color: "#64748b" }}>
                         {formatTarih(row["Başlangıç"])} – {formatTarih(row["Bitiş"])}
-                        {row["Gün Sayısı"] && <span style={{ marginLeft: "8px", fontWeight: "600", color: "#0f172a" }}>{row["Gün Sayısı"]} gün</span>}
+                        {(row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]) && <span style={{ marginLeft: "8px", fontWeight: "600", color: "#0f172a" }}>{row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]} gün</span>}
                       </div>
                       {row["Açıklama"] && <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>{row["Açıklama"]}</div>}
                     </div>
