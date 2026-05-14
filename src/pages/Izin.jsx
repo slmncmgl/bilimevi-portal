@@ -5,7 +5,7 @@ import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwSg_X-MdAwvAs4b82Mzy9wA7jJQfXy3xU2J4moNPLxGEw5itoHFoXGmRwJQMgPviP3/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby9vdO1QCGTkbjeJ04MJNGmUBHlE4ynJHjVKd3ZLpVEy5w3qKJs4hDPOElZ7Q9PcHY/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
