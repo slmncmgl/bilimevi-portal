@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwiVejn81DjnedXdiEfx9tlnzZNjNy2Er0i1D8V4zNDIL5w_CXums3LxcdJ1szVa4Af/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpXNUQYAlrwDaKX3lmASYGbBgvRIe1en0yuwx-t04iOm4m-kGmfclDJHjVgCuvTWq2/exec";
 
 const MODULE_CONFIG = [
   {
