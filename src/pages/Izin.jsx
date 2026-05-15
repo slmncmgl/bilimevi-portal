@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxoY8SwVffCU1xFVObJkNtMyt_ESCVPHJSQh5Ihd_yFvLdXeXEejKqnzpaIrN2hquq7/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpXNUQYAlrwDaKX3lmASYGbBgvRIe1en0yuwx-t04iOm4m-kGmfclDJHjVgCuvTWq2/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -454,7 +454,7 @@ export default function Izin() {
 
       <main style={styles.main} className="izin-main">
         {adminView ? (
-          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin" || rol === "owner"} adminTab={adminTab} setAdminTab={setAdminTab} />
+          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin" || rol === "owner"} adminTab={adminTab} setAdminTab={setAdminTab} isFortis={isFortis} />
         ) : (
           <div style={styles.pageLayout}>
             <div style={styles.formLayout}>
@@ -741,7 +741,7 @@ export default function Izin() {
   );
 }
 
-function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, adminTab, setAdminTab }) {
+function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, adminTab, setAdminTab, isFortis }) {
   const [roller, setRoller] = useState([]);
   useEffect(() => { fetchRoller().then(setRoller).catch(() => setRoller(["staff","manager","director","owner","admin"])); }, []);
   const [bekleyenIzinler, setBekleyenIzinler] = useState([]);
@@ -1225,7 +1225,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                       <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", marginBottom: "3px" }}>{(row["İzin Türü"] || row["Mazeret"] || "").split(" - ")[0]}</div>
                       <div style={{ fontSize: "12px", color: "#64748b" }}>
                         {formatTarih(row["Başlangıç"])} – {formatTarih(row["Bitiş"])}
-                        {(row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]) && <span style={{ marginLeft: "8px", fontWeight: "600", color: "#0f172a" }}>{row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]} gün</span>}
+                        {(row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]) && <span style={{ marginLeft: "8px", fontWeight: "600", color: "#0f172a" }}>{row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]} {isFortis ? "saat" : "gün"}</span>}
                       </div>
                       {row["Açıklama"] && <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>{row["Açıklama"]}</div>}
                     </div>
@@ -1717,7 +1717,7 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail, isAdmin }) {
           <>
             <span style={styles.kalanLabel}>Kalan İzin</span>
             <div style={{ ...styles.kalanBadge, background: kalan <= 5 ? "#fef2f2" : "#ecfdf5", color: kalan <= 5 ? "#dc2626" : "#059669", border: `1px solid ${kalan <= 5 ? "#fecaca" : "#a7f3d0"}` }}>
-              {kalan} gün
+              {kalan} {emp["Şirket"] === "Fortis" ? "saat" : "gün"}
             </div>
             {isAdmin && <button onClick={() => setEditing(true)} style={styles.editBtn} title="Hakediş düzenle">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
