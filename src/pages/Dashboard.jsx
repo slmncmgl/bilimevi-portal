@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpXNUQYAlrwDaKX3lmASYGbBgvRIe1en0yuwx-t04iOm4m-kGmfclDJHjVgCuvTWq2/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxCflCrqyXGOIhZDpi7ovDY2lNbsMbGAVOpnZcQ6zEY6KBbL4Dp3LFOk92ZN4lQ7_j8/exec";
 
 const MODULE_CONFIG = [
   {
     key: "izin",
     title: "(BETA) İzin Yönetimi",
+    titleEn: "(BETA) Leave Management",
     desc: "İzin talepleri ve personel takibi",
+    descEn: "Leave requests and staff tracking",
     path: "/izin",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
@@ -202,7 +204,10 @@ export default function Dashboard() {
   }
 
   const allowedModules = MODULE_CONFIG.filter(m => user?.modules?.[m.key]);
-  const greeting = time.getHours() < 12 ? "Günaydın" : time.getHours() < 18 ? "İyi günler" : "İyi akşamlar";
+  const isFortis = user?.company === "Fortis";
+  const greeting = isFortis
+    ? (time.getHours() < 12 ? "Good morning" : time.getHours() < 18 ? "Good afternoon" : "Good evening")
+    : (time.getHours() < 12 ? "Günaydın" : time.getHours() < 18 ? "İyi günler" : "İyi akşamlar");
 
   if (!user) return null;
 
@@ -229,7 +234,7 @@ export default function Dashboard() {
                   <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
                   <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
                 </svg>
-                Yönetici Paneli
+                {isFortis ? "Admin Panel" : "Yönetici Paneli"}
               </button>
             )}
             {user?.modules?.sozlesme && (
@@ -241,7 +246,7 @@ export default function Dashboard() {
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                 </svg>
-                {sozlesmeLoading ? "Açılıyor..." : "Dijital Sözleşmeler"}
+                {sozlesmeLoading ? (isFortis ? "Opening..." : "Açılıyor...") : (isFortis ? "Digital Contracts" : "Dijital Sözleşmeler")}
               </button>
             )}
             <div style={styles.userInfo}>
@@ -261,7 +266,7 @@ export default function Dashboard() {
                 <polyline points="16 17 21 12 16 7"/>
                 <line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
-              Çıkış
+              {isFortis ? "Logout" : "Çıkış"}
             </button>
           </div>
         </div>
@@ -274,7 +279,7 @@ export default function Dashboard() {
             {greeting}, <span style={styles.greetingName}>{user.name?.split(" ")[0]}</span> 👋
           </h1>
           <p style={styles.greetingDate}>
-            {time.toLocaleDateString("tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+            {time.toLocaleDateString(isFortis ? "en-GB" : "tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
         </div>
 
@@ -285,8 +290,8 @@ export default function Dashboard() {
               <line x1="12" y1="8" x2="12" y2="12"/>
               <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <p>Henüz erişim izniniz bulunmuyor.</p>
-            <span>Yöneticinizle iletişime geçin.</span>
+            <p>{isFortis ? "You don't have access to any modules yet." : "Henüz erişim izniniz bulunmuyor."}</p>
+            <span>{isFortis ? "Please contact your manager." : "Yöneticinizle iletişime geçin."}</span>
           </div>
         ) : (
           <div className="dash-grid" style={{
@@ -319,8 +324,8 @@ export default function Dashboard() {
                   {mod.icon}
                 </div>
                 <div style={styles.moduleContent}>
-                  <h3 style={styles.moduleTitle}>{mod.title}</h3>
-                  <p style={styles.moduleDesc}>{mod.desc}</p>
+                  <h3 style={styles.moduleTitle}>{isFortis ? (mod.titleEn || mod.title) : mod.title}</h3>
+                  <p style={styles.moduleDesc}>{isFortis ? (mod.descEn || mod.desc) : mod.desc}</p>
                 </div>
                 <div style={{ ...styles.moduleArrow, color: mod.color }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
@@ -344,13 +349,13 @@ export default function Dashboard() {
               <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               </div>
-              <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>Bir hata oluştu</h3>
+              <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>{isFortis ? "An error occurred" : "Bir hata oluştu"}</h3>
             </div>
             <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "8px", lineHeight: 1.6 }}>{sozlesmeHata}</p>
-            <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "20px" }}>IT ekibine bildirim gönderildi.</p>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "20px" }}>{isFortis ? "A notification has been sent to the IT team." : "IT ekibine bildirim gönderildi."}</p>
             <button onClick={() => setSozlesmeHata(null)}
               style={{ width: "100%", padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "inherit" }}>
-              Kapat
+              {isFortis ? "Close" : "Kapat"}
             </button>
           </div>
         </div>
