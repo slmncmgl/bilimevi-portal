@@ -1,5 +1,4 @@
-
-
+ 
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
@@ -154,7 +153,7 @@ export default function Izin() {
   const hastalık = izinTuru === "Hastalık" || izinTuru === "Sick Leave";
   const hakedistenDusen = HAKEDISTEN_DUSEN.includes(izinTuru);
   const isFortis = personel?.["Şirket"] === "Fortis";
-  const birim = isFortis ? "saat" : "gün";
+  const birim = isFortis ? "hour" : "gün";
   const t = (tr, en) => isFortis ? en : tr;
 
   // Gün sayısı hesapla
@@ -1225,7 +1224,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                       <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", marginBottom: "3px" }}>{(row["İzin Türü"] || row["Mazeret"] || "").split(" - ")[0]}</div>
                       <div style={{ fontSize: "12px", color: "#64748b" }}>
                         {formatTarih(row["Başlangıç"])} – {formatTarih(row["Bitiş"])}
-                        {(row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]) && <span style={{ marginLeft: "8px", fontWeight: "600", color: "#0f172a" }}>{row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]} {isFortis ? "saat" : "gün"}</span>}
+                        {(row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]) && <span style={{ marginLeft: "8px", fontWeight: "600", color: "#0f172a" }}>{row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]} {(list.find(p => p["Ad Soyad"] === row["Personel"]) || {})["Şirket"] === "Fortis" ? "saat" : "gün"}</span>}
                       </div>
                       {row["Açıklama"] && <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>{row["Açıklama"]}</div>}
                     </div>
@@ -1794,7 +1793,7 @@ const styles = {
   statusError: { background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626" },
   submitBtn: { padding: "13px", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "transform 0.15s", boxShadow: "0 4px 14px rgba(37,99,235,0.3)", fontFamily: "Calibri, 'Sora', sans-serif" },
   yaklasanCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "28px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" },
-  yaklasanTitle: { fontSize: "13px", fontWeight: "700", color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "16px" },
+  yaklasanTitle: { fontSize: "13px", fontWeight: "700", color: "#0f172a", letterSpacing: "0.5px", marginBottom: "16px" },
   yaklasanList: { display: "flex", flexDirection: "column", gap: "8px" },
   yaklasanRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9" },
   yaklasanIsim: { fontSize: "14px", fontWeight: "600", color: "#0f172a", marginBottom: "3px" },
