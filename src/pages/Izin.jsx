@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
@@ -123,6 +124,7 @@ function formatTarih(dateStr) {
 }
 
 const ANA_IZINLER = ["Yıllık İzin", "Yarım Gün İzin", "Hastalık", "Diğer"];
+const ANA_IZINLER_EN = ["Annual Leave", "Half Day Leave", "Sick Leave", "Other"];
 
 export default function Izin() {
   const navigate = useNavigate();
@@ -147,10 +149,13 @@ export default function Izin() {
   const [cakismaPopup, setCakismaPopup] = useState(null);
   const [adminTab, setAdminTab] = useState("bekleyen");
 
-  const yarimGun = izinTuru === "Yarım Gün İzin";
+  const yarimGun = izinTuru === "Yarım Gün İzin" || izinTuru === "Half Day Leave";
   const digerIzin = DIGER_IZINLER.includes(izinTuru);
-  const hastalık = izinTuru === "Hastalık";
+  const hastalık = izinTuru === "Hastalık" || izinTuru === "Sick Leave";
   const hakedistenDusen = HAKEDISTEN_DUSEN.includes(izinTuru);
+  const isFortis = personel?.["Şirket"] === "Fortis";
+  const birim = isFortis ? "saat" : "gün";
+  const t = (tr, en) => isFortis ? en : tr;
 
   // Gün sayısı hesapla
   let isGunu = 0;
@@ -351,7 +356,7 @@ export default function Izin() {
     e.preventDefault();
     if (!baslangic) return;
     if (!yarimGun && !digerIzin && !bitis) {
-      setStatus({ type: "error", msg: "Bitiş tarihi seçiniz." }); return;
+      setStatus({ type: "error", msg: t("Bitiş tarihi seçiniz.", "Please select an end date.") }); return;
     }
     setLoading(true);
     setStatus(null);
@@ -389,12 +394,12 @@ export default function Izin() {
       };
 
       await submitIzin(formData);
-      setStatus({ type: "success", msg: "İzin talebiniz başarıyla kaydedildi!" });
+      setStatus({ type: "success", msg: t("İzin talebiniz başarıyla kaydedildi!", "Your leave request has been submitted!") });
       setBaslangic(""); setBitis(""); setAciklama(""); setDosya(null);
       setIzinTuru("Yıllık İzin");
       await loadData(user.name);
     } catch (err) {
-      setStatus({ type: "error", msg: "Kayıt sırasında hata oluştu." });
+      setStatus({ type: "error", msg: t("Kayıt sırasında hata oluştu.", "An error occurred while submitting.") });
     } finally {
       setLoading(false);
     }
@@ -410,7 +415,7 @@ export default function Izin() {
         <div style={styles.loadingOverlay}>
           <div style={styles.loadingBox}>
             <div style={styles.loadingSpinner} />
-            <span style={styles.loadingText}>Talep Gönderiliyor...</span>
+            <span style={styles.loadingText}>{t("Talep Gönderiliyor...", "Submitting Request...")}</span>
           </div>
         </div>
       )}
@@ -425,7 +430,7 @@ export default function Izin() {
               Dashboard
             </button>
             <span style={styles.headerSep}>·</span>
-            <span style={styles.headerTitle}>İK İzin Yönetimi</span>
+            <span style={styles.headerTitle}>{t("İK İzin Yönetimi", "HR Leave Management")}</span>
           </div>
           <div style={styles.headerRight} className="izin-header-right">
             {["admin","owner","director","manager"].includes(rol) && !adminView && (
@@ -456,29 +461,29 @@ export default function Izin() {
               {/* Bilgi kartı — yatay */}
               <div style={styles.infoCard}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-                  <h3 style={{ ...styles.infoTitle, marginBottom: 0 }}>İzin Durumu</h3>
+                  <h3 style={{ ...styles.infoTitle, marginBottom: 0 }}>{t("İzin Durumu", "Leave Status")}</h3>
                   {personel && <span style={{ fontSize: "13px", color: "#64748b" }}>{personel["Ad Soyad"]} · {personel["Şube"]}</span>}
                 </div>
                 {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : personel ? (
                   <>
                     <div style={{ display: "flex", gap: "12px", alignItems: "stretch" }} className="izin-info-row-wrap">
                       <div style={styles.infoRow}>
-                        <span style={styles.infoLabel}>Toplam Hak</span>
-                        <span style={styles.infoValue}>{personel["Hakediş"]} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>gün</span></span>
+                        <span style={styles.infoLabel}>{t("Toplam Hak", "Total Entitlement")}</span>
+                        <span style={styles.infoValue}>{personel["Hakediş"]} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>{birim}</span></span>
                       </div>
                       <div style={styles.infoRow}>
-                        <span style={styles.infoLabel}>Kullanılan</span>
-                        <span style={{ ...styles.infoValue, color: "#dc2626" }}>{personel["Kullanılan İzin"] || 0} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>gün</span></span>
+                        <span style={styles.infoLabel}>{t("Kullanılan", "Used")}</span>
+                        <span style={{ ...styles.infoValue, color: "#dc2626" }}>{personel["Kullanılan İzin"] || 0} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>{birim}</span></span>
                       </div>
                       <div style={{ ...styles.infoRow, background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-                        <span style={styles.infoLabel}>Kalan</span>
-                        <span style={{ ...styles.infoValue, color: "#059669" }}>{personel["Kalan İzin"]} <span style={{ fontSize: "13px", fontWeight: "500", color: "#86efac" }}>gün</span></span>
+                        <span style={styles.infoLabel}>{t("Kalan", "Remaining")}</span>
+                        <span style={{ ...styles.infoValue, color: "#059669" }}>{personel["Kalan İzin"]} <span style={{ fontSize: "13px", fontWeight: "500", color: "#86efac" }}>{birim}</span></span>
                       </div>
                       <div style={{ flex: 2, display: "flex", flexDirection: "column", justifyContent: "center", gap: "6px" }}>
                         <div style={styles.progressBg}>
                           <div style={{ ...styles.progressFill, width: `${Math.min((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100, 100)}%` }} />
                         </div>
-                        <span style={styles.progressText}>{Math.round((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100)}% kullanıldı</span>
+                        <span style={styles.progressText}>{Math.round((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100)}% {t("kullanıldı", "used")}</span>
                         {personel["Giriş Tarihi"] && sonrakiHakedis(personel["Giriş Tarihi"]) && (
                           <div style={styles.hakedisBox}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -493,23 +498,26 @@ export default function Izin() {
 
               {/* Form */}
               <div style={styles.formCard} className="izin-form-card">
-                <h2 style={styles.formCardTitle}>İzin Talep Formu</h2>
+                <h2 style={styles.formCardTitle}>{t("İzin Talep Formu", "Leave Request Form")}</h2>
                 <form onSubmit={handleSubmit} style={styles.form}>
 
                   {/* İzin Türü */}
                   <div style={styles.fieldGroup}>
-                    <label style={styles.label}>İzin Türü</label>
+                    <label style={styles.label}>{t("İzin Türü", "Leave Type")}</label>
                     <div style={styles.izinGrid}>
-                      {ANA_IZINLER.map(t => (
-                        <button key={t} type="button"
-                          onClick={() => handleIzinTuruSec(t)}
+                      {(isFortis ? ANA_IZINLER_EN : ANA_IZINLER).map((tLabel, idx) => {
+                        const key = ANA_IZINLER[idx];
+                        return (
+                        <button key={key} type="button"
+                          onClick={() => handleIzinTuruSec(key)}
                           style={{
                             ...styles.izinBtn,
-                            ...((izinTuru === t || (t === "Diğer" && DIGER_IZINLER.includes(izinTuru))) ? styles.izinBtnActive : {}),
+                            ...((izinTuru === key || (key === "Diğer" && DIGER_IZINLER.includes(izinTuru))) ? styles.izinBtnActive : {}),
                           }}>
-                          {t === "Diğer" ? `${t} ${digerAcik ? "▲" : "▼"}` : t}
+                          {key === "Diğer" ? `${tLabel} ${digerAcik ? "▲" : "▼"}` : tLabel}
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Diğer alt seçenekler */}
@@ -537,7 +545,7 @@ export default function Izin() {
                   {/* Tarihler */}
                   <div style={digerIzin || yarimGun ? {} : styles.dateGrid}>
                     <div style={styles.fieldGroup}>
-                      <label style={styles.label}>Başlangıç</label>
+                      <label style={styles.label}>{t("Başlangıç", "Start Date")}</label>
                       <input type="date" value={baslangic}
                         onChange={e => { setBaslangic(e.target.value); cakismaKontrol(e.target.value, bitis); }}
                         required style={styles.input}
@@ -547,7 +555,7 @@ export default function Izin() {
                     </div>
                     {!yarimGun && !digerIzin && (
                       <div style={styles.fieldGroup}>
-                        <label style={styles.label}>Bitiş</label>
+                        <label style={styles.label}>{t("Bitiş", "End Date")}</label>
                         <input type="date" value={bitis}
                           min={baslangic || undefined}
                           onChange={e => { setBitis(e.target.value); cakismaKontrol(baslangic, e.target.value); }}
@@ -556,7 +564,7 @@ export default function Izin() {
                           onBlur={e => e.target.style.borderColor = bitis && baslangic && bitis < baslangic ? "#dc2626" : "#e2e8f0"}
                         />
                         {bitis && baslangic && bitis < baslangic && (
-                          <span style={{ fontSize: "12px", color: "#dc2626", marginTop: "4px" }}>Bitiş tarihi başlangıçtan önce olamaz.</span>
+                          <span style={{ fontSize: "12px", color: "#dc2626", marginTop: "4px" }}>{t("Bitiş tarihi başlangıçtan önce olamaz.", "End date cannot be before start date.")}</span>
                         )}
                       </div>
                     )}
@@ -569,15 +577,22 @@ export default function Izin() {
                         <rect x="3" y="4" width="18" height="18" rx="2"/>
                         <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                       </svg>
-                      <span>{isGunu === 0.5 ? "Yarım gün izin" : `${isGunu} ${digerIzin ? "takvim" : "iş"} günü`}</span>
-                      {!hakedistenDusen && <span style={styles.hakedistenDusmeyen}>· hakedişten düşmez</span>}
+                      {isFortis ? (
+                        <span>{isGunu === 0.5
+                          ? `${personel?.["Work Status"] === "part-time" ? 2.5 : 4} hours`
+                          : `${isGunu * (personel?.["Work Status"] === "part-time" ? 5 : 8)} hours`}
+                        </span>
+                      ) : (
+                        <span>{isGunu === 0.5 ? "Yarım gün izin" : `${isGunu} ${digerIzin ? "takvim" : "iş"} günü`}</span>
+                      )}
+                      {!hakedistenDusen && <span style={styles.hakedistenDusmeyen}>{t("· hakedişten düşmez", "· not deducted")}</span>}
                     </div>
                   )}
 
                   {/* Hastalık raporu upload */}
                   {hastalık && (
                     <div style={styles.fieldGroup}>
-                      <label style={styles.label}>Hastalık Raporu <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>(opsiyonel)</span></label>
+                      <label style={styles.label}>{t("Hastalık Raporu", "Medical Report")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
                       <label style={styles.uploadArea}>
                         <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }}
                           onChange={e => setDosya(e.target.files[0] || null)} />
@@ -599,9 +614,9 @@ export default function Izin() {
 
                   {/* Açıklama */}
                   <div style={styles.fieldGroup}>
-                    <label style={styles.label}>Açıklama <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>(opsiyonel)</span></label>
+                    <label style={styles.label}>{t("Açıklama", "Description")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
                     <textarea value={aciklama} onChange={e => setAciklama(e.target.value)}
-                      placeholder="Varsa detay ekleyebilirsiniz..." rows={3} style={styles.textarea}
+                      placeholder={t("Varsa detay ekleyebilirsiniz...", "Add details if any...")} rows={3} style={styles.textarea}
                       onFocus={e => e.target.style.borderColor = "#2563eb"}
                       onBlur={e => e.target.style.borderColor = "#e2e8f0"}
                     />
@@ -618,7 +633,7 @@ export default function Izin() {
                     onMouseEnter={e => !loading && (e.currentTarget.style.transform = "translateY(-1px)")}
                     onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
                   >
-                    "İzin Talebini Gönder"
+                    {t("İzin Talebini Gönder", "Submit Leave Request")}
                   </button>
                 </form>
               </div>
@@ -627,7 +642,7 @@ export default function Izin() {
             {/* Yaklaşan izinler */}
             {yaklasanIzinler.length > 0 && (
               <div style={styles.yaklasanCard}>
-                <h3 style={styles.yaklasanTitle}>Şubenizdeki Yaklaşan İzinler</h3>
+                <h3 style={styles.yaklasanTitle}>{t("Şubenizdeki Yaklaşan İzinler", "Upcoming Leaves in Your Branch")}</h3>
                 <div style={styles.yaklasanList}>
                   {yaklasanIzinler.map((iz, i) => (
                     <div key={i} style={styles.yaklasanRow} className="izin-yaklasan-row">
@@ -636,7 +651,7 @@ export default function Izin() {
                         <div style={styles.yaklasanTur}>{(iz["Mazeret"] || "").split(" - ")[0]}</div>    
                         <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
                       </div>
-                      <div style={styles.yaklasanBadge}>{iz["Gün Sayısı"]} gün</div>
+                      <div style={styles.yaklasanBadge}>{iz["Gün Sayısı"]} {birim}</div>
                     </div>
                   ))}
                 </div>
