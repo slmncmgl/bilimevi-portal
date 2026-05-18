@@ -237,18 +237,6 @@ export default function Dashboard() {
                 {isFortis ? "Admin Panel" : "Yönetici Paneli"}
               </button>
             )}
-            {user?.modules?.sozlesme && (
-              <button onClick={sozlesmeAc} disabled={sozlesmeLoading}
-                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: sozlesmeLoading ? "#64748b" : "#d97706", color: "#fff", border: "none", borderRadius: "8px", cursor: sozlesmeLoading ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
-                onMouseEnter={e => { if (!sozlesmeLoading) e.currentTarget.style.background = "#b45309"; }}
-                onMouseLeave={e => { if (!sozlesmeLoading) e.currentTarget.style.background = "#d97706"; }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                </svg>
-                {sozlesmeLoading ? (isFortis ? "Opening..." : "Açılıyor...") : (isFortis ? "Digital Contracts" : "Dijital Sözleşmeler")}
-              </button>
-            )}
             <div style={styles.userInfo}>
               <div style={styles.avatar}>
                 {user.name?.charAt(0).toUpperCase()}
