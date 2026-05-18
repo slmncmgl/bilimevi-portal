@@ -2,9 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithCredentials, saveSession, getSession } from "../utils/sheets";
 
-// Logonun src/assets klasöründen import edilmesi
-import logoSvg from "../assets/Bilimevi İngilizce.jpg";
-
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "931368494993-gahav7fg7ss663e3v82enk2e6au6onfa.apps.googleusercontent.com";
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "https://bilimevi-portal.vercel.app/auth/callback";
 
@@ -109,12 +106,19 @@ export default function Login() {
         {/* Sol panel */}
         <div style={styles.leftPanel} className="login-left">
           <div style={styles.logoWrap} className="login-logo-wrap">
-            <img
-              src={logoSvg}
-              alt="Bilimevi"
-              style={styles.logo}
-            />
+            {/* İki yana tam yaslı kod tasarımlı logo */}
+            <div style={styles.manualLogo}>
+              <div style={styles.logoMainRow}>Bilimevi</div>
+              <div style={styles.logoSubRow}>
+                <span>S</span><span>t</span><span>u</span><span>d</span><span>y</span>
+                <span>&nbsp;</span>
+                <span>A</span><span>b</span><span>r</span><span>o</span><span>a</span><span>d</span>
+                <span>&nbsp;</span>
+                <span>C</span><span>o</span><span>n</span><span>s</span><span>u</span><span>l</span><span>t</span><span>a</span><span>n</span><span>c</span><span>y</span>
+              </div>
+            </div>
           </div>
+          
           <div style={styles.leftText} className="login-left-text">
             <h2 style={styles.leftTitle}>Hoş Geldiniz</h2>
             <p style={styles.leftSub}>
@@ -128,7 +132,7 @@ export default function Login() {
         <div style={styles.rightPanel} className="login-right">
           <div style={styles.formWrap}>
             <h1 style={styles.formTitle}>Giriş Yap</h1>
-             
+            <p style={styles.formSub}>Kullanıcı Adınızla Giriş Yapın</p>
 
             <form onSubmit={handleLogin} style={styles.form}>
               <div style={styles.fieldGroup}>
@@ -286,18 +290,18 @@ export default function Login() {
       )}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Sora', sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         @media (max-width: 640px) {
           .login-card { flex-direction: column !important; min-height: unset !important; }
-          .login-left { width: 100% !important; padding: 24px 20px !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 0 !important; min-height: unset !important; }
-          .login-left-text { display: none !important; }
-          .login-left-footer { display: none !important; }
-          .login-logo-wrap { padding: 14px 24px !important; }
-          .login-right { padding: 28px 20px 36px !important; }
+          .login-left { width: 100% !important; padding: 32px 20px !important; flex-direction: column !important; align-items: flex-start !important; justify-content: center !important; gap: 16px !important; min-height: unset !important; }
+          .login-left-text { display: block !important; padding: 0 !important; }
+          .login-left-footer { display: block !important; color: rgba(255,255,255,0.5) !important; }
+          .login-logo-wrap { padding: 0 !important; width: 100% !important; max-width: 240px !important; }
+          .login-right { padding: 36px 20px 48px !important; }
         }
       `}</style>
     </div>
@@ -311,25 +315,10 @@ const styles = {
   bgGlow2: { position: "fixed", bottom: "-20%", right: "-10%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, #ede9fe66 0%, transparent 70%)", zIndex: 0 },
   card: { display: "flex", width: "100%", maxWidth: "860px", minHeight: "540px", borderRadius: "24px", overflow: "hidden", boxShadow: "0 25px 60px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)", position: "relative", zIndex: 1, animation: "fadeUp 0.5s ease-out" },
   leftPanel: { width: "40%", background: "linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)", padding: "48px 40px", display: "flex", flexDirection: "column", justifyContent: "space-between" },
-  // Eski logoWrap ve logo stillerini bunlarla değiştirin:
-  logoWrap: { 
-    background: "rgba(255,255,255,0.05)", // Beyaz koruma kutusunun opaklığını düşürdük
-    backdropFilter: "blur(10px)", 
-    borderRadius: "16px", 
-    padding: "12px", // Padding'i biraz daralttık
-    border: "1px solid rgba(255,255,255,0.1)", 
-    alignSelf: "center",
-    display: "flex", // Logoyu ortalamak için flex ekledik
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  logo: { 
-    width: "100%", 
-    height: "auto", // Yüksekliği auto yaparak oranını koruduk
-    maxHeight: "80px", // Sol panel için maksimum yükseklik sınırı
-    objectFit: "contain", 
-    // FİLTRE SATIRINI BURADAN SİLDİK
-  },
+  logoWrap: { alignSelf: "flex-start", width: "100%", maxWidth: "260px", marginBottom: "20px" },
+  manualLogo: { display: "flex", flexDirection: "column", fontFamily: "'Sora', sans-serif", width: "100%" },
+  logoMainRow: { fontSize: "42px", fontWeight: "800", color: "#ffffff", letterSpacing: "-1.5px", lineHeight: "1.0" },
+  logoSubRow: { display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "600", color: "rgba(255, 255, 255, 0.75)", marginTop: "6px", lineHeight: "1.0", textTransform: "uppercase" },
   leftText: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 0" },
   leftTitle: { fontSize: "26px", fontWeight: "700", color: "#fff", marginBottom: "12px", letterSpacing: "-0.5px" },
   leftSub: { fontSize: "14px", color: "rgba(255,255,255,0.7)", lineHeight: "1.7" },
