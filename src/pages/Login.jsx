@@ -311,8 +311,25 @@ const styles = {
   bgGlow2: { position: "fixed", bottom: "-20%", right: "-10%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, #ede9fe66 0%, transparent 70%)", zIndex: 0 },
   card: { display: "flex", width: "100%", maxWidth: "860px", minHeight: "540px", borderRadius: "24px", overflow: "hidden", boxShadow: "0 25px 60px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)", position: "relative", zIndex: 1, animation: "fadeUp 0.5s ease-out" },
   leftPanel: { width: "40%", background: "linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)", padding: "48px 40px", display: "flex", flexDirection: "column", justifyContent: "space-between" },
-  logoWrap: { background: "rgba(255,255,255,0.12)", backdropFilter: "blur(10px)", borderRadius: "16px", padding: "20px", border: "1px solid rgba(255,255,255,0.2)", alignSelf: "center" },
-  logo: { width: "100%", height: "53px", objectFit: "contain", filter: "brightness(0) invert(1)" },
+  // Eski logoWrap ve logo stillerini bunlarla değiştirin:
+  logoWrap: { 
+    background: "rgba(255,255,255,0.05)", // Beyaz koruma kutusunun opaklığını düşürdük
+    backdropFilter: "blur(10px)", 
+    borderRadius: "16px", 
+    padding: "12px", // Padding'i biraz daralttık
+    border: "1px solid rgba(255,255,255,0.1)", 
+    alignSelf: "center",
+    display: "flex", // Logoyu ortalamak için flex ekledik
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  logo: { 
+    width: "100%", 
+    height: "auto", // Yüksekliği auto yaparak oranını koruduk
+    maxHeight: "80px", // Sol panel için maksimum yükseklik sınırı
+    objectFit: "contain", 
+    // FİLTRE SATIRINI BURADAN SİLDİK
+  },
   leftText: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 0" },
   leftTitle: { fontSize: "26px", fontWeight: "700", color: "#fff", marginBottom: "12px", letterSpacing: "-0.5px" },
   leftSub: { fontSize: "14px", color: "rgba(255,255,255,0.7)", lineHeight: "1.7" },
