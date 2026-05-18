@@ -746,6 +746,8 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   const [bekleyenLoading, setBekleyenLoading] = useState(false);
   const [onayloading, setOnayLoading] = useState(null);
   const [reddetloading, setReddetLoading] = useState(null);
+  const [islemGecmisi, setIslemGecmisi] = useState([]);
+  const [gecmisLoading, setGecmisLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ name: "", sirket: "", sube: "", girisTarihi: "", email: "", pass: "", title: "staff", crmId: "" });
   const [formError, setFormError] = useState("");
@@ -776,8 +778,27 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     setBekleyenLoading(false);
   }
 
+  async function fetchGecmis() {
+    setGecmisLoading(true);
+    try {
+      const csv = await fetchSheetCSV("İşlemler");
+      const rows = parseCSV(csv);
+      // Tarihe göre ters sırala (en yeni en üste)
+      const sorted = rows
+        .filter(r => r["Personel"] || r["İşlem Zamanı"])
+        .sort((a, b) => {
+          const da = new Date(a["İşlem Zamanı"] || 0);
+          const db = new Date(b["İşlem Zamanı"] || 0);
+          return db - da;
+        });
+      setIslemGecmisi(sorted);
+    } catch (_) { setIslemGecmisi([]); }
+    setGecmisLoading(false);
+  }
+
   useEffect(() => {
     if (adminTab === "bekleyen") fetchBekleyen();
+    if (adminTab === "gecmis") fetchGecmis();
   }, [adminTab]);
 
   async function onaylaIzin(row) {
@@ -1117,7 +1138,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
       {/* Başlık + Yenile */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }} className="izin-admin-header">
         <h2 style={styles.adminTitle}>Yönetici Paneli</h2>
-        <button onClick={onRefresh} style={styles.refreshBtn}>
+        <button onClick={() => { onRefresh(); fetchBekleyen(); fetchGecmis(); }} style={styles.refreshBtn}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
             <polyline points="23 4 23 10 17 10"/>
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
@@ -1185,7 +1206,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
             </div>
           </div>
           <div style={{ display: "flex", gap: "4px" }}>
-            {[["bekleyen", "Bekleyen Talepler"], ["personel", "Personel Listesi"]].map(([key, label]) => (
+            {[["bekleyen", "Bekleyen Talepler"], ["gecmis", "İşlem Geçmişi"], ["personel", "Personel Listesi"]].map(([key, label]) => (
               <button key={key} onClick={() => setAdminTab(key)} style={{
                 padding: "8px 18px", border: "none", background: "none", cursor: "pointer",
                 fontWeight: adminTab === key ? "700" : "500",
@@ -1245,6 +1266,50 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {adminTab === "gecmis" && (
+            <div>
+              {gecmisLoading ? (
+                <div style={styles.adminLoading}>Yükleniyor...</div>
+              ) : islemGecmisi.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "48px", color: "#94a3b8", fontSize: "14px" }}>Kayıt bulunamadı</div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                    <thead>
+                      <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
+                        {["Tarih", "Personel", "İzin Türü", "Başlangıç", "Bitiş", "Gün/Saat", "Durum"].map(h => (
+                          <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", color: "#475569", fontSize: "12px", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {islemGecmisi.map((row, i) => {
+                        const durum = row["Durum"] || "";
+                        const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Reddedildi" ? "#dc2626" : durum === "Bekliyor" ? "#d97706" : "#64748b";
+                        const durumBg   = durum === "Onaylandı" ? "#ecfdf5" : durum === "Reddedildi" ? "#fef2f2" : durum === "Bekliyor" ? "#fef3c7" : "#f1f5f9";
+                        const tarihRaw = row["İşlem Zamanı"];
+                        const tarih = tarihRaw ? new Date(tarihRaw).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+                        return (
+                          <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                            <td style={{ padding: "10px 12px", color: "#64748b", whiteSpace: "nowrap", fontSize: "12px" }}>{tarih}</td>
+                            <td style={{ padding: "10px 12px", fontWeight: "600", color: "#0f172a", whiteSpace: "nowrap" }}>{row["Personel"]}</td>
+                            <td style={{ padding: "10px 12px", color: "#475569", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(row["İzin Türü"] || row["Mazeret"] || "").split(" - ")[0]}</td>
+                            <td style={{ padding: "10px 12px", color: "#475569", whiteSpace: "nowrap" }}>{row["Başlangıç"]}</td>
+                            <td style={{ padding: "10px 12px", color: "#475569", whiteSpace: "nowrap" }}>{row["Bitiş"]}</td>
+                            <td style={{ padding: "10px 12px", color: "#0f172a", fontWeight: "600", whiteSpace: "nowrap" }}>{row["Talep Edilen İzin Günü"] || row["Gün Sayısı"] || ""}</td>
+                            <td style={{ padding: "10px 12px" }}>
+                              {durum && <span style={{ padding: "2px 10px", borderRadius: "100px", background: durumBg, color: durumColor, fontSize: "11px", fontWeight: "700" }}>{durum}</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
