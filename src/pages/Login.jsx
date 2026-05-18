@@ -5,6 +5,52 @@ import { loginWithCredentials, saveSession, getSession } from "../utils/sheets";
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "931368494993-gahav7fg7ss663e3v82enk2e6au6onfa.apps.googleusercontent.com";
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "https://bilimevi-portal.vercel.app/auth/callback";
 
+// 🌍 Dil Sözlüğü (Tarayıcı diline göre metinler buradan çekilecek)
+const translations = {
+  tr: {
+    title: "Hoş Geldiniz",
+    sub: "Bilimevi Personel Portalı'na erişmek için giriş yapın.",
+    formTitle: "Giriş Yap",
+    formSub: "Kullanıcı Adınızla Giriş Yapın",
+    username: "Kullanıcı Adı",
+    password: "Şifre",
+    remember: "Beni Hatırla",
+    forgot: "Kayıtlı Şifremi Gönder",
+    loginBtn: "Giriş Yap →",
+    loginLoading: "Giriş yapılıyor...",
+    googleText: "Şirket Mail Adresinizle Giriş Yapın",
+    googleBtn: "Google ile Giriş Yap",
+    errorConn: "Bağlantı hatası. Lütfen tekrar deneyin.",
+    popupTitle: "Şifreni Hatırlat",
+    popupSub: "Şirket mail adresinizi girdiğinizde \"Şifreniz\" mail adresinize gönderilecektir.",
+    popupCancel: "İptal",
+    popupSend: "Gönder",
+    popupSending: "Gönderiliyor...",
+    popupSuccess: "Şifreniz kayıtlı mail adresinize gönderildi."
+  },
+  en: {
+    title: "Welcome",
+    sub: "Log in to access the Bilimevi Staff Portal.",
+    formTitle: "Sign In",
+    formSub: "Sign in with your Username",
+    username: "Username",
+    password: "Password",
+    remember: "Remember Me",
+    forgot: "Send My Registered Password",
+    loginBtn: "Sign In →",
+    loginLoading: "Signing in...",
+    googleText: "Sign In with Your Company Email",
+    googleBtn: "Sign In with Google",
+    errorConn: "Connection error. Please try again.",
+    popupTitle: "Remind Password",
+    popupSub: "When you enter your company email address, your password will be sent to your email.",
+    popupCancel: "Cancel",
+    popupSend: "Send",
+    popupSending: "Sending...",
+    popupSuccess: "Your password has been sent to your registered email address."
+  }
+};
+
 function handleGoogleLogin() {
   const params = new URLSearchParams(window.location.search);
   const redirect = params.get("redirect");
@@ -22,6 +68,17 @@ function handleGoogleLogin() {
 
 export default function Login() {
   const navigate = useNavigate();
+
+  // 🌐 TARAYICI DİLİ KONTROLÜ
+  // Eğer tarayıcı dili 'tr' ile başlamıyorsa, otomatik olarak 'en' (İngilizce) seçer.
+  const [lang] = useState(() => {
+    const browserLang = navigator.language || navigator.userLanguage || "tr";
+    return browserLang.startsWith("tr") ? "tr" : "en";
+  });
+
+  // Seçili dil sözlüğüne kısa yol
+  const t = translations[lang];
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,8 +118,8 @@ export default function Login() {
         body: JSON.stringify({ action: "sifreyiGonder", email: sifreUsername.trim() })
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.msg || "Kullanıcı bulunamadı");
-      setSifreMesaj({ type: "success", msg: "Şifreniz kayıtlı mail adresinize gönderildi." });
+      if (!json.success) throw new Error(json.msg || (lang === "tr" ? "Kullanıcı bulunamadı" : "User not found"));
+      setSifreMesaj({ type: "success", msg: t.popupSuccess });
     } catch (err) {
       setSifreMesaj({ type: "error", msg: err.message });
     }
@@ -90,7 +147,7 @@ export default function Login() {
         setError(res.msg);
       }
     } catch (err) {
-      setError("Bağlantı hatası. Lütfen tekrar deneyin.");
+      setError(t.errorConn);
     } finally {
       setLoading(false);
     }
@@ -106,7 +163,6 @@ export default function Login() {
         {/* Sol panel */}
         <div style={styles.leftPanel} className="login-left">
           <div style={styles.logoWrap} className="login-logo-wrap">
-            {/* İki yana tam yaslı kod tasarımlı logo */}
             <div style={styles.manualLogo}>
               <div style={styles.logoMainRow}>Bilimevi</div>
               <div style={styles.logoSubRow}>
@@ -120,10 +176,8 @@ export default function Login() {
           </div>
           
           <div style={styles.leftText} className="login-left-text">
-            <h2 style={styles.leftTitle}>Hoş Geldiniz</h2>
-            <p style={styles.leftSub}>
-              Bilimevi Personel Portalı'na erişmek için giriş yapın.
-            </p>
+            <h2 style={styles.leftTitle}>{t.title}</h2>
+            <p style={styles.leftSub}>{t.sub}</p>
           </div>
           <p style={styles.leftFooter} className="login-left-footer">© {new Date().getFullYear()} Bilimevi Eğitim</p>
         </div>
@@ -131,12 +185,12 @@ export default function Login() {
         {/* Sağ panel */}
         <div style={styles.rightPanel} className="login-right">
           <div style={styles.formWrap}>
-            <h1 style={styles.formTitle}>Giriş Yap</h1>
-            <p style={styles.formSub}>Kullanıcı Adınızla Giriş Yapın</p>
+            <h1 style={styles.formTitle}>{t.formTitle}</h1>
+            <p style={styles.formSub}>{t.formSub}</p>
 
             <form onSubmit={handleLogin} style={styles.form}>
               <div style={styles.fieldGroup}>
-                <label style={styles.label}>Kullanıcı Adı</label>
+                <label style={styles.label}>{t.username}</label>
                 <div style={styles.inputWrap}>
                   <svg style={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -145,7 +199,7 @@ export default function Login() {
                   <input
                     type="text" value={username}
                     onChange={e => setUsername(e.target.value)}
-                    placeholder="kullanıcı adı" required
+                    placeholder={t.username.toLowerCase()} required
                     style={styles.input}
                     onFocus={e => e.target.style.borderColor = "#2563eb"}
                     onBlur={e => e.target.style.borderColor = "#e2e8f0"}
@@ -154,7 +208,7 @@ export default function Login() {
               </div>
 
               <div style={styles.fieldGroup}>
-                <label style={styles.label}>Şifre</label>
+                <label style={styles.label}>{t.password}</label>
                 <div style={styles.inputWrap}>
                   <svg style={styles.inputIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
@@ -192,7 +246,7 @@ export default function Login() {
                   onChange={e => setRemember(e.target.checked)}
                   style={styles.checkbox}
                 />
-                <span style={styles.rememberText}>Beni Hatırla</span>
+                <span style={styles.rememberText}>{t.remember}</span>
               </label>
 
               {/* Şifremi Gönder */}
@@ -201,7 +255,7 @@ export default function Login() {
                 onClick={() => { setSifrePopup(true); setSifreUsername(username); setSifreMesaj(null); }}
                 style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "12px", cursor: "pointer", textAlign: "left", padding: "0", fontFamily: "'Sora', sans-serif", textDecoration: "underline" }}
               >
-                Kayıtlı Şifremi Gönder
+                {t.forgot}
               </button>
 
               {error && (
@@ -224,14 +278,14 @@ export default function Login() {
                 {loading ? (
                   <span style={styles.loadingWrap}>
                     <span style={styles.spinner} />
-                    Giriş yapılıyor...
+                    {t.loginLoading}
                   </span>
-                ) : "Giriş Yap →"}
+                ) : t.loginBtn}
               </button>
 
               <div style={styles.divider}>
                 <span style={styles.dividerLine} />
-                <span style={styles.dividerText}>Şirket Mail Adresinizle Giriş Yapın</span>
+                <span style={styles.dividerText}>{t.googleText}</span>
                 <span style={styles.dividerLine} />
               </div>
 
@@ -247,7 +301,7 @@ export default function Login() {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                Google ile Giriş Yap
+                {t.googleBtn}
               </button>
             </form>
           </div>
@@ -258,10 +312,8 @@ export default function Login() {
       {sifrePopup && (
         <div onClick={() => { setSifrePopup(false); setSifreMesaj(null); }} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
           <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: "20px", padding: "28px", maxWidth: "360px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#0f172a", marginBottom: "8px" }}>Şifreni Hatırlat</h3>
-            <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px", lineHeight: 1.6 }}>
-              Şirket mail adresinizi girdiğinizde "Şifreniz" mail adresinize gönderilecektir.
-            </p>
+            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#0f172a", marginBottom: "8px" }}>{t.popupTitle}</h3>
+            <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px", lineHeight: 1.6 }}>{t.popupSub}</p>
             <input
               type="text"
               value={sifreUsername}
@@ -278,11 +330,11 @@ export default function Login() {
             <div style={{ display: "flex", gap: "10px" }}>
               <button onClick={() => { setSifrePopup(false); setSifreMesaj(null); }}
                 style={{ flex: 1, padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "'Sora', sans-serif" }}>
-                İptal
+                {t.popupCancel}
               </button>
               <button onClick={sifreyiGonder} disabled={sifreLoading || !sifreUsername.trim()}
                 style={{ flex: 2, padding: "10px", background: sifreLoading || !sifreUsername.trim() ? "#bfdbfe" : "#2563eb", border: "none", borderRadius: "10px", cursor: sifreUsername.trim() && !sifreLoading ? "pointer" : "not-allowed", fontSize: "13px", fontWeight: "600", color: "#fff", fontFamily: "'Sora', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                {sifreLoading ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Gönderiliyor...</> : "Gönder"}
+                {sifreLoading ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> {t.popupSending}</> : t.popupSend}
               </button>
             </div>
           </div>
@@ -317,7 +369,7 @@ const styles = {
   leftPanel: { width: "40%", background: "linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)", padding: "48px 40px", display: "flex", flexDirection: "column", justifyContent: "space-between" },
   logoWrap: { alignSelf: "flex-start", width: "100%", maxWidth: "260px", marginBottom: "20px" },
   manualLogo: { display: "flex", flexDirection: "column", fontFamily: "'Sora', sans-serif", width: "100%" },
-  logoMainRow: { fontSize: "42px", fontWeight: "800", color: "#ffffff", letterSpacing: "-1.5px", lineHeight: "1.0" },
+  logoMainRow: { fontSize: "48px", fontWeight: "800", color: "#ffffff", letterSpacing: "-1.5px", lineHeight: "1.0" },
   logoSubRow: { display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "600", color: "rgba(255, 255, 255, 0.75)", marginTop: "6px", lineHeight: "1.0", textTransform: "uppercase" },
   leftText: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 0" },
   leftTitle: { fontSize: "26px", fontWeight: "700", color: "#fff", marginBottom: "12px", letterSpacing: "-0.5px" },
