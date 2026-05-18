@@ -591,7 +591,7 @@ export default function Izin() {
                   {/* Hastalık raporu upload */}
                   {hastalık && (
                     <div style={styles.fieldGroup}>
-                      <label style={styles.label}>{t("Hastalık Raporu", "Medical Report")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
+                      <label style={styles.label}>{t("Hastalık Raporu", "MEDICAL REPORT")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
                       <label style={styles.uploadArea}>
                         <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }}
                           onChange={e => setDosya(e.target.files[0] || null)} />
@@ -613,7 +613,7 @@ export default function Izin() {
 
                   {/* Açıklama */}
                   <div style={styles.fieldGroup}>
-                    <label style={styles.label}>{t("Açıklama", "Description")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
+                    <label style={styles.label}>{t("Açıklama", "DESCRIPTION")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
                     <textarea value={aciklama} onChange={e => setAciklama(e.target.value)}
                       placeholder={t("Varsa detay ekleyebilirsiniz...", "Add details if any...")} rows={3} style={styles.textarea}
                       onFocus={e => e.target.style.borderColor = "#2563eb"}
