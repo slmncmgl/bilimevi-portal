@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithCredentials, saveSession, getSession } from "../utils/sheets";
 
+// Logonun src/assets klasöründen import edilmesi
+import logoSvg from "../assets/bilimevi_logo.svg";
+
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "931368494993-gahav7fg7ss663e3v82enk2e6au6onfa.apps.googleusercontent.com";
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "https://bilimevi-portal.vercel.app/auth/callback";
 
@@ -54,7 +57,7 @@ export default function Login() {
     setSifreLoading(true);
     setSifreMesaj(null);
     try {
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxGqNeOv-azMg2VMmgYqb7PU0NBprKwmNvtQ59OKD3xJfCwekps-V9w7f4bk1mTXKI/exec";
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxGqNeOv-azMg2VMmgYqb7PU0NBprKwmNvtQ59OKD3xJfCwekps-V9w7f4bk1mTXKI/exec";
 
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
@@ -107,7 +110,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxGqNeOv-azMg2VMmgYq
         <div style={styles.leftPanel} className="login-left">
           <div style={styles.logoWrap} className="login-logo-wrap">
             <img
-              src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg"
+              src={logoSvg}
               alt="Bilimevi"
               style={styles.logo}
             />
