@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { loginWithCredentials, saveSession, getSession } from "../utils/sheets";
 
 // Logonun src/assets klasöründen import edilmesi
-import logoSvg from "../assets/Bilimevi Eğitim AŞ.jpeg";
+import logoSvg from "../assets/Bilimevi İngilizce.jpg";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "931368494993-gahav7fg7ss663e3v82enk2e6au6onfa.apps.googleusercontent.com";
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "https://bilimevi-portal.vercel.app/auth/callback";
