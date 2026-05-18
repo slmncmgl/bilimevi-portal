@@ -1,4 +1,3 @@
- 
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
@@ -591,7 +590,7 @@ export default function Izin() {
                   {/* Hastalık raporu upload */}
                   {hastalık && (
                     <div style={styles.fieldGroup}>
-                      <label style={styles.label}>{t("Hastalık Raporu", "MEDICAL REPORT")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
+                      <label style={styles.label}>{t("Hastalık Raporu", "Medical Report")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
                       <label style={styles.uploadArea}>
                         <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }}
                           onChange={e => setDosya(e.target.files[0] || null)} />
@@ -613,7 +612,7 @@ export default function Izin() {
 
                   {/* Açıklama */}
                   <div style={styles.fieldGroup}>
-                    <label style={styles.label}>{t("Açıklama", "DESCRIPTION")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
+                    <label style={styles.label}>{t("Açıklama", "Description")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
                     <textarea value={aciklama} onChange={e => setAciklama(e.target.value)}
                       placeholder={t("Varsa detay ekleyebilirsiniz...", "Add details if any...")} rows={3} style={styles.textarea}
                       onFocus={e => e.target.style.borderColor = "#2563eb"}
@@ -746,6 +745,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   const [bekleyenIzinler, setBekleyenIzinler] = useState([]);
   const [bekleyenLoading, setBekleyenLoading] = useState(false);
   const [onayloading, setOnayLoading] = useState(null);
+  const [reddetloading, setReddetLoading] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ name: "", sirket: "", sube: "", girisTarihi: "", email: "", pass: "", title: "staff", crmId: "" });
   const [formError, setFormError] = useState("");
@@ -796,13 +796,13 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
 
   async function reddetIzin(row) {
     const key = row["Personel"] + row["Başlangıç"];
-    setOnayLoading(key);
+    setReddetLoading(key);
     await fetch(scriptUrl, {
       method: "POST", mode: "no-cors",
       body: JSON.stringify({ action: "reddetIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], izinTuru: row["İzin Türü"] || row["Mazeret"], adminEmail }),
     });
     setTimeout(() => {
-      setOnayLoading(null);
+      setReddetLoading(null);
       setBekleyenIzinler(prev => prev.filter(r => !(r["Personel"] === row["Personel"] && r["Başlangıç"] === row["Başlangıç"])));
       setTimeout(() => fetchBekleyen(), 3000);
     }, 2000);
@@ -1216,7 +1216,9 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 </div>
               ) : bekleyenIzinler.map((row, i) => {
                 const rowKey = row["Personel"] + row["Başlangıç"];
-                const isProcessing = onayloading === rowKey;
+                const isOnayProcessing = onayloading === rowKey;
+                const isReddetProcessing = reddetloading === rowKey;
+                const isProcessing = isOnayProcessing || isReddetProcessing;
                 return (
                   <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                     <div style={{ flex: 1 }}>
@@ -1230,12 +1232,13 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                     </div>
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button onClick={() => onaylaIzin(row)} disabled={isProcessing}
-                        style={{ padding: "8px 16px", background: isProcessing ? "#a7f3d0" : "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
-                        {isProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
+                        style={{ padding: "8px 16px", background: isOnayProcessing ? "#a7f3d0" : "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
+                        {isOnayProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
                         Onayla
                       </button>
                       <button onClick={() => reddetIzin(row)} disabled={isProcessing}
-                        style={{ padding: "8px 16px", background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif" }}>
+                        style={{ padding: "8px 16px", background: isReddetProcessing ? "#fecaca" : "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
+                        {isReddetProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,0,0,0.2)", borderTopColor: "#dc2626", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
                         Reddet
                       </button>
                     </div>
