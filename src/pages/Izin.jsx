@@ -767,6 +767,22 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   const [subeSilSaving, setSubeSilSaving] = useState(false);
   const [saveOverlay, setSaveOverlay] = useState(false);
 
+  async function acKlasor(row) {
+    try {
+      const res = await fetch(scriptUrl, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "danismanSozlesmeBul",
+          sirket: (list.find(p => p["Ad Soyad"] === row["Personel"]) || {})["Şirket"] || "",
+          sube:   (list.find(p => p["Ad Soyad"] === row["Personel"]) || {})["Şube"] || "",
+          ad:     row["Personel"] || ""
+        })
+      });
+      const json = await res.json();
+      if (json.success && json.url) window.open(json.url, "_blank");
+    } catch (_) {}
+  }
+
   async function fetchBekleyen() {
     setBekleyenLoading(true);
     try {
@@ -1251,7 +1267,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                       </div>
                       {row["Açıklama"] && <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>{row["Açıklama"]}</div>}
                       {row["Dosya URL"] && (
-                        <div style={{ marginTop: "6px" }}>
+                        <div style={{ marginTop: "6px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
                           <a href={row["Dosya URL"]} target="_blank" rel="noopener noreferrer"
                             title="Raporu Görüntüle"
                             style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#2563eb", textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "6px", padding: "3px 8px" }}>
@@ -1261,8 +1277,16 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                               <line x1="12" y1="18" x2="12" y2="12"/>
                               <line x1="9" y1="15" x2="15" y2="15"/>
                             </svg>
-                            Raporu Görüntüle
+                            Rapor
                           </a>
+                          <button onClick={() => acKlasor(row)}
+                            title="Drive Klasörünü Aç"
+                            style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#059669", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "6px", padding: "3px 8px", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                            </svg>
+                            Klasör
+                          </button>
                         </div>
                       )}
                     </div>
@@ -1319,18 +1343,29 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                               {durum && <span style={{ padding: "2px 10px", borderRadius: "100px", background: durumBg, color: durumColor, fontSize: "11px", fontWeight: "700" }}>{durum}</span>}
                             </td>
                             <td style={{ padding: "10px 12px" }}>
-                              {row["Dosya URL"] && (
-                                <a href={row["Dosya URL"]} target="_blank" rel="noopener noreferrer"
-                                  title="Dosyayı Görüntüle"
-                                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "6px", background: "#eff6ff", border: "1px solid #bfdbfe", color: "#2563eb", textDecoration: "none" }}>
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                    <polyline points="14 2 14 8 20 8"/>
-                                    <line x1="12" y1="18" x2="12" y2="12"/>
-                                    <line x1="9" y1="15" x2="15" y2="15"/>
-                                  </svg>
-                                </a>
-                              )}
+                              <div style={{ display: "flex", gap: "4px" }}>
+                                {row["Dosya URL"] && (
+                                  <a href={row["Dosya URL"]} target="_blank" rel="noopener noreferrer"
+                                    title="Raporu Görüntüle"
+                                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "6px", background: "#eff6ff", border: "1px solid #bfdbfe", color: "#2563eb", textDecoration: "none" }}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                      <polyline points="14 2 14 8 20 8"/>
+                                      <line x1="12" y1="18" x2="12" y2="12"/>
+                                      <line x1="9" y1="15" x2="15" y2="15"/>
+                                    </svg>
+                                  </a>
+                                )}
+                                {row["Dosya URL"] && (
+                                  <button onClick={() => acKlasor(row)}
+                                    title="Drive Klasörünü Aç"
+                                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "6px", background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#059669", cursor: "pointer" }}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
