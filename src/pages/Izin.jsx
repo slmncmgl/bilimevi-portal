@@ -1250,6 +1250,21 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                         {(row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]) && <span style={{ marginLeft: "8px", fontWeight: "600", color: "#0f172a" }}>{row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]} {(list.find(p => p["Ad Soyad"] === row["Personel"]) || {})["Şirket"] === "Fortis" ? "saat" : "gün"}</span>}
                       </div>
                       {row["Açıklama"] && <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "4px" }}>{row["Açıklama"]}</div>}
+                      {row["Dosya URL"] && (
+                        <div style={{ marginTop: "6px" }}>
+                          <a href={row["Dosya URL"]} target="_blank" rel="noopener noreferrer"
+                            title="Raporu Görüntüle"
+                            style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#2563eb", textDecoration: "none", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "6px", padding: "3px 8px" }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                              <polyline points="14 2 14 8 20 8"/>
+                              <line x1="12" y1="18" x2="12" y2="12"/>
+                              <line x1="9" y1="15" x2="15" y2="15"/>
+                            </svg>
+                            Raporu Görüntüle
+                          </a>
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button onClick={() => onaylaIzin(row)} disabled={isProcessing}
@@ -1280,7 +1295,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                     <thead>
                       <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                        {["Tarih", "Personel", "İzin Türü", "Başlangıç", "Bitiş", "Gün/Saat", "Durum"].map(h => (
+                        {["Tarih", "Personel", "İzin Türü", "Başlangıç", "Bitiş", "Gün/Saat", "Durum", ""].map(h => (
                           <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: "600", color: "#475569", fontSize: "12px", whiteSpace: "nowrap" }}>{h}</th>
                         ))}
                       </tr>
@@ -1302,6 +1317,20 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                             <td style={{ padding: "10px 12px", color: "#0f172a", fontWeight: "600", whiteSpace: "nowrap" }}>{row["Talep Edilen İzin Günü"] || row["Gün Sayısı"] || ""}</td>
                             <td style={{ padding: "10px 12px" }}>
                               {durum && <span style={{ padding: "2px 10px", borderRadius: "100px", background: durumBg, color: durumColor, fontSize: "11px", fontWeight: "700" }}>{durum}</span>}
+                            </td>
+                            <td style={{ padding: "10px 12px" }}>
+                              {row["Dosya URL"] && (
+                                <a href={row["Dosya URL"]} target="_blank" rel="noopener noreferrer"
+                                  title="Dosyayı Görüntüle"
+                                  style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "6px", background: "#eff6ff", border: "1px solid #bfdbfe", color: "#2563eb", textDecoration: "none" }}>
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                    <line x1="12" y1="18" x2="12" y2="12"/>
+                                    <line x1="9" y1="15" x2="15" y2="15"/>
+                                  </svg>
+                                </a>
+                              )}
                             </td>
                           </tr>
                         );
