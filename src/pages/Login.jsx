@@ -347,13 +347,36 @@ export default function Login() {
         body { font-family: 'Sora', sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 640px) {
-          .login-card { flex-direction: column !important; min-height: unset !important; }
-          .login-left { width: 100% !important; padding: 32px 20px !important; flex-direction: column !important; align-items: flex-start !important; justify-content: center !important; gap: 16px !important; min-height: unset !important; }
+      @media (max-width: 640px) {
+          /* En dış kutunun padding boşluğunu sıfırlayıp tam ekran yapıyoruz */
+          body > div > div { padding: 0 !important; } 
+          
+          /* Kartı tam ekran yapıp oval kenarları sıfırlıyoruz */
+          .login-card { 
+            flex-direction: column !important; 
+            min-height: 100vh !important; 
+            width: 100vw !important;
+            max-width: 100vw !important;
+            border-radius: 0 !important; 
+            margin: 0 !important;
+            box-shadow: none !important;
+          }
+          
+          .login-left { 
+            width: 100% !important; 
+            padding: 40px 24px 24px !important; 
+            flex-direction: column !important; 
+            align-items: flex-start !important; 
+            justify-content: center !important; 
+            gap: 16px !important; 
+            min-height: unset !important; 
+            border-radius: 0 !important;
+          }
+          
           .login-left-text { display: block !important; padding: 0 !important; }
           .login-left-footer { display: block !important; color: rgba(255,255,255,0.5) !important; }
           .login-logo-wrap { padding: 0 !important; width: 100% !important; max-width: 240px !important; }
-          .login-right { padding: 36px 20px 48px !important; }
+          .login-right { padding: 40px 24px 48px !important; border-radius: 0 !important; }
         }
       `}</style>
     </div>
