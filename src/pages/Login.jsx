@@ -369,7 +369,7 @@ const styles = {
   leftPanel: { width: "40%", background: "linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)", padding: "48px 40px", display: "flex", flexDirection: "column", justifyContent: "space-between" },
   logoWrap: { alignSelf: "flex-start", width: "100%", maxWidth: "260px", marginBottom: "20px" },
   manualLogo: { display: "flex", flexDirection: "column", fontFamily: "'Sora', sans-serif", width: "100%" },
-  logoMainRow: { fontSize: "54px", fontWeight: "800", color: "#ffffff", letterSpacing: "-1.5px", lineHeight: "1.0" },
+  logoMainRow: { fontSize: "60px", fontWeight: "800", color: "#ffffff", letterSpacing: "-1.5px", lineHeight: "1.0" },
   logoSubRow: { display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "600", color: "rgba(255, 255, 255, 0.75)", marginTop: "6px", lineHeight: "1.0", textTransform: "uppercase" },
   leftText: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 0" },
   leftTitle: { fontSize: "26px", fontWeight: "700", color: "#fff", marginBottom: "12px", letterSpacing: "-0.5px" },
