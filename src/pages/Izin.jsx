@@ -1467,7 +1467,7 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
     sube: row["Şube"] || "",
     email: row["E-posta"] || "",
     girisInput: ddmmyyyyToInput(rawGiris),
-    title: (row["Title"] || "staff").toLowerCase()
+    title: (row["title"] || "staff").toLowerCase()
   });
   const [subeList, setSubeList] = useState([]);
   const [saving, setSaving] = useState(false);
