@@ -111,7 +111,7 @@ export default function Login() {
     setSifreLoading(true);
     setSifreMesaj(null);
     try {
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxGqNeOv-azMg2VMmgYqb7PU0NBprKwmNvtQ59OKD3xJfCwekps-V9w7f4bk1mTXKI/exec";
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyO2P8iAgLbpeThl0Baiz0tEhogKd_sNQzoRDGDCteAOizVX3j3IXRhs62m7wsK177s/exec";
 
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
