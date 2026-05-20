@@ -8,7 +8,7 @@ const ID_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=o
 const GEMINI_MODEL = "gemini-2.5-flash";
 
 const PIPELINE_CONFIG = {
-  bilimevi: { id: 31227, name: "Bilimevi",      stageId: 217285, stageName: "Yeni Data",  subSource: "bilimevi"    },
+  bilimevi: { id: 31227, name: "Bilimevi",       stageId: 217285, stageName: "Yeni Data",  subSource: "bilimevi"    },
   premium:  { id: 31167, name: "Premium Vize",  stageId: 216852, stageName: "Yeni Data",  subSource: "premiumvize" },
   fortis:   { id: 31228, name: "Fortis Abroad", stageId: 217289, stageName: "New Data",   subSource: "fortis"      },
 };
@@ -142,7 +142,7 @@ async function fetchGeminiKey() {
     analyzeImages(arr);
   }
 
-  function onFileChange(e) { handleFiles(e.target.files); e.target.value = ""; }
+  onFileChange(e) { handleFiles(e.target.files); e.target.value = ""; }
 
   function handleDrop(e) {
     e.preventDefault(); setIsDragOver(false);
@@ -561,7 +561,8 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
                 background: crmDone ? "#059669" : "#0f172a",
                 opacity: (crmLoading || crmDone) ? 0.85 : 1,
                 cursor: (crmLoading || crmDone) ? "not-allowed" : "pointer",
-              }}>
+              }}
+            >
               {crmLoading ? (
                 <><div style={{ ...s.spinner, width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff" }} /> Gönderiliyor...</>
               ) : crmDone ? (
@@ -591,6 +592,8 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
       )}
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         textarea:focus, input:focus { outline: none; border-color: #2563eb !important; }
@@ -638,19 +641,19 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
 }
 
 const s = {
-  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "Calibri, 'Sora', sans-serif", position: "relative" },
+  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
 
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
   headerInner: { maxWidth: "1000px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
   headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
   headerRight: { display: "flex", alignItems: "center", gap: "10px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
+  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
   headerSep: { color: "#cbd5e1", fontSize: "14px" },
   headerTitle: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
   userDot: { width: "7px", height: "7px", borderRadius: "50%", background: "#22c55e" },
-  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
+  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
 
   main: { maxWidth: "1000px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
   grid: { gap: "20px", alignItems: "start" },
@@ -662,20 +665,20 @@ const s = {
 
   dropZone: { position: "relative", border: "2px dashed", borderRadius: "12px", padding: "24px 16px", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "140px", transition: "all 0.2s", cursor: "pointer" },
   uploadIcon: { width: "44px", height: "44px", background: "#fff", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.08)", margin: "0 auto 10px" },
-  clearBtn: { marginTop: "8px", width: "100%", padding: "7px", background: "none", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", color: "#94a3b8", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
+  clearBtn: { marginTop: "8px", width: "100%", padding: "7px", background: "none", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", color: "#94a3b8", cursor: "pointer", fontFamily: "inherit" },
 
-  pipelineBtn: { padding: "10px 6px", background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "12px", fontWeight: "600", color: "#475569", cursor: "pointer", fontFamily: "Calibri, sans-serif", transition: "all 0.15s" },
+  pipelineBtn: { padding: "10px 6px", background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "12px", fontWeight: "600", color: "#475569", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" },
   pipelineBtnActive: { background: "#eff6ff", border: "1.5px solid #2563eb", color: "#1d4ed8" },
 
-  select: { width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", fontFamily: "Calibri, sans-serif", color: "#0f172a", background: "#fff", cursor: "pointer" },
+  select: { width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", fontFamily: "inherit", color: "#0f172a", background: "#fff", cursor: "pointer" },
 
-  input: { width: "100%", padding: "10px 38px 10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "Calibri, sans-serif", color: "#0f172a", boxSizing: "border-box", transition: "border-color 0.2s" },
+  input: { width: "100%", padding: "10px 38px 10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "inherit", color: "#0f172a", boxSizing: "border-box", transition: "border-color 0.2s" },
   copyBtn: { position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" },
-  miniCopyBtn: { fontSize: "11px", fontWeight: "600", color: "#2563eb", background: "#eff6ff", border: "none", borderRadius: "6px", padding: "4px 10px", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
-  textarea: { width: "100%", padding: "12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", fontFamily: "Calibri, 'Courier New', monospace", color: "#0f172a", resize: "vertical", boxSizing: "border-box", lineHeight: "1.6", transition: "border-color 0.2s" },
+  miniCopyBtn: { fontSize: "11px", fontWeight: "600", color: "#2563eb", background: "#eff6ff", border: "none", borderRadius: "6px", padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" },
+  textarea: { width: "100%", padding: "12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", fontFamily: "inherit", color: "#0f172a", resize: "vertical", boxSizing: "border-box", lineHeight: "1.6", transition: "border-color 0.2s" },
 
-  submitBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "14px", color: "#fff", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "700", fontFamily: "Calibri, sans-serif", transition: "all 0.2s" },
+  submitBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "14px", color: "#fff", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "700", fontFamily: "inherit", transition: "all 0.2s" },
   spinner: { display: "inline-block", width: "18px", height: "18px", border: "2px solid #dbeafe", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
 
-  toast: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", border: "1.5px solid", padding: "14px 24px", borderRadius: "14px", fontSize: "13px", fontWeight: "600", boxShadow: "0 4px 24px rgba(30,58,95,0.13)", display: "flex", alignItems: "center", gap: "10px", fontFamily: "Calibri, sans-serif", zIndex: 9999, pointerEvents: "none", animation: "fadeUp 0.2s ease" },
+  toast: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", border: "1.5px solid", padding: "14px 24px", borderRadius: "14px", fontSize: "13px", fontWeight: "600", boxShadow: "0 4px 24px rgba(30,58,95,0.13)", display: "flex", alignItems: "center", gap: "10px", fontFamily: "inherit", zIndex: 9999, pointerEvents: "none", animation: "fadeUp 0.2s ease" },
 };
