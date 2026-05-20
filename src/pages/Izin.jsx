@@ -147,7 +147,7 @@ export default function Izin() {
   const [cakismaPopup, setCakismaPopup] = useState(null);
   const [adminTab, setAdminTab] = useState("bekleyen");
 
-  const yarimGun = izinTuru === "Yarım Gün İzin" || izinTuru === "Half Day Leave";
+  const yarimGun = izinTuru === "Yıllık İzin" ? false : (izinTuru === "Yarım Gün İzin" || izinTuru === "Half Day Leave");
   const digerIzin = DIGER_IZINLER.includes(izinTuru);
   const hastalık = izinTuru === "Hastalık" || izinTuru === "Sick Leave";
   const hakedistenDusen = HAKEDISTEN_DUSEN.includes(izinTuru);
@@ -155,7 +155,6 @@ export default function Izin() {
   const birim = isFortis ? "hour" : "gün";
   const t = (tr, en) => isFortis ? en : tr;
 
-  // Gün sayısı hesapla
   let isGunu = 0;
   if (yarimGun) isGunu = 0.5;
   else if (digerIzin) isGunu = izinSureleri[izinTuru] || 0;
@@ -290,9 +289,9 @@ export default function Izin() {
     }, null);
 
     const oncekiBit = sonrakiIsGunuTarih(enErkenCakisan.toISOString().split("T")[0], -1);
-    const oncekiBas = trauma => sonrakiIsGunuTarih(oncekiBit, -gunSayisi);
+    const oncekiBas = sonrakiIsGunuTarih(oncekiBit, -gunSayisi);
 
-    const sonrakiBas = sonrakiIsGunuTarih(enGecCakisan.toISOString().split("T")[0], 1);
+    const sonrakiBas = Mini => sonrakiIsGunuTarih(enGecCakisan.toISOString().split("T")[0], 1);
     const sonrakiBit = sonrakiIsGunuTarih(sonrakiBas, gunSayisi);
 
     const alternatifler = [
@@ -418,7 +417,7 @@ export default function Izin() {
               Dashboard
             </button>
             <span style={styles.headerSep}>·</span>
-            <span style={styles.headerTitle}>{t("İK İzin Yönetimi", "HR Leave Management")}</span>
+            <span style={styles.headerTitle}>{t("İK İzin Yönetimi", "HR Management")}</span>
           </div>
           <div style={styles.headerRight} className="izin-header-right">
             {["admin","owner","director","manager"].includes(rol) && !adminView && (
@@ -457,7 +456,7 @@ export default function Izin() {
                   <h3 style={{ ...styles.infoTitle, marginBottom: 0 }}>{t("İzin Durumu", "Leave Status")}</h3>
                   {personel && <span style={{ fontSize: "13px", color: "#64748b" }}>{personel["Ad Soyad"]} · {personel["Şube"]}</span>}
                 </div>
-                {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : presidential => personel ? (
+                {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : personel ? (
                   <>
                     <div style={{ display: "flex", gap: "12px", alignItems: "stretch" }} className="izin-info-row-wrap">
                       <div style={styles.infoRow}>
@@ -1011,6 +1010,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               <h3 style={styles.modalTitle}>Kullanıcıları Düzenle</h3>
               <button onClick={() => setShowDuzenle(false)} style={styles.modalClose}>✕</button>
             </div>
+            {/* Sekmeler */}
             <div style={{ display: "flex", gap: "4px", marginBottom: "20px", borderBottom: "2px solid #e2e8f0", paddingBottom: "0" }}>
               {[["personel","Personel"],["moduller","Modüller"],["id","ID"]].map(([key,label]) => (
                 <button key={key} onClick={() => setDuzenleTab(key)} style={{
@@ -1146,7 +1146,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               </svg>
             </div>
             <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>Şube Yönetimi</div>
-            <div style={{ fontSize: "12px", color: "#64748b" }}>Şube ekle, sil veya görüntüle</div>
+            <div style={{ fontSize: "12px", color: "#64748b" }}>Şube ekle, sil or görüntüle</div>
           </div>
 
           <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: "16px", padding: "24px", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
@@ -1401,7 +1401,7 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh, roller, onSaveStart, onSa
                   onDeactivate={() => setActiveKey(null)}
                   onSaveStart={onSaveStart}
                   onSaveDone={onSaveDone}
-                 />;
+                />;
               })}
             </tbody>
           </table></div>
@@ -1482,7 +1482,7 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
       <td style={{ padding: "8px 10px", overflow: "hidden" }}><span style={{ padding: "2px 8px", borderRadius: "999px", background: "#eff6ff", color: "#1d4ed8", fontSize: "11px", fontWeight: "700" }}>{vals.title}</span></td>
       <td style={{ padding: "8px 10px" }}>
         {showSil ? (
-          <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.4)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.4)", zIndex: 999, display: "flex", alignItems: "center", center: "center", justifyContent: "center" }}>
             <div style={{ background: "#fff", borderRadius: "14px", padding: "28px 32px", width: "320px", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
               <div style={{ fontWeight: "700", fontSize: "15px", marginBottom: "8px", color: "#0f172a" }}>Kullanıcıyı Sil</div>
               <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "16px" }}>Onaylamak için <b style={{ color: "#0f172a" }}>{row["Ad Soyad"]} sil</b> yazın.</div>
