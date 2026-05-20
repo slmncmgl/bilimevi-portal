@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyO2P8iAgLbpeThl0Baiz0tEhogKd_sNQzoRDGDCteAOizVX3j3IXRhs62m7wsK177s/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQ0DwFhi0mTA6bJhC157wt2Bv0-50DDeRN4CaO4zVxCvFCflRBziIU0JIQN052DkEP/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -774,17 +774,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
 
   async function acKlasor(row) {
     try {
-      const res = await fetch(scriptUrl, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "saglikKlasorBul",
-          ad: row["Personel"] || ""
-        })
-      });
+      const url = scriptUrl + "?action=saglikKlasorBul&ad=" + encodeURIComponent(row["Personel"] || "");
+      const res = await fetch(url);
       const json = await res.json();
       if (json.success && json.url) window.open(json.url, "_blank");
       else alert(json.msg || "Klasör bulunamadı.");
-    } catch (_) {}
+    } catch (_) { alert("Klasör açılırken hata oluştu."); }
   }
 
   async function fetchBekleyen() {
