@@ -142,7 +142,7 @@ async function fetchGeminiKey() {
     analyzeImages(arr);
   }
 
-  onFileChange(e) { handleFiles(e.target.files); e.target.value = ""; }
+  function onFileChange(e) { handleFiles(e.target.files); e.target.value = ""; }
 
   function handleDrop(e) {
     e.preventDefault(); setIsDragOver(false);
