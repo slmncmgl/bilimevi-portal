@@ -229,7 +229,6 @@ export default function Izin() {
 
   function tarihToDate(str) {
     if (!str) return null;
-    // DD.MM.YYYY veya YYYY-MM-DD veya M/D/YYYY
     if (str.includes(".")) {
       const [d, m, y] = str.split(".");
       return new Date(`${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`);
@@ -244,7 +243,7 @@ export default function Izin() {
   }
 
   function cakismaKontrol(bas, bit) {
-    if (!bas || !bit || !personel) return; // iki tarih de dolu olmalı
+    if (!bas || !bit || !personel) return;
     const bitStr = bit || bas;
     const yeniBas = new Date(bas);
     const yeniBit = new Date(bitStr);
@@ -257,13 +256,9 @@ export default function Izin() {
 
     const cakisanlar = islemlerCache.filter(row => {
       if (row["Personel"] === benimAd) return false;
-      // Aynı şube mi?
-      // İşlemler sheet'inde şube bilgisi yok, personelCache gerek
-      // Ama yaklasanIzinler zaten şube filtreli — ondan bakalım
       return true;
     });
 
-    // yaklasanIzinler zaten aynı şubedeki izinler
     const subeIzinler = yaklasanIzinler.filter(row => row["Personel"] !== benimAd);
 
     const cakisan = subeIzinler.filter(row => {
@@ -283,11 +278,8 @@ export default function Izin() {
       bit: formatTarih(r["Bitiş"])
     }));
 
-    // Gün sayısını koru, izin bloğunu kaydır
-    // İzin süresi (takvim günü)
     const gunSayisi = Math.round((yeniBit - yeniBas) / (1000 * 60 * 60 * 24));
 
-    // En erken çakışan iznin başlangıcından 1 iş günü önce bitecek şekilde önceki blok
     const enErkenCakisan = cakisan.reduce((en, row) => {
       const d = tarihToDate(row["Başlangıç"]);
       return !en || d < en ? d : en;
@@ -297,11 +289,9 @@ export default function Izin() {
       return !en || d > en ? d : en;
     }, null);
 
-    // Önceki blok: çakışan iznin başından 1 iş günü önce biter, geriye doğru günSayisi gün gider
     const oncekiBit = sonrakiIsGunuTarih(enErkenCakisan.toISOString().split("T")[0], -1);
-    const oncekiBas = sonrakiIsGunuTarih(oncekiBit, -gunSayisi);
+    const oncekiBas = trauma => sonrakiIsGunuTarih(oncekiBit, -gunSayisi);
 
-    // Sonraki blok: çakışan iznin bitişinden 1 iş günü sonra başlar
     const sonrakiBas = sonrakiIsGunuTarih(enGecCakisan.toISOString().split("T")[0], 1);
     const sonrakiBit = sonrakiIsGunuTarih(sonrakiBas, gunSayisi);
 
@@ -433,7 +423,7 @@ export default function Izin() {
           <div style={styles.headerRight} className="izin-header-right">
             {["admin","owner","director","manager"].includes(rol) && !adminView && (
               <button onClick={() => { setAdminView(true); loadAdminList(getSession()); }}
-                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif" }}>
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "inherit" }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                   <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
                   <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
@@ -467,7 +457,7 @@ export default function Izin() {
                   <h3 style={{ ...styles.infoTitle, marginBottom: 0 }}>{t("İzin Durumu", "Leave Status")}</h3>
                   {personel && <span style={{ fontSize: "13px", color: "#64748b" }}>{personel["Ad Soyad"]} · {personel["Şube"]}</span>}
                 </div>
-                {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : personel ? (
+                {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : presidential => personel ? (
                   <>
                     <div style={{ display: "flex", gap: "12px", alignItems: "stretch" }} className="izin-info-row-wrap">
                       <div style={styles.infoRow}>
@@ -690,7 +680,7 @@ export default function Izin() {
             <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "20px" }}>
               {cakismaPopup.alternatifler.map((a, i) => (
                 <button key={i} onClick={() => { setBaslangic(a.bas); setBitis(a.bit); setCakismaPopup(null); }}
-                  style={{ padding: "12px 16px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "10px", cursor: "pointer", textAlign: "left", fontFamily: "Calibri, sans-serif", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  style={{ padding: "12px 16px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "10px", cursor: "pointer", textAlign: "left", fontFamily: "inherit", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ fontSize: "12px", color: "#059669", fontWeight: "700", marginBottom: "3px" }}>{a.label}</div>
                     <div style={{ fontSize: "11px", color: "#64748b" }}>{a.aciklama}</div>
@@ -701,7 +691,7 @@ export default function Izin() {
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
               <button onClick={() => setCakismaPopup(null)}
-                style={{ flex: 1, padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "Calibri, sans-serif" }}>
+                style={{ flex: 1, padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "inherit" }}>
                 Devam Et (Çakışmayı Yoksay)
               </button>
             </div>
@@ -711,32 +701,25 @@ export default function Izin() {
 
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: Calibri, sans-serif; }
+        body { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes slideInRight { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
         @media (max-width: 640px) {
-          /* Header */
           .izin-header-inner { padding: 10px 14px !important; flex-wrap: wrap; gap: 6px; }
           .izin-header-right { gap: 6px !important; flex-wrap: wrap; }
           .izin-header-right button { padding: 6px 10px !important; font-size: 11px !important; }
-          /* Info kart — yatay yerine 2x2 grid */
           .izin-info-row-wrap { flex-wrap: wrap !important; }
           .izin-info-row-wrap > div { min-width: calc(50% - 6px) !important; flex: 1 1 calc(50% - 6px) !important; }
-          /* Form kart */
           .izin-form-card { padding: 20px 16px !important; }
-          /* Main padding */
           .izin-main { padding: 20px 12px 48px !important; }
-          /* Yaklaşan izinler */
           .izin-yaklasan-row { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
-          /* Admin panel */
           .izin-admin-header { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
           .izin-admin-btns { flex-wrap: wrap !important; }
           .izin-admin-btns button { font-size: 11px !important; padding: 6px 10px !important; }
-          /* Modal */
           .izin-modal-box { padding: 20px 16px !important; margin: 12px !important; }
-          /* Tablo overflow */
           .izin-table-wrap { overflow-x: auto !important; }
         }
       `}</style>
@@ -767,7 +750,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   const [subeListAll, setSubeListAll] = useState([]);
   const [subeLoading, setSubeLoading] = useState(false);
   const [yeniSube, setYeniSube] = useState({ sirket: "Bilimevi", sube: "" });
-  const [subeKisiOnay, setSubeKisiOnay] = useState(null); // { sirket, sube, mod: "sil"|"duzenle" }
+  const [subeKisiOnay, setSubeKisiOnay] = useState(null);
   const [subeEkleSaving, setSubeEkleSaving] = useState(false);
   const [subeSilSaving, setSubeSilSaving] = useState(false);
   const [saveOverlay, setSaveOverlay] = useState(false);
@@ -798,7 +781,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     try {
       const csv = await fetchSheetCSV("İşlemler");
       const rows = parseCSV(csv);
-      // Tarihe göre ters sırala (en yeni en üste)
       const sorted = rows
         .filter(r => r["Personel"] || r["İşlem Zamanı"])
         .sort((a, b) => {
@@ -919,7 +901,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     setFormSaving(false);
   }
 
-  const grouped = list.reduce((acc, emp) => {
+  const gridData = list.reduce((acc, emp) => {
     const key = `${emp["Şirket"]} - ${emp["Şube"]}`;
     if (!acc[key]) acc[key] = [];
     acc[key].push(emp);
@@ -944,7 +926,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
             <div style={{ display: "flex", gap: "6px", marginBottom: "20px" }}>
               {["ekle","listele"].map(t => (
                 <button key={t} onClick={() => setSubeTab(t)}
-                  style={{ padding: "6px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif", background: subeTab === t ? "#2563eb" : "#f1f5f9", color: subeTab === t ? "#fff" : "#475569" }}>
+                  style={{ padding: "6px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "inherit", background: subeTab === t ? "#2563eb" : "#f1f5f9", color: subeTab === t ? "#fff" : "#475569" }}>
                   {t === "ekle" ? "Şube Ekle" : "Şubeleri Gör / Sil"}
                 </button>
               ))}
@@ -954,17 +936,17 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 <div>
                   <label style={{ fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "4px" }}>Şirket</label>
                   <select value={yeniSube.sirket} onChange={e => setYeniSube(p => ({ ...p, sirket: e.target.value }))}
-                    style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
+                    style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", fontFamily: "inherit" }}>
                     {["Bilimevi","Premium Vize","Fortis","Vagus"].map(s => <option key={s}>{s}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={{ fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "4px" }}>Şube Adı</label>
                   <input value={yeniSube.sube} onChange={e => setYeniSube(p => ({ ...p, sube: e.target.value }))} placeholder="Şube adını girin"
-                    style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", fontFamily: "Calibri, sans-serif" }} />
+                    style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", fontFamily: "inherit" }} />
                 </div>
                 <button onClick={handleSubeEkle} disabled={!yeniSube.sube.trim() || subeEkleSaving}
-                  style={{ padding: "9px", background: yeniSube.sube.trim() && !subeEkleSaving ? "#2563eb" : "#bfdbfe", color: "#fff", border: "none", borderRadius: "8px", cursor: yeniSube.sube.trim() && !subeEkleSaving ? "pointer" : "not-allowed", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                  style={{ padding: "9px", background: yeniSube.sube.trim() && !subeEkleSaving ? "#2563eb" : "#bfdbfe", color: "#fff", border: "none", borderRadius: "8px", cursor: yeniSube.sube.trim() && !subeEkleSaving ? "pointer" : "not-allowed", fontWeight: "600", fontSize: "13px", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                   {subeEkleSaving ? <span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
                   {subeEkleSaving ? "Ekleniyor..." : "Ekle"}
                 </button>
@@ -997,17 +979,17 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     <button onClick={() => handleSubeSil(subeKisiOnay.sirket, subeKisiOnay.sube, true)} disabled={subeSilSaving}
-                      style={{ padding: "9px", background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", cursor: subeSilSaving ? "not-allowed" : "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                      style={{ padding: "9px", background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", cursor: subeSilSaving ? "not-allowed" : "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                       {subeSilSaving ? <span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
                       {subeSilSaving ? "Siliniyor..." : "Evet, kişileri de sil"}
                     </button>
                     <button onClick={() => handleSubeSil(subeKisiOnay.sirket, subeKisiOnay.sube, false)} disabled={subeSilSaving}
-                      style={{ padding: "9px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "8px", cursor: subeSilSaving ? "not-allowed" : "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                      style={{ padding: "9px", background: "#f59e0b", color: "#fff", border: "none", borderRadius: "8px", cursor: subeSilSaving ? "not-allowed" : "pointer", fontWeight: "600", fontSize: "13px", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                       {subeSilSaving ? <span style={{ display: "inline-block", width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
                       {subeSilSaving ? "Siliniyor..." : "Hayır, kişileri koru (şube bilgisi boşalır)"}
                     </button>
                     <button onClick={() => setSubeKisiOnay(null)} disabled={subeSilSaving}
-                      style={{ padding: "9px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: subeSilSaving ? "not-allowed" : "pointer", fontSize: "13px", fontFamily: "Calibri, sans-serif" }}>
+                      style={{ padding: "9px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: subeSilSaving ? "not-allowed" : "pointer", fontSize: "13px", fontFamily: "inherit" }}>
                       İptal
                     </button>
                   </div>
@@ -1029,7 +1011,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               <h3 style={styles.modalTitle}>Kullanıcıları Düzenle</h3>
               <button onClick={() => setShowDuzenle(false)} style={styles.modalClose}>✕</button>
             </div>
-            {/* Sekmeler */}
             <div style={{ display: "flex", gap: "4px", marginBottom: "20px", borderBottom: "2px solid #e2e8f0", paddingBottom: "0" }}>
               {[["personel","Personel"],["moduller","Modüller"],["id","ID"]].map(([key,label]) => (
                 <button key={key} onClick={() => setDuzenleTab(key)} style={{
@@ -1037,11 +1018,11 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                   fontWeight: duzenleTab === key ? "700" : "500",
                   color: duzenleTab === key ? "#2563eb" : "#64748b",
                   borderBottom: duzenleTab === key ? "2px solid #2563eb" : "2px solid transparent",
-                  marginBottom: "-2px", fontSize: "13px", fontFamily: "Calibri, sans-serif"
+                  marginBottom: "-2px", fontSize: "13px", fontFamily: "inherit"
                 }}>{label}</button>
               ))}
             </div>
-            <div style={duzenleTab === "moduller" ? { maxHeight: "60vh", overflowY: "auto" } : { maxHeight: "60vh", overflowY: "auto" }}>
+            <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
               {duzenleTab === "personel" && <DuzenlePersonel data={duzenleData.personel} scriptUrl={scriptUrl} onRefresh={fetchDuzenleData} roller={roller}
                 onSaveStart={() => {}}
                 onSaveDone={() => { setSaveOverlay(true); setTimeout(() => setSaveOverlay(false), 2000); }}
@@ -1068,7 +1049,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               <button onClick={() => setShowModal(false)} style={styles.modalClose}>✕</button>
             </div>
             <form onSubmit={handleYeniKullanici} style={styles.modalForm}>
-              {/* Ad Soyad */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>Ad Soyad</label>
                 <input type="text" required value={formData.name}
@@ -1078,7 +1058,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                   }}
                   style={styles.modalInput} />
               </div>
-              {/* Şirket dropdown */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>Şirket</label>
                 <select required value={formData.sirket}
@@ -1096,7 +1075,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                   <option value="Vagus">Vagus</option>
                 </select>
               </div>
-              {/* Şube dropdown — şirkete göre dinamik */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>Şube</label>
                 <select required value={formData.sube}
@@ -1107,7 +1085,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                   {subeler.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
-              {/* Giriş Tarihi */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>Giriş Tarihi</label>
                 <input type="date" required value={formData.girisTarihi}
@@ -1119,24 +1096,20 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                   style={styles.modalInput}
                 />
               </div>
-              {/* E-posta */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>E-posta</label>
                 <input type="email" required value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} style={styles.modalInput} />
               </div>
-              {/* Şifre — otomatik, pasif */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>Şifre (otomatik)</label>
                 <input type="text" readOnly value={formData.pass} style={{ ...styles.modalInput, background: "#f1f5f9", color: "#64748b", cursor: "not-allowed" }} />
               </div>
-              {/* TITLE */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>Title</label>
                 <select value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} style={styles.modalInput}>
                   {roller.map(r => <option key={r} value={r.toLowerCase()}>{r}</option>)}
                 </select>
               </div>
-              {/* CRM ID */}
               <div style={styles.modalField}>
                 <label style={styles.modalLabel}>CRM ID (opsiyonel)</label>
                 <input type="number" value={formData.crmId} onChange={e => setFormData(p => ({ ...p, crmId: e.target.value }))} style={styles.modalInput} />
@@ -1150,7 +1123,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           </div>
         </div>
       )}
-      {/* Başlık + Yenile */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }} className="izin-admin-header">
         <h2 style={styles.adminTitle}>Yönetici Paneli</h2>
         <button onClick={() => { onRefresh(); fetchBekleyen(); fetchGecmis(); }} style={styles.refreshBtn}>
@@ -1162,10 +1134,8 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
         </button>
       </div>
 
-      {/* Üst iki kart */}
       {isAdmin && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
-          {/* Şube Yönetimi */}
           <div style={{ background: "#fff", border: "1.5px solid #bbf7d0", borderRadius: "16px", padding: "24px", cursor: "pointer", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
             onClick={() => { setShowSubeler(true); fetchSubeListAll(); }}
             onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(5,150,105,0.12)"}
@@ -1179,7 +1149,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
             <div style={{ fontSize: "12px", color: "#64748b" }}>Şube ekle, sil veya görüntüle</div>
           </div>
 
-          {/* Kullanıcı Yönetimi */}
           <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: "16px", padding: "24px", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
             onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.12)"}
             onMouseLeave={e => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"}>
@@ -1193,11 +1162,11 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
             <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "16px" }}>Kullanıcı ekle veya düzenle</div>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <button onClick={e => { e.stopPropagation(); setShowDuzenle(true); fetchDuzenleData(); }}
-                style={{ padding: "6px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
+                style={{ padding: "6px 12px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" }}>
                 Düzenle
               </button>
               <button onClick={e => { e.stopPropagation(); setShowModal(true); }}
-                style={{ padding: "6px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
+                style={{ padding: "6px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" }}>
                 + Yeni Kullanıcı
               </button>
             </div>
@@ -1205,7 +1174,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
         </div>
       )}
 
-      {/* İzin Yönetimi kartı */}
       <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
         <div style={{ padding: "20px 24px 0", borderBottom: "2px solid #e2e8f0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
@@ -1227,7 +1195,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 fontWeight: adminTab === key ? "700" : "500",
                 color: adminTab === key ? "#2563eb" : "#64748b",
                 borderBottom: adminTab === key ? "2px solid #2563eb" : "2px solid transparent",
-                marginBottom: "-2px", fontSize: "13px", fontFamily: "Calibri, sans-serif",
+                marginBottom: "-2px", fontSize: "13px", fontFamily: "inherit",
               }}>
                 {label}
                 {key === "bekleyen" && bekleyenIzinler.length > 0 && (
@@ -1280,7 +1248,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                           </a>
                           <button onClick={() => acKlasor(row)}
                             title="Drive Klasörünü Aç"
-                            style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#059669", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "6px", padding: "3px 8px", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
+                            style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#059669", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "6px", padding: "3px 8px", cursor: "pointer", fontFamily: "inherit" }}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
                               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                             </svg>
@@ -1291,12 +1259,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                     </div>
                     <div style={{ display: "flex", gap: "8px" }}>
                       <button onClick={() => onaylaIzin(row)} disabled={isProcessing}
-                        style={{ padding: "8px 16px", background: isOnayProcessing ? "#a7f3d0" : "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
+                        style={{ padding: "8px 16px", background: isOnayProcessing ? "#a7f3d0" : "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px" }}>
                         {isOnayProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
                         Onayla
                       </button>
                       <button onClick={() => reddetIzin(row)} disabled={isProcessing}
-                        style={{ padding: "8px 16px", background: isReddetProcessing ? "#fecaca" : "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
+                        style={{ padding: "8px 16px", background: isReddetProcessing ? "#fecaca" : "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px" }}>
                         {isReddetProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,0,0,0.2)", borderTopColor: "#dc2626", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
                         Reddet
                       </button>
@@ -1379,7 +1347,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           {adminTab === "personel" && (
             loading ? <div style={styles.adminLoading}>Yükleniyor...</div> : (
               <div style={styles.groupList}>
-                {Object.entries(grouped).sort().map(([dept, emps]) => (
+                {Object.entries(gridData).sort().map(([dept, emps]) => (
                   <DeptGroup key={dept} dept={dept} emps={emps} scriptUrl={scriptUrl} onRefresh={onRefresh} adminEmail={adminEmail} isAdmin={isAdmin} roller={roller} />
                 ))}
               </div>
@@ -1433,7 +1401,7 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh, roller, onSaveStart, onSa
                   onDeactivate={() => setActiveKey(null)}
                   onSaveStart={onSaveStart}
                   onSaveDone={onSaveDone}
-                />;
+                 />;
               })}
             </tbody>
           </table></div>
@@ -1519,7 +1487,7 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
               <div style={{ fontWeight: "700", fontSize: "15px", marginBottom: "8px", color: "#0f172a" }}>Kullanıcıyı Sil</div>
               <div style={{ fontSize: "13px", color: "#64748b", marginBottom: "16px" }}>Onaylamak için <b style={{ color: "#0f172a" }}>{row["Ad Soyad"]} sil</b> yazın.</div>
               <input value={silOnay} onChange={e => setSilOnay(e.target.value)} placeholder={`${row["Ad Soyad"]} sil`}
-                style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", fontFamily: "Calibri, sans-serif", marginBottom: "16px", boxSizing: "border-box" }} />
+                style={{ width: "100%", padding: "8px 10px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px", fontFamily: "inherit", marginBottom: "16px", boxSizing: "border-box" }} />
               <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                 <button onClick={() => { setShowSil(false); setSilOnay(""); }} style={{ padding: "7px 16px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px" }}>İptal</button>
                 <button onClick={handleSil} disabled={silOnay !== `${row["Ad Soyad"]} sil` || silSaving}
@@ -1543,34 +1511,31 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
   return (
     <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
       <td style={{ padding: "8px 10px", fontWeight: "600" }}>{row["Ad Soyad"]}</td>
-      {/* Şirket */}
       <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <select value={vals.sirket}
           onChange={e => { const v = e.target.value; setVals(p => ({ ...p, sirket: v, sube: "" })); loadSubeler(v); }}
-          style={{ width: "100%", padding: "4px 4px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "Calibri, sans-serif", boxSizing: "border-box" }}>
+          style={{ width: "100%", padding: "4px 4px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "inherit", boxSizing: "border-box" }}>
           {["Bilimevi","Premium Vize","Fortis","Vagus"].map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </td>
-      {/* Şube */}
       <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <select value={vals.sube} onChange={e => setVals(p => ({ ...p, sube: e.target.value }))}
-          style={{ width: "100%", padding: "4px 4px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "Calibri, sans-serif", boxSizing: "border-box" }}>
+          style={{ width: "100%", padding: "4px 4px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "inherit", boxSizing: "border-box" }}>
           <option value={vals.sube}>{vals.sube || "Seçiniz"}</option>
           {subeList.filter(s => s !== vals.sube).map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </td>
-      {/* Email */}
       <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <input value={vals.email} onChange={e => setVals(p => ({ ...p, email: e.target.value }))}
-          style={{ width: "100%", padding: "4px 4px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "Calibri, sans-serif", boxSizing: "border-box" }} />
+          style={{ width: "100%", padding: "4px 4px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "inherit", boxSizing: "border-box" }} />
       </td>
       <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <input type="date" value={vals.girisInput} onChange={e => setVals(p => ({ ...p, girisInput: e.target.value }))}
-          style={{ width: "100%", padding: "4px 2px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "Calibri, sans-serif", boxSizing: "border-box" }} />
+          style={{ width: "100%", padding: "4px 2px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "inherit", boxSizing: "border-box" }} />
       </td>
       <td style={{ padding: "2px 4px", overflow: "hidden" }}>
         <select value={vals.title} onChange={e => setVals(p => ({ ...p, title: e.target.value }))}
-          style={{ width: "100%", padding: "4px 2px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "Calibri, sans-serif", boxSizing: "border-box" }}>
+          style={{ width: "100%", padding: "4px 2px", border: "1.5px solid #2563eb", borderRadius: "6px", fontSize: "11px", fontFamily: "inherit", boxSizing: "border-box" }}>
           {(roller && roller.length > 0 ? roller : ["staff","manager","director","owner"]).map(r => <option key={r} value={r.toLowerCase()}>{r}</option>)}
         </select>
       </td>
@@ -1809,7 +1774,6 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail, isAdmin }) {
     if (isNaN(yeni) || yeni < 0) return;
     setSaving(true);
     try {
-     
       await fetch(scriptUrl, {
         method: "POST",
         mode: "no-cors",
@@ -1820,16 +1784,15 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail, isAdmin }) {
           adminEmail: adminEmail,
         }),
       });
-      // Sadece Hakediş değişir, Kalan İzin = Hakediş - Kullanılan İzin
       const kullanilan = Number(emp["Kullanılan İzin"]) || 0;
       setDisplayHakedis(yeni);
       setDisplayKalan(yeni - kullanilan);
       setEditing(false);
       setSaving(false);
- } catch (_) {
-  setSaving(false);
-}
-}
+    } catch (_) {
+      setSaving(false);
+    }
+  }
   return (
     <div style={styles.empRow}>
       <div>
@@ -1863,24 +1826,23 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail, isAdmin }) {
 }
 
 const styles = {
-
   loadingOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center" },
   loadingBox: { background: "#fff", borderRadius: "16px", padding: "32px 48px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", boxShadow: "0 25px 60px rgba(0,0,0,0.2)" },
   loadingSpinner: { width: "36px", height: "36px", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.7s linear infinite" },
   loadingText: { fontSize: "15px", fontWeight: "600", color: "#0f172a" },
-  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "Calibri, 'Sora', sans-serif", position: "relative" },
+  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
   headerInner: { maxWidth: "960px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
   headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
+  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
   headerSep: { color: "#cbd5e1", fontSize: "16px" },
   headerTitle: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
   headerRight: { display: "flex", alignItems: "center", gap: "12px" },
-  adminBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", color: "#1d4ed8", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
+  adminBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", color: "#1d4ed8", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
   userDot: { width: "8px", height: "8px", borderRadius: "50%", background: "#22c55e" },
-  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
+  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
   main: { maxWidth: "960px", margin: "0 auto", padding: "40px 24px 64px", position: "relative", zIndex: 1 },
   pageLayout: { display: "flex", flexDirection: "column", gap: "24px" },
   formLayout: { display: "flex", flexDirection: "column", gap: "24px", animation: "fadeUp 0.4s ease-out" },
@@ -1902,17 +1864,17 @@ const styles = {
   fieldGroup: { display: "flex", flexDirection: "column", gap: "8px" },
   label: { fontSize: "12px", fontWeight: "600", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
   izinGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" },
-  izinBtn: { padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif", transition: "all 0.15s" },
+  izinBtn: { padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" },
   izinBtnActive: { background: "#eff6ff", borderColor: "#2563eb", color: "#1d4ed8", fontWeight: "600" },
   digerGrid: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px", animation: "slideDown 0.2s ease-out" },
-  digerBtn: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
+  digerBtn: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "inherit" },
   digerBtnActive: { background: "#f5f3ff", borderColor: "#7c3aed", color: "#6d28d9" },
   digerSure: { fontSize: "11px", color: "#94a3b8", fontWeight: "600" },
   secilenEtiket: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "8px", fontSize: "13px", color: "#6d28d9" },
   etiketKapat: { background: "none", border: "none", color: "#94a3b8", cursor: "pointer", fontSize: "13px" },
   dateGrid: { display: "grid", gridTemplateColumns: "1fr", gap: "12px" },
-  input: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "Calibri, 'Sora', sans-serif" },
-  textarea: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "Calibri, 'Sora', sans-serif", resize: "vertical" },
+  input: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "inherit" },
+  textarea: { width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "inherit", resize: "vertical" },
   isGunuBox: { display: "flex", alignItems: "center", gap: "10px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px", padding: "12px 16px", fontSize: "14px", fontWeight: "600", color: "#1d4ed8" },
   hakedistenDusmeyen: { fontSize: "12px", color: "#94a3b8", fontWeight: "400" },
   uploadArea: { display: "block", border: "1.5px dashed #e2e8f0", borderRadius: "10px", padding: "16px", cursor: "pointer", background: "#f8fafc", transition: "border-color 0.2s" },
@@ -1922,7 +1884,7 @@ const styles = {
   statusBox: { padding: "12px 16px", borderRadius: "10px", fontSize: "13px", fontWeight: "500" },
   statusSuccess: { background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#059669" },
   statusError: { background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626" },
-  submitBtn: { padding: "13px", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "transform 0.15s", boxShadow: "0 4px 14px rgba(37,99,235,0.3)", fontFamily: "Calibri, 'Sora', sans-serif" },
+  submitBtn: { padding: "13px", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "transform 0.15s", boxShadow: "0 4px 14px rgba(37,99,235,0.3)", fontFamily: "inherit" },
   yaklasanCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "28px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" },
   yaklasanTitle: { fontSize: "13px", fontWeight: "700", color: "#0f172a", letterSpacing: "0.5px", marginBottom: "16px" },
   yaklasanList: { display: "flex", flexDirection: "column", gap: "8px" },
@@ -1934,8 +1896,8 @@ const styles = {
   adminWrap: { animation: "fadeUp 0.4s ease-out" },
   adminHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" },
   adminTitle: { fontSize: "20px", fontWeight: "700", color: "#0f172a", letterSpacing: "-0.3px" },
-  duzenleBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
-  newUserBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
+  duzenleBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
+  newUserBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" },
   modalBox: { background: "#fff", borderRadius: "16px", padding: "28px", width: "100%", maxWidth: "480px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 25px 60px rgba(0,0,0,0.2)" },
   modalHeader: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" },
@@ -1944,12 +1906,12 @@ const styles = {
   modalForm: { display: "flex", flexDirection: "column", gap: "14px" },
   modalField: { display: "flex", flexDirection: "column", gap: "6px" },
   modalLabel: { fontSize: "12px", fontWeight: "600", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
-  modalInput: { padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", color: "#0f172a", outline: "none", fontFamily: "Calibri, sans-serif" },
-  refreshBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", fontWeight: "600", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
+  modalInput: { padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "14px", color: "#0f172a", outline: "none", fontFamily: "inherit" },
+  refreshBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", fontWeight: "600", color: "#475569", cursor: "pointer", fontFamily: "inherit" },
   adminLoading: { textAlign: "center", padding: "60px", color: "#94a3b8", fontSize: "14px" },
   groupList: { display: "flex", flexDirection: "column", gap: "8px" },
   deptCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "14px", overflow: "hidden" },
-  deptHeader: { width: "100%", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
+  deptHeader: { width: "100%", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" },
   deptLeft: { display: "flex", alignItems: "center", gap: "10px" },
   deptName: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
   deptCount: { fontSize: "11px", background: "#eff6ff", color: "#2563eb", padding: "2px 8px", borderRadius: "100px", fontWeight: "600" },
@@ -1960,7 +1922,7 @@ const styles = {
   kalanLabel: { fontSize: "11px", color: "#94a3b8", fontWeight: "500" },
   kalanBadge: { padding: "4px 12px", borderRadius: "100px", fontSize: "12px", fontWeight: "700" },
   editBtn: { display: "flex", alignItems: "center", padding: "6px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", cursor: "pointer", color: "#64748b" },
-  editInput: { width: "64px", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "7px", fontSize: "13px", fontWeight: "600", outline: "none", fontFamily: "Calibri, 'Sora', sans-serif", textAlign: "center" },
+  editInput: { width: "64px", padding: "5px 8px", border: "1.5px solid #2563eb", borderRadius: "7px", fontSize: "13px", fontWeight: "600", outline: "none", fontFamily: "inherit", textAlign: "center" },
   saveBtn: { padding: "5px 10px", background: "#059669", border: "none", borderRadius: "7px", color: "#fff", fontSize: "13px", fontWeight: "700", cursor: "pointer" },
   cancelBtn: { padding: "5px 10px", background: "#f1f5f9", border: "none", borderRadius: "7px", color: "#64748b", fontSize: "13px", fontWeight: "700", cursor: "pointer" },
 };
