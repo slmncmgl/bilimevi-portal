@@ -108,7 +108,7 @@ export default function AuthCallback() {
         <p style={styles.msg}>{msg}</p>
       </div>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
@@ -116,7 +116,7 @@ export default function AuthCallback() {
 }
 
 const styles = {
-  root: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "'Sora', sans-serif" },
+  root: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "'Inter', sans-serif" },
   card: { display: "flex", flexDirection: "column", alignItems: "center", gap: "20px", background: "#fff", borderRadius: "20px", padding: "48px", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" },
   spinner: { width: "40px", height: "40px", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
   msg: { fontSize: "15px", color: "#475569", fontWeight: "500" },
