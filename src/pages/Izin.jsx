@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxGqNeOv-azMg2VMmgYqb7PU0NBprKwmNvtQ59OKD3xJfCwekps-V9w7f4bk1mTXKI/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyO2P8iAgLbpeThl0Baiz0tEhogKd_sNQzoRDGDCteAOizVX3j3IXRhs62m7wsK177s/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -444,7 +444,12 @@ export default function Izin() {
             {adminView && (
               <button onClick={() => setAdminView(false)} style={styles.adminBtn}>← Kendi İznim</button>
             )}
-            <div style={styles.userChip}><div style={styles.userDot} />{user.name}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #1d4ed8, #7c3aed)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "700", flexShrink: 0 }}>
+                {user.name?.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontSize: "13px", fontWeight: "500", color: "#374151" }}>{user.name}</span>
+            </div>
             <button onClick={logout} style={styles.logoutBtn}>Çıkış</button>
           </div>
         </div>
@@ -772,14 +777,13 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
       const res = await fetch(scriptUrl, {
         method: "POST",
         body: JSON.stringify({
-          action: "danismanSozlesmeBul",
-          sirket: (list.find(p => p["Ad Soyad"] === row["Personel"]) || {})["Şirket"] || "",
-          sube:   (list.find(p => p["Ad Soyad"] === row["Personel"]) || {})["Şube"] || "",
-          ad:     row["Personel"] || ""
+          action: "saglikKlasorBul",
+          ad: row["Personel"] || ""
         })
       });
       const json = await res.json();
       if (json.success && json.url) window.open(json.url, "_blank");
+      else alert(json.msg || "Klasör bulunamadı.");
     } catch (_) {}
   }
 
