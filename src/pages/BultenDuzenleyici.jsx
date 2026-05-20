@@ -1,4 +1,4 @@
- import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
@@ -422,7 +422,7 @@ export default function BultenDuzenleyici() {
 
             {/* Başlık */}
             <div style={{ ...s.card, borderColor: result && result.title.length > 50 ? "#fca5a5" : "#e2e8f0" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", presidential: "center", alignItems: "center", marginBottom: "10px" }}>
                     <div style={s.sectionLabel}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
                         <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/>
@@ -580,6 +580,8 @@ export default function BultenDuzenleyici() {
       )}
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -598,19 +600,19 @@ export default function BultenDuzenleyici() {
 }
 
 const s = {
-  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "Calibri, 'Sora', sans-serif", position: "relative" },
+  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
 
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
   headerInner: { maxWidth: "960px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
   headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
   headerRight: { display: "flex", alignItems: "center", gap: "10px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
+  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
   headerSep: { color: "#cbd5e1", fontSize: "14px" },
   headerTitle: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
   userDot: { width: "7px", height: "7px", borderRadius: "50%", background: "#22c55e" },
-  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
+  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
 
   main: { maxWidth: "960px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
   grid: { display: "flex", flexDirection: "column", gap: "20px" },
@@ -620,20 +622,20 @@ const s = {
   card: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", animation: "fadeUp 0.3s ease-out" },
   sectionLabel: { display: "flex", alignItems: "center", gap: "7px", fontSize: "11px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
 
-  textarea: { width: "100%", padding: "12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", fontFamily: "Calibri, sans-serif", color: "#0f172a", resize: "vertical", boxSizing: "border-box", lineHeight: "1.6", transition: "border-color 0.2s", background: "#fff" },
+  textarea: { width: "100%", padding: "12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", fontFamily: "inherit", color: "#0f172a", resize: "vertical", boxSizing: "border-box", lineHeight: "1.6", transition: "border-color 0.2s", background: "#fff" },
 
-  primaryBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "10px 18px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "10px", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", cursor: "pointer", transition: "opacity 0.2s" },
-  secondaryBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "10px 18px", background: "#fff", color: "#1e3a5f", border: "1.5px solid #bfdbfe", borderRadius: "10px", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", cursor: "pointer" },
-  clearBtn: { padding: "10px 16px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "12px", color: "#94a3b8", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
-  regenBtn: { display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "6px", fontSize: "11px", color: "#475569", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
-  miniCopyBtn: { padding: "4px 10px", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif", background: "#eff6ff", color: "#2563eb" },
+  primaryBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "10px 18px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "10px", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", cursor: "pointer", transition: "opacity 0.2s" },
+  secondaryBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "10px 18px", background: "#fff", color: "#1e3a5f", border: "1.5px solid #bfdbfe", borderRadius: "10px", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", cursor: "pointer" },
+  clearBtn: { padding: "10px 16px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "12px", color: "#94a3b8", cursor: "pointer", fontFamily: "inherit" },
+  regenBtn: { display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "6px", fontSize: "11px", color: "#475569", cursor: "pointer", fontFamily: "inherit" },
+  miniCopyBtn: { padding: "4px 10px", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", background: "#eff6ff", color: "#2563eb" },
 
-  channelBtn: { padding: "10px 6px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontFamily: "Calibri, sans-serif", textAlign: "center", transition: "all 0.15s" },
+  channelBtn: { padding: "10px 6px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.15s" },
 
   spinner: { display: "inline-block", width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite", flexShrink: 0 },
 
-  toast: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", border: "1.5px solid", padding: "14px 24px", borderRadius: "14px", boxShadow: "0 4px 24px rgba(30,58,95,0.13)", display: "flex", alignItems: "center", gap: "10px", fontFamily: "Calibri, sans-serif", zIndex: 9999, pointerEvents: "none", animation: "fadeUp 0.2s ease" },
+  toast: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", border: "1.5px solid", padding: "14px 24px", borderRadius: "14px", boxShadow: "0 4px 24px rgba(30,58,95,0.13)", display: "flex", alignItems: "center", gap: "10px", fontFamily: "inherit", zIndex: 9999, pointerEvents: "none", animation: "fadeUp 0.2s ease" },
 
-  modalCancelBtn: { padding: "8px 16px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", color: "#64748b", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
-  modalDangerBtn: { padding: "8px 16px", background: "#dc2626", border: "none", borderRadius: "8px", fontSize: "12px", color: "#fff", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
+  modalCancelBtn: { padding: "8px 16px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", color: "#64748b", cursor: "pointer", fontFamily: "inherit" },
+  modalDangerBtn: { padding: "8px 16px", background: "#dc2626", border: "none", borderRadius: "8px", fontSize: "12px", color: "#fff", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
 };
