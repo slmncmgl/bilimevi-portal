@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxGqNeOv-azMg2VMmgYqb7PU0NBprKwmNvtQ59OKD3xJfCwekps-V9w7f4bk1mTXKI/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQ0DwFhi0mTA6bJhC157wt2Bv0-50DDeRN4CaO4zVxCvFCflRBziIU0JIQN052DkEP/exec";
 
 const MODULE_CONFIG = [
   {
@@ -85,69 +85,69 @@ const MODULE_CONFIG = [
     bg: "#ecfeff",
     border: "#a5f3fc",
   },
-{
-  key: "kayitguncelle",
-  title: "Sözleşme Güncelle",
-  desc: "Öğrenci kaydını düzelt ve sözleşmeyi yeniden gönder",
-  path: "/kayit-guncelle",
-  icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-    </svg>
-  ),
-  color: "#0891b2",
-  bg: "#ecfeff",
-  border: "#a5f3fc",
-},
-{
-  key: "fiyatteklifi",
-  title: "(BETA) Fiyat Teklifi",
-  desc: "Dil okulu fiyat teklifi oluştur",
-  path: "/fiyat-teklifi",
-  icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-      <path d="M2 17l10 5 10-5"/>
-      <path d="M2 12l10 5 10-5"/>
-    </svg>
-  ),
-  color: "#ea580c",
-  bg: "#fff7ed",
-  border: "#fed7aa",
-},
-{
-  key: "katalogparse",
-  title: "(BETA) Katalog Parse",
-  desc: "Okul PDF kataloglarını veritabanına aktar",
-  path: "/katalog-parse",
-  icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
-      <line x1="12" y1="18" x2="12" y2="12"/>
-      <line x1="9" y1="15" x2="15" y2="15"/>
-    </svg>
-  ),
-  color: "#1d4ed8",
-  bg: "#eff6ff",
-  border: "#bfdbfe",
-},
   {
-  key: "performansanalizi",
-  title: "Performans Analizi",
-  desc: "Danışman sınav sayılarını ve başarı ortalamalarını takip et",
-  path: "/performans-analizi",
-  icon: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
-      <path d="M12 20V10M18 20V4M6 20v-4" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M3 20h18" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  color: "#0891b2", // Cyan-600 tonu (Farklılaşması için)
-  bg: "#ecfeff",   // Cyan-50
-  border: "#a5f3fc", // Cyan-200
-},
+    key: "kayitguncelle",
+    title: "Sözleşme Güncelle",
+    desc: "Öğrenci kaydını düzelt ve sözleşmeyi yeniden gönder",
+    path: "/kayit-guncelle",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+    ),
+    color: "#0891b2",
+    bg: "#ecfeff",
+    border: "#a5f3fc",
+  },
+  {
+    key: "fiyatteklifi",
+    title: "(BETA) Fiyat Teklifi",
+    desc: "Dil okulu fiyat teklifi oluştur",
+    path: "/fiyat-teklifi",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+    ),
+    color: "#ea580c",
+    bg: "#fff7ed",
+    border: "#fed7aa",
+  },
+  {
+    key: "katalogparse",
+    title: "(BETA) Katalog Parse",
+    desc: "Okul PDF kataloglarını veritabanına aktar",
+    path: "/katalog-parse",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="12" y1="18" x2="12" y2="12"/>
+        <line x1="9" y1="15" x2="15" y2="15"/>
+      </svg>
+    ),
+    color: "#1d4ed8",
+    bg: "#eff6ff",
+    border: "#bfdbfe",
+  },
+  {
+    key: "performansanalizi",
+    title: "Performans Analizi",
+    desc: "Danışman sınav sayılarını ve başarı ortalamalarını takip et",
+    path: "/performans-analizi",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M12 20V10M18 20V4M6 20v-4" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M3 20h18" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    color: "#0891b2",
+    bg: "#ecfeff",
+    border: "#a5f3fc",
+  },
 ];
 
 export default function Dashboard() {
@@ -162,7 +162,7 @@ export default function Dashboard() {
     if (!session) { navigate("/"); return; }
     setUser(session);
     const timer = setInterval(() => setTime(new Date()), 60000);
-        return () => clearInterval(timer);
+    return () => clearInterval(timer);
   }, []);
 
   async function sozlesmeAc() {
@@ -183,7 +183,6 @@ export default function Dashboard() {
       window.open(json.url, "_blank");
     } catch (err) {
       setSozlesmeHata(err.message);
-      // IT'ye hata maili gönder
       fetch(SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({
@@ -350,7 +349,7 @@ export default function Dashboard() {
       )}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(16px); }
@@ -378,7 +377,7 @@ const styles = {
   root: {
     minHeight: "100vh",
     background: "#f8fafc",
-    fontFamily: "'Sora', sans-serif",
+    fontFamily: "'Inter', sans-serif",
     position: "relative",
     overflow: "hidden",
   },
@@ -464,7 +463,7 @@ const styles = {
     fontWeight: "600",
     cursor: "pointer",
     transition: "background 0.2s",
-    fontFamily: "'Sora', sans-serif",
+    fontFamily: "'Inter', sans-serif",
   },
   main: {
     maxWidth: "900px",
@@ -509,7 +508,7 @@ const styles = {
     textAlign: "left",
     boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
     animation: "fadeUp 0.5s ease-out both",
-    fontFamily: "'Sora', sans-serif",
+    fontFamily: "'Inter', sans-serif",
     width: "100%",
   },
   moduleIcon: {
