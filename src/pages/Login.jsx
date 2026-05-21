@@ -5,7 +5,6 @@ import { loginWithCredentials, saveSession, getSession } from "../utils/sheets";
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "931368494993-gahav7fg7ss663e3v82enk2e6au6onfa.apps.googleusercontent.com";
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "https://bilimevi-portal.vercel.app/auth/callback";
 
-// 🌍 Dil Sözlüğü (Tarayıcı diline göre metinler buradan çekilecek)
 const translations = {
   tr: {
     title: "Hoş Geldiniz",
@@ -69,14 +68,11 @@ function handleGoogleLogin() {
 export default function Login() {
   const navigate = useNavigate();
 
-  // 🌐 TARAYICI DİLİ KONTROLÜ
-  // Eğer tarayıcı dili 'tr' ile başlamıyorsa, otomatik olarak 'en' (İngilizce) seçer.
   const [lang] = useState(() => {
     const browserLang = navigator.language || navigator.userLanguage || "tr";
     return browserLang.startsWith("tr") ? "tr" : "en";
   });
 
-  // Seçili dil sözlüğüne kısa yol
   const t = translations[lang];
 
   const [username, setUsername] = useState("");
@@ -88,7 +84,7 @@ export default function Login() {
   const [sifrePopup, setSifrePopup] = useState(false);
   const [sifreUsername, setSifreUsername] = useState("");
   const [sifreLoading, setSifreLoading] = useState(false);
-  const [sifreMesaj, setSifreMesaj] = useState(null); // { type, msg }
+  const [sifreMesaj, setSifreMesaj] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -253,7 +249,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQ0DwFhi0mTA6bJhC15
               <button
                 type="button"
                 onClick={() => { setSifrePopup(true); setSifreUsername(username); setSifreMesaj(null); }}
-                style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "12px", cursor: "pointer", textAlign: "left", padding: "0", fontFamily: "'Sora', sans-serif", textDecoration: "underline" }}
+                style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "12px", cursor: "pointer", textAlign: "left", padding: "0", fontFamily: "'Inter', sans-serif", textDecoration: "underline" }}
               >
                 {t.forgot}
               </button>
@@ -320,7 +316,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQ0DwFhi0mTA6bJhC15
               onChange={e => setSifreUsername(e.target.value)}
               onKeyDown={e => e.key === "Enter" && sifreyiGonder()}
               placeholder="...@bilimevi.com"
-              style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "'Sora', sans-serif", outline: "none", marginBottom: "12px", boxSizing: "border-box" }}
+              style={{ width: "100%", padding: "11px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "'Inter', sans-serif", outline: "none", marginBottom: "12px", boxSizing: "border-box" }}
             />
             {sifreMesaj && (
               <div style={{ padding: "10px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: "500", marginBottom: "12px", background: sifreMesaj.type === "success" ? "#ecfdf5" : "#fef2f2", border: `1px solid ${sifreMesaj.type === "success" ? "#a7f3d0" : "#fecaca"}`, color: sifreMesaj.type === "success" ? "#059669" : "#dc2626" }}>
@@ -329,11 +325,11 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQ0DwFhi0mTA6bJhC15
             )}
             <div style={{ display: "flex", gap: "10px" }}>
               <button onClick={() => { setSifrePopup(false); setSifreMesaj(null); }}
-                style={{ flex: 1, padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "'Sora', sans-serif" }}>
+                style={{ flex: 1, padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "'Inter', sans-serif" }}>
                 {t.popupCancel}
               </button>
               <button onClick={sifreyiGonder} disabled={sifreLoading || !sifreUsername.trim()}
-                style={{ flex: 2, padding: "10px", background: sifreLoading || !sifreUsername.trim() ? "#bfdbfe" : "#2563eb", border: "none", borderRadius: "10px", cursor: sifreUsername.trim() && !sifreLoading ? "pointer" : "not-allowed", fontSize: "13px", fontWeight: "600", color: "#fff", fontFamily: "'Sora', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                style={{ flex: 2, padding: "10px", background: sifreLoading || !sifreUsername.trim() ? "#bfdbfe" : "#2563eb", border: "none", borderRadius: "10px", cursor: sifreUsername.trim() && !sifreLoading ? "pointer" : "not-allowed", fontSize: "13px", fontWeight: "600", color: "#fff", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                 {sifreLoading ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> {t.popupSending}</> : t.popupSend}
               </button>
             </div>
@@ -342,16 +338,13 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQ0DwFhi0mTA6bJhC15
       )}
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Sora', sans-serif; }
+        body { font-family: 'Inter', sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
       @media (max-width: 640px) {
-          /* En dış kutunun padding boşluğunu sıfırlayıp tam ekran yapıyoruz */
           body > div > div { padding: 0 !important; } 
-          
-          /* Kartı tam ekran yapıp oval kenarları sıfırlıyoruz */
           .login-card { 
             flex-direction: column !important; 
             min-height: 100vh !important; 
@@ -361,7 +354,6 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQ0DwFhi0mTA6bJhC15
             margin: 0 !important;
             box-shadow: none !important;
           }
-          
           .login-left { 
             width: 100% !important; 
             padding: 40px 24px 24px !important; 
@@ -372,7 +364,6 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQ0DwFhi0mTA6bJhC15
             min-height: unset !important; 
             border-radius: 0 !important;
           }
-          
           .login-left-text { display: block !important; padding: 0 !important; }
           .login-left-footer { display: block !important; color: rgba(255,255,255,0.5) !important; }
           .login-logo-wrap { padding: 0 !important; width: 100% !important; max-width: 240px !important; }
@@ -384,14 +375,14 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxQ0DwFhi0mTA6bJhC15
 }
 
 const styles = {
-  root: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative", overflow: "hidden", padding: "20px" },
+  root: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative", overflow: "hidden", padding: "20px" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f022 1px, transparent 1px), linear-gradient(90deg, #e2e8f022 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   bgGlow1: { position: "fixed", top: "-20%", left: "-10%", width: "600px", height: "600px", borderRadius: "50%", background: "radial-gradient(circle, #dbeafe88 0%, transparent 70%)", zIndex: 0 },
   bgGlow2: { position: "fixed", bottom: "-20%", right: "-10%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, #ede9fe66 0%, transparent 70%)", zIndex: 0 },
   card: { display: "flex", width: "100%", maxWidth: "860px", minHeight: "540px", borderRadius: "24px", overflow: "hidden", boxShadow: "0 25px 60px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)", position: "relative", zIndex: 1, animation: "fadeUp 0.5s ease-out" },
   leftPanel: { width: "40%", background: "linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)", padding: "48px 40px", display: "flex", flexDirection: "column", justifyContent: "space-between" },
   logoWrap: { alignSelf: "flex-start", width: "100%", maxWidth: "260px", marginBottom: "20px" },
-  manualLogo: { display: "flex", flexDirection: "column", fontFamily: "'Sora', sans-serif", width: "100%" },
+  manualLogo: { display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif", width: "100%" },
   logoMainRow: { fontSize: "60px", fontWeight: "800", color: "#ffffff", letterSpacing: "-1.5px", lineHeight: "1.0" },
   logoSubRow: { display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "600", color: "rgba(255, 255, 255, 0.75)", marginTop: "6px", lineHeight: "1.0", textTransform: "uppercase" },
   leftText: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 0" },
@@ -407,17 +398,17 @@ const styles = {
   label: { fontSize: "12px", fontWeight: "600", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
   inputWrap: { position: "relative", display: "flex", alignItems: "center" },
   inputIcon: { position: "absolute", left: "14px", width: "16px", height: "16px", color: "#94a3b8", pointerEvents: "none" },
-  input: { width: "100%", padding: "12px 14px 12px 42px", border: "1.5px solid #e2e8f0", borderRadius: "12px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "'Sora', sans-serif" },
+  input: { width: "100%", padding: "12px 14px 12px 42px", border: "1.5px solid #e2e8f0", borderRadius: "12px", fontSize: "14px", color: "#0f172a", background: "#f8fafc", outline: "none", transition: "border-color 0.2s", fontFamily: "'Inter', sans-serif" },
   eyeBtn: { position: "absolute", right: "12px", background: "none", border: "none", cursor: "pointer", color: "#94a3b8", display: "flex", padding: "4px" },
   rememberWrap: { display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", userSelect: "none" },
   checkbox: { width: "16px", height: "16px", accentColor: "#2563eb", cursor: "pointer" },
   rememberText: { fontSize: "13px", color: "#64748b", fontWeight: "500" },
   errorBox: { display: "flex", alignItems: "center", gap: "8px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "10px 14px", fontSize: "13px", color: "#dc2626", fontWeight: "500" },
-  submitBtn: { width: "100%", padding: "13px", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "transform 0.15s, box-shadow 0.15s", boxShadow: "0 4px 14px rgba(37,99,235,0.35)", fontFamily: "'Sora', sans-serif", letterSpacing: "-0.2px" },
+  submitBtn: { width: "100%", padding: "13px", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "transform 0.15s, box-shadow 0.15s", boxShadow: "0 4px 14px rgba(37,99,235,0.35)", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.2px" },
   loadingWrap: { display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" },
   spinner: { display: "inline-block", width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" },
   divider: { display: "flex", alignItems: "center", gap: "12px", margin: "2px 0" },
   dividerLine: { flex: 1, height: "1px", background: "#e2e8f0" },
   dividerText: { fontSize: "12px", color: "#94a3b8", fontWeight: "500" },
-  googleBtn: { width: "100%", padding: "12px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", fontSize: "14px", fontWeight: "500", color: "#374151", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "border-color 0.2s", fontFamily: "'Sora', sans-serif" },
+  googleBtn: { width: "100%", padding: "12px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", fontSize: "14px", fontWeight: "500", color: "#374151", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "border-color 0.2s", fontFamily: "'Inter', sans-serif" },
 };
