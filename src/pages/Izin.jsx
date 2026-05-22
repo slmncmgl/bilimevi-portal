@@ -778,18 +778,39 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     const rows = parseCSV(csv);
     let bekleyen = rows.filter(r => (r["Durum"] || "").trim() === "Bekliyor");
     
-    // Eğer admin veya owner değilse (Manager ise) sadece kendi şirket ve şubesinde çalışan personelleri filtrele
+    // Eğer admin veya owner değilse (Manager veya Director ise)
     if (!isAdmin) {
-      const mudurSirket = personel?.["Şirket"];
-      const mudurSube = personel?.["Şube"];
+      const session = getSession();
+      const currentRole = (session?.rol || session?.title || "staff").toLowerCase().trim();
       
-      // AdminPanel'e prop olarak listelenen filtrelenmiş adminList üzerinden de eşleşme kontrolü yapılabilir
-      const yetkiliOlduguKisiler = list.map(p => p["Ad Soyad"]);
-      bekleyen = bekleyen.filter(r => yetkiliOlduguKisiler.includes(r["Personel"]));
+      // Personel tablosundan müdürün kendi şube ve şirket bilgilerini bulalım (State gecikmelerini önlemek için doğrudan çekiyoruz)
+      const tumPersonelCsv = await fetchSheetCSV("Personel");
+      const tumPersonelRows = parseCSV(tumPersonelCsv);
+      const mudurVerisi = tumPersonelRows.find(p => p["Ad Soyad"] === session?.name);
+
+      if (mudurVerisi) {
+        const mudurSirket = mudurVerisi["Şirket"];
+        const mudurSube = mudurVerisi["Şube"];
+
+        // Müdürün yetkili olduğu şubedeki personellerin isim listesi
+        const yetkiliOlduguKisiler = tumPersonelRows
+          .filter(p => {
+            if (currentRole === "director") {
+              return p["Şirket"] === mudurSirket;
+            }
+            return p["Şirket"] === mudurSirket && p["Şube"] === mudurSube;
+          })
+          .map(p => p["Ad Soyad"]);
+
+        // Bekleyen talepleri sadece bu personellerle kısıtla
+        bekleyen = bekleyen.filter(r => yetkiliOlduguKisiler.includes(r["Personel"]));
+      }
     }
     
     setBekleyenIzinler(bekleyen);
-  } catch (_) { setBekleyenIzinler([]); }
+  } catch (_) { 
+    setBekleyenIzinler([]); 
+  }
   setBekleyenLoading(false);
 }
 
