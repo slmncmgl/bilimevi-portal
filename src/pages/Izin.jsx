@@ -815,21 +815,55 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
 }
 
   async function fetchGecmis() {
-    setGecmisLoading(true);
-    try {
-      const csv = await fetchSheetCSV("İşlemler");
-      const rows = parseCSV(csv);
-      const sorted = rows
-        .filter(r => r["Personel"] || r["İşlem Zamanı"])
-        .sort((a, b) => {
-          const da = new Date(a["İşlem Zamanı"] || 0);
-          const db = new Date(b["İşlem Zamanı"] || 0);
-          return db - da;
-        });
-      setIslemGecmisi(sorted);
-    } catch (_) { setIslemGecmisi([]); }
-    setGecmisLoading(false);
+  setGecmisLoading(true);
+  try {
+    const csv = await fetchSheetCSV("İşlemler");
+    const rows = parseCSV(csv);
+    
+    // Geçmiş verilerini filtrele ve sırala
+    let filteredRows = rows.filter(r => r["Personel"] || r["İşlem Zamanı"]);
+
+    // Eğer admin veya owner değilse (Manager veya Director ise) geçmişi de şubesine göre kısıtla
+    if (!isAdmin) {
+      const session = getSession();
+      const currentRole = (session?.rol || session?.title || "staff").toLowerCase().trim();
+      
+      const tumPersonelCsv = await fetchSheetCSV("Personel");
+      const tumPersonelRows = parseCSV(tumPersonelCsv);
+      const mudurVerisi = tumPersonelRows.find(p => p["Ad Soyad"] === session?.name);
+
+      if (mudurVerisi) {
+        const mudurSirket = mudurVerisi["Şirket"];
+        const mudurSube = mudurVerisi["Şube"];
+
+        // Müdürün kendi şubesinde/şirketinde çalışan personellerin isim listesi
+        const yetkiliOlduguKisiler = tumPersonelRows
+          .filter(p => {
+            if (currentRole === "director") {
+              return p["Şirket"] === mudurSirket;
+            }
+            return p["Şirket"] === mudurSirket && p["Şube"] === mudurSube;
+          })
+          .map(p => p["Ad Soyad"]);
+
+        // İşlem geçmişini sadece müdürün yetkili olduğu personellerle filtrele
+        filteredRows = filteredRows.filter(r => yetkiliOlduguKisiler.includes(r["Personel"]));
+      }
+    }
+
+    // Filtrelenmiş veriyi zamana göre yeniden sırala
+    const sorted = filteredRows.sort((a, b) => {
+      const da = new Date(a["İşlem Zamanı"] || 0);
+      const db = new Date(b["İşlem Zamanı"] || 0);
+      return db - da;
+    });
+
+    setIslemGecmisi(sorted);
+  } catch (_) { 
+    setIslemGecmisi([]); 
   }
+  setGecmisLoading(false);
+}
 
   useEffect(() => {
     if (adminTab === "bekleyen") fetchBekleyen();
