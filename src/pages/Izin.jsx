@@ -303,25 +303,32 @@ export default function Izin() {
   }
 
   async function loadAdminList(sessionOverride) {
-    setAdminLoading(true);
-    try {
-      const userTitle = (sessionOverride?.rol || sessionOverride?.title || user?.rol || user?.title || "staff");
-      const tumPersonel = await fetchTumPersonel();
-      let filtered;
-      if (userTitle === "owner" || userTitle === "admin") {
-        filtered = tumPersonel;
-      } else if (userTitle === "director") {
-        filtered = tumPersonel.filter(p => p["Şirket"] === (sessionOverride?.company || personel?.["Şirket"]));
-      } else {
-        filtered = tumPersonel.filter(p =>
-          p["Şirket"] === (sessionOverride?.company || personel?.["Şirket"]) &&
-          p["Şube"] === (sessionOverride?.branch || personel?.["Şube"])
-        );
-      }
-      setAdminList(filtered);
-    } catch (_) {}
-    setAdminLoading(false);
-  }
+  setAdminLoading(true);
+  try {
+    const userTitle = (sessionOverride?.rol || sessionOverride?.title || user?.rol || user?.title || "staff").toLowerCase().trim();
+    const tumPersonel = await fetchTumPersonel();
+    let filtered;
+    
+    if (userTitle === "owner" || userTitle === "admin") {
+      filtered = tumPersonel;
+    } else if (userTitle === "director") {
+      filtered = tumPersonel.filter(p => p["Şirket"] === (sessionOverride?.company || personel?.["Şirket"]));
+    } else if (userTitle === "manager") {
+      // Ofis müdürleri (manager) sadece kendi şirket ve şubelerini görür, üst roller dahil edilmez
+      const hedefSirket = sessionOverride?.company || personel?.["Şirket"];
+      const hedefSube = sessionOverride?.branch || personel?.["Şube"];
+      
+      filtered = tumPersonel.filter(p => 
+        p["Şirket"] === hedefSirket && 
+        p["Şube"] === hedefSube
+      );
+    } else {
+      filtered = []; // Diğer roller yetkisizdir
+    }
+    setAdminList(filtered);
+  } catch (_) {}
+  setAdminLoading(false);
+}
 
   function handleIzinTuruSec(tur) {
     if (tur === "Diğer") {
