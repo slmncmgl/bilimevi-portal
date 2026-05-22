@@ -765,15 +765,26 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   }
 
   async function fetchBekleyen() {
-    setBekleyenLoading(true);
-    try {
-      const csv = await fetchSheetCSV("İşlemler");
-      const rows = parseCSV(csv);
-      const bekleyen = rows.filter(r => (r["Durum"] || "").trim() === "Bekliyor");
-      setBekleyenIzinler(bekleyen);
-    } catch (_) { setBekleyenIzinler([]); }
-    setBekleyenLoading(false);
-  }
+  setBekleyenLoading(true);
+  try {
+    const csv = await fetchSheetCSV("İşlemler");
+    const rows = parseCSV(csv);
+    let bekleyen = rows.filter(r => (r["Durum"] || "").trim() === "Bekliyor");
+    
+    // Eğer admin veya owner değilse (Manager ise) sadece kendi şirket ve şubesinde çalışan personelleri filtrele
+    if (!isAdmin) {
+      const mudurSirket = personel?.["Şirket"];
+      const mudurSube = personel?.["Şube"];
+      
+      // AdminPanel'e prop olarak listelenen filtrelenmiş adminList üzerinden de eşleşme kontrolü yapılabilir
+      const yetkiliOlduguKisiler = list.map(p => p["Ad Soyad"]);
+      bekleyen = bekleyen.filter(r => yetkiliOlduguKisiler.includes(r["Personel"]));
+    }
+    
+    setBekleyenIzinler(bekleyen);
+  } catch (_) { setBekleyenIzinler([]); }
+  setBekleyenLoading(false);
+}
 
   async function fetchGecmis() {
     setGecmisLoading(true);
