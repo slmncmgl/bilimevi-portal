@@ -22,7 +22,7 @@ export default function SinavCevaplari() {
   const [isMouseOver, setIsMouseOver] = useState(false);
   const isMouseOverRef = useRef(false);
   const [aiLoading, setAiLoading] = useState(false);
-  const [status, setStatus] = useState(null); // { type: "success"|"error"|"info", msg: "" }
+  const [status, setStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   const dropRef = useRef(null);
@@ -32,7 +32,6 @@ export default function SinavCevaplari() {
     if (!session) { navigate("/"); return; }
     setUser(session);
     fetchApiKey();
-
   }, []);
 
   function handlePaste(e) {
@@ -309,18 +308,18 @@ export default function SinavCevaplari() {
 }
 
 const s = {
-  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "Calibri, 'Sora', sans-serif", position: "relative" },
+  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
   headerInner: { maxWidth: "680px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
   headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
   headerRight: { display: "flex", alignItems: "center", gap: "10px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
+  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   headerSep: { color: "#cbd5e1", fontSize: "14px" },
   headerTitle: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
   userDot: { width: "7px", height: "7px", borderRadius: "50%", background: "#22c55e" },
-  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" },
+  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   main: { maxWidth: "680px", margin: "0 auto", padding: "40px 24px 64px", position: "relative", zIndex: 1 },
   card: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "36px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", gap: "28px", animation: "fadeUp 0.4s ease-out" },
   section: { display: "flex", flexDirection: "column", gap: "10px" },
@@ -330,11 +329,11 @@ const s = {
   formGrid: { display: "flex", flexDirection: "column", gap: "16px" },
   fieldFull: { display: "flex", flexDirection: "column", gap: "6px" },
   label: { fontSize: "12px", fontWeight: "600", color: "#64748b" },
-  input: { width: "100%", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "Calibri, sans-serif", color: "#0f172a", outline: "none", transition: "border-color 0.2s" },
+  input: { width: "100%", padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "'Inter', sans-serif", color: "#0f172a", outline: "none", transition: "border-color 0.2s" },
   scoreGrid: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" },
   fieldScore: { display: "flex", flexDirection: "column", gap: "6px" },
-  scoreInput: { width: "100%", padding: "12px 8px", border: "1.5px solid", borderRadius: "10px", fontSize: "18px", fontWeight: "700", textAlign: "center", fontFamily: "Calibri, sans-serif", outline: "none", background: "#fff" },
+  scoreInput: { width: "100%", padding: "12px 8px", border: "1.5px solid", borderRadius: "10px", fontSize: "18px", fontWeight: "700", textAlign: "center", fontFamily: "'Inter', sans-serif", outline: "none", background: "#fff" },
   bottomGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" },
   statusBox: { display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", borderRadius: "10px" },
-  submitBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "13px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "700", fontFamily: "Calibri, sans-serif", transition: "all 0.2s" },
+  submitBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "13px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "700", fontFamily: "'Inter', sans-serif", transition: "all 0.2s" },
 };
