@@ -1257,18 +1257,54 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                         </div>
                       )}
                     </div>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button onClick={() => onaylaIzin(row)} disabled={isProcessing}
-                        style={{ padding: "8px 16px", background: isOnayProcessing ? "#a7f3d0" : "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px" }}>
-                        {isOnayProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
-                        Onayla
-                      </button>
-                      <button onClick={() => reddetIzin(row)} disabled={isProcessing}
-                        style={{ padding: "8px 16px", background: isReddetProcessing ? "#fecaca" : "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px" }}>
-                        {isReddetProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,0,0,0.2)", borderTopColor: "#dc2626", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
-                        Reddet
-                      </button>
-                    </div>
+                    // AdminPanel bileşeni içinde bekleyenIzinler.map döngüsündeki buton alanı:
+<div style={{ display: "flex", gap: "8px" }}>
+  <button 
+    onClick={() => onaylaIzin(row)} 
+    disabled={isProcessing || !isAdmin} // Admin değilse kilitli
+    style={{ 
+      padding: "8px 16px", 
+      background: isOnayProcessing ? "#a7f3d0" : "#059669", 
+      color: "#fff", 
+      border: "none", 
+      borderRadius: "8px", 
+      cursor: (isProcessing || !isAdmin) ? "not-allowed" : "pointer", // Stil senkronizasyonu
+      opacity: !isAdmin ? 0.6 : 1, // Görsel geri bildirim
+      fontSize: "13px", 
+      fontWeight: "600", 
+      fontFamily: "inherit", 
+      display: "flex", 
+      alignItems: "center", 
+      gap: "6px" 
+    }}
+  >
+    {isOnayProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
+    Onayla
+  </button>
+  
+  <button 
+    onClick={() => reddetIzin(row)} 
+    disabled={isProcessing || !isAdmin} // Admin değilse kilitli
+    style={{ 
+      padding: "8px 16px", 
+      background: isReddetProcessing ? "#fecaca" : "#fef2f2", 
+      border: "1px solid #fecaca", 
+      color: "#dc2626", 
+      borderRadius: "8px", 
+      cursor: (isProcessing || !isAdmin) ? "not-allowed" : "pointer", // Stil senkronizasyonu
+      opacity: !isAdmin ? 0.6 : 1, // Görsel geri bildirim
+      fontSize: "13px", 
+      fontWeight: "600", 
+      fontFamily: "inherit", 
+      display: "flex", 
+      alignItems: "center", 
+      gap: "6px" 
+    }}
+  >
+    {isReddetProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,0,0,0.2)", borderTopColor: "#dc2626", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
+    Reddet
+  </button>
+</div>
                   </div>
                 );
               })}
