@@ -1257,7 +1257,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                         </div>
                       )}
                     </div>
-                    // AdminPanel bileşeni içinde bekleyenIzinler.map döngüsündeki buton alanı:
+                    
 <div style={{ display: "flex", gap: "8px" }}>
   <button 
     onClick={() => onaylaIzin(row)} 
