@@ -19,7 +19,7 @@ export default function InstagramDM() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [geminiKey, setGeminiKey] = useState("");
-  const [allOwners, setAllOwners] = useState([]); // Tüm danışmanlar (Sheets'ten)
+  const [allOwners, setAllOwners] = useState([]);
 
   // Görsel
   const [files, setFiles] = useState([]);
@@ -40,6 +40,7 @@ export default function InstagramDM() {
   const [ownersLoading, setOwnersLoading] = useState(false);
   const [selectedOwner, setSelectedOwner] = useState("");
   const [skipOwner, setSkipOwner] = useState(false);
+  const [yurtdisiLise, setYurtdisiLise] = useState(false);
 
   // CRM
   const [crmLoading, setCrmLoading] = useState(false);
@@ -51,30 +52,26 @@ export default function InstagramDM() {
     if (!session) { navigate("/"); return; }
     setUser(session);
     fetchGeminiKey();
-    loadOwners(); // Danışmanları yükle
+    loadOwners();
   }, []);
 
-async function fetchGeminiKey() {
-  try {
-    const res = await fetch('https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=API');
-    const text = await res.text();
-    
-    // İlk satır = A1 key'i
-    const firstLine = text.split('\n')[0];
-    const key = firstLine.replace(/"/g, '').split(',')[0].trim();
-    
-    if (key.startsWith('AIza')) {
-      setGeminiKey(key);
-      console.log('✅ Gemini key yüklendi:', key.substring(0, 20) + '...');
-    } else {
-      console.error('❌ Geçersiz key formatı');
+  async function fetchGeminiKey() {
+    try {
+      const res = await fetch('https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=API');
+      const text = await res.text();
+      const firstLine = text.split('\n')[0];
+      const key = firstLine.replace(/"/g, '').split(',')[0].trim();
+      if (key.startsWith('AIza')) {
+        setGeminiKey(key);
+        console.log('✅ Gemini key yüklendi:', key.substring(0, 20) + '...');
+      } else {
+        console.error('❌ Geçersiz key formatı');
+      }
+    } catch (err) {
+      console.error('❌ Sheets hatası:', err);
     }
-  } catch (err) {
-    console.error('❌ Sheets hatası:', err);
   }
-}
 
-  // ── CSV Parser ──
   function parseCSV(text) {
     const lines = text.trim().split('\n');
     return lines.map(line => {
@@ -91,41 +88,26 @@ async function fetchGeminiKey() {
     });
   }
 
-  // ── Danışmanları Sheets'ten yükle ──
   async function loadOwners() {
     try {
-      const [persResp, idResp] = await Promise.all([
-        fetch(PERSONNEL_URL),
-        fetch(ID_URL)
-      ]);
-      
-      if (!persResp.ok || !idResp.ok) {
-        throw new Error("Personel listesi okunamadı");
-      }
-
-      const persRows = parseCSV(await persResp.text()).slice(1); // Başlık atla
+      const [persResp, idResp] = await Promise.all([fetch(PERSONNEL_URL), fetch(ID_URL)]);
+      if (!persResp.ok || !idResp.ok) throw new Error("Personel listesi okunamadı");
+      const persRows = parseCSV(await persResp.text()).slice(1);
       const idRows = parseCSV(await idResp.text()).slice(1);
-
-      // email → ID map
       const emailToId = {};
       idRows.forEach(row => {
         const email = (row[0] || '').toLowerCase().trim();
         const id = parseInt((row[1] || '').trim(), 10);
         if (email && !isNaN(id)) emailToId[email] = id;
       });
-
-      // Personel listesi
       const ownerList = [];
       persRows.forEach(row => {
         const name = (row[0] || '').trim();
         const company = (row[1] || '').trim();
-        const email = (row[7] || '').toLowerCase().trim(); // H = index 7
+        const email = (row[7] || '').toLowerCase().trim();
         const ownerId = emailToId[email];
-        if (name && company && ownerId) {
-          ownerList.push({ name, company, email, ownerId });
-        }
+        if (name && company && ownerId) ownerList.push({ name, company, email, ownerId });
       });
-      
       setAllOwners(ownerList);
       console.log(`✅ ${ownerList.length} danışman yüklendi`);
     } catch (err) {
@@ -134,7 +116,6 @@ async function fetchGeminiKey() {
     }
   }
 
-  // ── Görsel işleme ──────────────────────────────────────────────
   function handleFiles(newFiles) {
     const arr = Array.from(newFiles).filter(f => f.type.startsWith("image/"));
     if (!arr.length) return;
@@ -243,29 +224,19 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
     return cleaned;
   }
 
-  // ── Pipeline & danışman ────────────────────────────────────────
   async function selectPipeline(key) {
     setPipeline(key);
     setSelectedOwner("");
     setCrmDone(false);
     setOwnersLoading(true);
-
-    const companyMap = {
-      bilimevi: 'bilimevi',
-      premium: 'premium vize',
-      fortis: 'fortis'
-    };
-    
+    const companyMap = { bilimevi: 'bilimevi', premium: 'premium vize', fortis: 'fortis' };
     const filter = companyMap[key] || '';
-    const filtered = allOwners.filter(o => 
-      o.company.toLowerCase().includes(filter)
-    );
-    
+    const filtered = allOwners.filter(o => o.company.toLowerCase().includes(filter));
     setOwners(filtered);
     setOwnersLoading(false);
     console.log(`✅ ${filtered.length} danışman filtrelendi (${key})`);
   }
-  // ── CRM Gönder ─────────────────────────────────────────────────
+
   async function sendToCRM() {
     if (!pipeline) { setStatus({ type: "error", msg: "Lütfen pipeline seçin" }); return; }
     if (!skipOwner && !selectedOwner) { setStatus({ type: "error", msg: "Lütfen danışman seçin" }); return; }
@@ -278,7 +249,7 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
         emails: email ? [{ type: "OFFICE", value: email, primary: true }] : [],
         phoneNumbers: cleanedPhone ? [{ type: "MOBILE", code: "TR", dialCode: "+90", value: cleanedPhone, primary: true }] : [],
         source: 2614515,
-        subSource: cfg.subSource,
+        subSource: yurtdisiLise ? "Yurtdisilise" : cfg.subSource,
         ...(skipOwner ? {} : { ownerId: Number(selectedOwner) }),
         pipeline: { id: cfg.id, name: cfg.name, stage: { id: cfg.stageId, name: cfg.stageName } }
       };
@@ -323,9 +294,9 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
     setFiles([]); setCustomerName(""); setPhone(""); setEmail("");
     setDialogue(""); setNote(""); setPipeline(null); setOwners([]);
     setSelectedOwner(""); setSkipOwner(false); setCrmDone(false); setStatus(null);
+    setYurtdisiLise(false);
   }
 
-  // ── Status auto-hide ───────────────────────────────────────────
   useEffect(() => {
     if (!status) return;
     const t = setTimeout(() => setStatus(null), 3500);
@@ -435,6 +406,15 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
                   </button>
                 ))}
               </div>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginTop: "12px" }}>
+                <input
+                  type="checkbox"
+                  checked={yurtdisiLise}
+                  onChange={e => setYurtdisiLise(e.target.checked)}
+                  style={{ width: "15px", height: "15px", cursor: "pointer" }}
+                />
+                <span style={{ fontSize: "13px", color: "#475569", fontWeight: "500" }}>🏫 Yurtdışı Lise</span>
+              </label>
             </div>
 
             {/* Danışman */}
@@ -600,40 +580,15 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
         select:focus { outline: none; border-color: #2563eb; }
         button:hover { opacity: 0.88; }
         
-        /* Mobil responsive grid */
-        [data-grid] {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 20px;
-        }
+        [data-grid] { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 1024px) { [data-grid] { grid-template-columns: 340px 1fr; } }
         
-        @media (min-width: 1024px) {
-          [data-grid] {
-            grid-template-columns: 340px 1fr;
-          }
-        }
+        [data-contact-grid] { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        @media (min-width: 640px) { [data-contact-grid] { grid-template-columns: 1fr 1fr; } }
         
-        /* Telefon/Email grid - mobilde alt alta */
-        [data-contact-grid] {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 12px;
-        }
-        
-        @media (min-width: 640px) {
-          [data-contact-grid] {
-            grid-template-columns: 1fr 1fr;
-          }
-        }
-        
-        /* Mobil header */
         @media (max-width: 640px) {
-          [data-header-title] {
-            font-size: 12px !important;
-          }
-          [data-header-sep] {
-            display: none;
-          }
+          [data-header-title] { font-size: 12px !important; }
+          [data-header-sep] { display: none; }
         }
       `}</style>
     </div>
@@ -643,7 +598,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
 const s = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
-
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
   headerInner: { maxWidth: "1000px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
   headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
@@ -654,31 +608,23 @@ const s = {
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
   userDot: { width: "7px", height: "7px", borderRadius: "50%", background: "#22c55e" },
   logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
-
   main: { maxWidth: "1000px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
   grid: { gap: "20px", alignItems: "start" },
   leftCol: { display: "flex", flexDirection: "column", gap: "16px" },
   rightCol: { display: "flex", flexDirection: "column", gap: "16px" },
-
   card: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", animation: "fadeUp 0.3s ease-out" },
   sectionLabel: { display: "flex", alignItems: "center", gap: "7px", fontSize: "11px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "12px" },
-
   dropZone: { position: "relative", border: "2px dashed", borderRadius: "12px", padding: "24px 16px", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "140px", transition: "all 0.2s", cursor: "pointer" },
   uploadIcon: { width: "44px", height: "44px", background: "#fff", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.08)", margin: "0 auto 10px" },
   clearBtn: { marginTop: "8px", width: "100%", padding: "7px", background: "none", border: "1px solid #e2e8f0", borderRadius: "8px", fontSize: "12px", color: "#94a3b8", cursor: "pointer", fontFamily: "inherit" },
-
   pipelineBtn: { padding: "10px 6px", background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "12px", fontWeight: "600", color: "#475569", cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s" },
   pipelineBtnActive: { background: "#eff6ff", border: "1.5px solid #2563eb", color: "#1d4ed8" },
-
   select: { width: "100%", padding: "10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", fontFamily: "inherit", color: "#0f172a", background: "#fff", cursor: "pointer" },
-
   input: { width: "100%", padding: "10px 38px 10px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontFamily: "inherit", color: "#0f172a", boxSizing: "border-box", transition: "border-color 0.2s" },
   copyBtn: { position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: "4px", display: "flex", alignItems: "center" },
   miniCopyBtn: { fontSize: "11px", fontWeight: "600", color: "#2563eb", background: "#eff6ff", border: "none", borderRadius: "6px", padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" },
   textarea: { width: "100%", padding: "12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", fontFamily: "inherit", color: "#0f172a", resize: "vertical", boxSizing: "border-box", lineHeight: "1.6", transition: "border-color 0.2s" },
-
   submitBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "14px", color: "#fff", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "700", fontFamily: "inherit", transition: "all 0.2s" },
   spinner: { display: "inline-block", width: "18px", height: "18px", border: "2px solid #dbeafe", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
-
   toast: { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", border: "1.5px solid", padding: "14px 24px", borderRadius: "14px", fontSize: "13px", fontWeight: "600", boxShadow: "0 4px 24px rgba(30,58,95,0.13)", display: "flex", alignItems: "center", gap: "10px", fontFamily: "inherit", zIndex: 9999, pointerEvents: "none", animation: "fadeUp 0.2s ease" },
 };
