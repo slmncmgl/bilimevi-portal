@@ -30,6 +30,8 @@ export default function InstagramDM() {
   // Sonuçlar
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
+  const [dialCode, setDialCode] = useState("+90");
+  const [countryCode, setCountryCode] = useState("TR");
   const [email, setEmail] = useState("");
   const [dialogue, setDialogue] = useState("");
   const [note, setNote] = useState("");
@@ -151,27 +153,24 @@ export default function InstagramDM() {
 
 KURALLAR:
 1. Müşteri İsmi: Profil başlığından veya mesajlardan ("Merhaba Ahmet" gibi) al
-2. Telefon: Mesajlarda geçen telefon numaralarını al
+2. Telefon:
+   - Ülke kodunu (dialCode) ve numarayı AYRI ver
+   - Türkiye (+90): "05331234567" → dialCode: "+90", countryCode: "TR", phone: "5331234567" (başındaki 0 olmadan)
+   - Yabancı (+52 vb.): dialCode: "+52", countryCode: "MX", phone: sadece ülke kodu olmadan rakamlar
+   - Ülke kodu yoksa ve 0 ile başlıyorsa Türkiye say
 3. Email: Mesajlarda geçen email adreslerini al
 4. Mesaj Akışı: 
    - SADECE mesajları yaz, form bilgisi/zaman damgası/link ekleme
    - Her mesajı "A: [mesaj]" veya "B: [mesaj]" formatında yaz
    - Her mesaj yeni satırda
    - Konuşmacı değişince boş satır ekle
-   
-ÖRNEKLENDİRME:
-A: Merhaba, Schengen vizesi için bilgi almak istiyorum
-A: 0532 123 4567 numaram
-
-B: Merhaba, tabii yardımcı olabilirim
-B: Hangi ülke için vize başvurusu yapacaksınız?
-
-A: Almanya için
 
 JSON formatında döndür:
 {
   "customerName": "müşteri adı",
-  "phone": "telefon",
+  "phone": "telefon (ülke kodu olmadan)",
+  "dialCode": "+90",
+  "countryCode": "TR",
   "email": "email",
   "dialogue": "A: ...\nB: ..."
 }
@@ -195,7 +194,9 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
       const parsed = JSON.parse(clean);
 
       if (parsed.customerName) setCustomerName(parsed.customerName);
-      if (parsed.phone) setPhone(cleanPhone(parsed.phone));
+      if (parsed.phone) setPhone(cleanPhone(parsed.phone, parsed.dialCode));
+      if (parsed.dialCode) setDialCode(parsed.dialCode);
+      if (parsed.countryCode) setCountryCode(parsed.countryCode);
       if (parsed.email) setEmail(parsed.email);
       if (parsed.dialogue) setDialogue(prev => prev ? prev + "\n\n---\n\n" + parsed.dialogue : parsed.dialogue);
 
@@ -216,11 +217,14 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
     });
   }
 
-  function cleanPhone(raw) {
+  function cleanPhone(raw, dialCode) {
     let cleaned = raw.replace(/\D/g, "");
-    if (cleaned.startsWith("90") && cleaned.length === 12) cleaned = cleaned.substring(2);
-    else if (cleaned.startsWith("0") && cleaned.length === 11) cleaned = cleaned.substring(1);
-    if (cleaned.length > 10) cleaned = cleaned.slice(-10);
+    // Sadece TR numaralarını temizle
+    if (!dialCode || dialCode === "+90") {
+      if (cleaned.startsWith("90") && cleaned.length === 12) cleaned = cleaned.substring(2);
+      else if (cleaned.startsWith("0") && cleaned.length === 11) cleaned = cleaned.substring(1);
+      if (cleaned.length > 10) cleaned = cleaned.slice(-10);
+    }
     return cleaned;
   }
 
@@ -243,11 +247,11 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
     setCrmLoading(true);
     try {
       const cfg = PIPELINE_CONFIG[pipeline];
-      const cleanedPhone = cleanPhone(phone);
+      const cleanedPhone = cleanPhone(phone, dialCode);
       const payload = {
         firstName: customerName || "Bilinmeyen Müşteri",
         emails: email ? [{ type: "OFFICE", value: email, primary: true }] : [],
-        phoneNumbers: cleanedPhone ? [{ type: "MOBILE", code: "TR", dialCode: "+90", value: cleanedPhone, primary: true }] : [],
+        phoneNumbers: cleanedPhone ? [{ type: "MOBILE", code: countryCode, dialCode: dialCode, value: cleanedPhone, primary: true }] : [],
         source: 2614515,
         subSource: yurtdisiLise ? "Yurtdisilise" : cfg.subSource,
         ...(skipOwner ? {} : { ownerId: Number(selectedOwner) }),
@@ -291,7 +295,7 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
   }
 
   function reset() {
-    setFiles([]); setCustomerName(""); setPhone(""); setEmail("");
+    setFiles([]); setCustomerName(""); setPhone(""); setDialCode("+90"); setCountryCode("TR"); setEmail("");
     setDialogue(""); setNote(""); setPipeline(null); setOwners([]);
     setSelectedOwner(""); setSkipOwner(false); setCrmDone(false); setStatus(null);
     setYurtdisiLise(false);
