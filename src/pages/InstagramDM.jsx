@@ -440,7 +440,7 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
                 ) : (
                   <select value={selectedOwner} onChange={e => setSelectedOwner(e.target.value)} style={s.select}>
                     <option value="">{pipeline ? "— Danışman seçin —" : "— Önce pipeline seçin —"}</option>
-                    {owners.map(o => <option key={o.ownerId} value={o.ownerId}>{o.name}</option>)}
+                    {owners.map((o, i) => <option key={o.ownerId || i} value={o.ownerId}>{o.name}</option>)}
                   </select>
                 )
               )}
@@ -616,7 +616,7 @@ const s = {
   grid: { gap: "20px", alignItems: "start" },
   leftCol: { display: "flex", flexDirection: "column", gap: "16px" },
   rightCol: { display: "flex", flexDirection: "column", gap: "16px" },
-  card: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", animation: "fadeUp 0.3s ease-out" },
+  card: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" },
   sectionLabel: { display: "flex", alignItems: "center", gap: "7px", fontSize: "11px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "12px" },
   dropZone: { position: "relative", border: "2px dashed", borderRadius: "12px", padding: "24px 16px", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "140px", transition: "all 0.2s", cursor: "pointer" },
   uploadIcon: { width: "44px", height: "44px", background: "#fff", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.08)", margin: "0 auto 10px" },
