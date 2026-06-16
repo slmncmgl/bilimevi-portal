@@ -366,12 +366,12 @@ export default function FiyatTeklifi() {
               <h2 style={S.ttl}>Destinasyon Seçimi</h2>
               <p style={S.slbl}>DİL</p>
               <div style={S.g3}>
-                {nav.languages.map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate), lang:l})}>{l}</div>))}
-                <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
+                {nav.languages.map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : (cur.lang||cur.isOnline) ? S.selGrey : S.sel} onClick={() => setCur({...emptyDest(cur.startDate), lang:l})}>{l}</div>))}
+                <div style={cur.isOnline ? S.selOnlineActive : (cur.lang||cur.isOnline) ? S.selGrey : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
               </div>
-              {!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
-              {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
-              {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL MARKASI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
+              {!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c => (<div key={c} style={cur.country===c ? S.selActive : cur.country ? S.selGrey : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
+              {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c => (<div key={c} style={cur.city===c ? S.selActive : cur.city ? S.selGrey : S.sel} onClick={() => setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
+              {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL MARKASI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : cur.brand ? S.selGrey : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
               {cur.isOnline && <>
                 <p style={S.slbl}>PAKET SEÇİMİ</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
@@ -394,7 +394,7 @@ export default function FiyatTeklifi() {
                   {courses.length === 0 && !cur.cityLoading && <p style={{ color:"#94a3b8", fontSize:13 }}>Bu şehir için kurs verisi bulunamadı.</p>}
                   {courses.map((c,i) => {
                     const valid = isCourseValid(c, cur.weeks), sel = cur.course?.name === c.name;
-                    return (<div key={i} style={sel ? S.selActive : valid ? S.sel : S.selDisabled} onClick={() => valid && setCur(p => ({...p, course:c}))}>
+                    return (<div key={i} style={sel ? S.selActive : !valid ? S.selDisabled : cur.course ? S.selGrey : S.sel} onClick={() => valid && setCur(p => ({...p, course:c}))}>
                       <div style={{ fontWeight:600 }}>{c.name}</div>
                       <div style={{ fontSize:11, color: sel?"inherit":"#64748b", marginTop:3 }}>{c.lessons} ders · {c.hours} saat/hafta</div>
                       {c.max_weeks && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>Maks. {c.max_weeks} hafta</div>}
@@ -414,11 +414,11 @@ export default function FiyatTeklifi() {
               {accs.length > 0 && (() => {
                 const types = [...new Set(accs.map(a => a.type))];
                 return (<>
-                  <div style={S.g3}>{types.map(t => (<div key={t} style={accType===t ? S.selActive : S.sel} onClick={() => { setAccType(t); setCur(p => ({...p, acc:null})); }}>{t}</div>))}</div>
+                  <div style={S.g3}>{types.map(t => (<div key={t} style={accType===t ? S.selActive : accType ? S.selGrey : S.sel} onClick={() => { setAccType(t); setCur(p => ({...p, acc:null})); }}>{t}</div>))}</div>
                   {accType && (
                     <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:10 }}>
                       {accs.filter(a => a.type === accType).map((a,i) => {
-                        const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board;
+                        const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board && cur.acc?.price===a.price;
                         const hsActive = getAccommodationHighSeasonSupplement(a, cur.weeks, cur.startDate).isActive;
                         return (<div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a}))}>
                           <div>
@@ -754,9 +754,10 @@ const S = {
   lbl: { fontSize:12, color:"#64748b" },
   fti: { padding:"10px 14px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, fontFamily:"inherit" },
   g3: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:10 },
-  sel: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, background:"#f1f5f9", color:"#64748b" },
+  sel: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, background:"#fff", color:"#0f172a" },
   selActive: { padding:12, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
   selDisabled: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"not-allowed", fontSize:13, background:"#f8fafc", opacity:0.5, color:"#94a3b8" },
+  selGrey: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, background:"#f1f5f9", color:"#94a3b8" },
   selOnline: { padding:12, border:"1.5px solid #3b82f6", color:"#3b82f6", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13 },
   selOnlineActive: { padding:12, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
   acc: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:14, border:"1.5px solid #e2e8f0", borderRadius:12, cursor:"pointer", fontSize:13, background:"#fff" },
