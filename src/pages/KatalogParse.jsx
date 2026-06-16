@@ -7,7 +7,7 @@ const GEMINI_MODEL   = "gemini-2.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwjXswPVqgqNc8R9LJjjUr1ZSuOOLliojYocbEpIJL0ALKgZmflosP6S_DvtsFXLPpD/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz5P3fNdxzl2MPxuU8KEuiT6B2w0ct-hx6-igLHIciFygRWqk5-6gRlBGkHa4VYW_Zp/exec";
 
 const SHEET_URLS = {
   EC:     "https://docs.google.com/spreadsheets/d/1PMuw11fAUcnX1iz56OOH2HUBe1IUZUdP12VkX9-nt8Q",
@@ -169,19 +169,34 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
       const headers = headersResult.headers;
       setSheetHeaders(headers);
 
-      // Adım 2: Mevcut veriyi çek (diff için)
+      // Adım 2: Mevcut veriyi çek (diff + Gemini örnek için)
       setProgress(10); setProgressMsg("🔍 Mevcut veriler alınıyor...");
       const currentResult = await callAppsScript("getCurrentData", { brand: selectedBrand });
       if (currentResult.success) setCurrentData(currentResult.data || {});
 
-      // Adım 3: PDF hazırla
+      // Adım 3: Parse rules + ekstra referans sekmeleri çek
+      setProgress(13); setProgressMsg("📋 Parse kuralları okunuyor...");
+      const rulesResult = await callAppsScript("getParseRules", { brand: selectedBrand });
+      const parseRules = rulesResult.success ? rulesResult.parseRules : "";
+      const extraTabs  = rulesResult.success ? rulesResult.extraTabs  : {};
+
+      // Adım 4: PDF hazırla
       setProgress(15); setProgressMsg("📄 PDF hazırlanıyor...");
       const base64 = await fileToBase64(selectedFile);
 
-      // Adım 4: Tek Gemini çağrısında tüm sekmeleri parse et
-      setProgress(20); setProgressMsg("🤖 Gemini ile parse ediliyor...");
+      // Adım 5: Sekme sekme parse et (parse_rules + ekstra sekmeler her çağrıda gönderilir)
       const tabs = PARSE_TABS[selectedBrand] || ["courses", "accommodation", "fees", "transfers"];
-      const parsed = await parseAllTabsAtOnce(base64, selectedBrand, headers, tabs);
+      const parsed = {};
+      const progressPerTab = 65 / tabs.length;
+
+      for (let i = 0; i < tabs.length; i++) {
+        const tab = tabs[i];
+        const pct = 20 + Math.floor(i * progressPerTab);
+        setProgress(pct);
+        setProgressMsg(`🤖 "${tab}" parse ediliyor... (${i+1}/${tabs.length})`);
+        const sampleData = currentResult.data?.[tab]?.sample || [];
+        parsed[tab] = await parseSingleTab(base64, selectedBrand, headers[tab] || [], tab, parseRules, extraTabs, sampleData);
+      }
 
       setProgress(90); setProgressMsg("✅ Veriler doğrulanıyor...");
 
@@ -204,59 +219,81 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
     }
   }
 
-  // Tek Gemini çağrısında tüm tablolar
-  async function parseAllTabsAtOnce(base64, brand, headers, tabs) {
-    const tabSections = tabs.map(tab => {
-      const cols = headers[tab] || [];
-      const colList = cols.length > 0
-        ? cols.map(c => `"${c}": "değer"`).join(",\n      ")
-        : '"name": "", "value": ""';
-      return `
-"${tab}": [
-  {
-    ${colList}
-  }
-]`;
-    }).join(",");
+  // Sekme bazlı parse — her sekme için ayrı Gemini çağrısı
+  async function parseSingleTab(base64, brand, cols, tabName, parseRules, extraTabs, sampleData) {
+    const colList = cols.length > 0
+      ? cols.map(c => `"${c}": ""`).join(", ")
+      : '"name": "", "value": ""';
+
+    // Mevcut veriden örnek satırlar (Gemini format öğrenmek için)
+    const sampleSection = sampleData && sampleData.length > 0
+      ? `\nMEVCUT VERİDEN ÖRNEK SATIRLAR (bu formatı takip et):\n${JSON.stringify(sampleData.slice(0, 3), null, 2)}`
+      : "";
+
+    // Ekstra referans sekmeleri (junior_activities, junior_transfers vb.)
+    const extraSection = extraTabs && Object.keys(extraTabs).length > 0
+      ? "\n\nREFERANS BİLGİLERİ (bu sekmelerdeki verilerle tutarlı ol):\n" +
+        Object.entries(extraTabs).map(([k, v]) => `[${k}]\n${v}`).join("\n\n")
+      : "";
+
+    // Parse kuralları
+    const rulesSection = parseRules
+      ? `\n\nPARSE KURALLARI (bunlara kesinlikle uy):\n${parseRules}`
+      : "";
 
     const prompt = `Bu bir ${brand} dil okulu katalog PDF'idir.
-Aşağıdaki JSON formatında TÜM tabloları çıkar. Başka hiçbir şey yazma, backtick kullanma.
+Sadece "${tabName}" tablosunu çıkar. Başka hiçbir şey yazma, sadece JSON array döndür.
 
-{
-  ${tabSections}
-}
+Örnek format:
+[
+  { ${colList} }
+]
+${sampleSection}${rulesSection}${extraSection}
 
-KURALLAR:
-1. Sadece PDF'te kesin olan bilgileri doldur. Emin değilsen boş bırak ("").
-2. Fiyatlar sayı (string değil), para birimleri GBP/EUR/USD/CAD/CHF metin.
+GENEL KURALLAR:
+1. Sadece PDF'te net olan bilgileri doldur. Emin değilsen boş bırak ("").
+2. Fiyatlar sayı (tırnak olmadan), para birimleri GBP/EUR/USD/CAD/CHF metin.
 3. Tarihler YYYY-MM-DD formatında.
-4. Her tablo için tüm şehirlerin verilerini dahil et.
-5. Boş array döndürme — veri yoksa bile en az 1 satır dene.`;
+4. Tüm şehirlerin verilerini dahil et — hiçbirini atlama.
+5. Backtick veya markdown kullanma, sadece düz JSON array.`;
 
     const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }] }],
-        generationConfig: { temperature: 0.1, topP: 0.95, maxOutputTokens: 8192 }
+        generationConfig: { temperature: 0.1, topP: 0.95, maxOutputTokens: 32768 }
       })
     });
 
     const data = await res.json();
-    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    if (data.error) throw new Error(`Gemini hatası (${tabName}): ${data.error.message}`);
+
+    let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const finishReason = data.candidates?.[0]?.finishReason;
+    if (!text) throw new Error(`Gemini boş yanıt döndürdü (${tabName}). finishReason: ${finishReason}`);
+
     text = text.replace(/```json|```/g, "").trim();
 
+    // Array mı, obje mi?
+    if (text.startsWith("{")) {
+      try {
+        const obj = JSON.parse(text);
+        // { "courses": [...] } formatı
+        const key = Object.keys(obj).find(k => k.toLowerCase() === tabName.toLowerCase()) || Object.keys(obj)[0];
+        return Array.isArray(obj[key]) ? obj[key] : [];
+      } catch { return []; }
+    }
+
     try {
-      return JSON.parse(text);
-    } catch {
-      // Parse hatası — boş dön
-      const empty = {};
-      tabs.forEach(t => { empty[t] = []; });
-      return empty;
+      const arr = JSON.parse(text);
+      return Array.isArray(arr) ? arr : [];
+    } catch (jsonErr) {
+      throw new Error(`JSON parse hatası (${tabName}): ${jsonErr.message}\nGemini çıktısı: ${text.slice(0, 300)}`);
     }
   }
 
-  // Yeni sütun tespiti
+    // Yeni sütun tespiti
   function detectUnknownColumns(parsed, headers, tabs) {
     const unknown = {};
     tabs.forEach(tab => {
@@ -282,9 +319,10 @@ KURALLAR:
   function computeDiff(current, parsed, tabs) {
     const diff = {};
     tabs.forEach(tab => {
-      const cur = current[tab] || [];
-      const nw  = parsed[tab]  || [];
-      diff[tab] = { before: cur.length, after: nw.length, delta: nw.length - cur.length };
+      // getCurrentData artık { totalRows, sample } döndürüyor
+      const before = current[tab]?.totalRows ?? (Array.isArray(current[tab]) ? current[tab].length : 0);
+      const after  = (parsed[tab] || []).length;
+      diff[tab] = { before, after, delta: after - before };
     });
     return diff;
   }
