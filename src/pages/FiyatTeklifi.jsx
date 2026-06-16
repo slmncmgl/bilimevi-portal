@@ -628,7 +628,7 @@ function PdfTemplate({ destinations, student, user }) {
         if (!d.transfer && d.cityData?.transfers?.length > 0) { const t = d.cityData.transfers[0]; notes.push(`Transfer bilgisi: ${t.airport} (${t.code}) — ${cur} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`); }
 
         return (
-          <div key={idx} className="pdf-block" style={{ width:"210mm", padding:"8mm 18mm 8mm", boxSizing:"border-box", background:"#fff", display:"block", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto" }}>
+          <div key={idx} className="pdf-block" style={{ width:"210mm", minHeight:"297mm", padding:"8mm 18mm 8mm", boxSizing:"border-box", background:"#fff", display:"flex", flexDirection:"column", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", paddingBottom:"3mm", borderBottom:"0.4px solid #aaa", marginBottom:"5mm" }}>
               <div>
                 <div style={{ fontSize:"7pt", color:"#999", marginBottom:"1mm" }}>Bilimevi Eğitim Danışmanınız</div>
@@ -702,9 +702,9 @@ function PdfTemplate({ destinations, student, user }) {
                 {/* EK HİZMETLER — border yok, sıkı padding */}
                 {(d.addons||[]).length > 0 && (d.addons||[]).map((a, ai) => (
                   <tr key={ai} style={{ pageBreakInside:"avoid" }}>
-                    <td style={{ padding:"1mm 2mm 1mm 0", fontWeight: ai===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: ai===0 ? "inherit" : "9pt" }}>{ai === 0 ? "Ek Hizmetler" : ""}</td>
-                    <td style={{ padding:"1mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{a.name}{a.notes ? ` — ${a.notes}` : ""}</td>
-                    <td style={{ padding:"1mm 0 1mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(a.totalAmount||0).toLocaleString("tr-TR")},00</td>
+                    <td style={{ padding: ai===0 ? "3mm 2mm 1mm 0" : "1mm 2mm 1mm 0", borderTop: ai===0 ? "0.5px solid #ddd" : "none", fontWeight: ai===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: ai===0 ? "inherit" : "9pt" }}>{ai === 0 ? "Ek Hizmetler" : ""}</td>
+                    <td style={{ padding: ai===0 ? "3mm 2mm 1mm 2mm" : "1mm 2mm", borderTop: ai===0 ? "0.5px solid #ddd" : "none", verticalAlign:"top", fontSize:"9pt" }}>{a.name}{a.notes ? ` — ${a.notes}` : ""}</td>
+                    <td style={{ padding: ai===0 ? "3mm 0 1mm 2mm" : "1mm 0 1mm 2mm", borderTop: ai===0 ? "0.5px solid #ddd" : "none", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(a.totalAmount||0).toLocaleString("tr-TR")},00</td>
                   </tr>
                 ))}
 
