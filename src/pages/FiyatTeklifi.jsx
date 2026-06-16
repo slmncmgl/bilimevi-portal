@@ -295,6 +295,9 @@ export default function FiyatTeklifi() {
   const generatePDF = () => {
     const el = document.getElementById("pdf-area");
     if (!el) return;
+    el.style.position = "fixed";
+    el.style.top = "0";
+    el.style.left = "-9999px";
     el.style.display = "block";
     window.html2pdf().set({
       margin: 0,
@@ -303,7 +306,7 @@ export default function FiyatTeklifi() {
       html2canvas: { scale:2, useCORS:true, letterRendering:true },
       jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
       pagebreak: { mode:"css", avoid:".pdf-block" },
-    }).from(el).save().then(() => { el.style.display = "none"; });
+    }).from(el).save().then(() => { el.style.display = "none"; el.style.position = ""; el.style.top = ""; el.style.left = ""; });
   };
 
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"];
@@ -628,7 +631,7 @@ function PdfTemplate({ destinations, student, user }) {
         if (!d.transfer && d.cityData?.transfers?.length > 0) { const t = d.cityData.transfers[0]; notes.push(`Transfer bilgisi: ${t.airport} (${t.code}) — ${cur} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`); }
 
         return (
-          <div key={idx} className="pdf-block" style={{ width:"210mm", minHeight:"297mm", padding:"8mm 18mm 8mm", boxSizing:"border-box", background:"#fff", display:"flex", flexDirection:"column", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto" }}>
+          <div key={idx} className="pdf-block" style={{ width:"210mm", padding:"8mm 18mm 8mm", boxSizing:"border-box", background:"#fff", display:"block", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto", pageBreakInside: "avoid" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", paddingBottom:"3mm", borderBottom:"0.4px solid #aaa", marginBottom:"5mm" }}>
               <div>
                 <div style={{ fontSize:"7pt", color:"#999", marginBottom:"1mm" }}>Bilimevi Eğitim Danışmanınız</div>
