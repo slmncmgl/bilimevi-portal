@@ -298,7 +298,8 @@ export default function FiyatTeklifi() {
     el.style.position = "absolute";
     el.style.top = "0";
     el.style.left = "0";
-    el.style.visibility = "hidden";
+    el.style.opacity = "0";
+    el.style.pointerEvents = "none";
     el.style.display = "block";
     window.html2pdf().set({
       margin: 0,
@@ -307,7 +308,7 @@ export default function FiyatTeklifi() {
       html2canvas: { scale:2, useCORS:true, letterRendering:true },
       jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
       pagebreak: { mode:"css", avoid:".pdf-block" },
-    }).from(el).save().then(() => { el.style.display = "none"; el.style.visibility = ""; el.style.position = ""; el.style.top = ""; el.style.left = ""; });
+    }).from(el).save().then(() => { el.style.display = "none"; el.style.opacity = ""; el.style.pointerEvents = ""; el.style.position = ""; el.style.top = ""; el.style.left = ""; });
   };
 
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"];
