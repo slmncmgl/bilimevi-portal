@@ -295,10 +295,12 @@ export default function FiyatTeklifi() {
   const generatePDF = () => {
     const el = document.getElementById("pdf-area");
     if (!el) return;
-    el.style.position = "fixed";
+    el.style.position = "absolute";
     el.style.top = "0";
-    el.style.left = "-9999px";
+    el.style.left = "0";
+    el.style.zIndex = "-1";
     el.style.display = "block";
+    window.scrollTo(0, 0);
     window.html2pdf().set({
       margin: 0,
       filename: `Bilimevi_Teklif_${student.name.replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`,
@@ -306,7 +308,7 @@ export default function FiyatTeklifi() {
       html2canvas: { scale:2, useCORS:true, letterRendering:true },
       jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
       pagebreak: { mode:"css", avoid:".pdf-block" },
-    }).from(el).save().then(() => { el.style.display = "none"; el.style.position = ""; el.style.top = ""; el.style.left = ""; });
+    }).from(el).save().then(() => { el.style.display = "none"; el.style.position = ""; el.style.top = ""; el.style.left = ""; el.style.zIndex = ""; });
   };
 
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"];
@@ -536,7 +538,13 @@ export default function FiyatTeklifi() {
                 if (!d.transfer && d.cityData?.transfers?.length > 0) { const t = d.cityData.transfers[0]; destNotes.push(`Transfer: ${t.airport} (${t.code}) — ${cur2} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`); }
                 return (
                   <div key={i} style={S.summaryCard}>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}><strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong><span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span></div>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                      <strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span>
+                        <button onClick={() => setDestinations(p => p.filter((_,di) => di !== i))} style={{ background:"none", border:"none", cursor:"pointer", color:"#94a3b8", fontSize:16, lineHeight:1, padding:"2px 4px" }} title="Sil">×</button>
+                      </div>
+                    </div>
                     <div style={{ marginBottom:10 }}>
                       <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Kurs</div>
                       <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.course?.name}</span><span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span></div>
