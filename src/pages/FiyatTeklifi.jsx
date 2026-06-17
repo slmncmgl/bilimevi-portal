@@ -292,23 +292,50 @@ export default function FiyatTeklifi() {
   const addNew = () => { setCur(emptyDest(cur.startDate)); setStep(1); };
   const reset = () => { setDestinations([]); setCur(emptyDest()); setStudent({ name:"Selman Çamoğlu", age:"38", gender:"Erkek" }); setStep(0); };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     const el = document.getElementById("pdf-area");
     if (!el) return;
     el.style.position = "absolute";
     el.style.top = "0";
     el.style.left = "0";
-    el.style.opacity = "0";
-    el.style.pointerEvents = "none";
+    el.style.zIndex = "-1";
     el.style.display = "block";
-    window.html2pdf().set({
+    window.scrollTo(0, 0);
+    await new Promise(r => setTimeout(r, 300));
+
+    const blocks = [...el.querySelectorAll(".pdf-block")];
+    const opt = {
       margin: 0,
-      filename: `Bilimevi_Teklif_${student.name.replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`,
-      image: { type:"jpeg", quality:0.98 },
-      html2canvas: { scale:2, useCORS:true, letterRendering:true },
-      jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
-      pagebreak: { mode:"css", avoid:".pdf-block" },
-    }).from(el).save().then(() => { el.style.display = "none"; el.style.opacity = ""; el.style.pointerEvents = ""; el.style.position = ""; el.style.top = ""; el.style.left = ""; });
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+    };
+
+    try {
+      // Ilk blok: html2pdf worker ile pdf objesini olustur
+      const worker = window.html2pdf().set(opt).from(blocks[0]);
+      const pdf = await worker.toPdf().get("pdf");
+
+      // Kalan bloklar: her birini canvas yapip yeni sayfaya ekle
+      for (let i = 1; i < blocks.length; i++) {
+        pdf.addPage();
+        const w2 = window.html2pdf().set(opt).from(blocks[i]);
+        const canvas = await w2.toCanvas().get("canvas");
+        const img = canvas.toDataURL("image/jpeg", 0.98);
+        const imgH = (canvas.height * 210) / canvas.width;
+        pdf.addImage(img, "JPEG", 0, 0, 210, Math.min(imgH, 297));
+      }
+
+      pdf.save(`Bilimevi_Teklif_${student.name.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (e) {
+      console.error("PDF olusturma hatasi:", e);
+    } finally {
+      el.style.display = "none";
+      el.style.zIndex = "";
+      el.style.position = "";
+      el.style.top = "";
+      el.style.left = "";
+    }
   };
 
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"];
@@ -639,7 +666,7 @@ function PdfTemplate({ destinations, student, user }) {
         if (!d.transfer && d.cityData?.transfers?.length > 0) { const t = d.cityData.transfers[0]; notes.push(`Transfer bilgisi: ${t.airport} (${t.code}) — ${cur} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`); }
 
         return (
-          <div key={idx} className="pdf-block" style={{ width:"210mm", padding:"8mm 18mm 8mm", boxSizing:"border-box", background:"#fff", display:"block", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto", pageBreakInside: "avoid" }}>
+          <div key={idx} className="pdf-block" style={{ width:"210mm", padding:"8mm 18mm 8mm", boxSizing:"border-box", background:"#fff", display:"block" }}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", paddingBottom:"3mm", borderBottom:"0.4px solid #aaa", marginBottom:"5mm" }}>
               <div>
                 <div style={{ fontSize:"7pt", color:"#999", marginBottom:"1mm" }}>Bilimevi Eğitim Danışmanınız</div>
