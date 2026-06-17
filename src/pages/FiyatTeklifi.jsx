@@ -298,9 +298,8 @@ export default function FiyatTeklifi() {
     el.style.position = "absolute";
     el.style.top = "0";
     el.style.left = "0";
-    el.style.zIndex = "-1";
+    el.style.visibility = "hidden";
     el.style.display = "block";
-    window.scrollTo(0, 0);
     window.html2pdf().set({
       margin: 0,
       filename: `Bilimevi_Teklif_${student.name.replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`,
@@ -308,7 +307,7 @@ export default function FiyatTeklifi() {
       html2canvas: { scale:2, useCORS:true, letterRendering:true },
       jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
       pagebreak: { mode:"css", avoid:".pdf-block" },
-    }).from(el).save().then(() => { el.style.display = "none"; el.style.position = ""; el.style.top = ""; el.style.left = ""; el.style.zIndex = ""; });
+    }).from(el).save().then(() => { el.style.display = "none"; el.style.visibility = ""; el.style.position = ""; el.style.top = ""; el.style.left = ""; });
   };
 
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"];
@@ -623,7 +622,7 @@ function PdfTemplate({ destinations, student, user }) {
   if (!destinations?.length) return null;
   const phone = user?.phone || "905419189177";
   return (
-    <div id="pdf-area" style={{ display:"none", fontFamily:"Arial, Helvetica, sans-serif", background:"#fff" }}>
+    <div id="pdf-area" style={{ display:"none", position:"absolute", top:0, left:0, fontFamily:"Arial, Helvetica, sans-serif", background:"#fff" }}>
       {destinations.map((d, idx) => {
         const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
         const cur = d.course?.currency || f.currency || "GBP";
