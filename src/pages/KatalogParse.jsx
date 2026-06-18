@@ -1,3 +1,5 @@
+
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -23,21 +25,52 @@ const PARSE_TABS = {
 const KNOWN_BRANDS = ["EC", "Kaplan", "LAL", "ELS", "ILSC"];
 
 const STEPS = {
-  UPLOAD:       "upload",
+  MODE_SELECT:    "mode_select",      // Yeni: Fiyat mı Promosyon mu
+  UPLOAD:         "upload",
   SCHOOL_CONFIRM: "school_confirm",
-  PARSING:      "parsing",
-  DIFF:         "diff",
-  SAVING:       "saving",
-  REVIEW:       "review",
-  DONE:         "done",
+  PARSING:        "parsing",
+  DIFF:           "diff",
+  SAVING:         "saving",
+  REVIEW:         "review",
+  DONE:           "done",
+  // Promosyon akışı
+  PROMO_UPLOAD:   "promo_upload",
+  PROMO_CONFIRM:  "promo_confirm",
+  PROMO_PARSING:  "promo_parsing",
+  PROMO_REVIEW:   "promo_review",
+  PROMO_DONE:     "promo_done",
 };
+
+const MODES = {
+  PRICE: "price",
+  PROMO: "promo",
+};
+
+// discounts sekmesi sütun yapısı
+const DISCOUNT_COLUMNS = [
+  "school", "city", "country", "campaign_id", "campaign_name",
+  "discount_rate", "discount_type", "valid_from", "valid_until",
+  "applies_to", "notes"
+];
 
 // ─── ANA COMPONENT ───────────────────────────────────────────
 export default function KatalogParse() {
   const navigate = useNavigate();
   const [user, setUser]           = useState(null);
-  const [step, setStep]           = useState(STEPS.UPLOAD);
+  const [step, setStep]           = useState(STEPS.MODE_SELECT);
+  const [mode, setMode]           = useState(null);
   const [error, setError]         = useState(null);
+
+  // Promosyon state'leri
+  const [promoFile, setPromoFile]         = useState(null);
+  const [promoIsDragOver, setPromoIsDragOver] = useState(false);
+  const [promoBrand, setPromoBrand]       = useState("");
+  const [promoDetected, setPromoDetected] = useState("");
+  const [promoLoading, setPromoLoading]   = useState(false);
+  const [promoData, setPromoData]         = useState([]);
+  const [promoError, setPromoError]       = useState(null);
+  const [promoProgress, setPromoProgress] = useState(0);
+  const [promoProgressMsg, setPromoProgressMsg] = useState("");
 
   // PDF
   const [selectedFile, setSelectedFile]   = useState(null);
@@ -411,7 +444,8 @@ GENEL KURALLAR:
   }
 
   function resetAll() {
-    setStep(STEPS.UPLOAD);
+    setStep(STEPS.MODE_SELECT);
+    setMode(null);
     setSelectedFile(null);
     setSelectedBrand("");
     setDetectedBrand("");
@@ -425,10 +459,170 @@ GENEL KURALLAR:
     setError(null);
     setProgress(0);
     setProgressMsg("");
+    setPromoFile(null);
+    setPromoBrand("");
+    setPromoDetected("");
+    setPromoData([]);
+    setPromoError(null);
+    setPromoProgress(0);
+    setPromoProgressMsg("");
+  }
+
+  // ── Promosyon parse fonksiyonları ──────────────────────────
+  function handlePromoFileSelect(e) {
+    const file = e.target.files[0];
+    if (file?.type === "application/pdf") { setPromoFile(file); setPromoError(null); }
+    else setPromoError("Lütfen geçerli bir PDF dosyası seçin.");
+  }
+
+  function handlePromoDrop(e) {
+    e.preventDefault(); setPromoIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file?.type === "application/pdf") { setPromoFile(file); setPromoError(null); }
+    else setPromoError("Lütfen geçerli bir PDF dosyası seçin.");
+  }
+
+  async function analyzePromoFile() {
+    if (!promoFile) return;
+    setPromoLoading(true); setPromoError(null);
+    let brand = detectBrandFromFileName(promoFile.name);
+    if (!brand) {
+      try {
+        const base64 = await fileToBase64(promoFile);
+        brand = await detectBrandFromContent(base64);
+      } catch { brand = null; }
+    }
+    setPromoDetected(brand || "");
+    setPromoBrand(brand || "");
+    setPromoLoading(false);
+    setStep(STEPS.PROMO_CONFIRM);
+  }
+
+  async function startPromoParsing() {
+    if (!promoBrand) { setPromoError("Lütfen okul seçin."); return; }
+    setStep(STEPS.PROMO_PARSING); setPromoError(null);
+
+    try {
+      setPromoProgress(10); setPromoProgressMsg("📄 PDF hazırlanıyor...");
+      const base64 = await fileToBase64(promoFile);
+
+      setPromoProgress(30); setPromoProgressMsg("🤖 Promosyon bilgileri parse ediliyor...");
+
+      const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
+      const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
+Tüm kampanya ve indirim bilgilerini çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
+
+Format:
+[
+  { ${colList} }
+]
+
+KURALLAR:
+1. campaign_id: kampanya kodu (örn: ID993)
+2. campaign_name: kampanya adı (örn: 2026 Yaz İndirimi)
+3. discount_rate: indirim oranı (sayı, örn: 22)
+4. discount_type: "percentage" veya "fixed"
+5. valid_from / valid_until: YYYY-MM-DD formatında
+6. applies_to: hangi şehirler/kurslar için geçerli (all_cities veya liste)
+7. school: ${promoBrand}
+8. city/country: ilgili şehir ve ülke (tüm şehirler için "all" kullan)
+9. notes: ek açıklamalar
+10. Backtick veya markdown kullanma, sadece düz JSON array.`;
+
+      const res = await fetch(\`\${GEMINI_API_URL}/\${GEMINI_MODEL}:generateContent?key=\${GEMINI_API_KEY}\`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error("Gemini hatası: " + data.error.message);
+
+      let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      text = text.replace(/```json|```/g, "").trim();
+
+      let parsed = [];
+      try {
+        parsed = JSON.parse(text);
+        if (!Array.isArray(parsed)) parsed = [];
+      } catch { parsed = []; }
+
+      setPromoData(parsed);
+      setPromoProgress(100); setPromoProgressMsg("✅ Tamamlandı!");
+      await new Promise(r => setTimeout(r, 400));
+      setStep(STEPS.PROMO_REVIEW);
+
+    } catch (err) {
+      setPromoError("Parse hatası: " + err.message);
+      setStep(STEPS.PROMO_CONFIRM);
+    }
+  }
+
+  async function savePromoData() {
+    setStep(STEPS.SAVING);
+    try {
+      const res = await callAppsScript("writeDraftData", {
+        brand: promoBrand,
+        data: { discounts: promoData },
+        columns: { discounts: DISCOUNT_COLUMNS },
+      });
+      if (!res.success) throw new Error(res.msg);
+      setStep(STEPS.PROMO_DONE);
+    } catch (err) {
+      setPromoError(err.message);
+      setStep(STEPS.PROMO_REVIEW);
+    }
   }
 
   // ─── RENDER ───────────────────────────────────────────────
   if (!user) return null;
+
+  // MODE SELECT — Ana seçim ekranı
+  if (step === STEPS.MODE_SELECT) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Katalog Parse" user={user} onBack={() => navigate("/dashboard")}/>
+      <main style={S.main}>
+        <div style={{textAlign:"center", marginBottom:32, animation:"fadeUp 0.4s ease-out"}}>
+          <div style={{fontSize:48, marginBottom:12}}>📚</div>
+          <h2 style={S.cardTitle}>Ne yapmak istiyorsunuz?</h2>
+          <p style={S.cardSub}>Parse etmek istediğiniz döküman türünü seçin</p>
+        </div>
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16}}>
+          <button onClick={() => { setMode(MODES.PRICE); setStep(STEPS.UPLOAD); }}
+            style={S.modeCard}
+            onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#2563eb66"; e.currentTarget.style.boxShadow="0 20px 40px -12px #2563eb22"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.borderColor="#e2e8f0"; e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.06)"; }}>
+            <div style={{fontSize:48, marginBottom:16}}>💰</div>
+            <h3 style={{fontSize:18, fontWeight:700, color:"#0f172a", marginBottom:8}}>Okul Fiyatlarını Yükle</h3>
+            <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Okul katalog PDF'ini parse ederek kurs, konaklama, ücret ve transfer fiyatlarını güncelle</p>
+            <div style={{marginTop:16, display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center"}}>
+              {["courses","accommodation","fees","transfers"].map(t => (
+                <span key={t} style={{fontSize:11, padding:"3px 10px", background:"#eff6ff", color:"#2563eb", borderRadius:20, fontWeight:600}}>{t}</span>
+              ))}
+            </div>
+          </button>
+          <button onClick={() => { setMode(MODES.PROMO); setStep(STEPS.PROMO_UPLOAD); }}
+            style={S.modeCard}
+            onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#ea580c66"; e.currentTarget.style.boxShadow="0 20px 40px -12px #ea580c22"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.borderColor="#e2e8f0"; e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.06)"; }}>
+            <div style={{fontSize:48, marginBottom:16}}>🎁</div>
+            <h3 style={{fontSize:18, fontWeight:700, color:"#0f172a", marginBottom:8}}>Promosyon Dökümanını Yükle</h3>
+            <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Kampanya ve indirim dökümanını parse ederek discounts sekmesine kampanya kodları ve geçerlilik sürelerini ekle</p>
+            <div style={{marginTop:16, display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center"}}>
+              {["campaign_id","discount_rate","valid_from","valid_until"].map(t => (
+                <span key={t} style={{fontSize:11, padding:"3px 10px", background:"#fff7ed", color:"#ea580c", borderRadius:20, fontWeight:600}}>{t}</span>
+              ))}
+            </div>
+          </button>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
 
   // UPLOAD
   if (step === STEPS.UPLOAD) return (
@@ -713,6 +907,187 @@ GENEL KURALLAR:
     </div>
   );
 
+  // ── PROMOSYON AKIŞI ──────────────────────────────────────
+
+  // PROMO UPLOAD
+  if (step === STEPS.PROMO_UPLOAD) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Promosyon Parse" user={user} onBack={() => setStep(STEPS.MODE_SELECT)}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={S.bigIcon}>🎁</div>
+          <h2 style={S.cardTitle}>Promosyon Dökümanı Yükle</h2>
+          <p style={S.cardSub}>Kampanya ve indirim bilgilerini içeren PDF'i yükleyin</p>
+          <div
+            onDragOver={e => { e.preventDefault(); setPromoIsDragOver(true); }}
+            onDragLeave={() => setPromoIsDragOver(false)}
+            onDrop={handlePromoDrop}
+            style={{ ...S.dropZone, borderColor: promoIsDragOver ? "#ea580c" : "#e2e8f0", background: promoIsDragOver ? "#fff7ed" : "#f8fafc" }}>
+            <input type="file" accept="application/pdf" onChange={handlePromoFileSelect}
+              style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0, cursor:"pointer", zIndex:10 }}/>
+            {promoFile ? (
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:36}}>🎁</div>
+                <p style={{fontWeight:700, marginTop:8}}>{promoFile.name}</p>
+                <p style={{fontSize:12, color:"#64748b"}}>{(promoFile.size/1024/1024).toFixed(2)} MB</p>
+              </div>
+            ) : (
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:48}}>📁</div>
+                <p style={{fontWeight:500, marginTop:8}}>PDF sürükle veya tıkla seç</p>
+                <p style={{fontSize:12, color:"#94a3b8"}}>Promosyon / kampanya dökümanı</p>
+              </div>
+            )}
+          </div>
+          {promoError && <div style={S.errorBox}>{promoError}</div>}
+          <button onClick={analyzePromoFile} disabled={!promoFile || promoLoading}
+            style={{...S.primaryBtn, background:"#ea580c", opacity:(!promoFile||promoLoading)?0.5:1}}>
+            {promoLoading ? "Analiz ediliyor..." : "📊 Dökümanı Analiz Et"}
+          </button>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // PROMO CONFIRM — okul seçimi
+  if (step === STEPS.PROMO_CONFIRM) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Okul Seçimi" user={user} onBack={() => setStep(STEPS.PROMO_UPLOAD)}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={S.bigIcon}>🎯</div>
+          <h2 style={S.cardTitle}>Okul Onaylayın</h2>
+          {promoDetected
+            ? <p style={S.cardSub}>Tespit edilen okul: <strong>{promoDetected}</strong></p>
+            : <p style={S.cardSub}>Okul tespit edilemedi. Lütfen manuel seçin.</p>}
+          <div style={{display:"flex", flexDirection:"column", gap:8, marginBottom:24}}>
+            {KNOWN_BRANDS.map(brand => (
+              <div key={brand} onClick={() => setPromoBrand(brand)}
+                style={{...S.brandCard, borderColor: promoBrand===brand?"#ea580c":"#e2e8f0", background: promoBrand===brand?"#fff7ed":"#fff"}}>
+                <span style={{fontSize:22}}>{brand==="EC"?"🇬🇧":brand==="Kaplan"?"🇺🇸":"🏫"}</span>
+                <div>
+                  <div style={{fontWeight:700}}>{brand}</div>
+                  {promoDetected===brand && <div style={{fontSize:11,color:"#ea580c"}}>✓ Tespit edildi</div>}
+                </div>
+                {promoBrand===brand && <span style={{color:"#ea580c",marginLeft:"auto",fontWeight:700}}>✓</span>}
+              </div>
+            ))}
+          </div>
+          {promoError && <div style={S.errorBox}>{promoError}</div>}
+          <button onClick={startPromoParsing} disabled={!promoBrand}
+            style={{...S.primaryBtn, background:"#ea580c", opacity:!promoBrand?0.5:1}}>
+            {promoBrand ? `${promoBrand} promosyonlarını parse et →` : "Okul seçin"}
+          </button>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // PROMO PARSING
+  if (step === STEPS.PROMO_PARSING) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Parse Ediliyor..." user={user}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={S.spinner}/>
+          <h3 style={{fontSize:16,fontWeight:600,color:"#0f172a",marginBottom:8}}>{promoProgressMsg}</h3>
+          <div style={S.progressBar}><div style={{...S.progressFill,width:`${promoProgress}%`,background:"#ea580c"}}/></div>
+          <p style={{fontSize:12,color:"#94a3b8",marginTop:8}}>{Math.floor(promoProgress)}% tamamlandı</p>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // PROMO REVIEW — parse sonucu önizleme
+  if (step === STEPS.PROMO_REVIEW) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Promosyon Önizleme" user={user} onBack={() => setStep(STEPS.PROMO_CONFIRM)}/>
+      <main style={{...S.main, maxWidth:700}}>
+        <div style={S.sectionCard}>
+          <h3 style={S.sectionTitle}>🎁 Parse Edilen Kampanyalar — {promoBrand}</h3>
+          <p style={{fontSize:13,color:"#64748b",marginBottom:16}}>
+            <strong>{promoData.length}</strong> kampanya bulundu. Kontrol edip kaydedin.
+          </p>
+          {promoData.length === 0 ? (
+            <div style={{padding:"24px",textAlign:"center",color:"#94a3b8",fontSize:13}}>
+              Hiç kampanya bulunamadı. Dökümanı kontrol edin.
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {promoData.map((row, i) => (
+                <div key={i} style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,border:"1px solid #e2e8f0"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                    <span style={{fontSize:11,fontWeight:700,background:"#fff7ed",color:"#ea580c",padding:"2px 8px",borderRadius:20}}>
+                      {row.campaign_id || "—"}
+                    </span>
+                    <span style={{fontWeight:600,fontSize:14,color:"#0f172a"}}>{row.campaign_name || "—"}</span>
+                    <span style={{marginLeft:"auto",fontWeight:700,color:"#059669",fontSize:14}}>
+                      {row.discount_rate}{row.discount_type==="percentage"?"%":" sabit"}
+                    </span>
+                  </div>
+                  <div style={{fontSize:12,color:"#64748b",display:"flex",gap:16,flexWrap:"wrap"}}>
+                    {row.valid_from && <span>📅 {row.valid_from} → {row.valid_until || "?"}</span>}
+                    {row.applies_to && <span>📍 {row.applies_to}</span>}
+                    {row.notes && <span>💬 {row.notes}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {promoError && <div style={S.errorBox}>{promoError}</div>}
+        <div style={{display:"flex",gap:12}}>
+          <button onClick={() => { setPromoData([]); setStep(STEPS.PROMO_CONFIRM); }} style={S.secondaryBtn}>
+            ← Yeniden Parse
+          </button>
+          <button onClick={savePromoData} disabled={promoData.length===0}
+            style={{...S.primaryBtn, flex:1, background:"#ea580c", opacity:promoData.length===0?0.5:1}}>
+            💾 discounts Sekmesine Kaydet
+          </button>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // PROMO DONE
+  if (step === STEPS.PROMO_DONE) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Tamamlandı" user={user}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={{fontSize:64,marginBottom:16}}>✅</div>
+          <h2 style={S.cardTitle}>Kampanyalar Kaydedildi!</h2>
+          <p style={S.cardSub}>
+            <strong>{promoData.length}</strong> kampanya <strong>{promoBrand}</strong> discounts_draft sekmesine yazıldı.
+          </p>
+          <p style={{fontSize:13,color:"#64748b",marginTop:8,lineHeight:1.6}}>
+            Sheet'i açarak kontrol edebilirsiniz. Onaylamak için discounts_draft sekmesini manuel olarak discounts ile değiştirin.
+          </p>
+          <a href={SHEET_URLS[promoBrand]} target="_blank" rel="noreferrer"
+            style={{...S.linkBtn, display:"block", textAlign:"center", marginTop:16, textDecoration:"none"}}>
+            📊 {promoBrand} Sheet'ini Aç
+          </a>
+          <div style={{display:"flex",gap:12,marginTop:16}}>
+            <button onClick={resetAll} style={S.secondaryBtn}>Ana Menü</button>
+            <button onClick={() => navigate("/fiyat-teklifi")} style={{...S.primaryBtn,flex:1}}>
+              Fiyat Teklifi'ne Git →
+            </button>
+          </div>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
   return null;
 }
 
@@ -770,4 +1145,5 @@ const S = {
   secondaryBtn:{ padding:"12px 20px", background:"#fff", color:"#2563eb", border:"1.5px solid #2563eb", borderRadius:12, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'Sora',sans-serif" },
   linkBtn:     { display:"inline-flex", alignItems:"center", gap:8, padding:"10px 18px", background:"#f1f5f9", color:"#0f172a", border:"1px solid #e2e8f0", borderRadius:10, fontSize:13, fontWeight:600, cursor:"pointer", textDecoration:"none", fontFamily:"'Sora',sans-serif" },
   errorBox:    { background:"#fef2f2", border:"1px solid #fecaca", borderRadius:10, padding:"12px 16px", fontSize:13, color:"#dc2626", marginBottom:16, textAlign:"left" },
+  modeCard:    { display:"flex", flexDirection:"column", alignItems:"center", background:"#fff", border:"1.5px solid #e2e8f0", borderRadius:20, padding:"32px 24px", cursor:"pointer", transition:"all 0.2s ease", textAlign:"center", boxShadow:"0 1px 3px rgba(0,0,0,0.06)", animation:"fadeUp 0.4s ease-out both", fontFamily:"'Sora',sans-serif", width:"100%" },
 };
