@@ -1,5 +1,4 @@
 
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -529,7 +528,7 @@ KURALLAR:
 9. notes: ek açıklamalar
 10. Backtick veya markdown kullanma, sadece düz JSON array.`;
 
-      const res = await fetch(\`\${GEMINI_API_URL}/\${GEMINI_MODEL}:generateContent?key=\${GEMINI_API_KEY}\`, {
+      const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
