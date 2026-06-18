@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -22,7 +20,7 @@ const PARSE_TABS = {
   Kaplan: ["courses", "accommodation", "fees", "transfers", "junior_packages"],
 };
 
-const KNOWN_BRANDS = ["EC", "Kaplan", "LAL", "ELS", "ILSC"];
+const KNOWN_BRANDS = ["EC", "Kaplan", "Oxford International", "LAL", "ELS", "ILSC"];
 
 const STEPS = {
   MODE_SELECT:    "mode_select",      // Yeni: Fiyat mı Promosyon mu
@@ -134,6 +132,7 @@ export default function KatalogParse() {
     const n = name.toLowerCase();
     if (n.includes("kaplan"))       return "Kaplan";
     if (n.includes(" ec ") || n.includes("ec_") || n.includes("ec english") || n.includes("ec-")) return "EC";
+    if (n.includes("oxford"))       return "Oxford International";
     if (n.includes("lal"))          return "LAL";
     if (n.includes("els"))          return "ELS";
     if (n.includes("ilsc"))         return "ILSC";
@@ -142,7 +141,7 @@ export default function KatalogParse() {
 
   async function detectBrandFromContent(base64) {
     const prompt = `Bu bir dil okulu katalog PDF'idir. İlk sayfayı analiz et, okul markasını belirle.
-Seçenekler: EC, Kaplan, LAL, ELS, ILSC
+Seçenekler: EC, Kaplan, Oxford International, LAL, ELS, ILSC
 SADECE JSON döndür: {"brand":"EC","confidence":90}`;
     const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
