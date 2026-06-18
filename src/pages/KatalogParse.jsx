@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -611,11 +612,6 @@ KURALLAR:
             <div style={{fontSize:48, marginBottom:16}}>🎁</div>
             <h3 style={{fontSize:18, fontWeight:700, color:"#0f172a", marginBottom:8}}>Promosyon Dökümanını Yükle</h3>
             <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Kampanya ve indirim dökümanını parse ederek discounts sekmesine kampanya kodları ve geçerlilik sürelerini ekle</p>
-            <div style={{marginTop:16, display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center"}}>
-              {["campaign_id","discount_rate","valid_from","valid_until"].map(t => (
-                <span key={t} style={{fontSize:11, padding:"3px 10px", background:"#fff7ed", color:"#ea580c", borderRadius:20, fontWeight:600}}>{t}</span>
-              ))}
-            </div>
           </button>
         </div>
       </main>
@@ -627,7 +623,7 @@ KURALLAR:
   if (step === STEPS.UPLOAD) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
-      <Header title="Katalog Parse" user={user} onBack={() => navigate("/dashboard")}/>
+      <Header title="Katalog Parse" user={user} onBack={() => setStep(STEPS.MODE_SELECT)}/>
       <main style={S.main}>
         <div style={S.card}>
           <div style={S.bigIcon}>📄</div>
