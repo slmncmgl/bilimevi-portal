@@ -1,3 +1,5 @@
+
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -56,8 +58,10 @@ export default function KatalogParse() {
   const [sheetUrls, setSheetUrls]           = useState({}); // brand -> sheet url (parse sırasında doldurulur)
 
   // Promosyon state'leri
+  const [promoInputMode, setPromoInputMode] = useState("pdf"); // "pdf" | "text"
   const [promoFile, setPromoFile]         = useState(null);
   const [promoIsDragOver, setPromoIsDragOver] = useState(false);
+  const [promoText, setPromoText]         = useState("");
   const [promoBrand, setPromoBrand]       = useState("");
   const [promoDetected, setPromoDetected] = useState("");
   const [promoLoading, setPromoLoading]   = useState(false);
@@ -488,7 +492,9 @@ GENEL KURALLAR:
     setError(null);
     setProgress(0);
     setProgressMsg("");
+    setPromoInputMode("pdf");
     setPromoFile(null);
+    setPromoText("");
     setPromoBrand("");
     setPromoDetected("");
     setPromoData([]);
@@ -512,19 +518,54 @@ GENEL KURALLAR:
   }
 
   async function analyzePromoFile() {
-    if (!promoFile) return;
     setPromoLoading(true); setPromoError(null);
-    let brand = detectBrandFromFileName(promoFile.name);
-    if (!brand) {
+    let brand = null;
+
+    if (promoInputMode === "pdf") {
+      if (!promoFile) { setPromoLoading(false); return; }
+      brand = detectBrandFromFileName(promoFile.name);
+      if (!brand) {
+        try {
+          const base64 = await fileToBase64(promoFile);
+          brand = await detectBrandFromContent(base64);
+        } catch { brand = null; }
+      }
+    } else {
+      // Metin modu — dosya adı yok, direkt metin içeriğinden Gemini ile tespit et
+      if (!promoText.trim()) { setPromoLoading(false); return; }
       try {
-        const base64 = await fileToBase64(promoFile);
-        brand = await detectBrandFromContent(base64);
+        brand = await detectBrandFromText(promoText);
       } catch { brand = null; }
     }
+
     setPromoDetected(brand || "");
     setPromoBrand(brand || "");
     setPromoLoading(false);
     setStep(STEPS.PROMO_CONFIRM);
+  }
+
+  // Metinden okul tespiti (PDF'siz)
+  async function detectBrandFromText(text) {
+    const brandList = knownBrands.join(", ");
+    const prompt = `Aşağıdaki metin bir dil okulunun promosyon/indirim açıklamasıdır. Hangi okula ait olduğunu belirle.
+Seçenekler: ${brandList}
+Eğer metinde okul adı geçmiyorsa veya emin değilsen "unknown" döndür.
+SADECE JSON döndür: {"brand":"EC","confidence":90}
+
+METİN:
+${text}`;
+    const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1 }
+      })
+    });
+    const data = await res.json();
+    const out = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const json = JSON.parse(out.replace(/```json|```/g, "").trim());
+    return json.brand === "unknown" ? null : json.brand;
   }
 
   async function startPromoParsing() {
@@ -538,10 +579,7 @@ GENEL KURALLAR:
         setSheetUrls(prev => ({ ...prev, [promoBrand]: headersResult.sheetUrl }));
       }
 
-      setPromoProgress(10); setPromoProgressMsg("📄 PDF hazırlanıyor...");
-      const base64 = await fileToBase64(promoFile);
-
-      setPromoProgress(30); setPromoProgressMsg("🤖 Promosyon bilgileri parse ediliyor...");
+      setPromoProgress(15); setPromoProgressMsg(promoInputMode === "pdf" ? "📄 PDF hazırlanıyor..." : "📝 Metin hazırlanıyor...");
 
       const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
       const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
@@ -553,22 +591,33 @@ Format:
 ]
 
 KURALLAR:
-1. campaign_id: kampanya kodu (örn: ID993)
+1. campaign_id: kampanya kodu varsa kullan, yoksa kısa bir kod üret (örn: PROMO1)
 2. campaign_name: kampanya adı (örn: 2026 Yaz İndirimi)
 3. discount_rate: indirim oranı (sayı, örn: 22)
 4. discount_type: "percentage" veya "fixed"
 5. valid_from / valid_until: YYYY-MM-DD formatında
-6. applies_to: hangi şehirler/kurslar için geçerli (all_cities veya liste)
+6. applies_to: hangi şehirler/kurslar için geçerli (all_cities veya liste). Metinde "UK & Ireland" gibi bölge geçiyorsa o bölgedeki şehirleri ayrı satır olarak yaz.
 7. school: ${promoBrand}
-8. city/country: ilgili şehir ve ülke (tüm şehirler için "all" kullan)
-9. notes: ek açıklamalar
-10. Backtick veya markdown kullanma, sadece düz JSON array.`;
+8. city/country: ilgili şehir ve ülke (tüm şehirler için "all" kullan, bölge belirtiliyorsa bölgeyi yaz)
+9. notes: ek açıklamalar, tarih uzatmaları, özel koşullar (örn: "yeni rezervasyonlar için", "yaz kampı")
+10. Her ayrı promosyon/indirim için ayrı satır aç (örn: UK indirimi ve USA indirimi ayrı satırlar).
+11. Backtick veya markdown kullanma, sadece düz JSON array.`;
+
+      let contentParts;
+      if (promoInputMode === "pdf") {
+        const base64 = await fileToBase64(promoFile);
+        contentParts = [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }];
+      } else {
+        contentParts = [{ text: prompt + "\n\nDÖKÜMAN METNİ:\n" + promoText }];
+      }
+
+      setPromoProgress(30); setPromoProgressMsg("🤖 Promosyon bilgileri parse ediliyor...");
 
       const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }] }],
+          contents: [{ parts: contentParts }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
         })
       });
@@ -952,33 +1001,70 @@ KURALLAR:
       <main style={S.main}>
         <div style={S.card}>
           <div style={S.bigIcon}>🎁</div>
-          <h2 style={S.cardTitle}>Promosyon Dökümanı Yükle</h2>
-          <p style={S.cardSub}>Kampanya ve indirim bilgilerini içeren PDF'i yükleyin</p>
-          <div
-            onDragOver={e => { e.preventDefault(); setPromoIsDragOver(true); }}
-            onDragLeave={() => setPromoIsDragOver(false)}
-            onDrop={handlePromoDrop}
-            style={{ ...S.dropZone, borderColor: promoIsDragOver ? "#ea580c" : "#e2e8f0", background: promoIsDragOver ? "#fff7ed" : "#f8fafc" }}>
-            <input type="file" accept="application/pdf" onChange={handlePromoFileSelect}
-              style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0, cursor:"pointer", zIndex:10 }}/>
-            {promoFile ? (
-              <div style={{textAlign:"center"}}>
-                <div style={{fontSize:36}}>🎁</div>
-                <p style={{fontWeight:700, marginTop:8}}>{promoFile.name}</p>
-                <p style={{fontSize:12, color:"#64748b"}}>{(promoFile.size/1024/1024).toFixed(2)} MB</p>
-              </div>
-            ) : (
-              <div style={{textAlign:"center"}}>
-                <div style={{fontSize:48}}>📁</div>
-                <p style={{fontWeight:500, marginTop:8}}>PDF sürükle veya tıkla seç</p>
-                <p style={{fontSize:12, color:"#94a3b8"}}>Promosyon / kampanya dökümanı</p>
-              </div>
-            )}
+          <h2 style={S.cardTitle}>Promosyon Bilgisi Ekle</h2>
+          <p style={S.cardSub}>PDF döküman yükleyin veya mail/metin içeriğini yapıştırın</p>
+
+          {/* Mod seçici */}
+          <div style={{display:"flex", gap:8, marginBottom:20, background:"#f1f5f9", padding:4, borderRadius:12}}>
+            <button onClick={() => setPromoInputMode("pdf")}
+              style={{flex:1, padding:"8px 12px", borderRadius:9, border:"none", cursor:"pointer", fontSize:13, fontWeight:600, fontFamily:"'Sora',sans-serif",
+                background: promoInputMode==="pdf" ? "#fff" : "transparent",
+                color: promoInputMode==="pdf" ? "#ea580c" : "#64748b",
+                boxShadow: promoInputMode==="pdf" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"}}>
+              📄 PDF Yükle
+            </button>
+            <button onClick={() => setPromoInputMode("text")}
+              style={{flex:1, padding:"8px 12px", borderRadius:9, border:"none", cursor:"pointer", fontSize:13, fontWeight:600, fontFamily:"'Sora',sans-serif",
+                background: promoInputMode==="text" ? "#fff" : "transparent",
+                color: promoInputMode==="text" ? "#ea580c" : "#64748b",
+                boxShadow: promoInputMode==="text" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"}}>
+              📝 Metin Yapıştır
+            </button>
           </div>
+
+          {promoInputMode === "pdf" ? (
+            <div
+              onDragOver={e => { e.preventDefault(); setPromoIsDragOver(true); }}
+              onDragLeave={() => setPromoIsDragOver(false)}
+              onDrop={handlePromoDrop}
+              style={{ ...S.dropZone, borderColor: promoIsDragOver ? "#ea580c" : "#e2e8f0", background: promoIsDragOver ? "#fff7ed" : "#f8fafc" }}>
+              <input type="file" accept="application/pdf" onChange={handlePromoFileSelect}
+                style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0, cursor:"pointer", zIndex:10 }}/>
+              {promoFile ? (
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:36}}>🎁</div>
+                  <p style={{fontWeight:700, marginTop:8}}>{promoFile.name}</p>
+                  <p style={{fontSize:12, color:"#64748b"}}>{(promoFile.size/1024/1024).toFixed(2)} MB</p>
+                </div>
+              ) : (
+                <div style={{textAlign:"center"}}>
+                  <div style={{fontSize:48}}>📁</div>
+                  <p style={{fontWeight:500, marginTop:8}}>PDF sürükle veya tıkla seç</p>
+                  <p style={{fontSize:12, color:"#94a3b8"}}>Promosyon / kampanya dökümanı</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <textarea
+              value={promoText}
+              onChange={e => setPromoText(e.target.value)}
+              placeholder={`Mail veya döküman metnini buraya yapıştırın...\n\nÖrn:\nUK & Ireland – 25% tuition discount\nValid from 05/01/2026 to 30/04/2026`}
+              style={{
+                width:"100%", minHeight:200, padding:"14px 16px", borderRadius:14,
+                border:"1.5px solid #e2e8f0", fontSize:13, fontFamily:"'Sora',sans-serif",
+                resize:"vertical", marginBottom:20, color:"#0f172a", lineHeight:1.6,
+                outline:"none"
+              }}
+              onFocus={e => e.target.style.borderColor="#ea580c"}
+              onBlur={e => e.target.style.borderColor="#e2e8f0"}
+            />
+          )}
+
           {promoError && <div style={S.errorBox}>{promoError}</div>}
-          <button onClick={analyzePromoFile} disabled={!promoFile || promoLoading}
-            style={{...S.primaryBtn, background:"#ea580c", opacity:(!promoFile||promoLoading)?0.5:1}}>
-            {promoLoading ? "Analiz ediliyor..." : "📊 Dökümanı Analiz Et"}
+          <button onClick={analyzePromoFile}
+            disabled={(promoInputMode==="pdf" ? !promoFile : !promoText.trim()) || promoLoading}
+            style={{...S.primaryBtn, background:"#ea580c", opacity:((promoInputMode==="pdf" ? !promoFile : !promoText.trim())||promoLoading)?0.5:1}}>
+            {promoLoading ? "Analiz ediliyor..." : "📊 Analiz Et"}
           </button>
         </div>
       </main>
