@@ -7,20 +7,11 @@ const GEMINI_MODEL   = "gemini-2.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz5P3fNdxzl2MPxuU8KEuiT6B2w0ct-hx6-igLHIciFygRWqk5-6gRlBGkHa4VYW_Zp/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzo0Z8qHVXUrbXsx9446tu8aYG_pRvSaKkay2jXtffIDI6CZihYCL50U_4kojoMx7ne/exec";
 
-const SHEET_URLS = {
-  EC:     "https://docs.google.com/spreadsheets/d/1PMuw11fAUcnX1iz56OOH2HUBe1IUZUdP12VkX9-nt8Q",
-  Kaplan: "https://docs.google.com/spreadsheets/d/1R72duyWM84S7CRzgpkvTVxNiUrgDWm83IQ2ShwJHqgQ",
-};
-
-// Parse edilecek sekmeler (visa/discounts hariç)
-const PARSE_TABS = {
-  EC:     ["courses", "accommodation", "fees", "transfers"],
-  Kaplan: ["courses", "accommodation", "fees", "transfers", "junior_packages"],
-};
-
-const KNOWN_BRANDS = ["EC", "Kaplan", "Oxford International", "LAL", "ELS", "ILSC"];
+// NOT: Okul listesi, sheet URL'leri ve parse edilecek sekmeler artık hardcode değil.
+// Hepsi Apps Script üzerinden MASTER_INDEX > school_registry sekmesinden dinamik çekiliyor.
+// Yeni okul eklemek için sadece school_registry'ye satır eklemek yeterli.
 
 const STEPS = {
   MODE_SELECT:    "mode_select",      // Yeni: Fiyat mı Promosyon mu
@@ -58,6 +49,11 @@ export default function KatalogParse() {
   const [step, setStep]           = useState(STEPS.MODE_SELECT);
   const [mode, setMode]           = useState(null);
   const [error, setError]         = useState(null);
+
+  // Dinamik okul listesi (Apps Script > school_registry'den)
+  const [knownBrands, setKnownBrands]       = useState([]);
+  const [schoolsLoading, setSchoolsLoading] = useState(true);
+  const [sheetUrls, setSheetUrls]           = useState({}); // brand -> sheet url (parse sırasında doldurulur)
 
   // Promosyon state'leri
   const [promoFile, setPromoFile]         = useState(null);
@@ -102,7 +98,30 @@ export default function KatalogParse() {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
+    loadSchoolList();
   }, []);
+
+  // Okul listesini Apps Script'ten dinamik çek
+  async function loadSchoolList() {
+    setSchoolsLoading(true);
+    try {
+      const res = await callAppsScriptRaw("listSchools", {});
+      if (res.success) setKnownBrands(res.schools || []);
+      else setError("Okul listesi yüklenemedi: " + res.msg);
+    } catch (err) {
+      setError("Okul listesi yüklenemedi: " + err.message);
+    }
+    setSchoolsLoading(false);
+  }
+
+  // callAppsScript'in component fonksiyonlarından önce tanımlanmış hali gerekiyor — ham fetch
+  async function callAppsScriptRaw(action, body) {
+    const res = await fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({ action, ...body }),
+    });
+    return res.json();
+  }
 
   // ── Dosya seçimi ──────────────────────────────────────────
   function handleFileSelect(e) {
@@ -128,20 +147,27 @@ export default function KatalogParse() {
   }
 
   // ── Okul tespiti ──────────────────────────────────────────
+  // Dosya adını knownBrands listesindeki her okul ismiyle (ve kısaltmalarıyla) karşılaştırır.
+  // "EC" gibi kısa markalar için kelime sınırı kontrolü yapar, yanlış pozitifi önler.
   function detectBrandFromFileName(name) {
-    const n = name.toLowerCase();
-    if (n.includes("kaplan"))       return "Kaplan";
-    if (n.includes(" ec ") || n.includes("ec_") || n.includes("ec english") || n.includes("ec-")) return "EC";
-    if (n.includes("oxford"))       return "Oxford International";
-    if (n.includes("lal"))          return "LAL";
-    if (n.includes("els"))          return "ELS";
-    if (n.includes("ilsc"))         return "ILSC";
+    const n = name.toLowerCase().replace(/[_\-.]/g, " ");
+    for (const brand of knownBrands) {
+      const b = brand.toLowerCase();
+      if (b.length <= 3) {
+        // Kısa marka adları (EC gibi) — kelime sınırıyla ara
+        const re = new RegExp(`(^|\\s)${b}(\\s|$)`);
+        if (re.test(n)) return brand;
+      } else if (n.includes(b)) {
+        return brand;
+      }
+    }
     return null;
   }
 
   async function detectBrandFromContent(base64) {
+    const brandList = knownBrands.join(", ");
     const prompt = `Bu bir dil okulu katalog PDF'idir. İlk sayfayı analiz et, okul markasını belirle.
-Seçenekler: EC, Kaplan, Oxford International, LAL, ELS, ILSC
+Seçenekler: ${brandList}
 SADECE JSON döndür: {"brand":"EC","confidence":90}`;
     const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
@@ -199,7 +225,11 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
       const headersResult = await callAppsScript("getSheetHeaders", { brand: selectedBrand });
       if (!headersResult.success) throw new Error("Header okunamadı: " + headersResult.msg);
       const headers = headersResult.headers;
+      const dynamicTabs = headersResult.tabs || Object.keys(headers);
       setSheetHeaders(headers);
+      if (headersResult.sheetUrl) {
+        setSheetUrls(prev => ({ ...prev, [selectedBrand]: headersResult.sheetUrl }));
+      }
 
       // Adım 2: Mevcut veriyi çek (diff + Gemini örnek için)
       setProgress(10); setProgressMsg("🔍 Mevcut veriler alınıyor...");
@@ -217,7 +247,7 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
       const base64 = await fileToBase64(selectedFile);
 
       // Adım 5: Sekme sekme parse et (parse_rules + ekstra sekmeler her çağrıda gönderilir)
-      const tabs = PARSE_TABS[selectedBrand] || ["courses", "accommodation", "fees", "transfers"];
+      const tabs = dynamicTabs;
       const parsed = {};
       const progressPerTab = 65 / tabs.length;
 
@@ -502,6 +532,12 @@ GENEL KURALLAR:
     setStep(STEPS.PROMO_PARSING); setPromoError(null);
 
     try {
+      setPromoProgress(5); setPromoProgressMsg("📁 Sheet bilgisi alınıyor...");
+      const headersResult = await callAppsScriptRaw("getSheetHeaders", { brand: promoBrand });
+      if (headersResult.success && headersResult.sheetUrl) {
+        setSheetUrls(prev => ({ ...prev, [promoBrand]: headersResult.sheetUrl }));
+      }
+
       setPromoProgress(10); setPromoProgressMsg("📄 PDF hazırlanıyor...");
       const base64 = await fileToBase64(promoFile);
 
@@ -590,7 +626,17 @@ KURALLAR:
           <h2 style={S.cardTitle}>Ne yapmak istiyorsunuz?</h2>
           <p style={S.cardSub}>Parse etmek istediğiniz döküman türünü seçin</p>
         </div>
-        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16}}>
+        {schoolsLoading && (
+          <div style={{textAlign:"center", marginBottom:16, fontSize:13, color:"#94a3b8"}}>
+            📁 Okul listesi yükleniyor...
+          </div>
+        )}
+        {!schoolsLoading && knownBrands.length === 0 && (
+          <div style={S.errorBox}>
+            Okul listesi alınamadı. MASTER_INDEX'teki "school_registry" sekmesini kontrol edin veya sayfayı yenileyin.
+          </div>
+        )}
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, opacity: schoolsLoading?0.5:1, pointerEvents: schoolsLoading?"none":"auto"}}>
           <button onClick={() => { setMode(MODES.PRICE); setStep(STEPS.UPLOAD); }}
             style={S.modeCard}
             onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#2563eb66"; e.currentTarget.style.boxShadow="0 20px 40px -12px #2563eb22"; }}
@@ -598,11 +644,6 @@ KURALLAR:
             <div style={{fontSize:48, marginBottom:16}}>💰</div>
             <h3 style={{fontSize:18, fontWeight:700, color:"#0f172a", marginBottom:8}}>Okul Fiyatlarını Yükle</h3>
             <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Okul katalog PDF'ini parse ederek kurs, konaklama, ücret ve transfer fiyatlarını güncelle</p>
-            <div style={{marginTop:16, display:"flex", flexWrap:"wrap", gap:6, justifyContent:"center"}}>
-              {["courses","accommodation","fees","transfers"].map(t => (
-                <span key={t} style={{fontSize:11, padding:"3px 10px", background:"#eff6ff", color:"#2563eb", borderRadius:20, fontWeight:600}}>{t}</span>
-              ))}
-            </div>
           </button>
           <button onClick={() => { setMode(MODES.PROMO); setStep(STEPS.PROMO_UPLOAD); }}
             style={S.modeCard}
@@ -677,7 +718,7 @@ KURALLAR:
           }
 
           <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:24}}>
-            {KNOWN_BRANDS.map(brand => (
+            {knownBrands.map(brand => (
               <div key={brand} onClick={() => setSelectedBrand(brand)}
                 style={{...S.brandCard, borderColor: selectedBrand===brand?"#2563eb":"#e2e8f0", background: selectedBrand===brand?"#eff6ff":"#fff"}}>
                 <span style={{fontSize:22}}>{brand==="EC"?"🇬🇧":brand==="Kaplan"?"🇺🇸":"🏫"}</span>
@@ -720,7 +761,7 @@ KURALLAR:
 
   // DIFF
   if (step === STEPS.DIFF) {
-    const tabs = PARSE_TABS[selectedBrand] || [];
+    const tabs = Object.keys(diffSummary || sheetHeaders || {});
     const hasUnknown = Object.keys(unknownCols).length > 0;
     const allDecided = !hasUnknown || Object.keys(unknownCols).every(tab =>
       unknownCols[tab].every(({col}) => unknownColDecisions[tab]?.[col])
@@ -817,7 +858,7 @@ KURALLAR:
 
   // REVIEW (Drive'da kontrol)
   if (step === STEPS.REVIEW) {
-    const sheetUrl = SHEET_URLS[selectedBrand];
+    const sheetUrl = sheetUrls[selectedBrand];
     return (
       <div style={S.root}>
         <div style={S.bgGrid}/>
@@ -958,7 +999,7 @@ KURALLAR:
             ? <p style={S.cardSub}>Tespit edilen okul: <strong>{promoDetected}</strong></p>
             : <p style={S.cardSub}>Okul tespit edilemedi. Lütfen manuel seçin.</p>}
           <div style={{display:"flex", flexDirection:"column", gap:8, marginBottom:24}}>
-            {KNOWN_BRANDS.map(brand => (
+            {knownBrands.map(brand => (
               <div key={brand} onClick={() => setPromoBrand(brand)}
                 style={{...S.brandCard, borderColor: promoBrand===brand?"#ea580c":"#e2e8f0", background: promoBrand===brand?"#fff7ed":"#fff"}}>
                 <span style={{fontSize:22}}>{brand==="EC"?"🇬🇧":brand==="Kaplan"?"🇺🇸":"🏫"}</span>
@@ -1066,7 +1107,7 @@ KURALLAR:
           <p style={{fontSize:13,color:"#64748b",marginTop:8,lineHeight:1.6}}>
             Sheet'i açarak kontrol edebilirsiniz. Onaylamak için discounts_draft sekmesini manuel olarak discounts ile değiştirin.
           </p>
-          <a href={SHEET_URLS[promoBrand]} target="_blank" rel="noreferrer"
+          <a href={sheetUrls[promoBrand]} target="_blank" rel="noreferrer"
             style={{...S.linkBtn, display:"block", textAlign:"center", marginTop:16, textDecoration:"none"}}>
             📊 {promoBrand} Sheet'ini Aç
           </a>
