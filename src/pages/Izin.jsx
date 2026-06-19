@@ -1,3 +1,5 @@
+ 
+
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
@@ -132,6 +134,14 @@ function sonrakiIsGununeKaydir(dateStr) {
   const d = new Date(dateStr);
   while (d.getDay() === 0 || d.getDay() === 6) {
     d.setDate(d.getDate() + 1);
+  }
+  return d.toISOString().split("T")[0];
+}
+
+function oncekiIsGununeKaydir(dateStr) {
+  const d = new Date(dateStr);
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() - 1);
   }
   return d.toISOString().split("T")[0];
 }
@@ -333,7 +343,10 @@ export default function Izin() {
     if (isHaftaSonu(val)) {
       const yeniTarih = sonrakiIsGununeKaydir(val);
       setBaslangic(yeniTarih);
-      setHaftaSonuUyari("Hafta sonu izin başlangıcı seçilemez. Tarih bir sonraki iş gününe (" + formatTarih(yeniTarih) + ") kaydırıldı.");
+      setHaftaSonuUyari(t(
+        "Hafta sonu izin başlangıcı seçilemez. Tarih bir sonraki iş gününe (" + formatTarih(yeniTarih) + ") kaydırıldı.",
+        "Weekend dates cannot be selected as a leave start date. The date was moved to the next business day (" + formatTarih(yeniTarih) + ")."
+      ));
       setTimeout(() => setHaftaSonuUyari(null), 5000);
       cakismaKontrol(yeniTarih, bitis);
     } else {
@@ -344,9 +357,12 @@ export default function Izin() {
 
   function handleBitisChange(val) {
     if (isHaftaSonu(val)) {
-      const yeniTarih = sonrakiIsGununeKaydir(val);
+      const yeniTarih = oncekiIsGununeKaydir(val);
       setBitis(yeniTarih);
-      setHaftaSonuUyari("Hafta sonu izin bitişi seçilemez. Tarih bir sonraki iş gününe (" + formatTarih(yeniTarih) + ") kaydırıldı.");
+      setHaftaSonuUyari(t(
+        "Hafta sonu izin bitişi seçilemez. Tarih bir önceki iş gününe (" + formatTarih(yeniTarih) + ") kaydırıldı.",
+        "Weekend dates cannot be selected as a leave end date. The date was moved to the previous business day (" + formatTarih(yeniTarih) + ")."
+      ));
       setTimeout(() => setHaftaSonuUyari(null), 5000);
       cakismaKontrol(baslangic, yeniTarih);
     } else {
