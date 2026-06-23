@@ -1,5 +1,6 @@
 
 
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -39,9 +40,25 @@ const MODES = {
 
 // discounts sekmesi sütun yapısı
 const DISCOUNT_COLUMNS = [
-  "school", "city", "country", "campaign_id", "campaign_name",
-  "discount_rate", "discount_type", "valid_from", "valid_until",
-  "applies_to", "notes"
+  // Ortak
+  "school", "city", "country",
+  "campaign_id", "campaign_name",
+  "discount_type",
+  "reg_date_start", "reg_date_end",
+  "arrival_start", "arrival_end",
+  "min_weeks", "max_weeks",
+  "min_age", "max_age",
+  "channel",
+  // Percentage satırları için
+  "applies_to", "target_name",
+  "discount_value", "value_type",
+  "eligible_courses", "excluded_courses",
+  "group_size",
+  // Fixed package satırları için
+  "course_name", "weeks", "package_price", "currency",
+  "includes", "excludes",
+  // Ortak
+  "notes",
 ];
 
 // ─── ANA COMPONENT ───────────────────────────────────────────
@@ -590,18 +607,50 @@ Format:
   { ${colList} }
 ]
 
-KURALLAR:
-1. campaign_id: kampanya kodu varsa kullan, yoksa kısa bir kod üret (örn: PROMO1)
-2. campaign_name: kampanya adı (örn: 2026 Yaz İndirimi)
-3. discount_rate: indirim oranı (sayı, örn: 22)
-4. discount_type: "percentage" veya "fixed"
-5. valid_from / valid_until: YYYY-MM-DD formatında
-6. applies_to: hangi şehirler/kurslar için geçerli (all_cities veya liste). Metinde "UK & Ireland" gibi bölge geçiyorsa o bölgedeki şehirleri ayrı satır olarak yaz.
-7. school: ${promoBrand}
-8. city/country: ilgili şehir ve ülke (tüm şehirler için "all" kullan, bölge belirtiliyorsa bölgeyi yaz)
-9. notes: ek açıklamalar, tarih uzatmaları, özel koşullar (örn: "yeni rezervasyonlar için", "yaz kampı")
-10. Her ayrı promosyon/indirim için ayrı satır aç (örn: UK indirimi ve USA indirimi ayrı satırlar).
-11. Backtick veya markdown kullanma, sadece düz JSON array.`;
+SÜTUN AÇIKLAMALARI:
+
+[discount_type]
+- "percentage" → yüzde veya sabit tutar indirimi (tuition, accommodation, fee)
+- "fixed_package" → şehir+kurs+hafta kombinasyonu için paket fiyatı
+
+[Ortak sütunlar - her satırda doldur]
+- school: ${promoBrand}
+- city: ilgili şehir ("all" = tüm şehirler, "UK" gibi bölge yazılabilir)
+- country: ilgili ülke ("all" = tüm ülkeler)
+- campaign_id: belgede varsa kodu kullan, yoksa kısa bir kod üret (örn: PROMO_UK_25)
+- campaign_name: kampanyanın açıklayıcı adı
+- reg_date_start / reg_date_end: kayıt/rezervasyon tarihi aralığı YYYY-MM-DD
+- arrival_start / arrival_end: geliş/kurs başlangıç tarihi aralığı YYYY-MM-DD
+- min_weeks / max_weeks: kaç haftalık rezervasyon için geçerli (boş = kısıt yok)
+- min_age / max_age: yaş kısıtı varsa (boş = kısıt yok)
+- channel: "all", "agent", "direct", "online" (belirtilmemişse "all")
+- notes: özel koşullar, istisnalar, ek açıklamalar
+
+[Sadece percentage satırları için]
+- applies_to: "tuition" / "accommodation" / "fee"
+- target_name: applies_to="fee" ise hangi fee (örn: "Materials Fee", "Placement Fee"). Diğerlerinde boş.
+- discount_value: indirim miktarı (sayı). Yüzde için 25, sabit tutar için 80 gibi.
+- value_type: "percentage" / "fixed" / "free" (tamamen bedava ise)
+- eligible_courses: hangi kurslar için geçerli (boş = hepsi)
+- excluded_courses: hariç tutulan kurslar
+- group_size: grup indirimi ise minimum kişi sayısı (boş = kısıt yok)
+
+[Sadece fixed_package satırları için]
+- course_name: paket kurs adı
+- weeks: kaç haftalık paket
+- package_price: toplam paket fiyatı (sayı)
+- currency: GBP / EUR / USD / CAD
+- includes: pakete dahil olanlar (konaklama, aktivite vb.)
+- excludes: pakete dahil olmayanlar
+
+ÖNEMLI KURALLAR:
+1. Her ayrı indirim/muafiyet için AYRI satır aç.
+   Örn: UK %25 tuition + UK placement fee bedava → 2 ayrı satır
+   Örn: UK %25 + USA %30 → 2 ayrı satır (city/country farklı)
+2. "Bedava aktiviteler" → applies_to="fee", target_name="Activities", value_type="free"
+3. "X fee alınmaz" → applies_to="fee", target_name="[fee adı]", value_type="free", discount_value=100
+4. Tarih belirtilmemişse ilgili alanı boş bırak.
+5. Backtick veya markdown kullanma, sadece düz JSON array.`;
 
       let contentParts;
       if (promoInputMode === "pdf") {
@@ -1144,18 +1193,40 @@ KURALLAR:
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               {promoData.map((row, i) => (
                 <div key={i} style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,border:"1px solid #e2e8f0"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,flexWrap:"wrap"}}>
                     <span style={{fontSize:11,fontWeight:700,background:"#fff7ed",color:"#ea580c",padding:"2px 8px",borderRadius:20}}>
                       {row.campaign_id || "—"}
                     </span>
                     <span style={{fontWeight:600,fontSize:14,color:"#0f172a"}}>{row.campaign_name || "—"}</span>
-                    <span style={{marginLeft:"auto",fontWeight:700,color:"#059669",fontSize:14}}>
-                      {row.discount_rate}{row.discount_type==="percentage"?"%":" sabit"}
+                    <span style={{marginLeft:"auto",fontWeight:700,fontSize:13,
+                      color: row.discount_type==="fixed_package"?"#7c3aed":"#059669"}}>
+                      {row.discount_type==="fixed_package"
+                        ? `📦 Paket ${row.package_price} ${row.currency}`
+                        : row.discount_value
+                          ? `${row.discount_value}${row.value_type==="percentage"?"%":row.value_type==="free"?" bedava":" sabit"}`
+                          : "—"
+                      }
                     </span>
                   </div>
-                  <div style={{fontSize:12,color:"#64748b",display:"flex",gap:16,flexWrap:"wrap"}}>
-                    {row.valid_from && <span>📅 {row.valid_from} → {row.valid_until || "?"}</span>}
-                    {row.applies_to && <span>📍 {row.applies_to}</span>}
+                  <div style={{fontSize:12,color:"#64748b",display:"flex",gap:12,flexWrap:"wrap"}}>
+                    {row.applies_to && (
+                      <span>🎯 {row.applies_to}{row.target_name ? ` › ${row.target_name}` : ""}</span>
+                    )}
+                    {(row.city || row.country) && (
+                      <span>📍 {[row.city, row.country].filter(Boolean).join(", ")}</span>
+                    )}
+                    {row.reg_date_start && (
+                      <span>📅 Kayıt: {row.reg_date_start} → {row.reg_date_end || "?"}</span>
+                    )}
+                    {row.arrival_start && (
+                      <span>✈️ Geliş: {row.arrival_start} → {row.arrival_end || "?"}</span>
+                    )}
+                    {(row.min_weeks || row.max_weeks) && (
+                      <span>🗓 {row.min_weeks||"?"}-{row.max_weeks||"∞"} hafta</span>
+                    )}
+                    {row.eligible_courses && (
+                      <span>📚 {row.eligible_courses}</span>
+                    )}
                     {row.notes && <span>💬 {row.notes}</span>}
                   </div>
                 </div>
