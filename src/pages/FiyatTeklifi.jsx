@@ -74,11 +74,12 @@ async function fetchCityData(sheetId, city) {
   if (!window._CITY_CACHE) window._CITY_CACHE = {};
   if (window._CITY_CACHE[key]) return window._CITY_CACHE[key];
   try {
-    const [courseRows, accRows, feeRows, transferRows] = await Promise.all([
+    const [courseRows, accRows, feeRows, transferRows, discountRows] = await Promise.all([
       fetchCSV(sheetId, "courses"),
       fetchCSV(sheetId, "accommodation"),
       fetchCSV(sheetId, "fees"),
       fetchCSV(sheetId, "transfers").catch(() => []),
+      fetchCSV(sheetId, "discounts").catch(() => []),
     ]);
     const courseMap = {};
     courseRows.filter(r => r.city === city).forEach(r => {
@@ -116,12 +117,37 @@ async function fetchCityData(sheetId, city) {
       one_way: parseFloat(r.price_one_way) || 0, two_way: parseFloat(r.price_two_way) || 0,
       currency: r.currency, notes: r.notes || "",
     }));
-    const result = { courses: Object.values(courseMap), acc, fees, transfers };
+    const discounts = (discountRows || []).filter(r => r.city === city || !r.city).map(r => ({
+      discount_type: (r.discount_type || "").trim(),       // fixed_package | percentage
+      city: r.city || "",
+      reg_date_start: r.reg_date_start || "",
+      reg_date_end: r.reg_date_end || "",
+      arrival_start: r.arrival_start || "",
+      arrival_end: r.arrival_end || "",
+      min_weeks: r.min_weeks ? parseInt(r.min_weeks) : null,
+      max_weeks: r.max_weeks ? parseInt(r.max_weeks) : null,
+      notes: r.notes || "",
+      // fixed_package alanlari
+      course_name: r.course_name || "",
+      weeks: r.weeks ? parseInt(r.weeks) : null,
+      package_price: parseFloat(r.package_price) || 0,
+      currency: r.currency || "",
+      includes: r.includes || "",
+      excludes: r.excludes || "",
+      // percentage alanlari
+      applies_to: (r.applies_to || "").trim(),             // tuition | accommodation | fee
+      target_name: r.target_name || "",
+      discount_value: parseFloat(r.discount_value) || 0,
+      value_type: (r.value_type || "").trim(),             // percentage | fixed | free
+      eligible_courses: r.eligible_courses || "",
+      excluded_courses: r.excluded_courses || "",
+    }));
+    const result = { courses: Object.values(courseMap), acc, fees, transfers, discounts };
     window._CITY_CACHE[key] = result;
     return result;
   } catch (e) {
     console.error("fetchCityData error:", e);
-    return { courses: [], acc: [], fees: [] };
+    return { courses: [], acc: [], fees: [], transfers: [], discounts: [] };
   }
 }
 
@@ -131,6 +157,97 @@ function getPrice(course, weeks) {
   return tier ? tier.price * weeks : 0;
 }
 function isCourseValid(course, weeks) { return course?.tiers?.some(t => weeks >= t.min && (t.max === null || weeks <= t.max)); }
+
+// ─── İNDİRİM FONKSİYONLARI ───
+// Tarih araligi kontrolu - bos alanlar gecerli sayilir
+function inDateRange(dateStr, startStr, endStr) {
+  if (!startStr && !endStr) return true;
+  if (!dateStr) return true;
+  const d = new Date(dateStr);
+  if (startStr && d < new Date(startStr)) return false;
+  if (endStr && d > new Date(endStr)) return false;
+  return true;
+}
+
+// Kurs adi listede mi (virgulle ayrilmis)
+function courseInList(courseName, listStr) {
+  if (!listStr) return false;
+  return listStr.split(",").map(s => s.trim()).includes(courseName);
+}
+
+// fixed_package eslesmesi ara: sehir + kurs + tam hafta
+// Bulursa paket objesini dondurur, yoksa null
+function findFixedPackage(discounts, course, weeks, startDate) {
+  if (!discounts?.length || !course) return null;
+  const today = new Date().toISOString().split("T")[0];
+  return discounts.find(d =>
+    d.discount_type === "fixed_package" &&
+    d.course_name === course.name &&
+    d.weeks === weeks &&
+    inDateRange(today, d.reg_date_start, d.reg_date_end) &&
+    inDateRange(startDate, d.arrival_start, d.arrival_end)
+  ) || null;
+}
+
+// percentage indirimlerini hesapla - hedefe gore ayri ayri uygulanir
+// targets: { tuition, accommodation, fees:[{name,amount}] } -> her hedef tutari
+// Donen: [{label, applies_to, target_name, amount(dusulecek tutar negatif degil pozitif), value_type, value}]
+function computeDiscounts(discounts, course, weeks, startDate, targets) {
+  if (!discounts?.length) return [];
+  const today = new Date().toISOString().split("T")[0];
+  const result = [];
+
+  discounts.forEach(d => {
+    if (d.discount_type !== "percentage") return;
+    // Tarih kontrolleri
+    if (!inDateRange(today, d.reg_date_start, d.reg_date_end)) return;
+    if (!inDateRange(startDate, d.arrival_start, d.arrival_end)) return;
+    // Hafta kontrolleri
+    if (d.min_weeks && weeks < d.min_weeks) return;
+    if (d.max_weeks && weeks > d.max_weeks) return;
+    // Kurs uygunluk kontrolleri
+    if (d.eligible_courses && !courseInList(course?.name, d.eligible_courses)) return;
+    if (d.excluded_courses && courseInList(course?.name, d.excluded_courses)) return;
+
+    // Hedef tutari bul
+    let base = 0;
+    let label = "";
+    if (d.applies_to === "tuition") {
+      base = targets.tuition || 0;
+      label = "Kurs İndirimi";
+    } else if (d.applies_to === "accommodation") {
+      base = targets.accommodation || 0;
+      label = "Konaklama İndirimi";
+    } else if (d.applies_to === "fee") {
+      const fee = (targets.fees || []).find(f => f.name === d.target_name);
+      if (!fee) return;
+      base = fee.amount;
+      label = d.target_name + " İndirimi";
+    } else {
+      return;
+    }
+    if (base <= 0) return;
+
+    // Indirim tutarini hesapla
+    let amount = 0;
+    if (d.value_type === "free") amount = base;                       // %100
+    else if (d.value_type === "percentage") amount = base * (d.discount_value / 100);
+    else if (d.value_type === "fixed") amount = Math.min(d.discount_value, base);
+    else return;
+
+    if (amount <= 0) return;
+    result.push({
+      label,
+      applies_to: d.applies_to,
+      target_name: d.target_name || "",
+      value_type: d.value_type,
+      value: d.discount_value,
+      amount,  // dusulecek pozitif tutar
+    });
+  });
+
+  return result;
+}
 
 function getHighSeasonSupplement(course, weeks, startDate) {
   if (!course?.hs_supp || !course?.hs_start || !course?.hs_end) return { amount: 0, isActive: false };
