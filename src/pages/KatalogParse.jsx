@@ -114,7 +114,10 @@ export default function KatalogParse() {
   // Kayıt
   const [backupInfo, setBackupInfo]   = useState(null);
   const [saveError, setSaveError]     = useState(null);
-
+// --- YENİ EKLENEN STATE'LER ---
+  const [activeCampaigns, setActiveCampaigns] = useState([]);
+  const [commitLoading, setCommitLoading] = useState(false);
+  
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/"); return; }
@@ -123,11 +126,14 @@ export default function KatalogParse() {
   }, []);
 
   // Okul listesini Apps Script'ten dinamik çek
-  async function loadSchoolList() {
+ async function loadSchoolList() {
     setSchoolsLoading(true);
     try {
       const res = await callAppsScriptRaw("listSchools", {});
-      if (res.success) setKnownBrands(res.schools || []);
+      if (res.success) {
+        setKnownBrands(res.schools || []);
+        setActiveCampaigns(res.activeCampaigns || []); // Yeni eklendi
+      }
       else setError("Okul listesi yüklenemedi: " + res.msg);
     } catch (err) {
       setError("Okul listesi yüklenemedi: " + err.message);
@@ -709,7 +715,21 @@ SÜTUN AÇIKLAMALARI:
       setStep(STEPS.PROMO_REVIEW);
     }
   }
-
+// --- YENİ EKLENEN FONKSİYON ---
+  async function commitPromoToMaster() {
+    setCommitLoading(true);
+    try {
+      const res = await callAppsScript("commitPromoDraft", { brand: promoBrand });
+      if (!res.success) throw new Error(res.msg);
+      alert("✅ Kampanyalar başarıyla discounts sekmesine aktarıldı ve Master Index güncellendi!");
+      resetAll();
+    } catch (err) {
+      setPromoError("Yükleme hatası: " + err.message);
+    } finally {
+      setCommitLoading(false);
+    }
+  }
+  
   // ─── RENDER ───────────────────────────────────────────────
   if (!user) return null;
 
@@ -752,6 +772,43 @@ SÜTUN AÇIKLAMALARI:
             <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Kampanya ve indirim dökümanını parse ederek discounts sekmesine kampanya kodları ve geçerlilik sürelerini ekle</p>
           </button>
         </div>
+
+        </button>
+        </div>
+
+        {/* --- YENİ EKLENEN: DEVAM EDEN KAMPANYALAR BÖLÜMÜ --- */}
+        {!schoolsLoading && activeCampaigns.length > 0 && (
+          <div style={{...S.sectionCard, marginTop: 32, animation:"fadeUp 0.6s ease-out"}}>
+            <h3 style={S.sectionTitle}>📅 Devam Eden Kampanyalar</h3>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%", borderCollapse:"collapse", fontSize:13, textAlign:"left"}}>
+                <thead>
+                  <tr style={{borderBottom:"2px solid #e2e8f0", color:"#64748b"}}>
+                    <th style={{padding:"12px 8px"}}>Okul</th>
+                    <th style={{padding:"12px 8px"}}>Kayıt Başlangıç</th>
+                    <th style={{padding:"12px 8px"}}>Kayıt Bitiş</th>
+                    <th style={{padding:"12px 8px"}}>Son Güncelleme</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeCampaigns.map((camp, idx) => (
+                    <tr key={idx} style={{borderBottom:"1px solid #f1f5f9"}}>
+                      <td style={{padding:"12px 8px", fontWeight:600, color:"#0f172a"}}>{camp.school}</td>
+                      <td style={{padding:"12px 8px", color:"#475569"}}>{camp.reg_date_start || "Süresiz"}</td>
+                      <td style={{padding:"12px 8px", color:"#ea580c", fontWeight:600}}>{camp.reg_date_end || "Belirtilmemiş"}</td>
+                      <td style={{padding:"12px 8px", color:"#94a3b8", fontSize:11}}>{camp.last_updated}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+      </main>
+      <Style/>
+    </div>
+        
       </main>
       <Style/>
     </div>
@@ -1250,28 +1307,33 @@ SÜTUN AÇIKLAMALARI:
   );
 
   // PROMO DONE
-  if (step === STEPS.PROMO_DONE) return (
+if (step === STEPS.PROMO_DONE) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
-      <Header title="Tamamlandı" user={user}/>
+      <Header title="Taslak Kaydedildi" user={user}/>
       <main style={S.main}>
         <div style={S.card}>
           <div style={{fontSize:64,marginBottom:16}}>✅</div>
-          <h2 style={S.cardTitle}>Kampanyalar Kaydedildi!</h2>
+          <h2 style={S.cardTitle}>Taslak Kampanyalar Kaydedildi!</h2>
           <p style={S.cardSub}>
             <strong>{promoData.length}</strong> kampanya <strong>{promoBrand}</strong> discounts_draft sekmesine yazıldı.
           </p>
-          <p style={{fontSize:13,color:"#64748b",marginTop:8,lineHeight:1.6}}>
-            Sheet'i açarak kontrol edebilirsiniz. Onaylamak için discounts_draft sekmesini manuel olarak discounts ile değiştirin.
-          </p>
+          
+          <div style={{padding:"12px 16px",background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:10,fontSize:13,color:"#9a3412",marginTop:16,marginBottom:24,lineHeight:1.6,textAlign:"left"}}>
+            ⚠️ <strong>Manuel Kontrol:</strong> Lütfen Apps Script üzerinden taslakları inceleyin. "Okul Dosyasına Yükle" butonuna bastığınızda bu veriler ana discounts sekmesine taşınacak ve Master Index kayıt tarihi güncellenecektir.
+          </div>
+
           <a href={sheetUrls[promoBrand]} target="_blank" rel="noreferrer"
-            style={{...S.linkBtn, display:"block", textAlign:"center", marginTop:16, textDecoration:"none"}}>
-            📊 {promoBrand} Sheet'ini Aç
+            style={{...S.linkBtn, display:"block", textAlign:"center", marginBottom:24, textDecoration:"none"}}>
+            📊 {promoBrand} Sheet'ini Açıp İncele
           </a>
+
+          {promoError && <div style={S.errorBox}>{promoError}</div>}
+
           <div style={{display:"flex",gap:12,marginTop:16}}>
-            <button onClick={resetAll} style={S.secondaryBtn}>Ana Menü</button>
-            <button onClick={() => navigate("/fiyat-teklifi")} style={{...S.primaryBtn,flex:1}}>
-              Fiyat Teklifi'ne Git →
+            <button onClick={resetAll} style={S.secondaryBtn}>İptal / Menü</button>
+            <button onClick={commitPromoToMaster} disabled={commitLoading} style={{...S.primaryBtn,flex:1, background:"#059669", opacity:commitLoading?0.5:1}}>
+              {commitLoading ? "Yükleniyor..." : "🚀 Okul Dosyasına Yükle"}
             </button>
           </div>
         </div>
