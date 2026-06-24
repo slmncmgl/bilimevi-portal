@@ -117,9 +117,19 @@ async function fetchCityData(sheetId, city) {
       one_way: parseFloat(r.price_one_way) || 0, two_way: parseFloat(r.price_two_way) || 0,
       currency: r.currency, notes: r.notes || "",
     }));
-    const discounts = (discountRows || []).filter(r => r.city === city || !r.city).map(r => ({
+    // Bu sehrin ulkesini courses satirindan bul (city=all + country bazli indirimler icin)
+    const cityCountry = (courseRows.find(r => r.city === city)?.country) || "";
+    const discounts = (discountRows || []).filter(r => {
+      // Sehir eslesmesi: birebir sehir, bos, veya "all"
+      const cityMatch = r.city === city || !r.city || r.city === "all";
+      if (!cityMatch) return false;
+      // city=all ise country da kontrol et (UK indirimi Malta'ya gitmesin)
+      if (r.city === "all" && r.country && r.country !== "all" && cityCountry && r.country !== cityCountry) return false;
+      return true;
+    }).map(r => ({
       discount_type: (r.discount_type || "").trim(),       // fixed_package | percentage
       city: r.city || "",
+      country: r.country || "",
       reg_date_start: r.reg_date_start || "",
       reg_date_end: r.reg_date_end || "",
       arrival_start: r.arrival_start || "",
