@@ -12,8 +12,12 @@ const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzo0Z8qHVXUrbXsx9446tu8aYG_pRvSaKkay2jXtffIDI6CZihYCL50U_4kojoMx7ne/exec";
 
+// NOT: Okul listesi, sheet URL'leri ve parse edilecek sekmeler artık hardcode değil.
+// Hepsi Apps Script üzerinden MASTER_INDEX > school_registry sekmesinden dinamik çekiliyor.
+// Yeni okul eklemek için sadece school_registry'ye satır eklemek yeterli.
+
 const STEPS = {
-  MODE_SELECT:    "mode_select",
+  MODE_SELECT:    "mode_select",      // Yeni: Fiyat mı Promosyon mu
   UPLOAD:         "upload",
   SCHOOL_CONFIRM: "school_confirm",
   PARSING:        "parsing",
@@ -21,6 +25,7 @@ const STEPS = {
   SAVING:         "saving",
   REVIEW:         "review",
   DONE:           "done",
+  // Promosyon akışı
   PROMO_UPLOAD:   "promo_upload",
   PROMO_CONFIRM:  "promo_confirm",
   PROMO_PARSING:  "promo_parsing",
@@ -33,7 +38,9 @@ const MODES = {
   PROMO: "promo",
 };
 
+// discounts sekmesi sütun yapısı
 const DISCOUNT_COLUMNS = [
+  // Ortak
   "school", "city", "country",
   "campaign_id", "campaign_name",
   "discount_type",
@@ -42,12 +49,15 @@ const DISCOUNT_COLUMNS = [
   "min_weeks", "max_weeks",
   "min_age", "max_age",
   "channel",
+  // Percentage satırları için
   "applies_to", "target_name",
   "discount_value", "value_type",
   "eligible_courses", "excluded_courses",
   "group_size",
+  // Fixed package satırları için
   "course_name", "weeks", "package_price", "currency",
   "includes", "excludes",
+  // Ortak
   "notes",
 ];
 
@@ -59,11 +69,13 @@ export default function KatalogParse() {
   const [mode, setMode]           = useState(null);
   const [error, setError]         = useState(null);
 
+  // Dinamik okul listesi (Apps Script > school_registry'den)
   const [knownBrands, setKnownBrands]       = useState([]);
   const [schoolsLoading, setSchoolsLoading] = useState(true);
-  const [sheetUrls, setSheetUrls]           = useState({});
+  const [sheetUrls, setSheetUrls]           = useState({}); // brand -> sheet url (parse sırasında doldurulur)
 
-  const [promoInputMode, setPromoInputMode] = useState("pdf"); 
+  // Promosyon state'leri
+  const [promoInputMode, setPromoInputMode] = useState("pdf"); // "pdf" | "text"
   const [promoFile, setPromoFile]         = useState(null);
   const [promoIsDragOver, setPromoIsDragOver] = useState(false);
   const [promoText, setPromoText]         = useState("");
@@ -75,25 +87,31 @@ export default function KatalogParse() {
   const [promoProgress, setPromoProgress] = useState(0);
   const [promoProgressMsg, setPromoProgressMsg] = useState("");
 
+  // PDF
   const [selectedFile, setSelectedFile]   = useState(null);
   const [isDragOver, setIsDragOver]       = useState(false);
   const dropRef = useRef(null);
 
+  // Okul tespiti
   const [detectedBrand, setDetectedBrand] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
   const [detectLoading, setDetectLoading] = useState(false);
 
+  // Parse
   const [progress, setProgress]       = useState(0);
   const [progressMsg, setProgressMsg] = useState("");
   const [sheetHeaders, setSheetHeaders] = useState({});
   const [parsedData, setParsedData]   = useState({});
 
+  // Diff
   const [currentData, setCurrentData] = useState({});
   const [diffSummary, setDiffSummary] = useState(null);
 
+  // Yeni sütun uyarısı
   const [unknownCols, setUnknownCols] = useState({});
   const [unknownColDecisions, setUnknownColDecisions] = useState({});
 
+  // Kayıt
   const [backupInfo, setBackupInfo]   = useState(null);
   const [saveError, setSaveError]     = useState(null);
 
@@ -104,6 +122,7 @@ export default function KatalogParse() {
     loadSchoolList();
   }, []);
 
+  // Okul listesini Apps Script'ten dinamik çek
   async function loadSchoolList() {
     setSchoolsLoading(true);
     try {
@@ -116,6 +135,7 @@ export default function KatalogParse() {
     setSchoolsLoading(false);
   }
 
+  // callAppsScript'in component fonksiyonlarından önce tanımlanmış hali gerekiyor — ham fetch
   async function callAppsScriptRaw(action, body) {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
@@ -124,6 +144,7 @@ export default function KatalogParse() {
     return res.json();
   }
 
+  // ── Dosya seçimi ──────────────────────────────────────────
   function handleFileSelect(e) {
     const file = e.target.files[0];
     if (file?.type === "application/pdf") { setSelectedFile(file); setError(null); }
@@ -146,11 +167,15 @@ export default function KatalogParse() {
     });
   }
 
+  // ── Okul tespiti ──────────────────────────────────────────
+  // Dosya adını knownBrands listesindeki her okul ismiyle (ve kısaltmalarıyla) karşılaştırır.
+  // "EC" gibi kısa markalar için kelime sınırı kontrolü yapar, yanlış pozitifi önler.
   function detectBrandFromFileName(name) {
     const n = name.toLowerCase().replace(/[_\-.]/g, " ");
     for (const brand of knownBrands) {
       const b = brand.toLowerCase();
       if (b.length <= 3) {
+        // Kısa marka adları (EC gibi) — kelime sınırıyla ara
         const re = new RegExp(`(^|\\s)${b}(\\s|$)`);
         if (re.test(n)) return brand;
       } else if (n.includes(b)) {
@@ -183,8 +208,10 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
     if (!selectedFile) return;
     setDetectLoading(true); setError(null);
 
+    // 1. Dosya adından dene
     let brand = detectBrandFromFileName(selectedFile.name);
 
+    // 2. Gemini fallback
     if (!brand) {
       try {
         const base64 = await fileToBase64(selectedFile);
@@ -200,6 +227,7 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
     setStep(STEPS.SCHOOL_CONFIRM);
   }
 
+  // ── Parse işlemi ──────────────────────────────────────────
   async function callAppsScript(action, body) {
     const res = await fetch(SCRIPT_URL, {
       method: "POST",
@@ -213,6 +241,7 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
     setStep(STEPS.PARSING); setError(null);
 
     try {
+      // Adım 1: Sheet header'larını çek
       setProgress(5); setProgressMsg("📁 Mevcut sheet sütunları okunuyor...");
       const headersResult = await callAppsScript("getSheetHeaders", { brand: selectedBrand });
       if (!headersResult.success) throw new Error("Header okunamadı: " + headersResult.msg);
@@ -223,18 +252,22 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
         setSheetUrls(prev => ({ ...prev, [selectedBrand]: headersResult.sheetUrl }));
       }
 
+      // Adım 2: Mevcut veriyi çek (diff + Gemini örnek için)
       setProgress(10); setProgressMsg("🔍 Mevcut veriler alınıyor...");
       const currentResult = await callAppsScript("getCurrentData", { brand: selectedBrand });
       if (currentResult.success) setCurrentData(currentResult.data || {});
 
+      // Adım 3: Parse rules + ekstra referans sekmeleri çek
       setProgress(13); setProgressMsg("📋 Parse kuralları okunuyor...");
       const rulesResult = await callAppsScript("getParseRules", { brand: selectedBrand });
       const parseRules = rulesResult.success ? rulesResult.parseRules : "";
       const extraTabs  = rulesResult.success ? rulesResult.extraTabs  : {};
 
+      // Adım 4: PDF hazırla
       setProgress(15); setProgressMsg("📄 PDF hazırlanıyor...");
       const base64 = await fileToBase64(selectedFile);
 
+      // Adım 5: Sekme sekme parse et (parse_rules + ekstra sekmeler her çağrıda gönderilir)
       const tabs = dynamicTabs;
       const parsed = {};
       const progressPerTab = 65 / tabs.length;
@@ -250,10 +283,12 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
 
       setProgress(90); setProgressMsg("✅ Veriler doğrulanıyor...");
 
+      // Adım 5: Yeni sütun tespiti
       const unknown = detectUnknownColumns(parsed, headers, tabs);
       setUnknownCols(unknown);
       setParsedData(parsed);
 
+      // Adım 6: Diff hesapla
       const diff = computeDiff(currentResult.data || {}, parsed, tabs);
       setDiffSummary(diff);
 
@@ -267,20 +302,24 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
     }
   }
 
+  // Sekme bazlı parse — her sekme için ayrı Gemini çağrısı
   async function parseSingleTab(base64, brand, cols, tabName, parseRules, extraTabs, sampleData) {
     const colList = cols.length > 0
       ? cols.map(c => `"${c}": ""`).join(", ")
       : '"name": "", "value": ""';
 
+    // Mevcut veriden örnek satırlar (Gemini format öğrenmek için)
     const sampleSection = sampleData && sampleData.length > 0
       ? `\nMEVCUT VERİDEN ÖRNEK SATIRLAR (bu formatı takip et):\n${JSON.stringify(sampleData.slice(0, 3), null, 2)}`
       : "";
 
+    // Ekstra referans sekmeleri (junior_activities, junior_transfers vb.)
     const extraSection = extraTabs && Object.keys(extraTabs).length > 0
       ? "\n\nREFERANS BİLGİLERİ (bu sekmelerdeki verilerle tutarlı ol):\n" +
         Object.entries(extraTabs).map(([k, v]) => `[${k}]\n${v}`).join("\n\n")
       : "";
 
+    // Parse kuralları
     const rulesSection = parseRules
       ? `\n\nPARSE KURALLARI (bunlara kesinlikle uy):\n${parseRules}`
       : "";
@@ -319,9 +358,11 @@ GENEL KURALLAR:
 
     text = text.replace(/```json|```/g, "").trim();
 
+    // Array mı, obje mi?
     if (text.startsWith("{")) {
       try {
         const obj = JSON.parse(text);
+        // { "courses": [...] } formatı
         const key = Object.keys(obj).find(k => k.toLowerCase() === tabName.toLowerCase()) || Object.keys(obj)[0];
         return Array.isArray(obj[key]) ? obj[key] : [];
       } catch { return []; }
@@ -335,6 +376,7 @@ GENEL KURALLAR:
     }
   }
 
+    // Yeni sütun tespiti
   function detectUnknownColumns(parsed, headers, tabs) {
     const unknown = {};
     tabs.forEach(tab => {
@@ -356,9 +398,11 @@ GENEL KURALLAR:
     return unknown;
   }
 
+  // Diff hesaplama
   function computeDiff(current, parsed, tabs) {
     const diff = {};
     tabs.forEach(tab => {
+      // getCurrentData artık { totalRows, sample } döndürüyor
       const before = current[tab]?.totalRows ?? (Array.isArray(current[tab]) ? current[tab].length : 0);
       const after  = (parsed[tab] || []).length;
       diff[tab] = { before, after, delta: after - before };
@@ -366,18 +410,22 @@ GENEL KURALLAR:
     return diff;
   }
 
+  // ── Kaydetme ──────────────────────────────────────────────
   async function saveDraft() {
     setStep(STEPS.SAVING); setSaveError(null);
 
     try {
+      // Backup
       setProgressMsg("📦 Backup oluşturuluyor...");
       const bkp = await callAppsScript("backupSheet", { brand: selectedBrand });
       if (!bkp.success) throw new Error("Backup hatası: " + bkp.msg);
       setBackupInfo(bkp);
 
+      // Bilinmeyen sütunları kararına göre işle
       const finalData = applyUnknownColDecisions(parsedData, unknownColDecisions, sheetHeaders);
       const finalColumns = buildFinalColumns(sheetHeaders, unknownColDecisions);
 
+      // Draft yaz
       setProgressMsg("✏️ Taslak sekmeler yazılıyor...");
       const write = await callAppsScript("writeDraftData", {
         brand: selectedBrand,
@@ -400,9 +448,12 @@ GENEL KURALLAR:
       const tabDecisions = decisions[tab] || {};
       result[tab] = rows.map(row => {
         const newRow = {};
+        // Bilinen sütunlar
         (headers[tab] || []).forEach(col => { newRow[col] = row[col] ?? ""; });
+        // Bilinmeyen — "ekle" kararı verilenleri dahil et
         Object.keys(tabDecisions).forEach(col => {
           if (tabDecisions[col] === "add") newRow[col] = row[col] ?? "";
+          // "ignore" ise zaten dahil edilmez
         });
         return newRow;
       });
@@ -423,6 +474,7 @@ GENEL KURALLAR:
     return result;
   }
 
+  // ── Onayla / Reddet ───────────────────────────────────────
   async function publishDraft() {
     setStep(STEPS.SAVING);
     setProgressMsg("🚀 Taslak canlıya alınıyor...");
@@ -468,6 +520,7 @@ GENEL KURALLAR:
     setPromoProgressMsg("");
   }
 
+  // ── Promosyon parse fonksiyonları ──────────────────────────
   function handlePromoFileSelect(e) {
     const file = e.target.files[0];
     if (file?.type === "application/pdf") { setPromoFile(file); setPromoError(null); }
@@ -495,6 +548,7 @@ GENEL KURALLAR:
         } catch { brand = null; }
       }
     } else {
+      // Metin modu — dosya adı yok, direkt metin içeriğinden Gemini ile tespit et
       if (!promoText.trim()) { setPromoLoading(false); return; }
       try {
         brand = await detectBrandFromText(promoText);
@@ -507,6 +561,7 @@ GENEL KURALLAR:
     setStep(STEPS.PROMO_CONFIRM);
   }
 
+  // Metinden okul tespiti (PDF'siz)
   async function detectBrandFromText(text) {
     const brandList = knownBrands.join(", ");
     const prompt = `Aşağıdaki metin bir dil okulunun promosyon/indirim açıklamasıdır. Hangi okula ait olduğunu belirle.
@@ -541,24 +596,9 @@ ${text}`;
         setSheetUrls(prev => ({ ...prev, [promoBrand]: headersResult.sheetUrl }));
       }
 
-      setPromoProgress(10); setPromoProgressMsg("💳 Referans ücret listesi alınıyor...");
-      const currentDataRes = await callAppsScriptRaw("getCurrentData", { brand: promoBrand });
-      let feeNamesStr = "Course Materials, Enrolment Fee, Accommodation Placement Fee";
-      if (currentDataRes.success && currentDataRes.data && currentDataRes.data.fees) {
-        const feesData = Array.isArray(currentDataRes.data.fees) 
-          ? currentDataRes.data.fees 
-          : (currentDataRes.data.fees.sample || []);
-        
-        const uniqueFees = [...new Set(feesData.map(f => f.fee_name).filter(Boolean))];
-        if (uniqueFees.length > 0) {
-          feeNamesStr = uniqueFees.join(", ");
-        }
-      }
-
       setPromoProgress(15); setPromoProgressMsg(promoInputMode === "pdf" ? "📄 PDF hazırlanıyor..." : "📝 Metin hazırlanıyor...");
 
       const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
-      
       const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
 Tüm kampanya ve indirim bilgilerini çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
 
@@ -603,15 +643,14 @@ SÜTUN AÇIKLAMALARI:
 - includes: pakete dahil olanlar (konaklama, aktivite vb.)
 - excludes: pakete dahil olmayanlar
 
-ÖNEMLİ VE ÖZEL VERİ KURALLARI:
-1. İsim Normalizasyonu (target_name): Ücret indirimlerinde (applies_to="fee") PDF'teki ismi (örn: "Materials Fee") olduğu gibi YAZMA. Şu güncel okul referans listesinden en uygun olanını seçip yaz: [${feeNamesStr}]. Eğer bu listede eşleşen hiçbir şey yoksa "Other Fee" yaz.
-2. Tarih Mantığı: Veritabanımızdan gelen promosyonlarda reg_date_start (kayıt başlangıç) ve arrival_start (geliş başlangıç) alanları boş (null veya "") gelebilir. Fiyat teklifi hesaplama motorunu kurarken şu kritik kuralı işlettik: "Eğer bir kampanyanın başlangıç tarihi boşsa, o kampanyanın halihazırda aktif olduğunu (geçmişten beri devam ettiğini) varsay. Sadece reg_date_end veya arrival_end tarihlerini kontrol et; eğer bitiş tarihi bugünden ilerideyse veya bitiş tarihi de boşsa o kampanyayı teklife dahil et." Bu yüzden PDF dökümanında net bir başlangıç tarihi belirtilmemişse, uydurma tarih yazma ve başlangıç tarihlerini KESİNLİKLE BOŞ ("") BIRAK.
-3. Her ayrı indirim/muafiyet için AYRI satır aç. Örn: UK %25 tuition + UK placement fee bedava → 2 ayrı satır.
-4. "Bedava aktiviteler" → applies_to="fee", target_name="Activities", value_type="free"
-5. "X fee alınmaz" → applies_to="fee", target_name="[fee adı]", value_type="free", discount_value=100
-6. Paket Fiyat Tabloları (Matrix Düzleştirme): Eğer PDF'te satırlarda haftalar, sütunlarda kurs tipleri (veya tam tersi) olan bir paket fiyat tablosu varsa, BU TABLOYU DÜZLEŞTİR. Tablodaki her bir fiyat hücresi (hafta + kurs kombinasyonu) için AYRI bir "fixed_package" satırı oluştur.
-7. Rakam Temizliği: package_price alanına yazacağın tutarlardaki para birimi sembollerini ($/£/€) ve binlik ayırıcı virgülleri KESİNLİKLE TEMİZLE, sadece ondalıklı sayı olarak yaz (örn: "$ 5,028.20" yerine 5028.20 yaz).
-8. Backtick veya markdown kullanma, sadece düz JSON array.`;
+ÖNEMLI KURALLAR:
+1. Her ayrı indirim/muafiyet için AYRI satır aç.
+   Örn: UK %25 tuition + UK placement fee bedava → 2 ayrı satır
+   Örn: UK %25 + USA %30 → 2 ayrı satır (city/country farklı)
+2. "Bedava aktiviteler" → applies_to="fee", target_name="Activities", value_type="free"
+3. "X fee alınmaz" → applies_to="fee", target_name="[fee adı]", value_type="free", discount_value=100
+4. Tarih belirtilmemişse ilgili alanı boş bırak.
+5. Backtick veya markdown kullanma, sadece düz JSON array.`;
 
       let contentParts;
       if (promoInputMode === "pdf") {
@@ -671,8 +710,10 @@ SÜTUN AÇIKLAMALARI:
     }
   }
 
+  // ─── RENDER ───────────────────────────────────────────────
   if (!user) return null;
 
+  // MODE SELECT — Ana seçim ekranı
   if (step === STEPS.MODE_SELECT) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -716,6 +757,7 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
+  // UPLOAD
   if (step === STEPS.UPLOAD) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -759,6 +801,7 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
+  // SCHOOL CONFIRM
   if (step === STEPS.SCHOOL_CONFIRM) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -797,6 +840,7 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
+  // PARSING
   if (step === STEPS.PARSING) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -813,6 +857,7 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
+  // DIFF
   if (step === STEPS.DIFF) {
     const tabs = Object.keys(diffSummary || sheetHeaders || {});
     const hasUnknown = Object.keys(unknownCols).length > 0;
@@ -825,6 +870,8 @@ SÜTUN AÇIKLAMALARI:
         <div style={S.bgGrid}/>
         <Header title={`${selectedBrand} — Parse Sonucu`} user={user} onBack={() => setStep(STEPS.SCHOOL_CONFIRM)}/>
         <main style={{...S.main, maxWidth:700}}>
+
+          {/* Diff özeti */}
           <div style={S.sectionCard}>
             <h3 style={S.sectionTitle}>📊 Veri Karşılaştırması</h3>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
@@ -846,6 +893,7 @@ SÜTUN AÇIKLAMALARI:
             </div>
           </div>
 
+          {/* Bilinmeyen sütun uyarısı */}
           {hasUnknown && (
             <div style={S.sectionCard}>
               <h3 style={S.sectionTitle}>⚠️ Tanımlanmayan Sütunlar</h3>
@@ -891,6 +939,7 @@ SÜTUN AÇIKLAMALARI:
     );
   }
 
+  // SAVING
   if (step === STEPS.SAVING) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -905,6 +954,7 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
+  // REVIEW (Drive'da kontrol)
   if (step === STEPS.REVIEW) {
     const sheetUrl = sheetUrls[selectedBrand];
     return (
@@ -912,6 +962,7 @@ SÜTUN AÇIKLAMALARI:
         <div style={S.bgGrid}/>
         <Header title="Drive'da Kontrol" user={user}/>
         <main style={{...S.main, maxWidth:700}}>
+
           <div style={S.sectionCard}>
             <div style={{fontSize:48,marginBottom:12}}>🔍</div>
             <h2 style={S.cardTitle}>Taslak Kaydedildi</h2>
@@ -962,6 +1013,7 @@ SÜTUN AÇIKLAMALARI:
     );
   }
 
+  // DONE
   if (step === STEPS.DONE) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -988,6 +1040,9 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
+  // ── PROMOSYON AKIŞI ──────────────────────────────────────
+
+  // PROMO UPLOAD
   if (step === STEPS.PROMO_UPLOAD) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -998,6 +1053,7 @@ SÜTUN AÇIKLAMALARI:
           <h2 style={S.cardTitle}>Promosyon Bilgisi Ekle</h2>
           <p style={S.cardSub}>PDF döküman yükleyin veya mail/metin içeriğini yapıştırın</p>
 
+          {/* Mod seçici */}
           <div style={{display:"flex", gap:8, marginBottom:20, background:"#f1f5f9", padding:4, borderRadius:12}}>
             <button onClick={() => setPromoInputMode("pdf")}
               style={{flex:1, padding:"8px 12px", borderRadius:9, border:"none", cursor:"pointer", fontSize:13, fontWeight:600, fontFamily:"'Sora',sans-serif",
@@ -1065,6 +1121,7 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
+  // PROMO CONFIRM — okul seçimi
   if (step === STEPS.PROMO_CONFIRM) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -1100,6 +1157,7 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
+  // PROMO PARSING
   if (step === STEPS.PROMO_PARSING) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -1116,6 +1174,7 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
+  // PROMO REVIEW — parse sonucu önizleme
   if (step === STEPS.PROMO_REVIEW) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -1190,6 +1249,7 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
+  // PROMO DONE
   if (step === STEPS.PROMO_DONE) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
@@ -1223,6 +1283,7 @@ SÜTUN AÇIKLAMALARI:
   return null;
 }
 
+// ─── ALT COMPONENT: Header ────────────────────────────────
 function Header({ title, user, onBack }) {
   return (
     <header style={S.header}>
@@ -1238,6 +1299,7 @@ function Header({ title, user, onBack }) {
   );
 }
 
+// ─── STYLES ───────────────────────────────────────────────
 function Style() {
   return (
     <style>{`
