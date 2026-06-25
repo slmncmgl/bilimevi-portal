@@ -591,7 +591,7 @@ async function startPromoParsing() {
 
       const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
       
-      const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
+   const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
 Dökümandaki TÜM indirimleri (eğitim, konaklama ve ücret muafiyetleri) çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
 
 Format:
@@ -637,17 +637,19 @@ SÜTUN AÇIKLAMALARI:
 
 ÖNEMLİ VE ÖZEL VERİ KURALLARI:
 
-1. İsim Normalizasyonu: Ücret indirimlerinde (applies_to="fee") PDF'teki ismi olduğu gibi YAZMA. Şu referans listesinden en uygun olanını seç: [${feeNamesStr}]. Eşleşmiyorsa "Other Fee" yaz.
+1. Akıllı İsim Normalizasyonu (Kritik): Ücret indirimlerinde (applies_to="fee") 'target_name' için şu referans listesindeki ücretleri kullan: [${feeNamesStr}].
+   - Kısmi Eşleşme: PDF'te "No Placement", "Registration waived", "No materials" geçiyorsa, listedeki "Placement", "Registration", "Enrolment" veya "Material" geçen EN BENZER tam adı yaz. 
+   - Listede mantıklı eşleşme yoksa "Other Fee" YAZMA, KESİNLİKLE PDF'teki orijinal adı yaz.
 
 2. Konaklama ve Ücret (Fee) Ayrımı (KRİTİK): 
    - Metinde "Accommodation Placement Fee" veya benzeri bir "ücret/fee" kastediliyorsa 'applies_to' KESİNLİKLE "fee" olmalıdır.
    - Metinde doğrudan konaklama fiyatının kendisine (residential, homestay) indirim yapılıyorsa 'applies_to' KESİNLİKLE "accommodation" olmalıdır.
 
-3. Ücretsiz/Bedava Mantığı (Kritik): "No [fee adı]", "Free [fee adı]" veya "[fee adı] waived" gibi tamamen ücretsiz/bedava durumlarda KESİNLİKLE ayrı bir satır aç:
+3. Ücretsiz/Bedava Mantığı (Kritik): "No [fee adı]", "Free [fee adı]", "[fee adı] waived" veya "Free activities" gibi tamamen ücretsiz/bedava durumlarda KESİNLİKLE ayrı bir satır aç:
    - 'value_type' = "free"
    - 'discount_value' = PDF'te belirtilen tasarruf tutarı varsa sadece rakamı yaz (örn: "save up to £70" veya "save £70" → 70). Tutar yoksa BOŞ ("") bırak.
    - 'applies_to' = "fee"
-   - 'target_name' = [ilgili fee adı] (Normalizasyon kuralına uygun)
+   - 'target_name' = [ilgili fee adı veya "Activities"] (Normalizasyon kuralına uygun)
    - 'discount_type' = "percentage"
 
 4. Sabit ve Yüzde İndirim Mantığı: 
