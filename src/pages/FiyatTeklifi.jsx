@@ -81,8 +81,11 @@ async function fetchCityData(sheetId, city) {
     }));
     const transfers = (transferRows || []).filter(r => r.city === city).map(r => ({ airport: r.airport_name, code: r.airport_code, one_way: parseFloat(r.price_one_way) || 0, two_way: parseFloat(r.price_two_way) || 0, currency: r.currency, notes: r.notes || "" }));
     const cityCountry = (courseRows.find(r => r.city === city)?.country) || "";
+    
     const discounts = (discountRows || []).filter(r => {
-      const cityMatch = r.city === city || !r.city || r.city === "all"; if (!cityMatch) return false;
+      const cityClean = (r.city || "").split(",").map(c => c.trim());
+      const cityMatch = cityClean.includes(city) || !r.city || r.city === "all";
+      if (!cityMatch) return false;
       if (r.city === "all" && r.country && r.country !== "all" && cityCountry && r.country !== cityCountry) return false; return true;
     }).map(r => ({
       discount_type: (r.discount_type || "").trim(), city: r.city || "", country: r.country || "", reg_date_start: r.reg_date_start || "", reg_date_end: r.reg_date_end || "", arrival_start: r.arrival_start || "", arrival_end: r.arrival_end || "",
@@ -464,8 +467,8 @@ export default function FiyatTeklifi() {
                     {d.transfer && (<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport})</span><span>{fmt(d.transfer.one_way, d.transfer.currency)}</span></div>)}
                     {!d.isPackage && d.appliedDiscounts?.length > 0 && d.appliedDiscounts.map((disc, di) => (
                       <div key={di} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#ef4444", fontWeight:500 }}>
-                        <span>{disc.label} ({disc.value_type === "percentage" ? `%${disc.value}` : disc.value_type === "free" ? "Ücretsiz" : `${disc.value} Sabit`})</span>
-                        <span>- {fmt(disc.amount, d.currency)}</span>
+                        <span>{disc.label} ({disc.value_type === "percentage" ? `%${disc.value}` : `${disc.value} Sabit`})</span>
+                        <span>-{fmt(disc.amount, d.currency)}</span>
                       </div>
                     ))}
                     <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}><span>Toplam</span><span style={{ color:CYAN }}>{fmt(d.total, d.currency)}</span></div>
@@ -606,7 +609,7 @@ function PdfTemplate({ destinations, student, user }) {
                 {!d.isPackage && d.appliedDiscounts?.length > 0 && d.appliedDiscounts.map((disc, di) => (
                   <tr key={`pdf-disc-${di}`} style={{ pageBreakInside:"avoid", color:"#ef4444" }}>
                     <td style={{ padding: di===0 ? "3mm 2mm 1mm 0" : "1mm 2mm 1mm 0", borderTop: di===0 ? "0.5px solid #ddd" : "none", fontWeight: di===0 ? "bold" : "normal", verticalAlign:"top", fontSize: di===0 ? "inherit" : "9pt" }}>{di === 0 ? "İndirimler" : ""}</td>
-                    <td style={{ padding: di===0 ? "3mm 2mm 1mm 2mm" : "1mm 2mm", borderTop: di===0 ? "0.5px solid #ddd" : "none", verticalAlign:"top", fontSize:"9pt" }}>{disc.label} ({disc.value_type === "percentage" ? `%${disc.value}` : disc.value_type === "free" ? "Ücretsiz" : `${disc.value} Sabit`})</td>
+                    <td style={{ padding: di===0 ? "3mm 2mm 1mm 2mm" : "1mm 2mm", borderTop: di===0 ? "0.5px solid #ddd" : "none", verticalAlign:"top", fontSize:"9pt" }}>{disc.label} ({disc.value_type === "percentage" ? `%${disc.value}` : `${disc.value} Sabit`})</td>
                     <td style={{ padding: di===0 ? "3mm 0 1mm 2mm" : "1mm 0 1mm 2mm", borderTop: di===0 ? "0.5px solid #ddd" : "none", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", fontWeight:"bold" }}>-{Number(disc.amount).toLocaleString("tr-TR")},00</td>
                   </tr>
                 ))}
