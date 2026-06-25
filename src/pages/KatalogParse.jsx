@@ -589,7 +589,7 @@ ${text}`;
 
       const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
       
-      const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
+    const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
 Tüm kampanya ve indirim bilgilerini çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
 
 Format:
@@ -618,7 +618,7 @@ SÜTUN AÇIKLAMALARI:
 
 [Sadece percentage satırları için]
 - applies_to: "tuition" / "accommodation" / "fee"
-- target_name: applies_to="fee" ise hangi fee (örn: "Materials Fee", "Placement Fee"). Diğerlerinde boş.
+- target_name: applies_to="fee" ise hangi fee (örn: "Materials Fee", "Accommodation Placement Fee"). Diğerlerinde boş.
 - discount_value: indirim miktarı (sayı). Yüzde için 25, sabit tutar için 80 gibi.
 - value_type: "percentage" / "fixed" / "free" (tamamen bedava ise)
 - eligible_courses: hangi kurslar için geçerli (boş = hepsi)
@@ -641,7 +641,7 @@ SÜTUN AÇIKLAMALARI:
 
 3. Kapsam Kuralı (eligible/excluded): "all courses" gibi genel ifadeler varsa 'eligible_courses' alanını KESİNLİKLE BOŞ ("") BIRAK. Sadece hariç tutulanlar varsa 'excluded_courses' sütununa yaz.
 
-4. Ücretsiz/Bedava Mantığı (Kritik): Eğer "Free Registration" veya "No Placement Fee" gibi tamamen ücretsiz bir durum varsa 'value_type' alanına "free" yaz ve 'discount_value' alanını KESİNLİKLE BOŞ ("") BIRAK (asla 100 yazma).
+4. Ücretsiz/Bedava Mantığı (Kritik): Eğer "Free Registration" veya "No Accommodation Placement Fee" gibi tamamen ücretsiz bir durum varsa, KESİNLİKLE bunun için ayrı bir satır aç. 'discount_type'="percentage", 'applies_to'="fee", 'target_name'="[ilgili fee adı]" ve 'value_type'="free" yaz. 'discount_value' alanını ise KESİNLİKLE BOŞ ("") BIRAK.
 
 5. Sabit İndirim Mantığı: Eğer "£50 off" gibi sabit bir tutar indirimi varsa 'value_type' alanına "fixed", 'discount_value' alanına rakamı (örn: 50) yaz.
 
