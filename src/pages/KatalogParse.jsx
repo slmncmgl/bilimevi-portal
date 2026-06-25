@@ -560,7 +560,9 @@ ${text}`;
     return json.brand === "unknown" ? null : json.brand;
   }
 
-  async function startPromoParsing() {
+
+
+async function startPromoParsing() {
     if (!promoBrand) { setPromoError("Lütfen okul seçin."); return; }
     setStep(STEPS.PROMO_PARSING); setPromoError(null);
 
@@ -589,8 +591,8 @@ ${text}`;
 
       const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
       
-    const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
-Tüm kampanya ve indirim bilgilerini çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
+      const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
+Dökümandaki TÜM indirimleri (eğitim, konaklama ve ücret muafiyetleri) çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
 
 Format:
 [
@@ -637,27 +639,38 @@ SÜTUN AÇIKLAMALARI:
 
 1. İsim Normalizasyonu: Ücret indirimlerinde (applies_to="fee") PDF'teki ismi olduğu gibi YAZMA. Şu referans listesinden en uygun olanını seç: [${feeNamesStr}]. Eşleşmiyorsa "Other Fee" yaz.
 
-2. Tarih Mantığı: Başlangıç tarihi (reg_date_start/arrival_start) PDF'te yoksa BOŞ ("") BIRAK. Teklif portalı bunu 'Süresiz' olarak işler.
+2. Konaklama ve Ücret (Fee) Ayrımı (KRİTİK): 
+   - Metinde "Accommodation Placement Fee" veya benzeri bir "ücret/fee" kastediliyorsa 'applies_to' KESİNLİKLE "fee" olmalıdır.
+   - Metinde doğrudan konaklama fiyatının kendisine (residential, homestay) indirim yapılıyorsa 'applies_to' KESİNLİKLE "accommodation" olmalıdır.
 
-3. Kapsam Kuralı (eligible/excluded): "all courses" gibi genel ifadeler varsa 'eligible_courses' alanını KESİNLİKLE BOŞ ("") BIRAK. Sadece hariç tutulanlar varsa 'excluded_courses' sütununa yaz.
+3. Ücretsiz/Bedava Mantığı (Kritik): "No [fee adı]", "Free [fee adı]" veya "[fee adı] waived" gibi tamamen ücretsiz/bedava durumlarda KESİNLİKLE ayrı bir satır aç:
+   - 'value_type' = "free"
+   - 'discount_value' = PDF'te belirtilen tasarruf tutarı varsa sadece rakamı yaz (örn: "save up to £70" veya "save £70" → 70). Tutar yoksa BOŞ ("") bırak.
+   - 'applies_to' = "fee"
+   - 'target_name' = [ilgili fee adı] (Normalizasyon kuralına uygun)
+   - 'discount_type' = "percentage"
 
-4. Ücretsiz/Bedava Mantığı (Kritik): Eğer "Free Registration" veya "No Accommodation Placement Fee" gibi tamamen ücretsiz bir durum varsa, KESİNLİKLE bunun için ayrı bir satır aç. 'discount_type'="percentage", 'applies_to'="fee", 'target_name'="[ilgili fee adı]" ve 'value_type'="free" yaz. 'discount_value' alanını ise KESİNLİKLE BOŞ ("") BIRAK.
+4. Sabit ve Yüzde İndirim Mantığı: 
+   - Eğer "£50 off" gibi sabit bir tutar indirimi varsa 'value_type'="fixed", 'discount_value' alanına rakamı (örn: 50) yaz. 
+   - Yüzde indirimiyse 'value_type'="percentage", 'discount_value' alanına rakamı (örn: 25) yaz.
+   - Not: "save £X" veya "save up to £X" ifadeleri indirim türüne (free veya fixed) göre 'discount_value' alanına X rakamını koymanı gerektirir.
 
-5. Sabit İndirim Mantığı: Eğer "£50 off" gibi sabit bir tutar indirimi varsa 'value_type' alanına "fixed", 'discount_value' alanına rakamı (örn: 50) yaz.
+5. Tarih Mantığı: Başlangıç/bitiş tarihi net belirtilmemişse KESİNLİKLE BOŞ ("") BIRAK. Teklif portalı bunu 'Süresiz' olarak işler.
 
-6. Paket Fiyat Tabloları (Matrix Düzleştirme): Eğer PDF'te satırlarda haftalar, sütunlarda kurs tipleri olan bir matris tablo varsa, BU TABLOYU DÜZLEŞTİR. Her hücre için AYRI bir "fixed_package" satırı oluştur.
+6. Kapsam Kuralı (eligible/excluded): "all courses" gibi genel ifadeler varsa 'eligible_courses' alanını KESİNLİKLE BOŞ ("") BIRAK. Sadece hariç tutulanlar varsa 'excluded_courses' sütununa yaz.
 
-7. Rakam Temizliği: package_price/discount_value alanlarından para birimi sembollerini ($/£/€) ve binlik ayırıcıları temizle, sadece ondalıklı sayı olarak yaz (örn: 5028.20).
+7. Paket Fiyat Tabloları (Matrix Düzleştirme): Eğer PDF'te satırlarda haftalar, sütunlarda kurs tipleri olan bir matris tablo varsa, BU TABLOYU DÜZLEŞTİR. Her hücre için AYRI bir "fixed_package" satırı oluştur.
 
-8. Satır Ayırma Mantığı: Her ayrı indirim/muafiyet için AYRI satır aç.
+8. Rakam Temizliği: package_price/discount_value alanlarından para birimi sembollerini ($/£/€) ve binlik ayırıcıları temizle, sadece ondalıklı sayı olarak yaz (örn: 5028.20).
+
+9. Satır Ayırma Mantığı: Her ayrı indirim/muafiyet ve her şehir grubu için AYRI satır aç.
    - Örn: UK %25 tuition + UK placement fee bedava → 2 ayrı satır
-   - Örn: UK %25 + USA %30 → 2 ayrı satır (city/country farklı)
 
-9. Metin Madenciliği (Text-to-JSON): Eğer PDF içerisinde net bir tablo yoksa, pazarlama metnini baştan sona tara. İndirim oranlarını (X% off) ve geçerli olduğu şehirleri bulup JSON formatına doldur.
+10. Metin Madenciliği (Text-to-JSON): Eğer PDF içerisinde net bir tablo yoksa, pazarlama metnini baştan sona tara. İndirim oranlarını (X% off), ücretsiz ücretleri ve geçerli olduğu şehirleri bulup JSON formatına doldur.
 
-10. Çoklu Şehirler: PDF'te geçerli olan birden fazla lokasyon varsa (örn: Brighton, Cambridge, Eastbourne), bu şehirlerin tamamını bulup 'city' sütununa aralarında virgül bırakarak yaz.
+11. Çoklu Şehirler: PDF'te geçerli olan birden fazla lokasyon varsa (örn: Brighton, Cambridge, Eastbourne), bu şehirlerin tamamını bulup 'city' sütununa aralarında virgül bırakarak yaz.
 
-11. Backtick veya markdown kullanma, sadece düz JSON array.`;
+12. Backtick veya markdown kullanma, sadece düz JSON array.`;
 
       let contentParts;
       if (promoInputMode === "pdf") {
@@ -674,28 +687,22 @@ SÜTUN AÇIKLAMALARI:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: contentParts }],
-          // Token limitini burada artırıyoruz (MAX_TOKENS hatasını önlemek için):
+          // Token limitini burada artırıyoruz:
           generationConfig: { temperature: 0.1, maxOutputTokens: 32768 }
         })
       });
 
       const data = await res.json();
-      console.log("=== GEMINI RAW RESPONSE ===", JSON.stringify(data).slice(0, 2000));
       if (data.error) throw new Error("Gemini hatası: " + data.error.message);
 
       let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      console.log("=== GEMINI TEXT ===", text.slice(0, 1000));
-      console.log("=== FINISH REASON ===", data.candidates?.[0]?.finishReason);
       text = text.replace(/```json|```/g, "").trim();
 
       let parsed = [];
       try {
         parsed = JSON.parse(text);
         if (!Array.isArray(parsed)) parsed = [];
-      } catch (e) {
-        console.log("=== JSON PARSE HATASI ===", e.message, "| TEXT:", text.slice(0, 500));
-        parsed = [];
-      }
+      } catch { parsed = []; }
 
       setPromoData(parsed);
       setPromoProgress(100); setPromoProgressMsg("✅ Tamamlandı!");
@@ -707,6 +714,8 @@ SÜTUN AÇIKLAMALARI:
       setStep(STEPS.PROMO_CONFIRM);
     }
   }
+  
+  
 
   async function savePromoData() {
     setStep(STEPS.SAVING);
