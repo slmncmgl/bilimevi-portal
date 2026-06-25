@@ -624,10 +624,12 @@ SÜTUN AÇIKLAMALARI:
 - "percentage" → yüzde veya sabit tutar indirimi (tuition, accommodation, fee)
 - "fixed_package" → şehir+kurs+hafta kombinasyonu için paket fiyatı
 
+
 [Ortak sütunlar - her satırda doldur]
 - school: ${promoBrand}
-- city: ilgili şehir ("all" = tüm şehirler, "UK" gibi bölge yazılabilir)
+- city: Dökümanda (özellikle kapakta veya sayfalarda) geçen tüm spesifik şehirleri virgülle ayırarak yaz (örn: "London Greenwich, Oxford, Brighton, Edinburgh"). "UK" gibi genel ülke/bölge isimleri YAZMA.
 - country: ilgili ülke ("all" = tüm ülkeler)
+
 - campaign_id: belgede varsa kodu kullan, yoksa kısa bir kod üret (örn: PROMO_UK_25)
 - campaign_name: kampanyanın açıklayıcı adı
 - reg_date_start / reg_date_end: kayıt/rezervasyon tarihi aralığı YYYY-MM-DD
@@ -682,7 +684,9 @@ SÜTUN AÇIKLAMALARI:
 
 9. Tarih Eksikliği: Tarih belirtilmemişse ilgili alanı boş bırak.
 
-10. Backtick veya markdown kullanma, sadece düz JSON array.`;
+10. Backtick veya markdown kullanma, sadece düz JSON array.
+
+11. Çoklu Şehirler: PDF'te geçerli olan birden fazla lokasyon varsa (örn: Brighton, Cambridge, Eastbourne), bu şehirlerin tamamını bulup 'city sütununa aralarında virgül bırakarak yaz.`;
 
       let contentParts;
       if (promoInputMode === "pdf") {
@@ -1297,9 +1301,10 @@ SÜTUN AÇIKLAMALARI:
           <p style={{fontSize:13,color:"#64748b",marginTop:8,lineHeight:1.6}}>
             Sheet'i açarak kontrol edebilirsiniz. Onaylamak için discounts_draft sekmesini manuel olarak discounts ile değiştirin.
           </p>
-          <a href={sheetUrls[promoBrand]} target="_blank" rel="noreferrer"
-            style={{...S.linkBtn, display:"block", textAlign:"center", marginTop:16, textDecoration:"none"}}>
-            📊 {promoBrand} Sheet'ini Aç
+         <a href={sheetUrls[promoBrand] || "https://docs.google.com/spreadsheets/d/1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8/edit"} 
+            target="_blank" rel="noreferrer"
+            style={{...S.linkBtn, display:"block", textAlign:"center", marginBottom:24, textDecoration:"none"}}>
+            📊 {sheetUrls[promoBrand] ? `${promoBrand} Taslaklarını İncele` : "Master Index'i Aç"}
           </a>
           <div style={{display:"flex",gap:12,marginTop:16}}>
             <button onClick={resetAll} style={S.secondaryBtn}>Ana Menü</button>
