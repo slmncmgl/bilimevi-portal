@@ -7,7 +7,7 @@ const GEMINI_MODEL   = "gemini-2.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwSIKVyXM7cuKSopHaqGoOgi9LBDXse15Hl0HYZTbGTqf1hNnsbHI5jjhuGnPWN_5hi/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyssF2rUzo0XVMnu8kslXBL_UUt4LUUq0ABJzLvaTKyknMD8YGA-sP4ArPbD0DM1GVv/exec";
 
 // NOT: Okul listesi, sheet URL'leri ve parse edilecek sekmeler artık hardcode değil.
 // Hepsi Apps Script üzerinden MASTER_INDEX > school_registry sekmesinden dinamik çekiliyor.
@@ -1334,10 +1334,10 @@ SÜTUN AÇIKLAMALARI:
             ⚠️ <strong>Manuel Kontrol:</strong> Lütfen Apps Script üzerinden taslakları inceleyin. "Okul Dosyasına Yükle" butonuna bastığınızda bu veriler ana discounts sekmesine taşınacak ve Master Index kayıt tarihi güncellenecektir.
           </div>
 
-          <a href={sheetUrls[promoBrand] || "https://docs.google.com/spreadsheets/d/1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8/edit"} 
+         <a href={sheetUrls[promoBrand] || "https://docs.google.com/spreadsheets/d/1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8/edit"} 
             target="_blank" rel="noreferrer"
             style={{...S.linkBtn, display:"block", textAlign:"center", marginBottom:24, textDecoration:"none"}}>
-            📊 {sheetUrls[promoBrand] ? `${promoBrand} Taslaklarını İncele` : "Master Index'i Aç"}
+            📊 {sheetUrls[promoBrand] ? `${promoBrand} Taslaklarını İncele` : "Google Sheets'te İncele"}
           </a>
 
           {promoError && <div style={S.errorBox}>{promoError}</div>}
