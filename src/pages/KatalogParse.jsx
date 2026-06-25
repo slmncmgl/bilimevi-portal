@@ -582,7 +582,7 @@ ${text}`;
     return json.brand === "unknown" ? null : json.brand;
   }
 
-  async function startPromoParsing() {
+async function startPromoParsing() {
     if (!promoBrand) { setPromoError("Lütfen okul seçin."); return; }
     setStep(STEPS.PROMO_PARSING); setPromoError(null);
 
@@ -591,6 +591,20 @@ ${text}`;
       const headersResult = await callAppsScriptRaw("getSheetHeaders", { brand: promoBrand });
       if (headersResult.success && headersResult.sheetUrl) {
         setSheetUrls(prev => ({ ...prev, [promoBrand]: headersResult.sheetUrl }));
+      }
+
+      setPromoProgress(10); setPromoProgressMsg("💳 Referans ücret listesi alınıyor...");
+      const currentDataRes = await callAppsScriptRaw("getCurrentData", { brand: promoBrand });
+      let feeNamesStr = "Course Materials, Enrolment Fee, Accommodation Placement Fee";
+      if (currentDataRes.success && currentDataRes.data && currentDataRes.data.fees) {
+        const feesData = Array.isArray(currentDataRes.data.fees) 
+          ? currentDataRes.data.fees 
+          : (currentDataRes.data.fees.sample || []);
+        
+        const uniqueFees = [...new Set(feesData.map(f => f.fee_name).filter(Boolean))];
+        if (uniqueFees.length > 0) {
+          feeNamesStr = uniqueFees.join(", ");
+        }
       }
 
       setPromoProgress(15); setPromoProgressMsg(promoInputMode === "pdf" ? "📄 PDF hazırlanıyor..." : "📝 Metin hazırlanıyor...");
@@ -640,14 +654,35 @@ SÜTUN AÇIKLAMALARI:
 - includes: pakete dahil olanlar (konaklama, aktivite vb.)
 - excludes: pakete dahil olmayanlar
 
-ÖNEMLI KURALLAR:
-1. Her ayrı indirim/muafiyet için AYRI satır aç.
-   Örn: UK %25 tuition + UK placement fee bedava → 2 ayrı satır
-   Örn: UK %25 + USA %30 → 2 ayrı satır (city/country farklı)
-2. "Bedava aktiviteler" → applies_to="fee", target_name="Activities", value_type="free"
-3. "X fee alınmaz" → applies_to="fee", target_name="[fee adı]", value_type="free", discount_value=100
-4. Tarih belirtilmemişse ilgili alanı boş bırak.
-5. Backtick veya markdown kullanma, sadece düz JSON array.`;
+İşte birleştirilmiş, temiz ve APPSCRIPT için uygun prompt:
+
+---
+
+**PROMPT:**
+
+ÖNEMLİ VE ÖZEL VERİ KURALLARI:
+
+1. İsim Normalizasyonu: Ücret indirimlerinde (applies_to="fee") PDF'teki ismi olduğu gibi YAZMA. Şu referans listesinden en uygun olanını seç: [${feeNamesStr}].
+
+2. Tarih Mantığı: Başlangıç tarihi (reg_date_start/arrival_start) PDF'te yoksa BOŞ ("") BIRAK. Teklif portalı bunu 'Süresiz' olarak işler.
+
+3. Kapsam Kuralı: "all courses" gibi genel ifadeler varsa 'eligible_courses' alanını KESİNLİKLE BOŞ ("") BIRAK. Sadece hariç tutulanlar varsa 'excluded_courses' sütununa yaz.
+
+4. Paket Fiyat Tabloları (Matrix Düzleştirme): Eğer PDF'te satırlarda haftalar, sütunlarda kurs tipleri olan bir matris tablo varsa, BU TABLOYU DÜZLEŞTİR. Her hücre için AYRI bir "fixed_package" satırı oluştur.
+
+5. Rakam Temizliği: package_price/discount_value alanlarından para birimi sembollerini ($/£/€) ve binlik ayırıcıları temizle, sadece ondalıklı sayı olarak yaz (örn: 5028.20).
+
+6. Satır Ayırma Mantığı: Her ayrı indirim/muafiyet için AYRI satır aç.
+   - Örn: UK %25 tuition + UK placement fee bedava → 2 ayrı satır
+   - Örn: UK %25 + USA %30 → 2 ayrı satır (city/country farklı)
+
+7. "Bedava/Bedelsiz" Kuralı: "Bedava aktiviteler" gibi ifadeler → applies_to="fee", target_name="Activities", value_type="free"
+
+8. "Alınmaz/Muaf" Kuralı: "X fee alınmaz" → applies_to="fee", target_name="[fee adı]", value_type="free", discount_value=100
+
+9. Tarih Eksikliği: Tarih belirtilmemişse ilgili alanı boş bırak.
+
+10. Backtick veya markdown kullanma, sadece düz JSON array.`;
 
       let contentParts;
       if (promoInputMode === "pdf") {
@@ -664,27 +699,22 @@ SÜTUN AÇIKLAMALARI:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: contentParts }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+          // Token limitini burada artırıyoruz:
+          generationConfig: { temperature: 0.1, maxOutputTokens: 32768 }
         })
       });
 
       const data = await res.json();
-      console.log("=== GEMINI RAW RESPONSE ===", JSON.stringify(data).slice(0, 2000));
       if (data.error) throw new Error("Gemini hatası: " + data.error.message);
 
       let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-      console.log("=== GEMINI TEXT ===", text.slice(0, 1000));
-      console.log("=== FINISH REASON ===", data.candidates?.[0]?.finishReason);
       text = text.replace(/```json|```/g, "").trim();
 
       let parsed = [];
       try {
         parsed = JSON.parse(text);
         if (!Array.isArray(parsed)) parsed = [];
-      } catch (e) {
-        console.log("=== JSON PARSE HATASI ===", e.message, "| TEXT:", text.slice(0, 500));
-        parsed = [];
-      }
+      } catch { parsed = []; }
 
       setPromoData(parsed);
       setPromoProgress(100); setPromoProgressMsg("✅ Tamamlandı!");
