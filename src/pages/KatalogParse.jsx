@@ -610,6 +610,37 @@ async function startPromoParsing() {
       setPromoProgress(15); setPromoProgressMsg(promoInputMode === "pdf" ? "📄 PDF hazırlanıyor..." : "📝 Metin hazırlanıyor...");
 
       const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
+    // --- ÖNCESİNDEKİ FONKSİYON (Hizalaman için): async function detectBrandFromText(text) { ... } ---
+
+  async function startPromoParsing() {
+    if (!promoBrand) { setPromoError("Lütfen okul seçin."); return; }
+    setStep(STEPS.PROMO_PARSING); setPromoError(null);
+
+    try {
+      setPromoProgress(5); setPromoProgressMsg("📁 Sheet bilgisi alınıyor...");
+      const headersResult = await callAppsScriptRaw("getSheetHeaders", { brand: promoBrand });
+      if (headersResult.success && headersResult.sheetUrl) {
+        setSheetUrls(prev => ({ ...prev, [promoBrand]: headersResult.sheetUrl }));
+      }
+
+      setPromoProgress(10); setPromoProgressMsg("💳 Referans ücret listesi alınıyor...");
+      const currentDataRes = await callAppsScriptRaw("getCurrentData", { brand: promoBrand });
+      let feeNamesStr = "Course Materials, Enrolment Fee, Accommodation Placement Fee";
+      if (currentDataRes.success && currentDataRes.data && currentDataRes.data.fees) {
+        const feesData = Array.isArray(currentDataRes.data.fees) 
+          ? currentDataRes.data.fees 
+          : (currentDataRes.data.fees.sample || []);
+        
+        const uniqueFees = [...new Set(feesData.map(f => f.fee_name).filter(Boolean))];
+        if (uniqueFees.length > 0) {
+          feeNamesStr = uniqueFees.join(", ");
+        }
+      }
+
+      setPromoProgress(15); setPromoProgressMsg(promoInputMode === "pdf" ? "📄 PDF hazırlanıyor..." : "📝 Metin hazırlanıyor...");
+
+      const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
+      
       const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
 Tüm kampanya ve indirim bilgilerini çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
 
@@ -624,12 +655,10 @@ SÜTUN AÇIKLAMALARI:
 - "percentage" → yüzde veya sabit tutar indirimi (tuition, accommodation, fee)
 - "fixed_package" → şehir+kurs+hafta kombinasyonu için paket fiyatı
 
-
 [Ortak sütunlar - her satırda doldur]
 - school: ${promoBrand}
 - city: Dökümanda (özellikle kapakta veya sayfalarda) geçen tüm spesifik şehirleri virgülle ayırarak yaz (örn: "London Greenwich, Oxford, Brighton, Edinburgh"). "UK" gibi genel ülke/bölge isimleri YAZMA.
 - country: ilgili ülke ("all" = tüm ülkeler)
-
 - campaign_id: belgede varsa kodu kullan, yoksa kısa bir kod üret (örn: PROMO_UK_25)
 - campaign_name: kampanyanın açıklayıcı adı
 - reg_date_start / reg_date_end: kayıt/rezervasyon tarihi aralığı YYYY-MM-DD
@@ -656,37 +685,31 @@ SÜTUN AÇIKLAMALARI:
 - includes: pakete dahil olanlar (konaklama, aktivite vb.)
 - excludes: pakete dahil olmayanlar
 
-İşte birleştirilmiş, temiz ve APPSCRIPT için uygun prompt:
-
----
-
-**PROMPT:**
-
 ÖNEMLİ VE ÖZEL VERİ KURALLARI:
 
-1. İsim Normalizasyonu: Ücret indirimlerinde (applies_to="fee") PDF'teki ismi olduğu gibi YAZMA. Şu referans listesinden en uygun olanını seç: [${feeNamesStr}].
+1. İsim Normalizasyonu: Ücret indirimlerinde (applies_to="fee") PDF'teki ismi olduğu gibi YAZMA. Şu referans listesinden en uygun olanını seç: [${feeNamesStr}]. Eşleşmiyorsa "Other Fee" yaz.
 
 2. Tarih Mantığı: Başlangıç tarihi (reg_date_start/arrival_start) PDF'te yoksa BOŞ ("") BIRAK. Teklif portalı bunu 'Süresiz' olarak işler.
 
-3. Kapsam Kuralı: "all courses" gibi genel ifadeler varsa 'eligible_courses' alanını KESİNLİKLE BOŞ ("") BIRAK. Sadece hariç tutulanlar varsa 'excluded_courses' sütununa yaz.
+3. Kapsam Kuralı (eligible/excluded): "all courses" gibi genel ifadeler varsa 'eligible_courses' alanını KESİNLİKLE BOŞ ("") BIRAK. Sadece hariç tutulanlar varsa 'excluded_courses' sütununa yaz.
 
-4. Paket Fiyat Tabloları (Matrix Düzleştirme): Eğer PDF'te satırlarda haftalar, sütunlarda kurs tipleri olan bir matris tablo varsa, BU TABLOYU DÜZLEŞTİR. Her hücre için AYRI bir "fixed_package" satırı oluştur.
+4. Ücretsiz/Bedava Mantığı (Kritik): Eğer "Free Registration" veya "No Placement Fee" gibi tamamen ücretsiz bir durum varsa 'value_type' alanına "free" yaz ve 'discount_value' alanını KESİNLİKLE BOŞ ("") BIRAK (asla 100 yazma).
 
-5. Rakam Temizliği: package_price/discount_value alanlarından para birimi sembollerini ($/£/€) ve binlik ayırıcıları temizle, sadece ondalıklı sayı olarak yaz (örn: 5028.20).
+5. Sabit İndirim Mantığı: Eğer "£50 off" gibi sabit bir tutar indirimi varsa 'value_type' alanına "fixed", 'discount_value' alanına rakamı (örn: 50) yaz.
 
-6. Satır Ayırma Mantığı: Her ayrı indirim/muafiyet için AYRI satır aç.
+6. Paket Fiyat Tabloları (Matrix Düzleştirme): Eğer PDF'te satırlarda haftalar, sütunlarda kurs tipleri olan bir matris tablo varsa, BU TABLOYU DÜZLEŞTİR. Her hücre için AYRI bir "fixed_package" satırı oluştur.
+
+7. Rakam Temizliği: package_price/discount_value alanlarından para birimi sembollerini ($/£/€) ve binlik ayırıcıları temizle, sadece ondalıklı sayı olarak yaz (örn: 5028.20).
+
+8. Satır Ayırma Mantığı: Her ayrı indirim/muafiyet için AYRI satır aç.
    - Örn: UK %25 tuition + UK placement fee bedava → 2 ayrı satır
    - Örn: UK %25 + USA %30 → 2 ayrı satır (city/country farklı)
 
-7. "Bedava/Bedelsiz" Kuralı: "Bedava aktiviteler" gibi ifadeler → applies_to="fee", target_name="Activities", value_type="free"
+9. Metin Madenciliği (Text-to-JSON): Eğer PDF içerisinde net bir tablo yoksa, pazarlama metnini baştan sona tara. İndirim oranlarını (X% off) ve geçerli olduğu şehirleri bulup JSON formatına doldur.
 
-8. "Alınmaz/Muaf" Kuralı: "X fee alınmaz" → applies_to="fee", target_name="[fee adı]", value_type="free", discount_value=100
+10. Çoklu Şehirler: PDF'te geçerli olan birden fazla lokasyon varsa (örn: Brighton, Cambridge, Eastbourne), bu şehirlerin tamamını bulup 'city' sütununa aralarında virgül bırakarak yaz.
 
-9. Tarih Eksikliği: Tarih belirtilmemişse ilgili alanı boş bırak.
-
-10. Backtick veya markdown kullanma, sadece düz JSON array.
-
-11. Çoklu Şehirler: PDF'te geçerli olan birden fazla lokasyon varsa (örn: Brighton, Cambridge, Eastbourne), bu şehirlerin tamamını bulup 'city sütununa aralarında virgül bırakarak yaz.`;
+11. Backtick veya markdown kullanma, sadece düz JSON array.`;
 
       let contentParts;
       if (promoInputMode === "pdf") {
@@ -703,7 +726,7 @@ SÜTUN AÇIKLAMALARI:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: contentParts }],
-          // Token limitini burada artırıyoruz:
+          // Token limitini burada artırıyoruz (MAX_TOKENS hatasını önlemek için):
           generationConfig: { temperature: 0.1, maxOutputTokens: 32768 }
         })
       });
@@ -731,6 +754,7 @@ SÜTUN AÇIKLAMALARI:
     }
   }
 
+  // --- SONRASINDAKİ FONKSİYON (Hizalaman için): async function savePromoData() { ... } ---
   async function savePromoData() {
     setStep(STEPS.SAVING);
     try {
