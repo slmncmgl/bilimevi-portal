@@ -389,9 +389,17 @@ export default function FiyatTeklifi() {
         #bft-root input, #bft-root input[type="text"], #bft-root input[type="number"], #bft-root input[type="date"], #bft-root input[type="tel"], #bft-root input[type="email"] {
           background:#fff !important; color:#0f172a !important; border:1.5px solid #e2e8f0 !important;
           border-radius:10px !important; padding:10px 14px !important; font-size:14px !important;
-          font-family:inherit !important; box-shadow:none !important; width:100% !important; box-sizing:border-box !important;
+          font-family:inherit !important; box-shadow:none !important; width:100% !important;
+          box-sizing:border-box !important; height:44px !important; line-height:normal !important;
+          -webkit-appearance:none !important; appearance:none !important;
         }
         #bft-root button { font-family:inherit !important; }
+        @media (max-width: 768px) {
+          #bft-root .bft-body { grid-template-columns:1fr !important; }
+          #bft-root .bft-side { display:none !important; }
+          #bft-root .bft-r2 { grid-template-columns:1fr !important; }
+          #bft-root .bft-steps span { display:none !important; }
+        }
       `}</style>
 
       <header style={S.hdr}>
@@ -416,12 +424,12 @@ export default function FiyatTeklifi() {
         </div>
       </div>
 
-      <div style={S.body}>
+      <div style={S.body} className="bft-body">
         <main style={S.main}>
           {step === 0 && (
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>Öğrenci Bilgileri</h2>
-              <div style={S.r2}>
+              <div style={S.r2} className="bft-r2">
                 <div style={S.fld}><label style={S.lbl}>Ad Soyad</label><input style={S.fti} value={student.name} onChange={e => setStudent(p => ({...p, name:e.target.value}))} /></div>
                 <div style={S.fld}><label style={S.lbl}>Yaş</label><input style={S.fti} type="number" value={student.age} onChange={e => setStudent(p => ({...p, age:e.target.value}))} /></div>
               </div>
@@ -461,7 +469,7 @@ export default function FiyatTeklifi() {
           {step === 2 && (
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>{cur.isOnline ? "Kurs Detayı — EC Live" : `Kurs Seçimi — ${cur.brand} ${cur.city}`}{cur.cityLoading && <span style={{ fontSize:11, color:"#94a3b8", fontWeight:400, marginLeft:8 }}>yükleniyor...</span>}</h2>
-              <div style={S.r2}>
+              <div style={S.r2} className="bft-r2">
                 <div style={S.fld}><label style={S.lbl}>Başlangıç Tarihi (Pazartesi)</label><input type="date" style={S.fti} value={cur.startDate} min={new Date().toISOString().split("T")[0]} onChange={e => handleDateChange(e.target.value)} /></div>
                 <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" min={1} max={52} value={cur.weeks} onChange={e => setCur(p => ({...p, weeks:parseInt(e.target.value)||1, course:null}))} /></div>
               </div>
@@ -649,7 +657,7 @@ export default function FiyatTeklifi() {
           </div>
         </main>
 
-        <aside style={S.side}>
+        <aside style={S.side} className="bft-side">
           <h3 style={S.sideTtl}>Anlık Özet</h3>
           <div style={S.liveBox}>
             {cur.lang && <div style={{ marginBottom:4 }}>📍 {cur.lang}{cur.country ? ` / ${cur.country}` : ""}{cur.city ? ` / ${cur.city}` : ""}</div>}
@@ -828,7 +836,7 @@ const S = {
   r2: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 },
   fld: { display:"flex", flexDirection:"column", gap:6, marginBottom:12 },
   lbl: { fontSize:12, color:"#64748b" },
-  fti: { padding:"10px 14px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, fontFamily:"inherit" },
+  fti: { padding:"10px 14px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, fontFamily:"inherit", height:44, boxSizing:"border-box" },
   g3: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:10 },
   sel: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, background:"#fff" },
   selActive: { padding:12, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
