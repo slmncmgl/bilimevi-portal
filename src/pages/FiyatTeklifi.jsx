@@ -327,17 +327,8 @@ export default function FiyatTeklifi() {
         html2canvas: { scale:2, useCORS:true, letterRendering:true },
         jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
         pagebreak: { mode:"css", avoid:".pdf-block" },
-      }).from(el).toPdf().get("pdf").then(pdf => {
+      }).from(el).save().then(() => {
         el.style.display = "none";
-        const blob = new Blob([pdf.output("arraybuffer")], { type:"application/pdf" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        a.style.display = "none";
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
       });
     };
 
