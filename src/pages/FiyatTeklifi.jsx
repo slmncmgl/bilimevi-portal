@@ -315,14 +315,24 @@ export default function FiyatTeklifi() {
     const el = document.getElementById("pdf-area");
     if (!el) return;
     el.style.display = "block";
+    const filename = `Bilimevi_Teklif_${(leadForm.name || student.name).replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
     window.html2pdf().set({
       margin: 0,
-      filename: `Bilimevi_Teklif_${student.name.replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`,
+      filename,
       image: { type:"jpeg", quality:0.98 },
       html2canvas: { scale:2, useCORS:true, letterRendering:true },
       jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
       pagebreak: { mode:"css", avoid:".pdf-block" },
-    }).from(el).save().then(() => { el.style.display = "none"; });
+    }).from(el).outputPdf("blob").then(blob => {
+      el.style.display = "none";
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    });
   };
 
   const handleLeadSubmit = async () => {
@@ -361,7 +371,7 @@ export default function FiyatTeklifi() {
             <h3 style={{ fontSize:18, fontWeight:700, marginBottom:8, color:"#0f172a" }}>Teklifinizi İndirin</h3>
             <p style={{ fontSize:13, color:"#64748b", marginBottom:20 }}>Teklifinizi PDF olarak indirmek için bilgilerinizi girin. Danışmanımız sizinle iletişime geçecektir.</p>
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              <input placeholder="Ad Soyad *" style={S.fti} value={leadForm.name} onChange={e => setLeadForm(p => ({...p, name:e.target.value}))} />
+              <input placeholder="Ad Soyad *" style={{...S.fti, background: student.name ? "#f8fafc" : "#fff"}} value={leadForm.name} onChange={e => setLeadForm(p => ({...p, name:e.target.value}))} />
               <input placeholder="Telefon *" style={S.fti} type="tel" value={leadForm.phone} onChange={e => setLeadForm(p => ({...p, phone:e.target.value}))} />
               <input placeholder="E-posta *" style={S.fti} type="email" value={leadForm.email} onChange={e => setLeadForm(p => ({...p, email:e.target.value}))} />
             </div>
@@ -660,7 +670,7 @@ export default function FiyatTeklifi() {
             {step > 0 && step !== 5 && <button onClick={() => { setStep(s => s-1); window.scrollTo({ top:0, behavior:"smooth" }); }} style={S.btnBack}>← Geri</button>}
             {step === 5 && destinations.length > 0 && <button onClick={reset} style={{ ...S.btnBack, border:`1px solid #e2e8f0`, padding:"10px 20px", borderRadius:10 }}>Yeni Teklif</button>}
             {step < 5 && step !== 0 && (<button style={S.btnNext} disabled={!canNext} onClick={next}>{step === 4 || (step === 2 && cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>)}
-            {step === 5 && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : setLeadModal(true)} style={{ ...S.btnNext, marginLeft:"auto" }} className="bft-pdf-btn-mobile">📄 PDF Oluştur</button>)}
+            {step === 5 && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft:"auto" }} className="bft-pdf-btn-mobile">📄 PDF Oluştur</button>)}
           </div>
         </main>
 
@@ -683,7 +693,7 @@ export default function FiyatTeklifi() {
             )}
           </div>
           {destinations.length > 0 && destinations.map((d,i) => (<div key={i} style={{ fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" }}><strong>{d.city}</strong> · {d.weeks}h · {d.course?.name?.slice(0,20)}</div>))}
-          {step === 5 && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : setLeadModal(true)} style={S.pdfBtn}>📄 PDF Oluştur</button>)}
+          {step === 5 && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={S.pdfBtn}>📄 PDF Oluştur</button>)}
         </aside>
       </div>
     </div>
