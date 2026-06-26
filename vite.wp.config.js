@@ -1,9 +1,23 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
+import { copyFileSync, existsSync } from "fs";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "copy-logo",
+      closeBundle() {
+        const src = resolve(__dirname, "src/assets/bilimevi_logo.svg");
+        const dest = resolve(__dirname, "dist-wp/bilimevi_logo.svg");
+        if (existsSync(src)) {
+          copyFileSync(src, dest);
+          console.log("✓ bilimevi_logo.svg kopyalandı");
+        }
+      },
+    },
+  ],
   build: {
     outDir: "dist-wp",
     emptyOutDir: true,
@@ -18,10 +32,8 @@ export default defineConfig({
         },
       },
     },
-    // CSS'i ayrı dosyaya çıkar
     cssCodeSplit: false,
   },
-  // WordPress ortamında html2pdf CDN'den gelir, bundle etme
   define: {
     "process.env.NODE_ENV": '"production"',
   },
