@@ -673,7 +673,7 @@ export default function FiyatTeklifi() {
       </div>
     </div>
 
-    <PdfTemplate destinations={destinations} student={student} user={user} />
+    <PdfTemplate destinations={destinations} student={student} user={user} logoSrc={logoSrc} />
     </>
   );
 }
@@ -684,7 +684,7 @@ function addWeeksToDate(date, weeks) {
   return d;
 }
 
-function PdfTemplate({ destinations, student, user }) {
+function PdfTemplate({ destinations, student, user, logoSrc }) {
   if (!destinations?.length) return null;
   const phone = user?.phone || "905419189177";
   return (
