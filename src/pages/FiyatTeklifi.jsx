@@ -305,6 +305,7 @@ export default function FiyatTeklifi() {
       }
       setStep(5);
     } else { setStep(s => s + 1); }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const addNew = () => { setCur(emptyDest(cur.startDate)); setStep(1); };
@@ -398,7 +399,12 @@ export default function FiyatTeklifi() {
           #bft-root .bft-body { grid-template-columns:1fr !important; }
           #bft-root .bft-side { display:none !important; }
           #bft-root .bft-r2 { grid-template-columns:1fr !important; }
-          #bft-root .bft-steps span { display:none !important; }
+          #bft-root .bft-steps { padding:8px 12px !important; overflow-x:auto !important; }
+          #bft-root .bft-steps span { font-size:9px !important; }
+          #bft-root .bft-pdf-btn-mobile { display:flex !important; }
+        }
+        @media (min-width: 769px) {
+          #bft-root .bft-pdf-btn-mobile { display:none !important; }
         }
       `}</style>
 
@@ -411,7 +417,7 @@ export default function FiyatTeklifi() {
       </header>
 
       <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0" }}>
-        <div style={{ maxWidth:1100, margin:"0 auto", padding:"12px 24px", display:"flex", alignItems:"center" }}>
+        <div style={{ maxWidth:1100, margin:"0 auto", padding:"12px 16px", display:"flex", alignItems:"center" }} className="bft-steps">
           {STEPS.map((s, i) => (
             <div key={i} style={{ display:"flex", alignItems:"center", flex: i < STEPS.length-1 ? 1 : 0 }}>
               <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
@@ -651,9 +657,10 @@ export default function FiyatTeklifi() {
           )}
 
           <div style={S.navBox}>
-            {step > 0 && step !== 5 && <button onClick={() => setStep(s => s-1)} style={S.btnBack}>← Geri</button>}
+            {step > 0 && step !== 5 && <button onClick={() => { setStep(s => s-1); window.scrollTo({ top:0, behavior:"smooth" }); }} style={S.btnBack}>← Geri</button>}
             {step === 5 && destinations.length > 0 && <button onClick={reset} style={{ ...S.btnBack, border:`1px solid #e2e8f0`, padding:"10px 20px", borderRadius:10 }}>Yeni Teklif</button>}
             {step < 5 && step !== 0 && (<button style={S.btnNext} disabled={!canNext} onClick={next}>{step === 4 || (step === 2 && cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>)}
+            {step === 5 && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : setLeadModal(true)} style={{ ...S.btnNext, marginLeft:"auto" }} className="bft-pdf-btn-mobile">📄 PDF Oluştur</button>)}
           </div>
         </main>
 
