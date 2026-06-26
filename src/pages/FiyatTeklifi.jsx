@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
-import LOGO_ASSET from "../assets/bilimevi_logo.svg";
 
 // Mode tespiti: shortcode config > domain kontrolü
 function detectMode() {
@@ -13,6 +12,11 @@ function detectMode() {
   return "customer";
 }
 const APP_MODE = detectMode();
+
+// Logo: customer modda WordPress plugin assets URL'inden yükle, staff modda import
+const LOGO_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.assetsUrl)
+  ? window.BFT_CONFIG.assetsUrl + "bilimevi_logo.svg"
+  : null;
 
 const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
 const CYAN = "#00C1DE";
@@ -344,6 +348,7 @@ export default function FiyatTeklifi() {
     setLeadLoading(false);
   };
 
+  const logoSrc = LOGO_URL || (typeof window !== "undefined" && window.__bilimevi_logo__);
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"];
 
   return (
@@ -381,11 +386,17 @@ export default function FiyatTeklifi() {
         * { box-sizing:border-box; margin:0; padding:0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         input:focus { outline:none; border-color:${CYAN} !important; }
+        #bft-root input, #bft-root input[type="text"], #bft-root input[type="number"], #bft-root input[type="date"], #bft-root input[type="tel"], #bft-root input[type="email"] {
+          background:#fff !important; color:#0f172a !important; border:1.5px solid #e2e8f0 !important;
+          border-radius:10px !important; padding:10px 14px !important; font-size:14px !important;
+          font-family:inherit !important; box-shadow:none !important; width:100% !important; box-sizing:border-box !important;
+        }
+        #bft-root button { font-family:inherit !important; }
       `}</style>
 
       <header style={S.hdr}>
         <div style={S.cnt}>
-          {isStaff ? <button onClick={() => navigate("/dashboard")} style={S.backBtn}>← Dashboard</button> : <img src={LOGO_ASSET} alt="Bilimevi" style={{ height:32 }} />}
+          {isStaff ? <button onClick={() => navigate("/dashboard")} style={S.backBtn}>← Dashboard</button> : <img src={logoSrc} alt="Bilimevi" style={{ height:32 }} />}
           <span style={S.htitle}>Fiyat Teklifi</span>
           <div style={{ width:100 }} />
         </div>
@@ -700,7 +711,7 @@ function PdfTemplate({ destinations, student, user }) {
                 <div style={{ fontSize:"11pt", fontWeight:"bold", color:"#111" }}>{user?.name || "—"}</div>
                 <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}>{user?.email || ""}</div>
               </div>
-              <img src={LOGO_ASSET} alt="Bilimevi" style={{ height:"10mm" }} />
+              <img src={logoSrc} alt="Bilimevi" style={{ height:"10mm" }} />
             </div>
             <div style={{ fontSize:"54pt", fontWeight:"900", color:CYAN, lineHeight:1, marginBottom:"2mm", letterSpacing:"-1px" }}>{d.city}</div>
             <div style={{ fontSize:"20pt", fontWeight:"bold", color:"#111", marginBottom:"5mm", lineHeight:1.2 }}>{fmtDate(startD)}<br/>— {fmtDate(endD)}</div>
