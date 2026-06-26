@@ -553,10 +553,10 @@ function PdfTemplate({ destinations, student, user }) {
                   <td style={{ padding:"2.5mm 0 2.5mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.courseBasePrice).toLocaleString("tr-TR")},00</td>
                 </tr>
                 {d.courseHsAmount > 0 && (<>
-                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid", background:"#fef9ec" }}>
-                    <td style={{ padding:"2mm 2mm 2mm 0", verticalAlign:"top", color:"#92400e" }}></td>
-                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#92400e" }}>High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.courseHsStart)} – {formatDateShort(d.courseHsEnd)})</span><div style={{ fontSize:"7pt", color:"#b45309", marginTop:"1mm" }}>+{d.course?.hs_supp} {cur}/hafta</div></td>
-                    <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", color:"#92400e", fontWeight:"500" }}>+{Number(d.courseHsAmount).toLocaleString("tr-TR")},00</td>
+                  <tr style={{ pageBreakInside:"avoid", background:"#f5f5f5" }}>
+                    <td style={{ padding:"2mm 2mm 2mm 0", verticalAlign:"top", color:"#888" }}></td>
+                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#666" }}>High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.courseHsStart)} – {formatDateShort(d.courseHsEnd)})</span><div style={{ fontSize:"7pt", color:"#999", marginTop:"1mm" }}>+{d.course?.hs_supp} {cur}/hafta</div></td>
+                    <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", color:"#666", fontWeight:"500" }}>+{Number(d.courseHsAmount).toLocaleString("tr-TR")},00</td>
                   </tr>
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"2mm 2mm 2mm 0", fontWeight:"bold", verticalAlign:"top" }}>Kurs Toplamı</td><td style={{ padding:"2mm 2mm", verticalAlign:"top" }}></td>
@@ -575,10 +575,10 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 )}
                 {d.acc && !d.isOnline && d.accHsAmount > 0 && (<>
-                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid", background:"#fef9ec" }}>
-                    <td style={{ padding:"2mm 2mm 2mm 0", verticalAlign:"top", color:"#92400e" }}></td>
-                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#92400e" }}>High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span><div style={{ fontSize:"7pt", color:"#b45309", marginTop:"1mm" }}>+{(d.accHsPrice - d.acc.price)} {cur}/hafta</div></td>
-                    <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", color:"#92400e", fontWeight:"500" }}>+{Number(d.accHsAmount).toLocaleString("tr-TR")},00</td>
+                  <tr style={{ pageBreakInside:"avoid", background:"#f5f5f5" }}>
+                    <td style={{ padding:"2mm 2mm 2mm 0", verticalAlign:"top", color:"#888" }}></td>
+                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#666" }}>High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span><div style={{ fontSize:"7pt", color:"#999", marginTop:"1mm" }}>+{(d.accHsPrice - d.acc.price)} {cur}/hafta</div></td>
+                    <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", color:"#666", fontWeight:"500" }}>+{Number(d.accHsAmount).toLocaleString("tr-TR")},00</td>
                   </tr>
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"2mm 2mm 2mm 0", fontWeight:"bold", verticalAlign:"top" }}>Konaklama Toplamı</td><td style={{ padding:"2mm 2mm", verticalAlign:"top" }}></td>
@@ -607,10 +607,10 @@ function PdfTemplate({ destinations, student, user }) {
                   </tr>
                 )}
                 {!d.isPackage && d.appliedDiscounts?.length > 0 && d.appliedDiscounts.map((disc, di) => (
-                  <tr key={`pdf-disc-${di}`} style={{ pageBreakInside:"avoid", color:"#ef4444" }}>
-                    <td style={{ padding: di===0 ? "3mm 2mm 1mm 0" : "1mm 2mm 1mm 0", borderTop: di===0 ? "0.5px solid #ddd" : "none", fontWeight: di===0 ? "bold" : "normal", verticalAlign:"top", fontSize: di===0 ? "inherit" : "9pt" }}>{di === 0 ? "İndirimler" : ""}</td>
-                    <td style={{ padding: di===0 ? "3mm 2mm 1mm 2mm" : "1mm 2mm", borderTop: di===0 ? "0.5px solid #ddd" : "none", verticalAlign:"top", fontSize:"9pt" }}>{disc.label} ({disc.value_type === "percentage" ? `%${disc.value}` : `${disc.value} Sabit`})</td>
-                    <td style={{ padding: di===0 ? "3mm 0 1mm 2mm" : "1mm 0 1mm 2mm", borderTop: di===0 ? "0.5px solid #ddd" : "none", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", fontWeight:"bold" }}>-{Number(disc.amount).toLocaleString("tr-TR")},00</td>
+                  <tr key={`pdf-disc-${di}`} style={{ pageBreakInside:"avoid", background:"#f0fdf4" }}>
+                    <td style={{ padding: di===0 ? "3mm 2mm 1mm 0" : "1mm 2mm 1mm 0", borderTop: di===0 ? "0.5px solid #ddd" : "none", fontWeight: di===0 ? "bold" : "normal", verticalAlign:"top", fontSize: di===0 ? "inherit" : "9pt", color:"#16a34a" }}>{di === 0 ? "İndirimler" : ""}</td>
+                    <td style={{ padding: di===0 ? "3mm 2mm 1mm 2mm" : "1mm 2mm", borderTop: di===0 ? "0.5px solid #ddd" : "none", verticalAlign:"top", fontSize:"9pt", color:"#16a34a" }}>{disc.label} ({disc.value_type === "percentage" ? `%${disc.value}` : disc.value_type === "free" ? "Ücretsiz" : `${disc.value} Sabit`})</td>
+                    <td style={{ padding: di===0 ? "3mm 0 1mm 2mm" : "1mm 0 1mm 2mm", borderTop: di===0 ? "0.5px solid #ddd" : "none", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", fontWeight:"bold", color:"#16a34a" }}>-{Number(disc.amount).toLocaleString("tr-TR")},00</td>
                   </tr>
                 ))}
               </tbody>
