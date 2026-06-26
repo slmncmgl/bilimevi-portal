@@ -318,25 +318,38 @@ export default function FiyatTeklifi() {
     if (!el) return;
     el.style.display = "block";
     const filename = `Bilimevi_Teklif_${(leadForm.name || student.name).replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
-    window.html2pdf().set({
-      margin: 0,
-      filename,
-      image: { type:"jpeg", quality:0.98 },
-      html2canvas: { scale:2, useCORS:true, letterRendering:true },
-      jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
-      pagebreak: { mode:"css", avoid:".pdf-block" },
-    }).from(el).toPdf().get("pdf").then(pdf => {
-      el.style.display = "none";
-      const blob = new Blob([pdf.output("arraybuffer")], { type:"application/pdf" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
-    });
+
+    const doGenerate = () => {
+      window.html2pdf().set({
+        margin: 0,
+        filename,
+        image: { type:"jpeg", quality:0.98 },
+        html2canvas: { scale:2, useCORS:true, letterRendering:true },
+        jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
+        pagebreak: { mode:"css", avoid:".pdf-block" },
+      }).from(el).toPdf().get("pdf").then(pdf => {
+        el.style.display = "none";
+        const blob = new Blob([pdf.output("arraybuffer")], { type:"application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
+      });
+    };
+
+    if (typeof window.html2pdf === "function") {
+      doGenerate();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+      script.onload = doGenerate;
+      script.onerror = () => { el.style.display = "none"; alert("PDF kütüphanesi yüklenemedi."); };
+      document.head.appendChild(script);
+    }
   };
 
   const handleLeadSubmit = async () => {
