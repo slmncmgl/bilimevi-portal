@@ -305,7 +305,9 @@ export default function FiyatTeklifi() {
       }
       setStep(5);
     } else { setStep(s => s + 1); }
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const root = document.getElementById("bft-root");
+    if (root) root.scrollIntoView({ behavior: "smooth", block: "start" });
+    else window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const addNew = () => { setCur(emptyDest(cur.startDate)); setStep(1); };
@@ -323,15 +325,17 @@ export default function FiyatTeklifi() {
       html2canvas: { scale:2, useCORS:true, letterRendering:true },
       jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
       pagebreak: { mode:"css", avoid:".pdf-block" },
-    }).from(el).outputPdf("blob").then(blob => {
+    }).from(el).toPdf().get("pdf").then(pdf => {
       el.style.display = "none";
+      const blob = new Blob([pdf.output("arraybuffer")], { type:"application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = filename;
+      a.style.display = "none";
       document.body.appendChild(a);
       a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 2000);
     });
   };
 
@@ -659,7 +663,7 @@ export default function FiyatTeklifi() {
           )}
 
           <div style={S.navBox}>
-            {step > 0 && step !== 5 && <button onClick={() => { setStep(s => s-1); window.scrollTo({ top:0, behavior:"smooth" }); }} style={S.btnBack}>← Geri</button>}
+            {step > 0 && step !== 5 && <button onClick={() => { setStep(s => s-1); const r = document.getElementById("bft-root"); if (r) r.scrollIntoView({ behavior:"smooth", block:"start" }); else window.scrollTo({ top:0, behavior:"smooth" }); }} style={S.btnBack}>← Geri</button>}
             {step < 5 && step !== 0 && (<button style={S.btnNext} disabled={!canNext} onClick={next}>{step === 4 || (step === 2 && cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>)}
             {step === 5 && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft:"auto" }} className="bft-pdf-btn-mobile">📄 PDF Oluştur</button>)}
           </div>
