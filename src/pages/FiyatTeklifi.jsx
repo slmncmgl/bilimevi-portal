@@ -244,7 +244,7 @@ export default function FiyatTeklifi() {
   const [accType, setAccType] = useState("");
   const [leadModal, setLeadModal] = useState(false);
   const [leadForm, setLeadForm] = useState({ name:"", phone:"", email:"" });
-  const [leadSent, setLeadSent] = useState(false);
+
   const [leadLoading, setLeadLoading] = useState(false);
 
   useEffect(() => {
@@ -355,8 +355,9 @@ export default function FiyatTeklifi() {
         });
       }
     } catch (e) { console.error("Lead gönderilemedi:", e); }
-    setLeadSent(true);
     setLeadLoading(false);
+    setLeadModal(false);
+    generatePDF();
   };
 
   const logoSrc = LOGO_URL || (typeof window !== "undefined" && window.__bilimevi_logo__);
@@ -367,9 +368,8 @@ export default function FiyatTeklifi() {
     {!isStaff && leadModal && (
       <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
         <div style={{ background:"#fff", borderRadius:20, padding:32, maxWidth:420, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
-          {!leadSent ? (<>
             <h3 style={{ fontSize:18, fontWeight:700, marginBottom:8, color:"#0f172a" }}>Teklifinizi İndirin</h3>
-            <p style={{ fontSize:13, color:"#64748b", marginBottom:20 }}>Teklifinizi PDF olarak indirmek için bilgilerinizi girin. Danışmanımız sizinle iletişime geçecektir.</p>
+            <p style={{ fontSize:13, color:"#64748b", marginBottom:20 }}>Bilgilerinizi girin, PDF otomatik indirilecektir.</p>
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               <input placeholder="Ad Soyad *" style={{...S.fti, background: student.name ? "#f8fafc" : "#fff"}} value={leadForm.name} onChange={e => setLeadForm(p => ({...p, name:e.target.value}))} />
               <input placeholder="Telefon *" style={S.fti} type="tel" value={leadForm.phone} onChange={e => setLeadForm(p => ({...p, phone:e.target.value}))} />
@@ -377,17 +377,9 @@ export default function FiyatTeklifi() {
             </div>
             <button onClick={handleLeadSubmit} disabled={!leadForm.name || !leadForm.phone || !leadForm.email || leadLoading}
               style={{ ...S.btnNext, width:"100%", marginTop:16, padding:"13px 0", opacity: (!leadForm.name||!leadForm.phone||!leadForm.email||leadLoading) ? 0.5 : 1 }}>
-              {leadLoading ? "Gönderiliyor..." : "PDF İndir →"}
+              {leadLoading ? "Gönderiliyor..." : "📄 PDF İndir"}
             </button>
             <button onClick={() => setLeadModal(false)} style={{ width:"100%", marginTop:10, background:"none", border:"none", cursor:"pointer", color:"#94a3b8", fontSize:13 }}>İptal</button>
-          </>) : (<>
-            <div style={{ textAlign:"center" }}>
-              <div style={{ fontSize:40, marginBottom:12 }}>✅</div>
-              <h3 style={{ fontSize:18, fontWeight:700, marginBottom:8 }}>Teşekkürler!</h3>
-              <p style={{ fontSize:13, color:"#64748b", marginBottom:20 }}>Danışmanımız en kısa sürede sizinle iletişime geçecektir.</p>
-              <button onClick={() => { setLeadModal(false); generatePDF(); }} style={{ ...S.btnNext, padding:"12px 32px" }}>PDF'i İndir</button>
-            </div>
-          </>)}
         </div>
       </div>
     )}
@@ -668,7 +660,6 @@ export default function FiyatTeklifi() {
 
           <div style={S.navBox}>
             {step > 0 && step !== 5 && <button onClick={() => { setStep(s => s-1); window.scrollTo({ top:0, behavior:"smooth" }); }} style={S.btnBack}>← Geri</button>}
-            {step === 5 && destinations.length > 0 && <button onClick={reset} style={{ ...S.btnBack, border:`1px solid #e2e8f0`, padding:"10px 20px", borderRadius:10 }}>Yeni Teklif</button>}
             {step < 5 && step !== 0 && (<button style={S.btnNext} disabled={!canNext} onClick={next}>{step === 4 || (step === 2 && cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>)}
             {step === 5 && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft:"auto" }} className="bft-pdf-btn-mobile">📄 PDF Oluştur</button>)}
           </div>
