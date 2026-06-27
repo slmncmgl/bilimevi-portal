@@ -338,7 +338,23 @@ export default function FiyatTeklifi() {
         margin: 0,
         filename,
         image: { type:"jpeg", quality:0.98 },
-        html2canvas: { scale:2, useCORS:true, letterRendering:true },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          letterRendering: true,
+          onclone: (clonedDoc) => {
+            // WordPress temasının stylesheet'lerini klondan kaldır
+            // html2canvas modern CSS (oklch, color-mix) parse edemiyor
+            clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {
+              const txt = node.textContent || "";
+              const href = node.getAttribute("href") || "";
+              // pdf-area inline stilleri zaten element üzerinde, dış CSS'e gerek yok
+              if (href || txt.includes("oklch") || txt.includes("color-mix") || txt.includes("lab(") || txt.includes("lch(")) {
+                node.parentNode && node.parentNode.removeChild(node);
+              }
+            });
+          },
+        },
         jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
         pagebreak: { mode:"css", avoid:".pdf-block" },
       }).from(el).save()
