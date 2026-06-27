@@ -316,10 +316,24 @@ export default function FiyatTeklifi() {
   const generatePDF = () => {
     const el = document.getElementById("pdf-area");
     if (!el) return;
+    // pdf-area'yı ekranda görünmeyecek şekilde konumlandır (eski Vercel davranışı)
     el.style.display = "block";
+    el.style.position = "fixed";
+    el.style.left = "-9999px";
+    el.style.top = "0";
+    el.style.zIndex = "-1";
     const filename = `Bilimevi_Teklif_${(leadForm.name || student.name).replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
 
+    const hideEl = () => {
+      el.style.display = "none";
+      el.style.position = "";
+      el.style.left = "";
+      el.style.top = "";
+      el.style.zIndex = "";
+    };
+
     const doGenerate = () => {
+      console.log("[BFT] PDF oluşturma başladı, html2pdf:", typeof window.html2pdf);
       window.html2pdf().set({
         margin: 0,
         filename,
@@ -327,18 +341,19 @@ export default function FiyatTeklifi() {
         html2canvas: { scale:2, useCORS:true, letterRendering:true },
         jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
         pagebreak: { mode:"css", avoid:".pdf-block" },
-      }).from(el).save().then(() => {
-        el.style.display = "none";
-      });
+      }).from(el).save()
+        .then(() => { console.log("[BFT] PDF kaydedildi"); hideEl(); })
+        .catch(err => { console.error("[BFT] PDF HATASI:", err); hideEl(); alert("PDF oluşturulamadı: " + err.message); });
     };
 
     if (typeof window.html2pdf === "function") {
       doGenerate();
     } else {
+      console.log("[BFT] html2pdf yok, CDN'den yükleniyor...");
       const script = document.createElement("script");
       script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-      script.onload = doGenerate;
-      script.onerror = () => { el.style.display = "none"; alert("PDF kütüphanesi yüklenemedi."); };
+      script.onload = () => { console.log("[BFT] html2pdf yüklendi"); doGenerate(); };
+      script.onerror = () => { hideEl(); alert("PDF kütüphanesi yüklenemedi."); };
       document.head.appendChild(script);
     }
   };
