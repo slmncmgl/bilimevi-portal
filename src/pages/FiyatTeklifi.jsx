@@ -316,13 +316,15 @@ export default function FiyatTeklifi() {
   const generatePDF = () => {
     const el = document.getElementById("pdf-area");
     if (!el) return;
-    // pdf-area'yı görünür konuma getir ama sayfanın arkasına gizle (html2canvas ekran dışını render edemiyor)
+    // pdf-area'yı tam boyutuyla render et, ekranın görünür alanı dışına (sağa) al
     el.style.display = "block";
     el.style.position = "absolute";
     el.style.top = "0";
     el.style.left = "0";
-    el.style.zIndex = "-9999";
-    el.style.opacity = "1";
+    el.style.width = "210mm";
+    el.style.zIndex = "9999";
+    el.style.opacity = "0";
+    el.style.pointerEvents = "none";
     el.style.background = "#fff";
     window.scrollTo(0, 0);
     const filename = `Bilimevi_Teklif_${(leadForm.name || student.name).replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
@@ -332,8 +334,10 @@ export default function FiyatTeklifi() {
       el.style.position = "";
       el.style.left = "";
       el.style.top = "";
+      el.style.width = "";
       el.style.zIndex = "";
       el.style.opacity = "";
+      el.style.pointerEvents = "";
     };
 
     const doGenerate = () => {
@@ -351,7 +355,12 @@ export default function FiyatTeklifi() {
           scale: 2,
           useCORS: true,
           letterRendering: true,
+          windowWidth: 794,
+          width: 794,
           onclone: (clonedDoc) => {
+            // Klonlanan pdf-area'yı görünür yap
+            const clonedEl = clonedDoc.getElementById("pdf-area");
+            if (clonedEl) { clonedEl.style.opacity = "1"; clonedEl.style.position = "static"; }
             // WordPress temasının stylesheet'lerini klondan kaldır
             // html2canvas modern CSS (oklch, color-mix) parse edemiyor
             clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {
