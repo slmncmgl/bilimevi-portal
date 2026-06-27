@@ -316,12 +316,15 @@ export default function FiyatTeklifi() {
   const generatePDF = () => {
     const el = document.getElementById("pdf-area");
     if (!el) return;
-    // pdf-area'yı ekranda görünmeyecek şekilde konumlandır (eski Vercel davranışı)
+    // pdf-area'yı görünür konuma getir ama sayfanın arkasına gizle (html2canvas ekran dışını render edemiyor)
     el.style.display = "block";
-    el.style.position = "fixed";
-    el.style.left = "-9999px";
+    el.style.position = "absolute";
     el.style.top = "0";
-    el.style.zIndex = "-1";
+    el.style.left = "0";
+    el.style.zIndex = "-9999";
+    el.style.opacity = "1";
+    el.style.background = "#fff";
+    window.scrollTo(0, 0);
     const filename = `Bilimevi_Teklif_${(leadForm.name || student.name).replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
 
     const hideEl = () => {
@@ -330,10 +333,16 @@ export default function FiyatTeklifi() {
       el.style.left = "";
       el.style.top = "";
       el.style.zIndex = "";
+      el.style.opacity = "";
     };
 
     const doGenerate = () => {
       console.log("[BFT] PDF oluşturma başladı, html2pdf:", typeof window.html2pdf);
+      // Render için kısa bekleme - el görünür olsun
+      setTimeout(() => runHtml2pdf(), 300);
+    };
+
+    const runHtml2pdf = () => {
       window.html2pdf().set({
         margin: 0,
         filename,
