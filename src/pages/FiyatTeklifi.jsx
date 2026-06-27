@@ -13,6 +13,13 @@ function detectMode() {
 }
 const APP_MODE = detectMode();
 
+// Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
+const BFT_BUILD_VERSION = "v5-jspdf-native-2026-06-27";
+if (typeof window !== "undefined") {
+  console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
+  window.__BFT_VERSION = BFT_BUILD_VERSION;
+}
+
 // Logo: customer modda WordPress plugin assets URL'inden yükle, staff modda import
 const LOGO_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.assetsUrl)
   ? window.BFT_CONFIG.assetsUrl + "bilimevi_logo.svg"
@@ -321,6 +328,7 @@ export default function FiyatTeklifi() {
   });
 
   const generatePDF = async () => {
+    console.log("%c[BFT] generatePDF çağrıldı — MOTOR: jsPDF native (" + BFT_BUILD_VERSION + ")", "background:#16a34a;color:#fff;padding:2px 8px;border-radius:4px;");
     try {
       // jsPDF yükle
       if (!window.jspdf) {
@@ -380,7 +388,10 @@ export default function FiyatTeklifi() {
         doc.text(user?.name || (leadForm.name || student.name || "—"), MARGIN, y + 4);
         doc.setFontSize(8); doc.setTextColor(85);
         doc.text(user?.email || "", MARGIN, y + 8);
-        if (logoSrc) { try { doc.addImage(logoSrc, "PNG", PAGE_W - MARGIN - 28, y - 2, 28, 10); } catch(e){} }
+        // Logo sadece raster (png/jpg/data-uri) ise ekle, SVG jsPDF'i bozar
+        if (logoSrc && !logoSrc.includes(".svg") && (logoSrc.startsWith("data:image/png") || logoSrc.startsWith("data:image/jpeg") || logoSrc.includes(".png") || logoSrc.includes(".jpg"))) {
+          try { doc.addImage(logoSrc, "PNG", PAGE_W - MARGIN - 28, y - 2, 28, 10); } catch(e){ console.warn("[BFT] logo eklenemedi", e); }
+        }
         y += 12;
         doc.setDrawColor(170); doc.setLineWidth(0.1);
         doc.line(MARGIN, y, PAGE_W - MARGIN, y);
@@ -454,7 +465,10 @@ export default function FiyatTeklifi() {
           doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
         }
 
+        const checkPage = () => { if (y > 260) { doc.addPage(); y = 20; } };
+
         // Konaklama
+        checkPage();
         if (d.acc && !d.isOnline) {
           doc.setFontSize(10); doc.setTextColor(17);
           doc.text("Konaklama", MARGIN, y);
@@ -483,6 +497,7 @@ export default function FiyatTeklifi() {
         }
 
         // Diğer ücretler
+        checkPage();
         if (f.items?.length > 0) {
           f.items.forEach((fi, i) => {
             doc.setFontSize(9); doc.setTextColor(17);
@@ -514,6 +529,7 @@ export default function FiyatTeklifi() {
         }
 
         // Toplam
+        checkPage();
         y += 2;
         doc.setDrawColor(17); doc.setLineWidth(0.8);
         doc.line(MARGIN, y, PAGE_W - MARGIN, y);
