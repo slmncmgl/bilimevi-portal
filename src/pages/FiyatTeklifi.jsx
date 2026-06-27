@@ -313,82 +313,236 @@ export default function FiyatTeklifi() {
   const addNew = () => { setCur(emptyDest(cur.startDate)); setStep(1); };
   const reset = () => { setDestinations([]); setCur(emptyDest()); setStudent({ name:"", age:"", gender:"" }); setStep(0); };
 
-  const generatePDF = () => {
-    const el = document.getElementById("pdf-area");
-    if (!el) return;
-    // pdf-area'yı tam boyutuyla render et, ekranın görünür alanı dışına (sağa) al
-    el.style.display = "block";
-    el.style.position = "absolute";
-    el.style.top = "0";
-    el.style.left = "0";
-    el.style.width = "210mm";
-    el.style.zIndex = "9999";
-    el.style.opacity = "0";
-    el.style.pointerEvents = "none";
-    el.style.background = "#fff";
-    window.scrollTo(0, 0);
-    const filename = `Bilimevi_Teklif_${(leadForm.name || student.name).replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
+  const loadScript = (src) => new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s = document.createElement("script");
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
 
-    const hideEl = () => {
-      el.style.display = "none";
-      el.style.position = "";
-      el.style.left = "";
-      el.style.top = "";
-      el.style.width = "";
-      el.style.zIndex = "";
-      el.style.opacity = "";
-      el.style.pointerEvents = "";
-    };
+  const generatePDF = async () => {
+    try {
+      // jsPDF yükle
+      if (!window.jspdf) {
+        await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js");
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
 
-    const doGenerate = () => {
-      console.log("[BFT] PDF oluşturma başladı, html2pdf:", typeof window.html2pdf);
-      // Render için kısa bekleme - el görünür olsun
-      setTimeout(() => runHtml2pdf(), 300);
-    };
+      // Türkçe karakter için Roboto fontunu yükle ve göm
+      if (!window.__bft_font_loaded) {
+        try {
+          const fontUrl = "https://cdn.jsdelivr.net/npm/@fontsource/roboto@5.0.8/files/roboto-latin-ext-400-normal.woff";
+          // woff yerine ttf gerekli — jsPDF ttf ister. NotoSans TTF kullan:
+          const ttfResp = await fetch("https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Regular.ttf");
+          if (ttfResp.ok) {
+            const buf = await ttfResp.arrayBuffer();
+            let binary = "";
+            const bytes = new Uint8Array(buf);
+            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+            const b64 = btoa(binary);
+            doc.addFileToVFS("Roboto-Regular.ttf", b64);
+            doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
+            window.__bft_roboto_b64 = b64;
+            window.__bft_font_loaded = true;
+          }
+        } catch (e) { console.warn("[BFT] Font yüklenemedi, helvetica kullanılacak:", e); }
+      } else if (window.__bft_roboto_b64) {
+        doc.addFileToVFS("Roboto-Regular.ttf", window.__bft_roboto_b64);
+        doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
+      }
 
-    const runHtml2pdf = () => {
-      window.html2pdf().set({
-        margin: 0,
-        filename,
-        image: { type:"jpeg", quality:0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          letterRendering: true,
-          windowWidth: 794,
-          width: 794,
-          onclone: (clonedDoc) => {
-            // Klonlanan pdf-area'yı görünür yap
-            const clonedEl = clonedDoc.getElementById("pdf-area");
-            if (clonedEl) { clonedEl.style.opacity = "1"; clonedEl.style.position = "static"; }
-            // WordPress temasının stylesheet'lerini klondan kaldır
-            // html2canvas modern CSS (oklch, color-mix) parse edemiyor
-            clonedDoc.querySelectorAll('link[rel="stylesheet"], style').forEach(node => {
-              const txt = node.textContent || "";
-              const href = node.getAttribute("href") || "";
-              // pdf-area inline stilleri zaten element üzerinde, dış CSS'e gerek yok
-              if (href || txt.includes("oklch") || txt.includes("color-mix") || txt.includes("lab(") || txt.includes("lch(")) {
-                node.parentNode && node.parentNode.removeChild(node);
-              }
-            });
-          },
-        },
-        jsPDF: { unit:"mm", format:"a4", orientation:"portrait" },
-        pagebreak: { mode:"css", avoid:".pdf-block" },
-      }).from(el).save()
-        .then(() => { console.log("[BFT] PDF kaydedildi"); hideEl(); })
-        .catch(err => { console.error("[BFT] PDF HATASI:", err); hideEl(); alert("PDF oluşturulamadı: " + err.message); });
-    };
+      const FONT = window.__bft_font_loaded ? "Roboto" : "helvetica";
+      const CYAN_RGB = [0, 193, 222];
+      const PAGE_W = 210, MARGIN = 18;
+      const CW = PAGE_W - MARGIN * 2;
 
-    if (typeof window.html2pdf === "function") {
-      doGenerate();
-    } else {
-      console.log("[BFT] html2pdf yok, CDN'den yükleniyor...");
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-      script.onload = () => { console.log("[BFT] html2pdf yüklendi"); doGenerate(); };
-      script.onerror = () => { hideEl(); alert("PDF kütüphanesi yüklenemedi."); };
-      document.head.appendChild(script);
+      destinations.forEach((d, idx) => {
+        if (idx > 0) doc.addPage();
+        const f = d.isOnline
+          ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
+          : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+        const cur = d.course?.currency || f.currency || "GBP";
+        const curSym = { GBP:"GBP", EUR:"EUR", USD:"USD", CAD:"CAD" }[cur] || cur;
+        const startD = d.startDate ? new Date(d.startDate) : new Date();
+        const endD = addWeeksToDate(startD, d.weeks);
+        const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
+        const accEndD = new Date(endD); accEndD.setDate(endD.getDate() + 2);
+
+        let y = 20;
+        const money = (n) => Number(n||0).toLocaleString("tr-TR") + ",00";
+
+        // Header
+        doc.setFont(FONT, "normal");
+        doc.setFontSize(7); doc.setTextColor(150);
+        doc.text("Bilimevi Eğitim Danışmanınız", MARGIN, y);
+        doc.setFontSize(11); doc.setTextColor(17);
+        doc.text(user?.name || (leadForm.name || student.name || "—"), MARGIN, y + 4);
+        doc.setFontSize(8); doc.setTextColor(85);
+        doc.text(user?.email || "", MARGIN, y + 8);
+        if (logoSrc) { try { doc.addImage(logoSrc, "PNG", PAGE_W - MARGIN - 28, y - 2, 28, 10); } catch(e){} }
+        y += 12;
+        doc.setDrawColor(170); doc.setLineWidth(0.1);
+        doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+        y += 10;
+
+        // Şehir başlığı
+        doc.setFontSize(40); doc.setTextColor(...CYAN_RGB);
+        doc.text(d.city || "", MARGIN, y);
+        y += 9;
+        doc.setFontSize(16); doc.setTextColor(17);
+        doc.text(`${fmtDate(startD)} — ${fmtDate(endD)}`, MARGIN, y);
+        y += 8;
+        doc.setFontSize(10); doc.setTextColor(17);
+        doc.text("Teklifinize neler dahil?", MARGIN, y);
+        y += 5;
+        doc.setTextColor(...CYAN_RGB);
+        doc.text(`Hafta Sayısı: ${d.weeks}`, MARGIN, y);
+        y += 2;
+        doc.setDrawColor(17); doc.setLineWidth(0.6);
+        doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+        y += 6;
+
+        // Satır yazıcı
+        const row = (label, desc, amount, opts = {}) => {
+          const { bold, color, sub, indent } = opts;
+          doc.setFontSize(label ? 10 : 9);
+          doc.setTextColor(...(color || [17,17,17]));
+          if (label) { doc.setFont(FONT,"normal"); doc.text(label, MARGIN, y); }
+          if (desc) {
+            const dx = MARGIN + 32;
+            doc.setFontSize(10); doc.text(desc, dx, y);
+          }
+          if (amount != null) {
+            doc.setFontSize(10);
+            doc.text(String(amount), PAGE_W - MARGIN, y, { align: "right" });
+          }
+          y += 6;
+          if (sub) {
+            doc.setFontSize(8); doc.setTextColor(120);
+            doc.text(sub, MARGIN + 32, y - 2);
+            y += 2;
+          }
+        };
+
+        // Kurs
+        doc.setFontSize(10); doc.setTextColor(17);
+        doc.text("Kurs", MARGIN, y);
+        doc.text(`${d.brand} — ${d.course?.name || ""}`, MARGIN + 32, y);
+        doc.text(money(d.courseBasePrice), PAGE_W - MARGIN, y, { align:"right" });
+        y += 5;
+        doc.setFontSize(8); doc.setTextColor(85);
+        doc.text(`Başlangıç: ${fmtDate(startD)}  |  Bitiş: ${fmtDate(endD)}`, MARGIN + 32, y);
+        y += 4;
+        if (d.course?.lessons > 0) {
+          doc.setTextColor(120);
+          doc.text(`${d.course.lessons} ders/hafta · ${d.course.hours} saat`, MARGIN + 32, y);
+          y += 4;
+        }
+        doc.setDrawColor(221); doc.setLineWidth(0.2);
+        doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
+
+        if (d.courseHsAmount > 0) {
+          doc.setFontSize(9); doc.setTextColor(146,64,14);
+          doc.text(`High Season (${formatDateShort(d.courseHsStart)}-${formatDateShort(d.courseHsEnd)})`, MARGIN + 32, y);
+          doc.text(`+${money(d.courseHsAmount)}`, PAGE_W - MARGIN, y, { align:"right" });
+          y += 5;
+          doc.setTextColor(17);
+          doc.text("Kurs Toplamı", MARGIN, y);
+          doc.text(money(d.courseTotalPrice), PAGE_W - MARGIN, y, { align:"right" });
+          y += 5;
+          doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
+        }
+
+        // Konaklama
+        if (d.acc && !d.isOnline) {
+          doc.setFontSize(10); doc.setTextColor(17);
+          doc.text("Konaklama", MARGIN, y);
+          doc.text(`${d.acc.name} (${d.acc.board})`, MARGIN + 32, y);
+          doc.text(money(d.accBasePrice), PAGE_W - MARGIN, y, { align:"right" });
+          y += 5;
+          doc.setFontSize(8); doc.setTextColor(85);
+          doc.text(`Giriş: ${fmtDate(accStartD)}  |  Çıkış: ${fmtDate(accEndD)}`, MARGIN + 32, y);
+          y += 4;
+          doc.setTextColor(120);
+          doc.text(`${d.acc.room} · ${d.acc.bathroom} · Okula ${d.acc.distance}`, MARGIN + 32, y);
+          y += 4;
+          doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
+
+          if (d.accHsAmount > 0) {
+            doc.setFontSize(9); doc.setTextColor(146,64,14);
+            doc.text(`High Season (${formatDateShort(d.accHsStart)}-${formatDateShort(d.accHsEnd)})`, MARGIN + 32, y);
+            doc.text(`+${money(d.accHsAmount)}`, PAGE_W - MARGIN, y, { align:"right" });
+            y += 5;
+            doc.setTextColor(17);
+            doc.text("Konaklama Toplamı", MARGIN, y);
+            doc.text(money(d.accTotalPrice), PAGE_W - MARGIN, y, { align:"right" });
+            y += 5;
+            doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
+          }
+        }
+
+        // Diğer ücretler
+        if (f.items?.length > 0) {
+          f.items.forEach((fi, i) => {
+            doc.setFontSize(9); doc.setTextColor(17);
+            if (i === 0) doc.text("Diğer", MARGIN, y);
+            doc.text(fi.name, MARGIN + 32, y);
+            doc.text(money(fi.amount), PAGE_W - MARGIN, y, { align:"right" });
+            y += 5;
+          });
+        }
+
+        // Ek hizmetler
+        if ((d.addons||[]).length > 0) {
+          d.addons.forEach((a, i) => {
+            doc.setFontSize(9); doc.setTextColor(17);
+            if (i === 0) doc.text("Ek Hizmetler", MARGIN, y);
+            doc.text(a.name + (a.notes ? ` — ${a.notes}` : ""), MARGIN + 32, y);
+            doc.text(money(a.totalAmount), PAGE_W - MARGIN, y, { align:"right" });
+            y += 5;
+          });
+        }
+
+        // Transfer
+        if (d.transfer) {
+          doc.setFontSize(9); doc.setTextColor(17);
+          doc.text("Transfer", MARGIN, y);
+          doc.text(`${d.transfer.airport} (${d.transfer.code})`, MARGIN + 32, y);
+          doc.text(`${d.transfer.currency} ${money(d.transfer.one_way)}`, PAGE_W - MARGIN, y, { align:"right" });
+          y += 5;
+        }
+
+        // Toplam
+        y += 2;
+        doc.setDrawColor(17); doc.setLineWidth(0.8);
+        doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+        y += 6;
+        const grandTotal = d.courseTotalPrice + d.accTotalPrice + f.total + (d.addons?.reduce((s,a)=>s+a.totalAmount,0)||0) + (d.transfer?.one_way||0);
+        doc.setFontSize(12); doc.setTextColor(17);
+        doc.text(`TOPLAM TUTAR ${cur}`, MARGIN, y);
+        doc.setFontSize(16);
+        doc.text(`${curSym} ${money(grandTotal)}`, PAGE_W - MARGIN, y, { align:"right" });
+        y += 12;
+
+        // CTA
+        doc.setFillColor(...CYAN_RGB);
+        doc.roundedRect(PAGE_W/2 - 45, y, 90, 10, 5, 5, "F");
+        doc.setFontSize(10); doc.setTextColor(255);
+        doc.text("Eğitim Danışmanınıza Şimdi Ulaşın", PAGE_W/2, y + 6.5, { align:"center" });
+        y += 18;
+
+        // Footer
+        doc.setFontSize(8); doc.setTextColor(51);
+        doc.text("www.bilimevi.com", PAGE_W - MARGIN, 285, { align:"right" });
+      });
+
+      const filename = `Bilimevi_Teklif_${(leadForm.name || student.name || "Teklif").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
+      doc.save(filename);
+      console.log("[BFT] PDF kaydedildi:", filename);
+    } catch (err) {
+      console.error("[BFT] PDF HATASI:", err);
+      alert("PDF oluşturulamadı: " + err.message);
     }
   };
 
