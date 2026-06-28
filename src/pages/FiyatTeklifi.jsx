@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 // Mode tespiti: shortcode config > domain kontrolü
@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v5-jspdf-native-2026-06-27";
+const BFT_BUILD_VERSION = "v6-jspdf-cdn-fallback-2026-06-27";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -323,44 +323,62 @@ export default function FiyatTeklifi() {
   const loadScript = (src) => new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) return resolve();
     const s = document.createElement("script");
-    s.src = src; s.onload = resolve; s.onerror = reject;
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Script yüklenemedi: " + src));
     document.head.appendChild(s);
   });
 
   const generatePDF = async () => {
     console.log("%c[BFT] generatePDF çağrıldı — MOTOR: jsPDF native (" + BFT_BUILD_VERSION + ")", "background:#16a34a;color:#fff;padding:2px 8px;border-radius:4px;");
     try {
-      // jsPDF yükle
+      // jsPDF yükle - birden fazla CDN dene
       if (!window.jspdf) {
-        await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js");
+        const cdns = [
+          "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js",
+          "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
+          "https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js",
+        ];
+        let loaded = false;
+        for (const url of cdns) {
+          try { await loadScript(url); if (window.jspdf) { loaded = true; break; } }
+          catch (e) { console.warn("[BFT] CDN başarısız:", url); }
+        }
+        if (!loaded) throw new Error("jsPDF hiçbir CDN'den yüklenemedi");
       }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
 
-      // Türkçe karakter için Roboto fontunu yükle ve göm
+      // Türkçe karakter için DejaVuSans fontunu yükle ve göm (CORS uyumlu CDN)
       if (!window.__bft_font_loaded) {
-        try {
-          const fontUrl = "https://cdn.jsdelivr.net/npm/@fontsource/roboto@5.0.8/files/roboto-latin-ext-400-normal.woff";
-          // woff yerine ttf gerekli — jsPDF ttf ister. NotoSans TTF kullan:
-          const ttfResp = await fetch("https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Regular.ttf");
-          if (ttfResp.ok) {
-            const buf = await ttfResp.arrayBuffer();
+        const fontUrls = [
+          "https://cdn.jsdelivr.net/gh/jspdf-customfonts/fonts/DejaVuSans.ttf",
+          "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
+        ];
+        for (const furl of fontUrls) {
+          try {
+            const resp = await fetch(furl);
+            if (!resp.ok) continue;
+            const buf = await resp.arrayBuffer();
             let binary = "";
             const bytes = new Uint8Array(buf);
             for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
             const b64 = btoa(binary);
-            doc.addFileToVFS("Roboto-Regular.ttf", b64);
-            doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
-            window.__bft_roboto_b64 = b64;
+            window.__bft_font_b64 = b64;
             window.__bft_font_loaded = true;
-          }
-        } catch (e) { console.warn("[BFT] Font yüklenemedi, helvetica kullanılacak:", e); }
-      } else if (window.__bft_roboto_b64) {
-        doc.addFileToVFS("Roboto-Regular.ttf", window.__bft_roboto_b64);
-        doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
+            console.log("[BFT] Türkçe font yüklendi:", furl);
+            break;
+          } catch (e) { console.warn("[BFT] Font CDN başarısız:", furl); }
+        }
+      }
+      if (window.__bft_font_b64) {
+        try {
+          doc.addFileToVFS("DejaVuSans.ttf", window.__bft_font_b64);
+          doc.addFont("DejaVuSans.ttf", "DejaVuSans", "normal");
+        } catch(e) { console.warn("[BFT] Font eklenemedi:", e); }
       }
 
-      const FONT = window.__bft_font_loaded ? "Roboto" : "helvetica";
+      const FONT = window.__bft_font_b64 ? "DejaVuSans" : "helvetica";
       const CYAN_RGB = [0, 193, 222];
       const PAGE_W = 210, MARGIN = 18;
       const CW = PAGE_W - MARGIN * 2;
@@ -558,7 +576,8 @@ export default function FiyatTeklifi() {
       console.log("[BFT] PDF kaydedildi:", filename);
     } catch (err) {
       console.error("[BFT] PDF HATASI:", err);
-      alert("PDF oluşturulamadı: " + err.message);
+      const msg = err?.message || err?.toString?.() || "Bilinmeyen hata";
+      alert("PDF oluşturulamadı: " + msg);
     }
   };
 
