@@ -34,4 +34,4 @@ jobs:
           port: 21
           local-dir: ./dist-wp/
           server-dir: /public_html/wp-content/plugins/bilimevi-fiyat-teklifi/assets/
-          dangerous-clean-slate: false
+          dangerous-clean-slate: true
