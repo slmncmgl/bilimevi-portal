@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom"; 
 import { getSession } from "../utils/sheets";
 
 // Mode tespiti: shortcode config > domain kontrolü
