@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v9-optional-hidden-2026-06-27";
+const BFT_BUILD_VERSION = "v10-pdf-temizlik-2026-06-27";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -441,14 +441,22 @@ export default function FiyatTeklifi() {
           try { doc.addImage(pdfLogo, "PNG", PAGE_W - MARGIN - 32, y - 2, 32, 11); } catch(e){ console.warn("[BFT] logo eklenemedi", e); }
         }
         y += 12;
-        doc.setDrawColor(170); doc.setLineWidth(0.1);
-        doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-        y += 13;
+        y += 8;
 
-        // Şehir başlığı — "Okul, Şehir" formatı (online'da sadece şehir)
+        // Şehir başlığı — "Okul, Şehir" (marka 7 karakterden uzunsa şehir alt satıra)
         doc.setFontSize(40); doc.setTextColor(...CYAN_RGB);
-        const cityTitle = (!d.isOnline && d.brand) ? `${d.brand}, ${d.city}` : (d.city || "");
-        doc.text(cityTitle, MARGIN, y);
+        if (!d.isOnline && d.brand) {
+          if (d.brand.length > 7) {
+            // İki satır: "Okul," üstte, "Şehir" altta
+            doc.text(`${d.brand},`, MARGIN, y);
+            y += 14;
+            doc.text(d.city || "", MARGIN, y);
+          } else {
+            doc.text(`${d.brand}, ${d.city}`, MARGIN, y);
+          }
+        } else {
+          doc.text(d.city || "", MARGIN, y);
+        }
         y += 9;
         doc.setFontSize(16); doc.setTextColor(17);
         doc.text(`${fmtDate(startD)} — ${fmtDate(endD)}`, MARGIN, y);
@@ -507,11 +515,7 @@ export default function FiyatTeklifi() {
           doc.text(`High Season (${formatDateShort(d.courseHsStart)}-${formatDateShort(d.courseHsEnd)})`, MARGIN + 32, y);
           doc.text(`+${money(d.courseHsAmount)}`, PAGE_W - MARGIN, y, { align:"right" });
           y += 5;
-          doc.setTextColor(17);
-          doc.text("Kurs Toplamı", MARGIN, y);
-          doc.text(money(d.courseTotalPrice), PAGE_W - MARGIN, y, { align:"right" });
-          y += 5;
-          doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
+          doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
         }
 
         const checkPage = () => { if (y > 260) { doc.addPage(); y = 20; } };
@@ -537,11 +541,7 @@ export default function FiyatTeklifi() {
             doc.text(`High Season (${formatDateShort(d.accHsStart)}-${formatDateShort(d.accHsEnd)})`, MARGIN + 32, y);
             doc.text(`+${money(d.accHsAmount)}`, PAGE_W - MARGIN, y, { align:"right" });
             y += 5;
-            doc.setTextColor(17);
-            doc.text("Konaklama Toplamı", MARGIN, y);
-            doc.text(money(d.accTotalPrice), PAGE_W - MARGIN, y, { align:"right" });
-            y += 5;
-            doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
+            doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
           }
         }
 
@@ -590,12 +590,14 @@ export default function FiyatTeklifi() {
         doc.text(`${curSym} ${money(grandTotal)}`, PAGE_W - MARGIN, y, { align:"right" });
         y += 12;
 
-        // CTA
-        doc.setFillColor(...CYAN_RGB);
-        doc.roundedRect(PAGE_W/2 - 45, y, 90, 10, 5, 5, "F");
-        doc.setFontSize(10); doc.setTextColor(255);
-        doc.text("Eğitim Danışmanınıza Şimdi Ulaşın", PAGE_W/2, y + 6.5, { align:"center" });
-        y += 18;
+        // CTA — sadece staff modda
+        if (isStaff) {
+          doc.setFillColor(...CYAN_RGB);
+          doc.roundedRect(PAGE_W/2 - 45, y, 90, 10, 5, 5, "F");
+          doc.setFontSize(10); doc.setTextColor(255);
+          doc.text("Eğitim Danışmanınıza Şimdi Ulaşın", PAGE_W/2, y + 6.5, { align:"center" });
+          y += 18;
+        }
 
         // Footer
         doc.setFontSize(8); doc.setTextColor(51);
