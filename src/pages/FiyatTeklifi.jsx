@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v16-cizgi-bosluk-2026-06-27";
+const BFT_BUILD_VERSION = "v17-toplam-turkuaz-2026-06-27";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -640,10 +640,14 @@ export default function FiyatTeklifi() {
         doc.line(MARGIN, y, PAGE_W - MARGIN, y);
         y += 6;
         const grandTotal = d.courseTotalPrice + d.accTotalPrice + f.total + (d.addons?.reduce((s,a)=>s+a.totalAmount,0)||0) + (d.transfer?.one_way||0);
-        doc.setFontSize(12); doc.setTextColor(17);
-        doc.text(`TOPLAM TUTAR ${cur}`, MARGIN, y);
+        // Toplam tutar — koyu yeşil (olumlu/finansal vurgu)
+        doc.setTextColor(22, 163, 74);
+        const labelTxt = `TOPLAM TUTAR ${cur}`;
+        const amountTxt = `${curSym} ${money(grandTotal)}`;
+        doc.setFontSize(12);
+        doc.text(labelTxt, MARGIN, y);
         doc.setFontSize(16);
-        doc.text(`${curSym} ${money(grandTotal)}`, PAGE_W - MARGIN, y, { align:"right" });
+        doc.text(amountTxt, PAGE_W - MARGIN, y, { align:"right" });
         y += 12;
 
         // CTA — sadece staff modda
