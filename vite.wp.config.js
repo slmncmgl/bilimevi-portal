@@ -7,14 +7,17 @@ export default defineConfig({
   plugins: [
     react(),
     {
-      name: "copy-logo",
+      name: "copy-logos",
       closeBundle() {
-        const src = resolve(__dirname, "src/assets/bilimevi_logo.svg");
-        const dest = resolve(__dirname, "dist-wp/bilimevi_logo.svg");
-        if (existsSync(src)) {
-          copyFileSync(src, dest);
-          console.log("✓ bilimevi_logo.svg kopyalandı");
-        }
+        const files = ["ingilteredil_logo.png", "Bilimevi_logo.jpg", "bilimevi_logo.svg"];
+        files.forEach(f => {
+          const src = resolve(__dirname, "src/assets/" + f);
+          const dest = resolve(__dirname, "dist-wp/" + f);
+          if (existsSync(src)) {
+            copyFileSync(src, dest);
+            console.log("✓ kopyalandı:", f);
+          }
+        });
       },
     },
   ],
