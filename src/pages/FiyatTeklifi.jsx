@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v10-pdf-temizlik-2026-06-27";
+const BFT_BUILD_VERSION = "v12-city-desc-2026-06-27";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -60,6 +60,17 @@ async function fetchCSV(sheetId, sheetName) {
 
 async function fetchNav() {
   const rows = await fetchCSV(MASTER_ID, "master_index");
+  // Okul+şehir açıklamaları (city_description sekmesi); hata olursa boş geç
+  let descriptions = {};
+  try {
+    const descRows = await fetchCSV(MASTER_ID, "city_description");
+    descRows.forEach(r => {
+      const brand = (r.school_brand || "").trim();
+      const city = (r.city || "").trim();
+      const desc = (r.description || "").trim();
+      if (brand && city && desc) descriptions[`${brand}__${city}`] = desc;
+    });
+  } catch (e) { console.warn("[BFT] city_description okunamadı:", e); }
   const countryTR = { "UK":"İngiltere","Ireland":"İrlanda","Malta":"Malta","South Africa":"Güney Afrika","Canada":"Kanada","USA":"ABD","UAE":"BAE" };
   const languages = new Set();
   const countries = {};
@@ -93,6 +104,7 @@ async function fetchNav() {
     citiesByLang: Object.fromEntries(Object.entries(citiesByLang).map(([l,cm]) => [l, Object.fromEntries(Object.entries(cm).map(([c,s]) => [c,[...s].sort()]))])),
     brandsByCity: Object.fromEntries(Object.entries(brandsByCity).map(([c,s]) => [c,[...s]])),
     schoolSheets,
+    descriptions,
   };
 }
 
@@ -306,7 +318,9 @@ export default function FiyatTeklifi() {
       const accPrice = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
       const isDup = destinations.some(d => d.city === cur.city && d.course?.name === cur.course?.name && d.acc?.name === cur.acc?.name);
       if (!isDup) {
+        const cityDesc = nav.descriptions?.[`${cur.brand}__${cur.city}`] || "";
         setDestinations(p => [...p, { ...cur,
+          cityDescription: cityDesc,
           courseBasePrice: coursePrice.basePrice, courseHsAmount: coursePrice.hsAmount,
           courseTotalPrice: coursePrice.totalPrice, courseHsActive: coursePrice.hsActive,
           courseHsPerWeek: coursePrice.hsPerWeek, courseHsStart: coursePrice.hsStart, courseHsEnd: coursePrice.hsEnd,
@@ -317,9 +331,13 @@ export default function FiyatTeklifi() {
       }
       setStep(5);
     } else { setStep(s => s + 1); }
-    const root = document.getElementById("bft-root");
-    if (root) root.scrollIntoView({ behavior: "smooth", block: "start" });
-    else window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => {
+      const root = document.getElementById("bft-root");
+      if (root) {
+        const top = root.getBoundingClientRect().top + window.pageYOffset - 20;
+        window.scrollTo({ top, behavior: "smooth" });
+      } else window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 100);
   };
 
   const addNew = () => { setCur(emptyDest(cur.startDate)); setStep(1); };
@@ -458,6 +476,15 @@ export default function FiyatTeklifi() {
           doc.text(d.city || "", MARGIN, y);
         }
         y += 9;
+
+        // Okul/şehir açıklaması (city_description) — varsa, küçük puntoyla
+        if (d.cityDescription) {
+          doc.setFontSize(9); doc.setTextColor(90);
+          const lines = doc.splitTextToSize(d.cityDescription, PAGE_W - MARGIN * 2);
+          doc.text(lines, MARGIN, y);
+          y += lines.length * 4.5 + 4;
+        }
+
         doc.setFontSize(16); doc.setTextColor(17);
         doc.text(`${fmtDate(startD)} — ${fmtDate(endD)}`, MARGIN, y);
         y += 8;
@@ -741,8 +768,8 @@ export default function FiyatTeklifi() {
                 <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
               </div>
               {(isStaff || !FIXED_COUNTRY) && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
-              {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
-              {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL MARKASI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
+              {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
+              {!cur.isOnline && cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL MARKASI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
               {cur.isOnline && <>
                 <p style={S.slbl}>PAKET SEÇİMİ</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
@@ -938,7 +965,7 @@ export default function FiyatTeklifi() {
           )}
 
           <div style={S.navBox}>
-            {step > 0 && step !== 5 && <button onClick={() => { setStep(s => s-1); const r = document.getElementById("bft-root"); if (r) r.scrollIntoView({ behavior:"smooth", block:"start" }); else window.scrollTo({ top:0, behavior:"smooth" }); }} style={S.btnBack}>← Geri</button>}
+            {step > 0 && step !== 5 && <button onClick={() => { setStep(s => s-1); setTimeout(() => { const r = document.getElementById("bft-root"); if (r) { const t = r.getBoundingClientRect().top + window.pageYOffset - 20; window.scrollTo({ top:t, behavior:"smooth" }); } else window.scrollTo({ top:0, behavior:"smooth" }); }, 100); }} style={S.btnBack}>← Geri</button>}
             {step < 5 && step !== 0 && (<button style={S.btnNext} disabled={!canNext} onClick={next}>{step === 4 || (step === 2 && cur.isOnline) ? "Özete Geç →" : "İleri →"}</button>)}
             {step === 5 && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft:"auto" }} className="bft-pdf-btn-mobile">📄 PDF Oluştur</button>)}
           </div>
