@@ -14,16 +14,22 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v12-city-desc-2026-06-27";
+const BFT_BUILD_VERSION = "v13-iki-logo-2026-06-27";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
 }
 
-// Logo: customer modda WordPress plugin assets URL'inden yükle, staff modda import
-const LOGO_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.assetsUrl)
-  ? window.BFT_CONFIG.assetsUrl + "bilimevi_logo.svg"
-  : null;
+// Logolar: customer modda WordPress plugin assets URL'inden yüklenir
+const ASSETS_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.assetsUrl) || null;
+// Bilimevi logosu (her sitede sabit, sağda)
+const BILIMEVI_LOGO = ASSETS_URL ? ASSETS_URL + "Bilimevi_logo.jpg" : null;
+// Site logosu (siteye özel, solda) — shortcode'dan: site_logo="ingilteredil_logo.png"
+const SITE_LOGO_NAME = (typeof window !== "undefined" && window.BFT_CONFIG?.siteLogo && window.BFT_CONFIG.siteLogo.trim())
+  ? window.BFT_CONFIG.siteLogo.trim() : null;
+const SITE_LOGO = (ASSETS_URL && SITE_LOGO_NAME) ? ASSETS_URL + SITE_LOGO_NAME : null;
+// Geriye dönük uyumluluk
+const LOGO_URL = BILIMEVI_LOGO;
 
 // Customer modda sabit ülke (shortcode'dan: country="İngiltere")
 const FIXED_COUNTRY = (typeof window !== "undefined" && window.BFT_CONFIG?.country && window.BFT_CONFIG.country.trim())
@@ -403,27 +409,32 @@ export default function FiyatTeklifi() {
 
       const FONT = window.__bft_font_b64 ? "DejaVuSans" : "helvetica";
 
-      // Logo SVG'yi PNG'ye çevir (jsPDF SVG desteklemez)
-      let pdfLogo = window.__bft_logo_png || null;
-      if (!pdfLogo && logoSrc) {
-        try {
-          pdfLogo = await new Promise((resolve) => {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => {
-              const canvas = document.createElement("canvas");
-              canvas.width = img.naturalWidth || 320;
-              canvas.height = img.naturalHeight || 110;
-              const ctx = canvas.getContext("2d");
-              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-              try { resolve(canvas.toDataURL("image/png")); } catch(e){ resolve(null); }
-            };
-            img.onerror = () => resolve(null);
-            img.src = logoSrc;
-          });
-          if (pdfLogo) { window.__bft_logo_png = pdfLogo; console.log("[BFT] Logo PNG'ye çevrildi"); }
-        } catch(e) { console.warn("[BFT] Logo dönüştürülemedi:", e); }
-      }
+      // Logo'yu PNG data-uri'ye çevir + en-boy oranını döndür (jsPDF SVG/oran desteği zayıf)
+      const loadLogo = (url, cacheKey) => new Promise((resolve) => {
+        if (!url) return resolve(null);
+        if (window[cacheKey]) return resolve(window[cacheKey]);
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const w = img.naturalWidth || 320, h = img.naturalHeight || 110;
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          try {
+            const data = canvas.toDataURL("image/png");
+            const result = { data, ratio: w / h };
+            window[cacheKey] = result;
+            resolve(result);
+          } catch(e){ resolve(null); }
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+
+      const bilimeviLogo = await loadLogo(BILIMEVI_LOGO, "__bft_bilimevi_logo");
+      const siteLogo = (!isStaff) ? await loadLogo(SITE_LOGO, "__bft_site_logo") : null;
+
       const CYAN_RGB = [0, 193, 222];
       const PAGE_W = 210, MARGIN = 18;
       const CW = PAGE_W - MARGIN * 2;
@@ -445,6 +456,14 @@ export default function FiyatTeklifi() {
 
         // Header
         doc.setFont(FONT, "normal");
+        const LOGO_H = 11; // mm
+        // Sol: site logosu (sadece customer modda)
+        if (siteLogo) {
+          try {
+            const w = LOGO_H * siteLogo.ratio;
+            doc.addImage(siteLogo.data, "PNG", MARGIN, y - 2, w, LOGO_H);
+          } catch(e){ console.warn("[BFT] site logo eklenemedi", e); }
+        }
         // Danışman bilgisi sadece staff modda (müşteriye gösterilmez)
         if (isStaff) {
           doc.setFontSize(7); doc.setTextColor(150);
@@ -454,9 +473,12 @@ export default function FiyatTeklifi() {
           doc.setFontSize(8); doc.setTextColor(85);
           doc.text(user?.email || "", MARGIN, y + 8);
         }
-        // Logo (PNG data-uri olarak gömülür)
-        if (pdfLogo) {
-          try { doc.addImage(pdfLogo, "PNG", PAGE_W - MARGIN - 32, y - 2, 32, 11); } catch(e){ console.warn("[BFT] logo eklenemedi", e); }
+        // Sağ: Bilimevi logosu (her zaman)
+        if (bilimeviLogo) {
+          try {
+            const w = LOGO_H * bilimeviLogo.ratio;
+            doc.addImage(bilimeviLogo.data, "PNG", PAGE_W - MARGIN - w, y - 2, w, LOGO_H);
+          } catch(e){ console.warn("[BFT] bilimevi logo eklenemedi", e); }
         }
         y += 12;
         y += 8;
