@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v14-mobil-step-spinner-2026-06-27";
+const BFT_BUILD_VERSION = "v16-cizgi-bosluk-2026-06-27";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -484,8 +484,11 @@ export default function FiyatTeklifi() {
             doc.addImage(bilimeviLogo.data, "PNG", PAGE_W - MARGIN - w, y - 2, w, LOGO_H);
           } catch(e){ console.warn("[BFT] bilimevi logo eklenemedi", e); }
         }
+        // Logolardan sonra ~1cm boşluk, ince gri çizgi, sonra ~1cm boşluk
+        y += LOGO_H + 10;
+        doc.setDrawColor(200); doc.setLineWidth(0.2);
+        doc.line(MARGIN, y, PAGE_W - MARGIN, y);
         y += 12;
-        y += 8;
 
         // Şehir başlığı — "Okul, Şehir" (marka 7 karakterden uzunsa şehir alt satıra)
         doc.setFontSize(40); doc.setTextColor(...CYAN_RGB);
@@ -863,7 +866,7 @@ export default function FiyatTeklifi() {
                   {accType && (
                     <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:10 }}>
                       {accs.filter(a => a.type === accType).map((a,i) => {
-                        const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board;
+                        const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board && cur.acc?.bathroom===a.bathroom && cur.acc?.price===a.price;
                         const hsActive = getAccommodationHighSeasonSupplement(a, cur.weeks, cur.startDate).isActive;
                         return (<div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a}))}>
                           <div>
