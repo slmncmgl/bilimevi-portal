@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v13-iki-logo-2026-06-27";
+const BFT_BUILD_VERSION = "v14-mobil-step-spinner-2026-06-27";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -276,6 +276,7 @@ export default function FiyatTeklifi() {
   const [leadForm, setLeadForm] = useState({ name:"", phone:"", email:"" });
 
   const [leadLoading, setLeadLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   useEffect(() => {
     if (isStaff) { const session = getSession(); if (!session) return navigate("/"); setUser(session); }
@@ -360,6 +361,9 @@ export default function FiyatTeklifi() {
 
   const generatePDF = async () => {
     console.log("%c[BFT] generatePDF çağrıldı — MOTOR: jsPDF native (" + BFT_BUILD_VERSION + ")", "background:#16a34a;color:#fff;padding:2px 8px;border-radius:4px;");
+    setPdfLoading(true);
+    // Render için kısa gecikme — spinner görünsün
+    await new Promise(r => setTimeout(r, 50));
     try {
       // jsPDF yükle - birden fazla CDN dene
       if (!window.jspdf) {
@@ -660,6 +664,8 @@ export default function FiyatTeklifi() {
       console.error("[BFT] PDF HATASI:", err);
       const msg = err?.message || err?.toString?.() || "Bilinmeyen hata";
       alert("PDF oluşturulamadı: " + msg);
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -693,6 +699,13 @@ export default function FiyatTeklifi() {
 
   return (
     <>
+    {pdfLoading && (
+      <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.85)", zIndex:99999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", backdropFilter:"blur(2px)" }}>
+        <div style={{ width:48, height:48, border:`4px solid #e2e8f0`, borderTopColor:CYAN, borderRadius:"50%", animation:"bftSpin 0.8s linear infinite" }} />
+        <p style={{ marginTop:18, fontSize:15, fontWeight:600, color:"#0f172a", fontFamily:"'Sora',sans-serif" }}>Teklif Dosyanız Hazırlanıyor...</p>
+        <style>{`@keyframes bftSpin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )}
     {!isStaff && leadModal && (
       <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
         <div style={{ background:"#fff", borderRadius:20, padding:32, maxWidth:420, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
@@ -729,12 +742,13 @@ export default function FiyatTeklifi() {
           #bft-root .bft-body { grid-template-columns:1fr !important; }
           #bft-root .bft-side { display:none !important; }
           #bft-root .bft-r2 { grid-template-columns:1fr !important; }
-          #bft-root .bft-steps { padding:8px 12px !important; overflow-x:auto !important; }
-          #bft-root .bft-steps span { font-size:9px !important; }
+          #bft-root .bft-steps-desktop { display:none !important; }
+          #bft-root .bft-steps-mobile { display:block !important; }
           #bft-root .bft-pdf-btn-mobile { display:flex !important; }
         }
         @media (min-width: 769px) {
           #bft-root .bft-pdf-btn-mobile { display:none !important; }
+          #bft-root .bft-steps-mobile { display:none !important; }
         }
       `}</style>
 
@@ -747,7 +761,8 @@ export default function FiyatTeklifi() {
       </header>
 
       <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0" }}>
-        <div style={{ maxWidth:1100, margin:"0 auto", padding:"12px 16px", display:"flex", alignItems:"center" }} className="bft-steps">
+        {/* Masaüstü adım göstergesi */}
+        <div style={{ maxWidth:1100, margin:"0 auto", padding:"12px 16px", display:"flex", alignItems:"center" }} className="bft-steps-desktop">
           {STEPS.map((s, i) => (
             <div key={i} style={{ display:"flex", alignItems:"center", flex: i < STEPS.length-1 ? 1 : 0 }}>
               <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
@@ -757,6 +772,16 @@ export default function FiyatTeklifi() {
               {i < STEPS.length-1 && <div style={{ flex:1, height:1, background: i<step?CYAN:"#e2e8f0", margin:"0 8px" }} />}
             </div>
           ))}
+        </div>
+        {/* Mobil adım göstergesi: "Adım X/6 · Başlık" + progress bar */}
+        <div style={{ padding:"12px 16px", display:"none" }} className="bft-steps-mobile">
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+            <span style={{ fontSize:13, fontWeight:600, color:CYAN }}>{STEPS[step]}</span>
+            <span style={{ fontSize:12, color:"#94a3b8" }}>Adım {step+1}/{STEPS.length}</span>
+          </div>
+          <div style={{ height:4, background:"#e2e8f0", borderRadius:2, overflow:"hidden" }}>
+            <div style={{ height:"100%", background:CYAN, borderRadius:2, width:`${((step+1)/STEPS.length)*100}%`, transition:"width 0.3s" }} />
+          </div>
         </div>
       </div>
 
