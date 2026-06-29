@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v6-jspdf-cdn-fallback-2026-06-27";
+const BFT_BUILD_VERSION = "v7-ulke-logo-okul-2026-06-27";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -24,6 +24,9 @@ if (typeof window !== "undefined") {
 const LOGO_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.assetsUrl)
   ? window.BFT_CONFIG.assetsUrl + "bilimevi_logo.svg"
   : null;
+
+// Customer modda sabit ülke (shortcode'dan: country="İngiltere")
+const FIXED_COUNTRY = (typeof window !== "undefined" && window.BFT_CONFIG?.country) || null;
 
 const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
 const CYAN = "#00C1DE";
@@ -379,6 +382,28 @@ export default function FiyatTeklifi() {
       }
 
       const FONT = window.__bft_font_b64 ? "DejaVuSans" : "helvetica";
+
+      // Logo SVG'yi PNG'ye çevir (jsPDF SVG desteklemez)
+      let pdfLogo = window.__bft_logo_png || null;
+      if (!pdfLogo && logoSrc) {
+        try {
+          pdfLogo = await new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+              const canvas = document.createElement("canvas");
+              canvas.width = img.naturalWidth || 320;
+              canvas.height = img.naturalHeight || 110;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              try { resolve(canvas.toDataURL("image/png")); } catch(e){ resolve(null); }
+            };
+            img.onerror = () => resolve(null);
+            img.src = logoSrc;
+          });
+          if (pdfLogo) { window.__bft_logo_png = pdfLogo; console.log("[BFT] Logo PNG'ye çevrildi"); }
+        } catch(e) { console.warn("[BFT] Logo dönüştürülemedi:", e); }
+      }
       const CYAN_RGB = [0, 193, 222];
       const PAGE_W = 210, MARGIN = 18;
       const CW = PAGE_W - MARGIN * 2;
@@ -400,24 +425,28 @@ export default function FiyatTeklifi() {
 
         // Header
         doc.setFont(FONT, "normal");
-        doc.setFontSize(7); doc.setTextColor(150);
-        doc.text("Bilimevi Eğitim Danışmanınız", MARGIN, y);
-        doc.setFontSize(11); doc.setTextColor(17);
-        doc.text(user?.name || (leadForm.name || student.name || "—"), MARGIN, y + 4);
-        doc.setFontSize(8); doc.setTextColor(85);
-        doc.text(user?.email || "", MARGIN, y + 8);
-        // Logo sadece raster (png/jpg/data-uri) ise ekle, SVG jsPDF'i bozar
-        if (logoSrc && !logoSrc.includes(".svg") && (logoSrc.startsWith("data:image/png") || logoSrc.startsWith("data:image/jpeg") || logoSrc.includes(".png") || logoSrc.includes(".jpg"))) {
-          try { doc.addImage(logoSrc, "PNG", PAGE_W - MARGIN - 28, y - 2, 28, 10); } catch(e){ console.warn("[BFT] logo eklenemedi", e); }
+        // Danışman bilgisi sadece staff modda (müşteriye gösterilmez)
+        if (isStaff) {
+          doc.setFontSize(7); doc.setTextColor(150);
+          doc.text("Bilimevi Eğitim Danışmanınız", MARGIN, y);
+          doc.setFontSize(11); doc.setTextColor(17);
+          doc.text(user?.name || "—", MARGIN, y + 4);
+          doc.setFontSize(8); doc.setTextColor(85);
+          doc.text(user?.email || "", MARGIN, y + 8);
+        }
+        // Logo (PNG data-uri olarak gömülür)
+        if (pdfLogo) {
+          try { doc.addImage(pdfLogo, "PNG", PAGE_W - MARGIN - 32, y - 2, 32, 11); } catch(e){ console.warn("[BFT] logo eklenemedi", e); }
         }
         y += 12;
         doc.setDrawColor(170); doc.setLineWidth(0.1);
         doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-        y += 10;
+        y += 13;
 
-        // Şehir başlığı
+        // Şehir başlığı — "Okul, Şehir" formatı (online'da sadece şehir)
         doc.setFontSize(40); doc.setTextColor(...CYAN_RGB);
-        doc.text(d.city || "", MARGIN, y);
+        const cityTitle = (!d.isOnline && d.brand) ? `${d.brand}, ${d.city}` : (d.city || "");
+        doc.text(cityTitle, MARGIN, y);
         y += 9;
         doc.setFontSize(16); doc.setTextColor(17);
         doc.text(`${fmtDate(startD)} — ${fmtDate(endD)}`, MARGIN, y);
@@ -704,10 +733,10 @@ export default function FiyatTeklifi() {
               <h2 style={S.ttl}>Destinasyon Seçimi</h2>
               <p style={S.slbl}>DİL</p>
               <div style={S.g3}>
-                {nav.languages.map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate), lang:l})}>{l}</div>))}
+                {nav.languages.map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
                 <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
               </div>
-              {!cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
+              {isStaff && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
               {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
               {!cur.isOnline && cur.city && <><p style={S.slbl}>OKUL MARKASI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
               {cur.isOnline && <>
