@@ -640,8 +640,8 @@ export default function FiyatTeklifi() {
         doc.line(MARGIN, y, PAGE_W - MARGIN, y);
         y += 6;
         const grandTotal = d.courseTotalPrice + d.accTotalPrice + f.total + (d.addons?.reduce((s,a)=>s+a.totalAmount,0)||0) + (d.transfer?.one_way||0);
-        // Toplam tutar — turkuaz (marka rengi)
-        doc.setTextColor(...CYAN_RGB);
+        // Toplam tutar — siyah
+        doc.setTextColor(17, 17, 17);
         const labelTxt = `TOPLAM TUTAR ${cur}`;
         const amountTxt = `${curSym} ${money(grandTotal)}`;
         doc.setFontSize(12);
