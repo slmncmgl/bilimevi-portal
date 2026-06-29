@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v8-ulke-fallback-2026-06-27";
+const BFT_BUILD_VERSION = "v9-optional-hidden-2026-06-27";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -826,7 +826,7 @@ export default function FiyatTeklifi() {
                   if (f.date_end && startD && new Date(f.date_end) < startD) return false;
                   return true;
                 });
-                if (compulsory.length === 0 && optional.length === 0) return <p style={{ color:"#94a3b8", fontSize:13 }}>Bu kurs ve tarih için eklenebilecek add-on bulunmuyor.</p>;
+                if (compulsory.length === 0 && (isStaff ? optional.length === 0 : true)) return <p style={{ color:"#94a3b8", fontSize:13 }}>Bu kurs ve tarih için eklenebilecek add-on bulunmuyor.</p>;
                 return (<>
                   {compulsory.length > 0 && (
                     <div style={{ marginBottom:20 }}>
@@ -836,7 +836,7 @@ export default function FiyatTeklifi() {
                       </div>
                     </div>
                   )}
-                  {optional.length > 0 && (
+                  {isStaff && optional.length > 0 && (
                     <div>
                       <p style={S.slbl}>İsteğe Bağlı Eklemeler</p>
                       <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
