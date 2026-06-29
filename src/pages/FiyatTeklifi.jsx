@@ -484,11 +484,11 @@ export default function FiyatTeklifi() {
             doc.addImage(bilimeviLogo.data, "PNG", PAGE_W - MARGIN - w, y - 2, w, LOGO_H);
           } catch(e){ console.warn("[BFT] bilimevi logo eklenemedi", e); }
         }
-        // Logolardan sonra ~1cm boşluk, ince gri çizgi, sonra ~1cm boşluk
-        y += LOGO_H + 10;
+        // Logolardan sonra boşluk, ince gri çizgi, sonra şehir başlığı
+        y += LOGO_H + 5;
         doc.setDrawColor(200); doc.setLineWidth(0.2);
         doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-        y += 12;
+        y += 18;
 
         // Şehir başlığı — "Okul, Şehir" (marka 7 karakterden uzunsa şehir alt satıra)
         doc.setFontSize(40); doc.setTextColor(...CYAN_RGB);
@@ -640,8 +640,8 @@ export default function FiyatTeklifi() {
         doc.line(MARGIN, y, PAGE_W - MARGIN, y);
         y += 6;
         const grandTotal = d.courseTotalPrice + d.accTotalPrice + f.total + (d.addons?.reduce((s,a)=>s+a.totalAmount,0)||0) + (d.transfer?.one_way||0);
-        // Toplam tutar — koyu yeşil (olumlu/finansal vurgu)
-        doc.setTextColor(22, 163, 74);
+        // Toplam tutar — turkuaz (marka rengi)
+        doc.setTextColor(...CYAN_RGB);
         const labelTxt = `TOPLAM TUTAR ${cur}`;
         const amountTxt = `${curSym} ${money(grandTotal)}`;
         doc.setFontSize(12);
