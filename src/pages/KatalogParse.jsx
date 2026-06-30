@@ -7,7 +7,7 @@ const GEMINI_MODEL   = "gemini-3.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwRCrikGvd9Q54eZW3GHxrTwJzS6r31xQTrKP6iJAYb_WsYK_g-4y6Xye9h3NBnGLSh/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxiXjKXn-xHTvzOhGOnHR3sfsQ-ajKbGy4Dmx2unFGjg3gRHoze2aYZNfcwNK2Uyp8E/exec";
 
 // NOT: Okul listesi, sheet URL'leri ve parse edilecek sekmeler artık hardcode değil.
 // Hepsi Apps Script üzerinden MASTER_INDEX > school_registry sekmesinden dinamik çekiliyor.
