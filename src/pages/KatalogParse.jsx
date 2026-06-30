@@ -84,6 +84,8 @@ export default function KatalogParse() {
   const [promoError, setPromoError]       = useState(null);
   const [promoProgress, setPromoProgress] = useState(0);
   const [promoProgressMsg, setPromoProgressMsg] = useState("");
+  const [commitLoading, setCommitLoading]   = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // PDF
   const [selectedFile, setSelectedFile]   = useState(null);
@@ -739,6 +741,22 @@ KRİTİK KURALLAR:
     }
   }
 
+
+  async function commitPromoToMaster() {
+    setCommitLoading(true);
+    try {
+      const res = await callAppsScript("commitPromoDraft", { brand: promoBrand });
+      if (!res.success) throw new Error(res.msg);
+      setCommitLoading(false);
+      setSuccessMessage(`✅ ${res.msg || "Kampanyalar discounts sekmesine aktarıldı"} (${promoBrand})`);
+    } catch (err) {
+      setPromoError("Yükleme hatası: " + err.message);
+      setCommitLoading(false);
+    }
+  }
+
+  
+  
   // ─── RENDER ───────────────────────────────────────────────
   if (!user) return null;
 
@@ -1058,9 +1076,10 @@ KRİTİK KURALLAR:
             </p>
           )}
           <div style={{display:"flex",gap:12,marginTop:24}}>
-            <button onClick={resetAll} style={S.secondaryBtn}>Yeni Parse</button>
-            <button onClick={() => navigate("/fiyat-teklifi")} style={{...S.primaryBtn,flex:1}}>
-              Fiyat Teklifi'ne Git →
+            <button onClick={resetAll} style={S.secondaryBtn}>İptal / Menü</button>
+            <button onClick={commitPromoToMaster} disabled={commitLoading}
+              style={{...S.primaryBtn, flex:1, background:"#059669", opacity:commitLoading?0.5:1}}>
+              {commitLoading ? "Yükleniyor..." : "✓ Onayla & discounts'a Aktar"}
             </button>
           </div>
         </div>
@@ -1306,6 +1325,21 @@ KRİTİK KURALLAR:
         </div>
       </main>
       <Style/>
+    </div>
+  );
+
+  // BAŞARI POPUP'I (MODAL)
+  if (successMessage) return (
+    <div style={{position:"fixed", inset:0, background:"rgba(15, 23, 42, 0.6)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999}}>
+      <div style={{background:"#fff", padding:"40px 32px", borderRadius:24, textAlign:"center", maxWidth:420, width:"90%", boxShadow:"0 20px 40px rgba(0,0,0,0.15)", animation:"fadeUp 0.3s ease-out"}}>
+        <div style={{fontSize:64, marginBottom:16}}>🎉</div>
+        <h3 style={{fontSize:20, fontWeight:700, color:"#0f172a", marginBottom:12}}>İşlem Başarılı!</h3>
+        <p style={{fontSize:14, color:"#475569", lineHeight:1.6, marginBottom:32}}>{successMessage}</p>
+        <button onClick={() => { setSuccessMessage(""); resetAll(); }}
+          style={{...S.primaryBtn, background:"#059669", width:"100%"}}>
+          Tamam
+        </button>
+      </div>
     </div>
   );
 
