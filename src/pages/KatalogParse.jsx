@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 // ─── SABİTLER ────────────────────────────────────────────────
-const GEMINI_MODEL   = "gemini-2.5-flash";
+const GEMINI_MODEL   = "gemini-3.1-pro";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyssF2rUzo0XVMnu8kslXBL_UUt4LUUq0ABJzLvaTKyknMD8YGA-sP4ArPbD0DM1GVv/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwRCrikGvd9Q54eZW3GHxrTwJzS6r31xQTrKP6iJAYb_WsYK_g-4y6Xye9h3NBnGLSh/exec";
 
 // NOT: Okul listesi, sheet URL'leri ve parse edilecek sekmeler artık hardcode değil.
 // Hepsi Apps Script üzerinden MASTER_INDEX > school_registry sekmesinden dinamik çekiliyor.
@@ -53,6 +53,7 @@ const DISCOUNT_COLUMNS = [
   "group_size",
   // Fixed package satırları için
   "course_name", "weeks", "package_price", "currency",
+  "package_type",
   "includes", "excludes",
   // Ortak
   "notes",
@@ -83,10 +84,6 @@ export default function KatalogParse() {
   const [promoError, setPromoError]       = useState(null);
   const [promoProgress, setPromoProgress] = useState(0);
   const [promoProgressMsg, setPromoProgressMsg] = useState("");
-
-  // Devam eden kampanyalar
-  const [activeCampaigns, setActiveCampaigns] = useState([]);
-  const [commitLoading, setCommitLoading] = useState(false);
 
   // PDF
   const [selectedFile, setSelectedFile]   = useState(null);
@@ -128,10 +125,7 @@ export default function KatalogParse() {
     setSchoolsLoading(true);
     try {
       const res = await callAppsScriptRaw("listSchools", {});
-      if (res.success) {
-        setKnownBrands(res.schools || []);
-        setActiveCampaigns(res.activeCampaigns || []);
-      }
+      if (res.success) setKnownBrands(res.schools || []);
       else setError("Okul listesi yüklenemedi: " + res.msg);
     } catch (err) {
       setError("Okul listesi yüklenemedi: " + err.message);
@@ -172,11 +166,14 @@ export default function KatalogParse() {
   }
 
   // ── Okul tespiti ──────────────────────────────────────────
+  // Dosya adını knownBrands listesindeki her okul ismiyle (ve kısaltmalarıyla) karşılaştırır.
+  // "EC" gibi kısa markalar için kelime sınırı kontrolü yapar, yanlış pozitifi önler.
   function detectBrandFromFileName(name) {
     const n = name.toLowerCase().replace(/[_\-.]/g, " ");
     for (const brand of knownBrands) {
       const b = brand.toLowerCase();
       if (b.length <= 3) {
+        // Kısa marka adları (EC gibi) — kelime sınırıyla ara
         const re = new RegExp(`(^|\\s)${b}(\\s|$)`);
         if (re.test(n)) return brand;
       } else if (n.includes(b)) {
@@ -209,8 +206,10 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
     if (!selectedFile) return;
     setDetectLoading(true); setError(null);
 
+    // 1. Dosya adından dene
     let brand = detectBrandFromFileName(selectedFile.name);
 
+    // 2. Gemini fallback
     if (!brand) {
       try {
         const base64 = await fileToBase64(selectedFile);
@@ -240,6 +239,7 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
     setStep(STEPS.PARSING); setError(null);
 
     try {
+      // Adım 1: Sheet header'larını çek
       setProgress(5); setProgressMsg("📁 Mevcut sheet sütunları okunuyor...");
       const headersResult = await callAppsScript("getSheetHeaders", { brand: selectedBrand });
       if (!headersResult.success) throw new Error("Header okunamadı: " + headersResult.msg);
@@ -250,18 +250,22 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
         setSheetUrls(prev => ({ ...prev, [selectedBrand]: headersResult.sheetUrl }));
       }
 
+      // Adım 2: Mevcut veriyi çek (diff + Gemini örnek için)
       setProgress(10); setProgressMsg("🔍 Mevcut veriler alınıyor...");
       const currentResult = await callAppsScript("getCurrentData", { brand: selectedBrand });
       if (currentResult.success) setCurrentData(currentResult.data || {});
 
+      // Adım 3: Parse rules + ekstra referans sekmeleri çek
       setProgress(13); setProgressMsg("📋 Parse kuralları okunuyor...");
       const rulesResult = await callAppsScript("getParseRules", { brand: selectedBrand });
       const parseRules = rulesResult.success ? rulesResult.parseRules : "";
       const extraTabs  = rulesResult.success ? rulesResult.extraTabs  : {};
 
+      // Adım 4: PDF hazırla
       setProgress(15); setProgressMsg("📄 PDF hazırlanıyor...");
       const base64 = await fileToBase64(selectedFile);
 
+      // Adım 5: Sekme sekme parse et (parse_rules + ekstra sekmeler her çağrıda gönderilir)
       const tabs = dynamicTabs;
       const parsed = {};
       const progressPerTab = 65 / tabs.length;
@@ -277,10 +281,12 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
 
       setProgress(90); setProgressMsg("✅ Veriler doğrulanıyor...");
 
+      // Adım 5: Yeni sütun tespiti
       const unknown = detectUnknownColumns(parsed, headers, tabs);
       setUnknownCols(unknown);
       setParsedData(parsed);
 
+      // Adım 6: Diff hesapla
       const diff = computeDiff(currentResult.data || {}, parsed, tabs);
       setDiffSummary(diff);
 
@@ -294,20 +300,24 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
     }
   }
 
+  // Sekme bazlı parse — her sekme için ayrı Gemini çağrısı
   async function parseSingleTab(base64, brand, cols, tabName, parseRules, extraTabs, sampleData) {
     const colList = cols.length > 0
       ? cols.map(c => `"${c}": ""`).join(", ")
       : '"name": "", "value": ""';
 
+    // Mevcut veriden örnek satırlar (Gemini format öğrenmek için)
     const sampleSection = sampleData && sampleData.length > 0
       ? `\nMEVCUT VERİDEN ÖRNEK SATIRLAR (bu formatı takip et):\n${JSON.stringify(sampleData.slice(0, 3), null, 2)}`
       : "";
 
+    // Ekstra referans sekmeleri (junior_activities, junior_transfers vb.)
     const extraSection = extraTabs && Object.keys(extraTabs).length > 0
       ? "\n\nREFERANS BİLGİLERİ (bu sekmelerdeki verilerle tutarlı ol):\n" +
         Object.entries(extraTabs).map(([k, v]) => `[${k}]\n${v}`).join("\n\n")
       : "";
 
+    // Parse kuralları
     const rulesSection = parseRules
       ? `\n\nPARSE KURALLARI (bunlara kesinlikle uy):\n${parseRules}`
       : "";
@@ -346,9 +356,11 @@ GENEL KURALLAR:
 
     text = text.replace(/```json|```/g, "").trim();
 
+    // Array mı, obje mi?
     if (text.startsWith("{")) {
       try {
         const obj = JSON.parse(text);
+        // { "courses": [...] } formatı
         const key = Object.keys(obj).find(k => k.toLowerCase() === tabName.toLowerCase()) || Object.keys(obj)[0];
         return Array.isArray(obj[key]) ? obj[key] : [];
       } catch { return []; }
@@ -362,6 +374,7 @@ GENEL KURALLAR:
     }
   }
 
+    // Yeni sütun tespiti
   function detectUnknownColumns(parsed, headers, tabs) {
     const unknown = {};
     tabs.forEach(tab => {
@@ -383,9 +396,11 @@ GENEL KURALLAR:
     return unknown;
   }
 
+  // Diff hesaplama
   function computeDiff(current, parsed, tabs) {
     const diff = {};
     tabs.forEach(tab => {
+      // getCurrentData artık { totalRows, sample } döndürüyor
       const before = current[tab]?.totalRows ?? (Array.isArray(current[tab]) ? current[tab].length : 0);
       const after  = (parsed[tab] || []).length;
       diff[tab] = { before, after, delta: after - before };
@@ -398,14 +413,17 @@ GENEL KURALLAR:
     setStep(STEPS.SAVING); setSaveError(null);
 
     try {
+      // Backup
       setProgressMsg("📦 Backup oluşturuluyor...");
       const bkp = await callAppsScript("backupSheet", { brand: selectedBrand });
       if (!bkp.success) throw new Error("Backup hatası: " + bkp.msg);
       setBackupInfo(bkp);
 
+      // Bilinmeyen sütunları kararına göre işle
       const finalData = applyUnknownColDecisions(parsedData, unknownColDecisions, sheetHeaders);
       const finalColumns = buildFinalColumns(sheetHeaders, unknownColDecisions);
 
+      // Draft yaz
       setProgressMsg("✏️ Taslak sekmeler yazılıyor...");
       const write = await callAppsScript("writeDraftData", {
         brand: selectedBrand,
@@ -428,9 +446,12 @@ GENEL KURALLAR:
       const tabDecisions = decisions[tab] || {};
       result[tab] = rows.map(row => {
         const newRow = {};
+        // Bilinen sütunlar
         (headers[tab] || []).forEach(col => { newRow[col] = row[col] ?? ""; });
+        // Bilinmeyen — "ekle" kararı verilenleri dahil et
         Object.keys(tabDecisions).forEach(col => {
           if (tabDecisions[col] === "add") newRow[col] = row[col] ?? "";
+          // "ignore" ise zaten dahil edilmez
         });
         return newRow;
       });
@@ -525,6 +546,7 @@ GENEL KURALLAR:
         } catch { brand = null; }
       }
     } else {
+      // Metin modu — dosya adı yok, direkt metin içeriğinden Gemini ile tespit et
       if (!promoText.trim()) { setPromoLoading(false); return; }
       try {
         brand = await detectBrandFromText(promoText);
@@ -537,6 +559,7 @@ GENEL KURALLAR:
     setStep(STEPS.PROMO_CONFIRM);
   }
 
+  // Metinden okul tespiti (PDF'siz)
   async function detectBrandFromText(text) {
     const brandList = knownBrands.join(", ");
     const prompt = `Aşağıdaki metin bir dil okulunun promosyon/indirim açıklamasıdır. Hangi okula ait olduğunu belirle.
@@ -560,9 +583,7 @@ ${text}`;
     return json.brand === "unknown" ? null : json.brand;
   }
 
-
-
-async function startPromoParsing() {
+  async function startPromoParsing() {
     if (!promoBrand) { setPromoError("Lütfen okul seçin."); return; }
     setStep(STEPS.PROMO_PARSING); setPromoError(null);
 
@@ -573,26 +594,11 @@ async function startPromoParsing() {
         setSheetUrls(prev => ({ ...prev, [promoBrand]: headersResult.sheetUrl }));
       }
 
-      setPromoProgress(10); setPromoProgressMsg("💳 Referans ücret listesi alınıyor...");
-      const currentDataRes = await callAppsScriptRaw("getCurrentData", { brand: promoBrand });
-      let feeNamesStr = "Course Materials, Enrolment Fee, Accommodation Placement Fee";
-      if (currentDataRes.success && currentDataRes.data && currentDataRes.data.fees) {
-        const feesData = Array.isArray(currentDataRes.data.fees) 
-          ? currentDataRes.data.fees 
-          : (currentDataRes.data.fees.sample || []);
-        
-        const uniqueFees = [...new Set(feesData.map(f => f.fee_name).filter(Boolean))];
-        if (uniqueFees.length > 0) {
-          feeNamesStr = uniqueFees.join(", ");
-        }
-      }
-
       setPromoProgress(15); setPromoProgressMsg(promoInputMode === "pdf" ? "📄 PDF hazırlanıyor..." : "📝 Metin hazırlanıyor...");
 
       const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
-      
-   const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
-Dökümandaki TÜM indirimleri (eğitim, konaklama ve ücret muafiyetleri) çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
+      const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
+Tüm kampanya ve indirim bilgilerini çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
 
 Format:
 [
@@ -607,72 +613,67 @@ SÜTUN AÇIKLAMALARI:
 
 [Ortak sütunlar - her satırda doldur]
 - school: ${promoBrand}
-- city: Dökümanda (özellikle kapakta veya sayfalarda) geçen tüm spesifik şehirleri virgülle ayırarak yaz (örn: "London Greenwich, Oxford, Brighton, Edinburgh"). "UK" gibi genel ülke/bölge isimleri YAZMA.
+- city: ilgili şehir. Birden fazla şehir varsa virgülle yaz (örn: "Brighton, Cambridge, Eastbourne"). "UK" veya "all" gibi genel bölge ifadesi YAZMA — spesifik şehirleri tara.
 - country: ilgili ülke ("all" = tüm ülkeler)
 - campaign_id: belgede varsa kodu kullan, yoksa kısa bir kod üret (örn: PROMO_UK_25)
 - campaign_name: kampanyanın açıklayıcı adı
-- reg_date_start / reg_date_end: kayıt/rezervasyon tarihi aralığı YYYY-MM-DD
-- arrival_start / arrival_end: geliş/kurs başlangıç tarihi aralığı YYYY-MM-DD
-- min_weeks / max_weeks: kaç haftalık rezervasyon için geçerli (boş = kısıt yok)
-- min_age / max_age: yaş kısıtı varsa (boş = kısıt yok)
-- channel: "all", "agent", "direct", "online" (belirtilmemişse "all")
-- notes: özel koşullar, istisnalar, ek açıklamalar
+- reg_date_start / reg_date_end: kayıt/rezervasyon son tarihi YYYY-MM-DD. PDF'te yoksa BOŞ bırak.
+- arrival_start / arrival_end: geliş/kurs başlangıç tarihi aralığı YYYY-MM-DD. PDF'te yoksa BOŞ bırak.
+- min_weeks / max_weeks: hafta kısıtı varsa yaz, yoksa BOŞ bırak.
+- min_age / max_age: yaş kısıtı varsa yaz, yoksa BOŞ bırak.
+- channel: "all", "agent", "direct", "online" — belirtilmemişse "all"
+- notes: özel koşullar, istisnalar, kombinasyon kısıtları
 
 [Sadece percentage satırları için]
 - applies_to: "tuition" / "accommodation" / "fee"
-- target_name: applies_to="fee" ise hangi fee (örn: "Materials Fee", "Accommodation Placement Fee"). Diğerlerinde boş.
-- discount_value: indirim miktarı (sayı). Yüzde için 25, sabit tutar için 80 gibi.
-- value_type: "percentage" / "fixed" / "free" (tamamen bedava ise)
-- eligible_courses: hangi kurslar için geçerli (boş = hepsi)
-- excluded_courses: hariç tutulan kurslar
-- group_size: grup indirimi ise minimum kişi sayısı (boş = kısıt yok)
+- target_name: applies_to="fee" ise hangi fee olduğunu yaz (örn: "Materials Fee", "Accommodation Placement Fee", "Registration Fee", "Activities"). Diğerlerinde BOŞ bırak.
+- discount_value: indirim miktarı (sadece sayı, para sembolü olmadan). Yüzde için: 25. Sabit tutar için: 70. Bedava ama tasarruf tutarı belirtilmişse o tutarı yaz (örn: "save up to £70" → 70). Tutar hiç yoksa BOŞ bırak.
+- value_type: "percentage" / "fixed" / "free"
+  * "25% off" → "percentage"
+  * "£50 off" → "fixed"  
+  * "No [fee]" / "[fee] waived" / "Free [hizmet]" / "save up to £X" → "free"
+- eligible_courses: sadece belirli kurslar için geçerliyse yaz. "all courses" veya genel ifade varsa KESİNLİKLE BOŞ bırak.
+- excluded_courses: hariç tutulan kurslar varsa yaz, yoksa BOŞ bırak.
+- group_size: grup indirimi ise minimum kişi sayısı, yoksa BOŞ bırak.
 
 [Sadece fixed_package satırları için]
 - course_name: paket kurs adı
-- weeks: kaç haftalık paket
-- package_price: toplam paket fiyatı (sayı)
-- currency: GBP / EUR / USD / CAD
-- includes: pakete dahil olanlar (konaklama, aktivite vb.)
-- excludes: pakete dahil olmayanlar
+- weeks: kaç haftalık paket (sayı)
+- package_price: toplam paket fiyatı (sayı, para sembolü ve binlik ayırıcı olmadan)
+- currency: GBP / EUR / USD / CAD / CHF
+- package_type: "with_accommodation" (konaklama dahil paket) / "no_accommodation" (konaklama hariç paket)
+- includes: pakete dahil olanlar (örn: visa fee, insurance, airport transfer, accommodation)
+- excludes: pakete dahil olmayanlar (konaklama hariçse "accommodation" yaz)
 
-ÖNEMLİ VE ÖZEL VERİ KURALLARI:
+FIXED_PACKAGE ÖZEL KURALLARI:
+A. MATRİS DÜZLEŞTİRME: Paket fiyat tablosunda satırlar=haftalar, sütunlar=kurs tipleri ise her hücre için AYRI fixed_package satırı aç. Örn: 7 hafta × 3 kurs = 21 satır.
+B. KONAKLAMA DAHİL/HARİÇ:
+   - Döküman "with accommodation" / "residential accommodation included" diyorsa → package_type="with_accommodation", includes alanına "accommodation" yaz, excludes boş.
+   - Döküman "no accommodation" / "does not include accommodation" diyorsa → package_type="no_accommodation", excludes alanına "accommodation" yaz.
+C. KONAKLAMA FİYAT TABLOSUNU YOK SAY: Paket dökümanında ayrıca bir konaklama fiyat listesi (Student Residence, Student Apartment, oda tipleri, haftalık konaklama ücretleri) varsa BUNU PARSE ETME. Konaklama fiyatları ayrı yönetiliyor. Sadece paket (package) fiyatlarını al.
 
-1. Akıllı İsim Normalizasyonu (Kritik): Ücret indirimlerinde (applies_to="fee") 'target_name' için şu referans listesindeki ücretleri kullan: [${feeNamesStr}].
-   - Kısmi Eşleşme: PDF'te "No Placement", "Registration waived", "No materials" geçiyorsa, listedeki "Placement", "Registration", "Enrolment" veya "Material" geçen EN BENZER tam adı yaz. 
-   - Listede mantıklı eşleşme yoksa "Other Fee" YAZMA, KESİNLİKLE PDF'teki orijinal adı yaz.
+KRİTİK KURALLAR:
 
-2. Konaklama ve Ücret (Fee) Ayrımı (KRİTİK): 
-   - Metinde "Accommodation Placement Fee" veya benzeri bir "ücret/fee" kastediliyorsa 'applies_to' KESİNLİKLE "fee" olmalıdır.
-   - Metinde doğrudan konaklama fiyatının kendisine (residential, homestay) indirim yapılıyorsa 'applies_to' KESİNLİKLE "accommodation" olmalıdır.
+1. SATIR AYIRMA — Her ayrı indirim/muafiyet/hizmet için AYRI satır aç:
+   - "UK %25 tuition + placement fee bedava" → 2 satır (biri tuition, biri fee)
+   - "UK %25 + USA %30" → 2 satır (city/country farklı)
+   - "Brighton %20 + London %30" → 2 satır
 
-3. Ücretsiz/Bedava Mantığı (Kritik): "No [fee adı]", "Free [fee adı]", "[fee adı] waived" veya "Free activities" gibi tamamen ücretsiz/bedava durumlarda KESİNLİKLE ayrı bir satır aç:
-   - 'value_type' = "free"
-   - 'discount_value' = PDF'te belirtilen tasarruf tutarı varsa sadece rakamı yaz (örn: "save up to £70" veya "save £70" → 70). Tutar yoksa BOŞ ("") bırak.
-   - 'applies_to' = "fee"
-   - 'target_name' = [ilgili fee adı veya "Activities"] (Normalizasyon kuralına uygun)
-   - 'discount_type' = "percentage"
+2. BEDAVA/ÜCRETSİZ — "No [fee]", "[fee] waived", "Free [hizmet]" durumunda:
+   - discount_type = "percentage"
+   - applies_to = "fee"
+   - target_name = ilgili fee adı (örn: "Accommodation Placement Fee", "Materials Fee")
+   - value_type = "free"
+   - discount_value = PDF'te tasarruf tutarı belirtilmişse o sayıyı yaz (örn: "save up to £70" → 70), belirtilmemişse BOŞ bırak
+   YANLIŞ: discount_value=100 yazma. DOĞRU: value_type="free" yaz, discount_value tutarsa sayı, yoksa boş.
 
-4. Sabit ve Yüzde İndirim Mantığı: 
-   - Eğer "£50 off" gibi sabit bir tutar indirimi varsa 'value_type'="fixed", 'discount_value' alanına rakamı (örn: 50) yaz. 
-   - Yüzde indirimiyse 'value_type'="percentage", 'discount_value' alanına rakamı (örn: 25) yaz.
-   - Not: "save £X" veya "save up to £X" ifadeleri indirim türüne (free veya fixed) göre 'discount_value' alanına X rakamını koymanı gerektirir.
+3. KURS KAPSAMI — "all courses", "all durations", genel ifadeler varsa eligible_courses KESİNLİKLE BOŞ bırak. Sadece özel kurslar listesi varsa yaz.
 
-5. Tarih Mantığı: Başlangıç/bitiş tarihi net belirtilmemişse KESİNLİKLE BOŞ ("") BIRAK. Teklif portalı bunu 'Süresiz' olarak işler.
+4. ŞEHİR TESPITI — PDF'teki tüm lokasyonları tara (kapak, metin, tablo). Spesifik şehir isimlerini bul.
 
-6. Kapsam Kuralı (eligible/excluded): "all courses" gibi genel ifadeler varsa 'eligible_courses' alanını KESİNLİKLE BOŞ ("") BIRAK. Sadece hariç tutulanlar varsa 'excluded_courses' sütununa yaz.
+5. SAYI TEMİZLİĞİ — discount_value ve package_price alanlarına sadece sayı yaz: £70 → 70, $1,500 → 1500
 
-7. Paket Fiyat Tabloları (Matrix Düzleştirme): Eğer PDF'te satırlarda haftalar, sütunlarda kurs tipleri olan bir matris tablo varsa, BU TABLOYU DÜZLEŞTİR. Her hücre için AYRI bir "fixed_package" satırı oluştur.
-
-8. Rakam Temizliği: package_price/discount_value alanlarından para birimi sembollerini ($/£/€) ve binlik ayırıcıları temizle, sadece ondalıklı sayı olarak yaz (örn: 5028.20).
-
-9. Satır Ayırma Mantığı: Her ayrı indirim/muafiyet ve her şehir grubu için AYRI satır aç.
-   - Örn: UK %25 tuition + UK placement fee bedava → 2 ayrı satır
-
-10. Metin Madenciliği (Text-to-JSON): Eğer PDF içerisinde net bir tablo yoksa, pazarlama metnini baştan sona tara. İndirim oranlarını (X% off), ücretsiz ücretleri ve geçerli olduğu şehirleri bulup JSON formatına doldur.
-
-11. Çoklu Şehirler: PDF'te geçerli olan birden fazla lokasyon varsa (örn: Brighton, Cambridge, Eastbourne), bu şehirlerin tamamını bulup 'city' sütununa aralarında virgül bırakarak yaz.
-
-12. Backtick veya markdown kullanma, sadece düz JSON array.`;
+6. Backtick veya markdown kullanma, sadece düz JSON array döndür.`;
 
       let contentParts;
       if (promoInputMode === "pdf") {
@@ -689,22 +690,27 @@ SÜTUN AÇIKLAMALARI:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: contentParts }],
-          // Token limitini burada artırıyoruz:
-          generationConfig: { temperature: 0.1, maxOutputTokens: 32768 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 16000 }
         })
       });
 
       const data = await res.json();
+      console.log("=== GEMINI RAW RESPONSE ===", JSON.stringify(data).slice(0, 2000));
       if (data.error) throw new Error("Gemini hatası: " + data.error.message);
 
       let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      console.log("=== GEMINI TEXT ===", text.slice(0, 1000));
+      console.log("=== FINISH REASON ===", data.candidates?.[0]?.finishReason);
       text = text.replace(/```json|```/g, "").trim();
 
       let parsed = [];
       try {
         parsed = JSON.parse(text);
         if (!Array.isArray(parsed)) parsed = [];
-      } catch { parsed = []; }
+      } catch (e) {
+        console.log("=== JSON PARSE HATASI ===", e.message, "| TEXT:", text.slice(0, 500));
+        parsed = [];
+      }
 
       setPromoData(parsed);
       setPromoProgress(100); setPromoProgressMsg("✅ Tamamlandı!");
@@ -716,8 +722,6 @@ SÜTUN AÇIKLAMALARI:
       setStep(STEPS.PROMO_CONFIRM);
     }
   }
-  
-  
 
   async function savePromoData() {
     setStep(STEPS.SAVING);
@@ -732,20 +736,6 @@ SÜTUN AÇIKLAMALARI:
     } catch (err) {
       setPromoError(err.message);
       setStep(STEPS.PROMO_REVIEW);
-    }
-  }
-
-  async function commitPromoToMaster() {
-    setCommitLoading(true);
-    try {
-      const res = await callAppsScript("commitPromoDraft", { brand: promoBrand });
-      if (!res.success) throw new Error(res.msg);
-      alert("✅ Kampanyalar başarıyla discounts sekmesine aktarıldı ve Master Index güncellendi!");
-      resetAll();
-    } catch (err) {
-      setPromoError("Yükleme hatası: " + err.message);
-    } finally {
-      setCommitLoading(false);
     }
   }
 
@@ -791,35 +781,6 @@ SÜTUN AÇIKLAMALARI:
             <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Kampanya ve indirim dökümanını parse ederek discounts sekmesine kampanya kodları ve geçerlilik sürelerini ekle</p>
           </button>
         </div>
-
-        {/* --- DEVAM EDEN KAMPANYALAR BÖLÜMÜ --- */}
-        {!schoolsLoading && activeCampaigns.length > 0 && (
-          <div style={{...S.sectionCard, marginTop: 32, animation:"fadeUp 0.6s ease-out"}}>
-            <h3 style={S.sectionTitle}>📅 Devam Eden Kampanyalar</h3>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%", borderCollapse:"collapse", fontSize:13, textAlign:"left"}}>
-                <thead>
-                  <tr style={{borderBottom:"2px solid #e2e8f0", color:"#64748b"}}>
-                    <th style={{padding:"12px 8px"}}>Okul</th>
-                    <th style={{padding:"12px 8px"}}>Kayıt Başlangıç</th>
-                    <th style={{padding:"12px 8px"}}>Kayıt Bitiş</th>
-                    <th style={{padding:"12px 8px"}}>Son Güncelleme</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeCampaigns.map((camp, idx) => (
-                    <tr key={idx} style={{borderBottom:"1px solid #f1f5f9"}}>
-                      <td style={{padding:"12px 8px", fontWeight:600, color:"#0f172a"}}>{camp.school}</td>
-                      <td style={{padding:"12px 8px", color:"#475569"}}>{camp.reg_date_start || "Süresiz"}</td>
-                      <td style={{padding:"12px 8px", color:"#ea580c", fontWeight:600}}>{camp.reg_date_end || "Belirtilmemiş"}</td>
-                      <td style={{padding:"12px 8px", color:"#94a3b8", fontSize:11}}>{camp.last_updated}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </main>
       <Style/>
     </div>
@@ -1329,23 +1290,17 @@ SÜTUN AÇIKLAMALARI:
           <p style={S.cardSub}>
             <strong>{promoData.length}</strong> kampanya <strong>{promoBrand}</strong> discounts_draft sekmesine yazıldı.
           </p>
-          
-          <div style={{padding:"12px 16px",background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:10,fontSize:13,color:"#9a3412",marginTop:16,marginBottom:24,lineHeight:1.6,textAlign:"left"}}>
-            ⚠️ <strong>Manuel Kontrol:</strong> Lütfen Apps Script üzerinden taslakları inceleyin. "Okul Dosyasına Yükle" butonuna bastığınızda bu veriler ana discounts sekmesine taşınacak ve Master Index kayıt tarihi güncellenecektir.
-          </div>
-
-         <a href={sheetUrls[promoBrand] || "https://docs.google.com/spreadsheets/d/1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8/edit"} 
-            target="_blank" rel="noreferrer"
-            style={{...S.linkBtn, display:"block", textAlign:"center", marginBottom:24, textDecoration:"none"}}>
-            📊 {sheetUrls[promoBrand] ? `${promoBrand} Taslaklarını İncele` : "Google Sheets'te İncele"}
+          <p style={{fontSize:13,color:"#64748b",marginTop:8,lineHeight:1.6}}>
+            Sheet'i açarak kontrol edebilirsiniz. Onaylamak için discounts_draft sekmesini manuel olarak discounts ile değiştirin.
+          </p>
+          <a href={sheetUrls[promoBrand]} target="_blank" rel="noreferrer"
+            style={{...S.linkBtn, display:"block", textAlign:"center", marginTop:16, textDecoration:"none"}}>
+            📊 {promoBrand} Sheet'ini Aç
           </a>
-
-          {promoError && <div style={S.errorBox}>{promoError}</div>}
-
           <div style={{display:"flex",gap:12,marginTop:16}}>
-            <button onClick={resetAll} style={S.secondaryBtn}>İptal / Menü</button>
-            <button onClick={commitPromoToMaster} disabled={commitLoading} style={{...S.primaryBtn,flex:1, background:"#059669", opacity:commitLoading?0.5:1}}>
-              {commitLoading ? "Yükleniyor..." : "🚀 Okul Dosyasına Yükle"}
+            <button onClick={resetAll} style={S.secondaryBtn}>Ana Menü</button>
+            <button onClick={() => navigate("/fiyat-teklifi")} style={{...S.primaryBtn,flex:1}}>
+              Fiyat Teklifi'ne Git →
             </button>
           </div>
         </div>
@@ -1354,7 +1309,6 @@ SÜTUN AÇIKLAMALARI:
     </div>
   );
 
-  // Buradaki return null kısmı önemli, Ana component'in (KatalogParse) bitişidir.
   return null;
 }
 
