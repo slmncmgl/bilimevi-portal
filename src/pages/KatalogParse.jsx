@@ -54,7 +54,7 @@ const DISCOUNT_COLUMNS = [
   // Fixed package satırları için
   "course_name", "weeks", "package_price", "currency",
   "package_type",
-  "includes", "excludes",
+  "includes_eng", "includes_tr", "excludes",
   // Ortak
   "notes",
 ];
@@ -84,8 +84,6 @@ export default function KatalogParse() {
   const [promoError, setPromoError]       = useState(null);
   const [promoProgress, setPromoProgress] = useState(0);
   const [promoProgressMsg, setPromoProgressMsg] = useState("");
-  const [commitLoading, setCommitLoading]   = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
 
   // PDF
   const [selectedFile, setSelectedFile]   = useState(null);
@@ -596,21 +594,10 @@ ${text}`;
         setSheetUrls(prev => ({ ...prev, [promoBrand]: headersResult.sheetUrl }));
       }
 
-      // Kurs adı normalizasyonu için tüm course_name'leri çek
-      setPromoProgress(10); setPromoProgressMsg("📚 Kurs listesi alınıyor...");
-      let courseNamesStr = "";
-      try {
-        const courseRes = await callAppsScriptRaw("getCourseNames", { brand: promoBrand });
-        if (courseRes.success && courseRes.courseNames?.length > 0) {
-          courseNamesStr = courseRes.courseNames.join(", ");
-        }
-      } catch { courseNamesStr = ""; }
-      
       setPromoProgress(15); setPromoProgressMsg(promoInputMode === "pdf" ? "📄 PDF hazırlanıyor..." : "📝 Metin hazırlanıyor...");
 
       const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
       const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
-      
 Tüm kampanya ve indirim bilgilerini çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
 
 Format:
@@ -650,13 +637,14 @@ SÜTUN AÇIKLAMALARI:
 - group_size: grup indirimi ise minimum kişi sayısı, yoksa BOŞ bırak.
 
 [Sadece fixed_package satırları için]
-- course_name: paket kurs adı. ${courseNamesStr ? `KESİNLİKLE şu referans listesindeki adlardan birine eşle: [${courseNamesStr}]. PDF'teki pazarlama adlarını (örn: "Morning packages (GE 20AM)", "Afternoon packages (GE 20PM)", "Intensive packages (GE 30)") bu listedeki gerçek kurs adına dönüştür. Örn: "Morning packages (GE 20AM)" → "General English 20 - Morning". Listede mantıklı eşleşme yoksa PDF'teki adı yaz.` : ""}
+- course_name: paket kurs adı
 - weeks: kaç haftalık paket (sayı)
 - package_price: toplam paket fiyatı (sayı, para sembolü ve binlik ayırıcı olmadan)
 - currency: GBP / EUR / USD / CAD / CHF
 - package_type: "with_accommodation" (konaklama dahil paket) / "no_accommodation" (konaklama hariç paket)
-- includes: pakete dahil olanlar (örn: visa fee, insurance, airport transfer, accommodation)
-- excludes: pakete dahil olmayanlar (konaklama hariçse "accommodation" yaz)
+- includes_eng: pakete dahil olanlar, ORİJİNAL İNGİLİZCE (örn: "180 day visa fee, insurance, airport transfer, 4 weeks accommodation, course materials")
+- includes_tr: includes_eng içeriğinin doğal TÜRKÇE çevirisi (örn: "180 günlük vize ücreti, sigorta, havalimanı transferi, 4 hafta konaklama, ders materyalleri"). Bu çeviri öğrenciye sunulacak fiyat teklifi PDF'inde kullanılacağı için akıcı ve profesyonel olmalı.
+- excludes: pakete dahil olmayanlar (konaklama hariçse "accommodation" yaz). İngilizce kalabilir.
 
 FIXED_PACKAGE ÖZEL KURALLARI:
 A. MATRİS DÜZLEŞTİRME: Paket fiyat tablosunda satırlar=haftalar, sütunlar=kurs tipleri ise her hücre için AYRI fixed_package satırı aç. Örn: 7 hafta × 3 kurs = 21 satır.
@@ -752,22 +740,6 @@ KRİTİK KURALLAR:
     }
   }
 
-
-  async function commitPromoToMaster() {
-    setCommitLoading(true);
-    try {
-      const res = await callAppsScript("commitPromoDraft", { brand: promoBrand });
-      if (!res.success) throw new Error(res.msg);
-      setCommitLoading(false);
-      setSuccessMessage(`✅ ${res.msg || "Kampanyalar discounts sekmesine aktarıldı"} (${promoBrand})`);
-    } catch (err) {
-      setPromoError("Yükleme hatası: " + err.message);
-      setCommitLoading(false);
-    }
-  }
-
-  
-  
   // ─── RENDER ───────────────────────────────────────────────
   if (!user) return null;
 
@@ -1087,10 +1059,9 @@ KRİTİK KURALLAR:
             </p>
           )}
           <div style={{display:"flex",gap:12,marginTop:24}}>
-            <button onClick={resetAll} style={S.secondaryBtn}>İptal / Menü</button>
-            <button onClick={commitPromoToMaster} disabled={commitLoading}
-              style={{...S.primaryBtn, flex:1, background:"#059669", opacity:commitLoading?0.5:1}}>
-              {commitLoading ? "Yükleniyor..." : "✓ Onayla & discounts'a Aktar"}
+            <button onClick={resetAll} style={S.secondaryBtn}>Yeni Parse</button>
+            <button onClick={() => navigate("/fiyat-teklifi")} style={{...S.primaryBtn,flex:1}}>
+              Fiyat Teklifi'ne Git →
             </button>
           </div>
         </div>
@@ -1336,21 +1307,6 @@ KRİTİK KURALLAR:
         </div>
       </main>
       <Style/>
-    </div>
-  );
-
-  // BAŞARI POPUP'I (MODAL)
-  if (successMessage) return (
-    <div style={{position:"fixed", inset:0, background:"rgba(15, 23, 42, 0.6)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999}}>
-      <div style={{background:"#fff", padding:"40px 32px", borderRadius:24, textAlign:"center", maxWidth:420, width:"90%", boxShadow:"0 20px 40px rgba(0,0,0,0.15)", animation:"fadeUp 0.3s ease-out"}}>
-        <div style={{fontSize:64, marginBottom:16}}>🎉</div>
-        <h3 style={{fontSize:20, fontWeight:700, color:"#0f172a", marginBottom:12}}>İşlem Başarılı!</h3>
-        <p style={{fontSize:14, color:"#475569", lineHeight:1.6, marginBottom:32}}>{successMessage}</p>
-        <button onClick={() => { setSuccessMessage(""); resetAll(); }}
-          style={{...S.primaryBtn, background:"#059669", width:"100%"}}>
-          Tamam
-        </button>
-      </div>
     </div>
   );
 
