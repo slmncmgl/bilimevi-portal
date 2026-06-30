@@ -119,11 +119,12 @@ async function fetchCityData(sheetId, city) {
   if (!window._CITY_CACHE) window._CITY_CACHE = {};
   if (window._CITY_CACHE[key]) return window._CITY_CACHE[key];
   try {
-    const [courseRows, accRows, feeRows, transferRows] = await Promise.all([
+    const [courseRows, accRows, feeRows, transferRows, discountRows] = await Promise.all([
       fetchCSV(sheetId, "courses"),
       fetchCSV(sheetId, "accommodation"),
       fetchCSV(sheetId, "fees"),
       fetchCSV(sheetId, "transfers").catch(() => []),
+      fetchCSV(sheetId, "discounts").catch(() => []),
     ]);
     const courseMap = {};
     courseRows.filter(r => r.city === city).forEach(r => {
@@ -161,12 +162,31 @@ async function fetchCityData(sheetId, city) {
       one_way: parseFloat(r.price_one_way) || 0, two_way: parseFloat(r.price_two_way) || 0,
       currency: r.currency, notes: r.notes || "",
     }));
-    const result = { courses: Object.values(courseMap), acc, fees, transfers };
+    const cityCountry = (courseRows.find(r => r.city === city)?.country) || "";
+    const discounts = (discountRows || []).filter(r => {
+      const cityMatch = r.city === city || !r.city || r.city === "all";
+      if (!cityMatch) return false;
+      if (r.city === "all" && r.country && r.country !== "all" && cityCountry && r.country !== cityCountry) return false;
+      return true;
+    }).map(r => ({
+      discount_type: (r.discount_type || "").trim(),
+      city: r.city || "", country: r.country || "",
+      reg_date_start: r.reg_date_start || "", reg_date_end: r.reg_date_end || "",
+      arrival_start: r.arrival_start || "", arrival_end: r.arrival_end || "",
+      min_weeks: r.min_weeks ? parseInt(r.min_weeks) : null, max_weeks: r.max_weeks ? parseInt(r.max_weeks) : null,
+      notes: r.notes || "", course_name: r.course_name || "", weeks: r.weeks ? parseInt(r.weeks) : null,
+      package_price: parseFloat(r.package_price) || 0, currency: r.currency || "",
+      includes: r.includes || "", excludes: r.excludes || "",
+      applies_to: (r.applies_to || "").trim(), target_name: r.target_name || "",
+      discount_value: parseFloat(r.discount_value) || 0, value_type: (r.value_type || "").trim(),
+      eligible_courses: r.eligible_courses || "", excluded_courses: r.excluded_courses || "",
+    }));
+    const result = { courses: Object.values(courseMap), acc, fees, transfers, discounts };
     window._CITY_CACHE[key] = result;
     return result;
   } catch (e) {
     console.error("fetchCityData error:", e);
-    return { courses: [], acc: [], fees: [] };
+    return { courses: [], acc: [], fees: [], transfers: [], discounts: [] };
   }
 }
 
@@ -242,6 +262,72 @@ function calcFees(fees, weeks, age, accType) {
     }
   }
   return { items, total, currency };
+}
+
+// ─── İNDİRİM FONKSİYONLARI ───
+function inDateRange(dateStr, startStr, endStr) {
+  if (!startStr && !endStr) return true; if (!dateStr) return true;
+  const d = new Date(dateStr);
+  if (startStr && d < new Date(startStr)) return false;
+  if (endStr && d > new Date(endStr)) return false;
+  return true;
+}
+function courseInList(courseName, listStr) {
+  if (!listStr) return false;
+  return listStr.split(",").map(s => s.trim()).includes(courseName);
+}
+function findFixedPackage(discounts, course, weeks, startDate) {
+  if (!discounts?.length || !course) return null;
+  const today = new Date().toISOString().split("T")[0];
+  return discounts.find(d => d.discount_type === "fixed_package" && d.course_name === course.name && d.weeks === weeks
+    && inDateRange(today, d.reg_date_start, d.reg_date_end) && inDateRange(startDate, d.arrival_start, d.arrival_end)) || null;
+}
+function computeDiscounts(discounts, course, weeks, startDate, targets) {
+  if (!discounts?.length) return [];
+  const today = new Date().toISOString().split("T")[0];
+  const result = [];
+  discounts.forEach(d => {
+    if (d.discount_type !== "percentage") return;
+    if (!inDateRange(today, d.reg_date_start, d.reg_date_end)) return;
+    if (!inDateRange(startDate, d.arrival_start, d.arrival_end)) return;
+    if (d.min_weeks && weeks < d.min_weeks) return;
+    if (d.max_weeks && weeks > d.max_weeks) return;
+    if (d.eligible_courses && !courseInList(course?.name, d.eligible_courses)) return;
+    if (d.excluded_courses && courseInList(course?.name, d.excluded_courses)) return;
+    let base = 0, label = "";
+    if (d.applies_to === "tuition") { base = targets.tuition || 0; label = "Kurs İndirimi"; }
+    else if (d.applies_to === "accommodation") { base = targets.accommodation || 0; label = "Konaklama İndirimi"; }
+    else if (d.applies_to === "fee") { const fee = (targets.fees || []).find(f => f.name === d.target_name); if (!fee) return; base = fee.amount; label = d.target_name + " İndirimi"; }
+    else return;
+    if (base <= 0) return;
+    let amount = 0;
+    if (d.value_type === "free") amount = base;
+    else if (d.value_type === "percentage") amount = base * (d.discount_value / 100);
+    else if (d.value_type === "fixed") amount = Math.min(d.discount_value, base);
+    else return;
+    if (amount <= 0) return;
+    result.push({ label, applies_to: d.applies_to, target_name: d.target_name || "", value_type: d.value_type, value: d.discount_value, amount });
+  });
+  return result;
+}
+// Bir destinasyon icin indirimleri + nihai toplami hesaplar (tek kaynak)
+function getDestinationTotals(d, fees) {
+  const courseTotal = d.courseTotalPrice || 0;
+  const accTotal = d.accTotalPrice || 0;
+  const feesTotal = fees?.total || 0;
+  const addonsCost = (d.addons || []).reduce((s, a) => s + (a.totalAmount || 0), 0);
+  const transferCost = d.transfer?.one_way || 0;
+  const fixedPackage = d.isOnline ? null : findFixedPackage(d.cityData?.discounts, d.course, d.weeks, d.startDate);
+  if (fixedPackage) {
+    return { isPackage: true, packageName: fixedPackage.notes || "Sabit Paket", packagePrice: fixedPackage.package_price,
+      appliedDiscounts: [], discountsTotal: 0,
+      grandTotal: fixedPackage.package_price + accTotal + addonsCost + transferCost };
+  }
+  const targets = { tuition: courseTotal, accommodation: accTotal, fees: fees?.items || [] };
+  const appliedDiscounts = d.isOnline ? [] : computeDiscounts(d.cityData?.discounts, d.course, d.weeks, d.startDate, targets);
+  const discountsTotal = appliedDiscounts.reduce((s, x) => s + x.amount, 0);
+  return { isPackage: false, appliedDiscounts, discountsTotal,
+    grandTotal: courseTotal + accTotal + feesTotal + addonsCost + transferCost - discountsTotal };
 }
 
 const fmt = (n, cur) => `${cur || ""} ${Number(n || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`;
@@ -633,13 +719,28 @@ export default function FiyatTeklifi() {
           y += 5;
         }
 
+        // İndirimler — açık yeşil ton (HS satır mantığıyla uyumlu)
+        const _dt = getDestinationTotals(d, f);
+        if (!_dt.isPackage && _dt.appliedDiscounts.length > 0) {
+          _dt.appliedDiscounts.forEach((disc, i) => {
+            checkPage();
+            doc.setFontSize(9); doc.setTextColor(22, 163, 74);
+            if (i === 0) doc.text("İndirimler", MARGIN, y);
+            const dLabel = `${disc.label} (${disc.value_type === "percentage" ? "%" + disc.value : disc.value_type === "free" ? "Ücretsiz" : disc.value + " Sabit"})`;
+            doc.text(dLabel, MARGIN + 32, y);
+            doc.text(`-${money(disc.amount)}`, PAGE_W - MARGIN, y, { align:"right" });
+            y += 5;
+          });
+          doc.setTextColor(17);
+        }
+
         // Toplam
         checkPage();
         y += 2;
         doc.setDrawColor(17); doc.setLineWidth(0.8);
         doc.line(MARGIN, y, PAGE_W - MARGIN, y);
         y += 6;
-        const grandTotal = d.courseTotalPrice + d.accTotalPrice + f.total + (d.addons?.reduce((s,a)=>s+a.totalAmount,0)||0) + (d.transfer?.one_way||0);
+        const grandTotal = _dt.grandTotal;
         // Toplam tutar — siyah
         doc.setTextColor(17, 17, 17);
         const labelTxt = `TOPLAM TUTAR ${cur}`;
@@ -687,10 +788,12 @@ export default function FiyatTeklifi() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...leadForm,
-            destinations: destinations.map(d => ({
-              city: d.city, brand: d.brand, weeks: d.weeks,
-              course: d.course?.name, total: d.total, currency: d.currency,
-            })),
+            destinations: destinations.map(d => {
+              const _f = d.isOnline ? { items:[], total:65 } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+              const _dt = getDestinationTotals(d, _f);
+              return { city: d.city, brand: d.brand, weeks: d.weeks,
+                course: d.course?.name, total: _dt.grandTotal, currency: d.course?.currency || _f.currency || "GBP" };
+            }),
             timestamp: new Date().toISOString(),
           }),
         });
@@ -1009,7 +1112,15 @@ export default function FiyatTeklifi() {
                     <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}><span style={{ color:"#64748b" }}>Kayıt + Materyal</span><span style={{ fontWeight:600 }}>{fmt(f.total, cur2)}</span></div>
                     {(d.addons||[]).map((a,ai) => (<div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>{a.name}</span><span>{fmt(a.totalAmount, cur2)}</span></div>))}
                     {d.transfer && (<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport})</span><span>{fmt(d.transfer.one_way, d.transfer.currency)}</span></div>)}
-                    <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}><span>Toplam</span><span style={{ color:CYAN }}>{fmt(d.courseTotalPrice + d.accTotalPrice + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0), cur2)}</span></div>
+                    {(() => { const _dt = getDestinationTotals(d, f); return (<>
+                    {!_dt.isPackage && _dt.appliedDiscounts.map((disc, di) => (
+                      <div key={di} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#16a34a", fontWeight:500 }}>
+                        <span>{disc.label} ({disc.value_type === "percentage" ? `%${disc.value}` : disc.value_type === "free" ? "Ücretsiz" : `${disc.value} Sabit`})</span>
+                        <span>- {fmt(disc.amount, cur2)}</span>
+                      </div>
+                    ))}
+                    <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}><span>Toplam</span><span style={{ color:CYAN }}>{fmt(_dt.grandTotal, cur2)}</span></div>
+                    </>); })()}
                     {destNotes.length > 0 && (<div style={{ marginTop:12, padding:"10px 12px", background:"#fef9ec", borderRadius:8, border:"1px solid #fde68a" }}><div style={{ fontSize:11, fontWeight:600, color:"#92400e", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Notlar</div>{destNotes.map((n,ni) => (<div key={ni} style={{ fontSize:12, color:"#78350f", marginBottom:3 }}>— {n}</div>))}</div>)}
                   </div>
                 );
