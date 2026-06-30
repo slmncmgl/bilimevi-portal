@@ -7,7 +7,7 @@ const GEMINI_MODEL   = "gemini-3.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxiXjKXn-xHTvzOhGOnHR3sfsQ-ajKbGy4Dmx2unFGjg3gRHoze2aYZNfcwNK2Uyp8E/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2u8MvmPux34VaT8c1S45LYq8KLY9K6pKyBXYydi03SNAW8tPJgp_lB_tMkWj5zpC3/exec";
 
 // NOT: Okul listesi, sheet URL'leri ve parse edilecek sekmeler artık hardcode değil.
 // Hepsi Apps Script üzerinden MASTER_INDEX > school_registry sekmesinden dinamik çekiliyor.
@@ -596,10 +596,21 @@ ${text}`;
         setSheetUrls(prev => ({ ...prev, [promoBrand]: headersResult.sheetUrl }));
       }
 
+      // Kurs adı normalizasyonu için tüm course_name'leri çek
+      setPromoProgress(10); setPromoProgressMsg("📚 Kurs listesi alınıyor...");
+      let courseNamesStr = "";
+      try {
+        const courseRes = await callAppsScriptRaw("getCourseNames", { brand: promoBrand });
+        if (courseRes.success && courseRes.courseNames?.length > 0) {
+          courseNamesStr = courseRes.courseNames.join(", ");
+        }
+      } catch { courseNamesStr = ""; }
+      
       setPromoProgress(15); setPromoProgressMsg(promoInputMode === "pdf" ? "📄 PDF hazırlanıyor..." : "📝 Metin hazırlanıyor...");
 
       const colList = DISCOUNT_COLUMNS.map(c => `"${c}": ""`).join(", ");
       const prompt = `Bu bir ${promoBrand} dil okulu promosyon/indirim dökümanıdır.
+      
 Tüm kampanya ve indirim bilgilerini çıkar. Sadece JSON array döndür, başka hiçbir şey yazma.
 
 Format:
@@ -639,7 +650,7 @@ SÜTUN AÇIKLAMALARI:
 - group_size: grup indirimi ise minimum kişi sayısı, yoksa BOŞ bırak.
 
 [Sadece fixed_package satırları için]
-- course_name: paket kurs adı
+- course_name: paket kurs adı. ${courseNamesStr ? `KESİNLİKLE şu referans listesindeki adlardan birine eşle: [${courseNamesStr}]. PDF'teki pazarlama adlarını (örn: "Morning packages (GE 20AM)", "Afternoon packages (GE 20PM)", "Intensive packages (GE 30)") bu listedeki gerçek kurs adına dönüştür. Örn: "Morning packages (GE 20AM)" → "General English 20 - Morning". Listede mantıklı eşleşme yoksa PDF'teki adı yaz.` : ""}
 - weeks: kaç haftalık paket (sayı)
 - package_price: toplam paket fiyatı (sayı, para sembolü ve binlik ayırıcı olmadan)
 - currency: GBP / EUR / USD / CAD / CHF
