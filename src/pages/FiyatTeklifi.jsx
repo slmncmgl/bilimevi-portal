@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v25-paket-ekhizmet-atla-2026-07-01";
+const BFT_BUILD_VERSION = "v26-konaklama-transfer-renk-2026-07-01";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -776,7 +776,7 @@ export default function FiyatTeklifi() {
         if (d.transfer) {
           doc.setFontSize(9); doc.setTextColor(17);
           doc.text("Transfer", MARGIN, y);
-          doc.text(`${d.transfer.airport} (${d.transfer.code})`, MARGIN + 32, y);
+          doc.text(`${d.transfer.airport}${d.transfer.code?.trim() ? ` (${d.transfer.code.trim()})` : ""}`, MARGIN + 32, y);
           doc.text(`${d.transfer.currency} ${money(d.transfer.one_way)}`, PAGE_W - MARGIN, y, { align:"right" });
           y += 5;
         }
@@ -1047,7 +1047,7 @@ export default function FiyatTeklifi() {
                         const valid = isCourseValid(c, cur.weeks), sel = !cur.selectedPackage && cur.course?.name === c.name;
                         return (<div key={i} style={sel ? S.selActive : valid ? S.sel : S.selDisabled} onClick={() => valid && setCur(p => ({...p, course:c, selectedPackage:null}))}>
                           <div style={{ fontWeight:600 }}>{c.name}</div>
-                          <div style={{ fontSize:11, color: sel?"inherit":"#64748b", marginTop:3 }}>{c.lessons} ders · {c.hours} saat/hafta</div>
+                          <div style={{ fontSize:11, color: sel?"inherit":"#0d9488", marginTop:3, fontWeight:500 }}>{c.lessons} ders · {c.hours} saat/hafta</div>
                           {c.max_weeks && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>Maks. {c.max_weeks} hafta</div>}
                           {!valid && <div style={{ fontSize:11, color:"#ef4444", marginTop:2 }}>Bu hafta için geçersiz</div>}
                         </div>);
@@ -1072,7 +1072,15 @@ export default function FiyatTeklifi() {
               {accs.length > 0 && (() => {
                 const types = [...new Set(accs.map(a => a.type))];
                 return (<>
-                  <div style={S.g3}>{types.map(t => (<div key={t} style={accType===t ? S.selActive : S.sel} onClick={() => { setAccType(t); setCur(p => ({...p, acc:null, noAccommodation:false})); }}>{t}</div>))}</div>
+                  <div style={S.g3}>
+                    {types.map(t => (<div key={t} style={accType===t ? S.selActive : S.sel} onClick={() => { setAccType(t); setCur(p => ({...p, acc:null, noAccommodation:false})); }}>{t}</div>))}
+                    {/* Konaklama Talep Etmiyorum — tip butonlarinin saginda, gorsel ozellikleri pastel sari */}
+                    <div onClick={() => { setAccType(""); setCur(p => ({...p, acc:null, noAccommodation:true})); }}
+                      style={{ padding:12, borderRadius:12, cursor:"pointer", textAlign:"center", fontWeight:600, fontSize:13,
+                        border:`1.5px solid ${cur.noAccommodation ? "#f59e0b" : "#fde68a"}`, background: cur.noAccommodation ? "#fef3c7" : "#fffbeb", color: cur.noAccommodation ? "#92400e" : "#b45309" }}>
+                      {cur.noAccommodation ? "✓ Konaklama Talep Etmiyorum" : "Konaklama Talep Etmiyorum"}
+                    </div>
+                  </div>
                   {accType && (
                     <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:10 }}>
                       {accs.filter(a => a.type === accType).map((a,i) => {
@@ -1093,12 +1101,6 @@ export default function FiyatTeklifi() {
                       })}
                     </div>
                   )}
-                  {/* Konaklama Talep Etmiyorum — her zaman en altta, pastel sarı */}
-                  <div onClick={() => setCur(p => ({...p, acc:null, noAccommodation:true}))}
-                    style={{ marginTop:16, padding:"14px 16px", borderRadius:12, cursor:"pointer", textAlign:"center", fontWeight:600, fontSize:13,
-                      border:`1.5px solid ${cur.noAccommodation ? "#f59e0b" : "#fde68a"}`, background: cur.noAccommodation ? "#fef3c7" : "#fffbeb", color: cur.noAccommodation ? "#92400e" : "#b45309" }}>
-                    {cur.noAccommodation ? "✓ Konaklama Talep Etmiyorum" : "Konaklama Talep Etmiyorum"}
-                  </div>
                 </>);
               })()}
             </div>
@@ -1166,7 +1168,7 @@ export default function FiyatTeklifi() {
                       const sel = cur.transfer?.airport === t.airport && cur.transfer?.code === t.code;
                       return (<div key={ti} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${sel ? CYAN : "#e2e8f0"}`, background: sel ? "#f0fdff" : "#fff", cursor:"pointer" }} onClick={() => setCur(p => ({ ...p, transfer: sel ? null : t }))}>
                         <div>
-                          <div style={{ fontWeight:600, fontSize:13, color: sel ? CYAN : "#0f172a" }}>{t.airport} ({t.code})</div>
+                          <div style={{ fontWeight:600, fontSize:13, color: sel ? CYAN : "#0f172a" }}>{t.airport}{t.code?.trim() ? ` (${t.code.trim()})` : ""}</div>
                           {t.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{t.notes}</div>}
                         </div>
                         <div style={{ textAlign:"right", flexShrink:0 }}>
@@ -1196,7 +1198,7 @@ export default function FiyatTeklifi() {
                 if (d.course?.morning) destNotes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
                 if (d.course?.notes && !d.courseHsActive) destNotes.push(d.course.notes);
                 if (d.acc?.notes && !d.accHsActive) destNotes.push(d.acc.notes);
-                if (!d.transfer && d.cityData?.transfers?.length > 0) { const t = d.cityData.transfers[0]; destNotes.push(`Transfer: ${t.airport} (${t.code}) — ${cur2} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`); }
+                if (!d.transfer && d.cityData?.transfers?.length > 0) { const t = d.cityData.transfers[0]; destNotes.push(`Transfer: ${t.airport}${t.code?.trim() ? ` (${t.code.trim()})` : ""} — ${cur2} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`); }
                 return (
                   <div key={i} style={S.summaryCard}>
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}><strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong><span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span></div>
@@ -1305,7 +1307,7 @@ function PdfTemplate({ destinations, student, user, logoSrc }) {
         if (d.course?.morning) notes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
         if (d.course?.notes && !d.courseHsActive) notes.push(d.course.notes);
         if (d.acc?.notes && !d.accHsActive) notes.push(d.acc.notes);
-        if (!d.transfer && d.cityData?.transfers?.length > 0) { const t = d.cityData.transfers[0]; notes.push(`Transfer bilgisi: ${t.airport} (${t.code}) — ${cur} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`); }
+        if (!d.transfer && d.cityData?.transfers?.length > 0) { const t = d.cityData.transfers[0]; notes.push(`Transfer bilgisi: ${t.airport}${t.code?.trim() ? ` (${t.code.trim()})` : ""} — ${cur} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`); }
 
         return (
           <div key={idx} className="pdf-block" style={{ width:"210mm", padding:"8mm 18mm 8mm", boxSizing:"border-box", background:"#fff", display:"block", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto" }}>
@@ -1391,7 +1393,7 @@ function PdfTemplate({ destinations, student, user, logoSrc }) {
                 {d.transfer && (
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
                     <td style={{ padding:"2mm 2mm 2mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Transfer</td>
-                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{d.transfer.airport} ({d.transfer.code}){d.transfer.notes ? ` — ${d.transfer.notes}` : ""}</td>
+                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{d.transfer.airport}{d.transfer.code?.trim() ? ` (${d.transfer.code.trim()})` : ""}{d.transfer.notes ? ` — ${d.transfer.notes}` : ""}</td>
                     <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{d.transfer.currency} {Number(d.transfer.one_way).toLocaleString("tr-TR")},00</td>
                   </tr>
                 )}
