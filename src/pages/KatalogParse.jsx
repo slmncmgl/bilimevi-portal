@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 // ─── SABİTLER ────────────────────────────────────────────────
-const GEMINI_MODEL   = "gemini-3.1-pro";
+const GEMINI_MODEL   = "gemini-3.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
