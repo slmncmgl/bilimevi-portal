@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v21-paket-sistemi-2026-06-30";
+const BFT_BUILD_VERSION = "v22-paket-tdz-fix-2026-07-01";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -404,6 +404,16 @@ export default function FiyatTeklifi() {
   const addonsCost = (cur.addons||[]).reduce((s,a) => s+(a.totalAmount||0), 0);
   const transferCost = cur.transfer?.one_way || 0;
   const currentTotal = courseTotal + accTotal + (feesData.total || 0) + addonsCost + transferCost;
+
+  // with_accommodation paketi secildiyse Konaklama adimi cikar (pakete dahil)
+  const skipAccommodation = cur.selectedPackage?.package_type === "with_accommodation" || cur.isOnline;
+  const STEPS = skipAccommodation
+    ? ["Genel Bilgi","Destinasyon","Kurs","Ek Hizmetler","Özet"]
+    : ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"];
+  const stepName = STEPS[step];
+  const lastStepIdx = STEPS.length - 1;          // Özet'in index'i
+  const summaryIdx = STEPS.indexOf("Özet");
+  const addonsIdx = STEPS.indexOf("Ek Hizmetler");
 
   const canNextMap = {
     "Genel Bilgi": !!(student.name && student.gender && student.age),
@@ -845,15 +855,6 @@ export default function FiyatTeklifi() {
   };
 
   const logoSrc = LOGO_URL || (typeof window !== "undefined" && window.__bilimevi_logo__);
-  // with_accommodation paketi secildiyse Konaklama adimi cikar (pakete dahil)
-  const skipAccommodation = cur.selectedPackage?.package_type === "with_accommodation" || cur.isOnline;
-  const STEPS = skipAccommodation
-    ? ["Genel Bilgi","Destinasyon","Kurs","Ek Hizmetler","Özet"]
-    : ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"];
-  const stepName = STEPS[step];
-  const lastStepIdx = STEPS.length - 1;          // Özet'in index'i
-  const summaryIdx = STEPS.indexOf("Özet");
-  const addonsIdx = STEPS.indexOf("Ek Hizmetler");
 
   return (
     <>
