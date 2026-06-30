@@ -164,7 +164,8 @@ async function fetchCityData(sheetId, city) {
     }));
     const cityCountry = (courseRows.find(r => r.city === city)?.country) || "";
     const discounts = (discountRows || []).filter(r => {
-      const cityMatch = r.city === city || !r.city || r.city === "all";
+      const cityList = (r.city || "").split(",").map(s => s.trim());
+      const cityMatch = !r.city || r.city === "all" || cityList.includes(city);
       if (!cityMatch) return false;
       if (r.city === "all" && r.country && r.country !== "all" && cityCountry && r.country !== cityCountry) return false;
       return true;
