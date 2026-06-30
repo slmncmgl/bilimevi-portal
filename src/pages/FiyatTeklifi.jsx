@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v24-includes-tr-2026-07-01";
+const BFT_BUILD_VERSION = "v25-paket-ekhizmet-atla-2026-07-01";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -414,9 +414,13 @@ export default function FiyatTeklifi() {
 
   // with_accommodation paketi secildiyse Konaklama adimi cikar (pakete dahil)
   const skipAccommodation = cur.selectedPackage?.package_type === "with_accommodation" || cur.isOnline;
-  const STEPS = skipAccommodation
-    ? ["Genel Bilgi","Destinasyon","Kurs","Ek Hizmetler","Özet"]
-    : ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"];
+  // Paket transfer iceriyorsa Ek Hizmetler'de gosterilecek bir sey kalmaz (zorunlu/opsiyonel gizli, transfer de gizli) -> adimi atla
+  const skipAddons = !!cur.selectedPackage && packageIncludesTransfer(cur.selectedPackage);
+  const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"].filter(s => {
+    if (s === "Konaklama" && skipAccommodation) return false;
+    if (s === "Ek Hizmetler" && skipAddons) return false;
+    return true;
+  });
   const stepName = STEPS[step];
   const lastStepIdx = STEPS.length - 1;          // Özet'in index'i
   const summaryIdx = STEPS.indexOf("Özet");
@@ -441,7 +445,8 @@ export default function FiyatTeklifi() {
   };
 
   const next = () => {
-    const isLastBeforeSummary = stepName === "Ek Hizmetler" || (stepName === "Kurs" && cur.isOnline);
+    // Özet'ten hemen onceki adim her zaman ozete gecisi tetikler (Ek Hizmetler atlanmis olabilir)
+    const isLastBeforeSummary = step === STEPS.indexOf("Özet") - 1;
     if (isLastBeforeSummary) {
       const coursePrice = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
       const accPrice = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
@@ -1243,7 +1248,7 @@ export default function FiyatTeklifi() {
 
           <div style={S.navBox}>
             {stepName !== "Genel Bilgi" && stepName !== "Özet" && <button onClick={() => { setStep(s => s-1); setTimeout(() => { const r = document.getElementById("bft-root"); if (r) { const t = r.getBoundingClientRect().top + window.pageYOffset - 20; window.scrollTo({ top:t, behavior:"smooth" }); } else window.scrollTo({ top:0, behavior:"smooth" }); }, 100); }} style={S.btnBack}>← Geri</button>}
-            {stepName !== "Özet" && stepName !== "Genel Bilgi" && (<button style={S.btnNext} disabled={!canNext} onClick={next}>{(stepName === "Ek Hizmetler" || (stepName === "Kurs" && cur.isOnline)) ? "Özete Geç →" : "İleri →"}</button>)}
+            {stepName !== "Özet" && stepName !== "Genel Bilgi" && (<button style={S.btnNext} disabled={!canNext} onClick={next}>{step === STEPS.indexOf("Özet") - 1 ? "Özete Geç →" : "İleri →"}</button>)}
             {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft:"auto" }} className="bft-pdf-btn-mobile">📄 PDF Oluştur</button>)}
           </div>
         </main>
