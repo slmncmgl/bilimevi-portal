@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v28-transfer-ayri-adim-2026-07-01";
+const BFT_BUILD_VERSION = "v29-buton-okuladi-limit-2026-07-01";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -488,7 +488,7 @@ export default function FiyatTeklifi() {
     }, 100);
   };
 
-  const addNew = () => { setCur(emptyDest(cur.startDate)); setStep(1); };
+  const addNew = () => { if (destinations.length >= 3) return; setCur(emptyDest(cur.startDate)); setStep(1); };
   const reset = () => { setDestinations([]); setCur(emptyDest()); setStudent({ name:"", age:"", gender:"" }); setStep(0); };
 
   const loadScript = (src) => new Promise((resolve, reject) => {
@@ -1000,7 +1000,7 @@ export default function FiyatTeklifi() {
               </div>
               {(isStaff || !FIXED_COUNTRY) && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
               {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
-              {!cur.isOnline && cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL MARKASI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
+              {!cur.isOnline && cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
               {cur.isOnline && <>
                 <p style={S.slbl}>PAKET SEÇİMİ</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
@@ -1263,13 +1263,16 @@ export default function FiyatTeklifi() {
                   </div>
                 );
               })}
-              <button onClick={addNew} style={S.addBtn}>+ Yeni Destinasyon Ekle</button>
+              {destinations.length < 3
+                ? <button onClick={addNew} style={S.addBtn}>+ Yeni Destinasyon Ekle</button>
+                : <button onClick={reset} style={{ ...S.addBtn, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN }}>+ Yeni Teklif Oluştur</button>
+              }
             </div>
           )}
 
           <div style={S.navBox}>
             {stepName !== "Genel Bilgi" && stepName !== "Özet" && <button onClick={() => { setStep(s => s-1); setTimeout(() => { const r = document.getElementById("bft-root"); if (r) { const t = r.getBoundingClientRect().top + window.pageYOffset - 20; window.scrollTo({ top:t, behavior:"smooth" }); } else window.scrollTo({ top:0, behavior:"smooth" }); }, 100); }} style={S.btnBack}>← Geri</button>}
-            {stepName !== "Özet" && stepName !== "Genel Bilgi" && (<button style={S.btnNext} disabled={!canNext} onClick={next}>{step === STEPS.indexOf("Özet") - 1 ? "Özete Geç →" : "İleri →"}</button>)}
+            {stepName !== "Özet" && stepName !== "Genel Bilgi" && (<button style={{ ...S.btnNext, opacity: !canNext ? 0.5 : 1, cursor: !canNext ? "not-allowed" : "pointer" }} disabled={!canNext} onClick={next}>{step === STEPS.indexOf("Özet") - 1 ? "Özete Geç →" : "İleri →"}</button>)}
             {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft:"auto" }} className="bft-pdf-btn-mobile">📄 PDF Oluştur</button>)}
           </div>
         </main>
