@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v26-konaklama-transfer-renk-2026-07-01";
+const BFT_BUILD_VERSION = "v28-transfer-ayri-adim-2026-07-01";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -391,6 +391,14 @@ export default function FiyatTeklifi() {
     fetchNav().then(setNav).catch(console.error);
   }, []);
 
+  // Customer modunda dil varsayilan İngilizce (Almanca/Fransızca gizli); ulke FIXED_COUNTRY ile sabit
+  useEffect(() => {
+    if (isStaff) return;
+    if (!nav.languages?.length) return;
+    if (cur.lang || cur.isOnline) return;
+    setCur(p => ({ ...p, lang: "İngilizce", country: FIXED_COUNTRY || "" }));
+  }, [nav.languages, isStaff]);
+
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline || cur.cityData) return;
     const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
@@ -414,11 +422,15 @@ export default function FiyatTeklifi() {
 
   // with_accommodation paketi secildiyse Konaklama adimi cikar (pakete dahil)
   const skipAccommodation = cur.selectedPackage?.package_type === "with_accommodation" || cur.isOnline;
-  // Paket transfer iceriyorsa Ek Hizmetler'de gosterilecek bir sey kalmaz (zorunlu/opsiyonel gizli, transfer de gizli) -> adimi atla
-  const skipAddons = !!cur.selectedPackage && packageIncludesTransfer(cur.selectedPackage);
-  const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Özet"].filter(s => {
+  // "Ek Hizmetler" adimi: pakette gizli (paket her sey dahil), online'da gizli.
+  // Staff'ta zorunlu ucret/opsiyonel gosterilir; customer'da opsiyonel gizli oldugu icin genelde bos -> yine de zorunlu ucret varsa gosterilebilir ama customer'da bu adim gizlenir.
+  const skipAddons = !!cur.selectedPackage || cur.isOnline || !isStaff;
+  // "Transfer" adimi: transfer verisi varsa VE paket transfer icermiyorsa gosterilir
+  const hasTransfers = (cur.cityData?.transfers?.length > 0) && !packageIncludesTransfer(cur.selectedPackage) && !cur.isOnline;
+  const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Transfer","Özet"].filter(s => {
     if (s === "Konaklama" && skipAccommodation) return false;
     if (s === "Ek Hizmetler" && skipAddons) return false;
+    if (s === "Transfer" && !hasTransfers) return false;
     return true;
   });
   const stepName = STEPS[step];
@@ -433,6 +445,7 @@ export default function FiyatTeklifi() {
     // Konaklama: secili oda VEYA "konaklama istemiyorum" VEYA online VEYA paket(with_acc)
     "Konaklama": !!cur.acc || cur.noAccommodation || cur.isOnline,
     "Ek Hizmetler": true,
+    "Transfer": true,
     "Özet": true,
   };
   const canNext = canNextMap[stepName];
@@ -982,7 +995,7 @@ export default function FiyatTeklifi() {
               <h2 style={S.ttl}>Destinasyon Seçimi</h2>
               <p style={S.slbl}>DİL</p>
               <div style={S.g3}>
-                {nav.languages.map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
+                {nav.languages.filter(l => isStaff || l === "İngilizce").map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
                 <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
               </div>
               {(isStaff || !FIXED_COUNTRY) && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
@@ -1089,7 +1102,7 @@ export default function FiyatTeklifi() {
                         return (<div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a, noAccommodation:false}))}>
                           <div>
                             <div style={{ fontWeight:600 }}>{a.name}</div>
-                            <div style={{ fontSize:12, color: sel?"inherit":"#64748b", marginTop:2 }}>{a.room} · {a.board} · {a.distance}</div>
+                            <div style={{ fontSize:12, color: sel?"inherit":"#0d9488", marginTop:2, fontWeight:500 }}>{a.room} · {a.board} · {a.distance}</div>
                             {hsActive && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>⚠️ Yüksek sezon fiyatı geçerli</div>}
                             {a.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{a.notes}</div>}
                           </div>
@@ -1160,9 +1173,15 @@ export default function FiyatTeklifi() {
                   )}
                 </>);
               })()}
-              {cur.cityData?.transfers?.length > 0 && !packageIncludesTransfer(cur.selectedPackage) && (
-                <div style={{ marginTop:20 }}>
-                  <p style={S.slbl}>Transfer</p>
+            </div>
+          )}
+
+          {stepName === "Transfer" && (
+            <div style={{ animation:"fadeUp 0.3s" }}>
+              <h2 style={S.ttl}>Transfer — {cur.brand} {cur.city}</h2>
+              {cur.cityData?.transfers?.length > 0 && (
+                <div>
+                  <p style={S.slbl}>Havalimanı Transferi</p>
                   <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                     {cur.cityData.transfers.map((t, ti) => {
                       const sel = cur.transfer?.airport === t.airport && cur.transfer?.code === t.code;
@@ -1177,6 +1196,11 @@ export default function FiyatTeklifi() {
                         </div>
                       </div>);
                     })}
+                  </div>
+                  <div onClick={() => setCur(p => ({ ...p, transfer: null }))}
+                    style={{ marginTop:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", textAlign:"center", fontWeight:600, fontSize:13,
+                      border:`1.5px solid ${!cur.transfer ? "#f59e0b" : "#fde68a"}`, background: !cur.transfer ? "#fef3c7" : "#fffbeb", color: !cur.transfer ? "#92400e" : "#b45309" }}>
+                    {!cur.transfer ? "✓ Transfer İstemiyorum" : "Transfer İstemiyorum"}
                   </div>
                 </div>
               )}
@@ -1194,11 +1218,6 @@ export default function FiyatTeklifi() {
                 const eD = sD ? addWeeksToDate(sD, d.weeks) : null;
                 const accSD = sD ? (() => { const x = new Date(sD); x.setDate(sD.getDate() - 1); return x; })() : null;
                 const accED = eD ? (() => { const x = new Date(eD); x.setDate(eD.getDate() + 2); return x; })() : null;
-                const destNotes = [];
-                if (d.course?.morning) destNotes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
-                if (d.course?.notes && !d.courseHsActive) destNotes.push(d.course.notes);
-                if (d.acc?.notes && !d.accHsActive) destNotes.push(d.acc.notes);
-                if (!d.transfer && d.cityData?.transfers?.length > 0) { const t = d.cityData.transfers[0]; destNotes.push(`Transfer: ${t.airport}${t.code?.trim() ? ` (${t.code.trim()})` : ""} — ${cur2} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`); }
                 return (
                   <div key={i} style={S.summaryCard}>
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}><strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong><span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span></div>
@@ -1212,7 +1231,7 @@ export default function FiyatTeklifi() {
                       <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.course?.name}</span><span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span></div>
                       {d.courseHsAmount > 0 && (<>
                         <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.courseHsStart)} – {formatDateShort(d.courseHsEnd)})</span><span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.courseHsAmount, cur2)}</span></div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:6, borderTop:"1px dashed #e2e8f0", paddingTop:4 }}><span style={{ fontWeight:600 }}>Kurs Toplamı</span><span style={{ fontWeight:700, color:CYAN }}>{fmt(d.courseTotalPrice, cur2)}</span></div>
+
                       </>)}
                       </>)}
                       {sD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>📅 {fmtDate(sD)} — {fmtDate(eD)}</div>}
@@ -1223,7 +1242,7 @@ export default function FiyatTeklifi() {
                         <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board}</span><span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span></div>
                         {d.accHsAmount > 0 && (<>
                           <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span><span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span></div>
-                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:6, borderTop:"1px dashed #e2e8f0", paddingTop:4 }}><span style={{ fontWeight:600 }}>Konaklama Toplamı</span><span style={{ fontWeight:700, color:CYAN }}>{fmt(d.accTotalPrice, cur2)}</span></div>
+
                         </>)}
                         {accSD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>📅 {fmtDate(accSD)} — {fmtDate(accED)}</div>}
                       </div>
@@ -1240,7 +1259,7 @@ export default function FiyatTeklifi() {
                     ))}
                     <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}><span>Toplam</span><span style={{ color:CYAN }}>{fmt(_dt.grandTotal, cur2)}</span></div>
                     </>); })()}
-                    {destNotes.length > 0 && (<div style={{ marginTop:12, padding:"10px 12px", background:"#fef9ec", borderRadius:8, border:"1px solid #fde68a" }}><div style={{ fontSize:11, fontWeight:600, color:"#92400e", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Notlar</div>{destNotes.map((n,ni) => (<div key={ni} style={{ fontSize:12, color:"#78350f", marginBottom:3 }}>— {n}</div>))}</div>)}
+
                   </div>
                 );
               })}
