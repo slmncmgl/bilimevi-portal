@@ -1,9 +1,10 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 // ─── SABİTLER ────────────────────────────────────────────────
-const GEMINI_MODEL   = "gemini-3.5-flash";
+const GEMINI_MODEL   = "gemini-3.1-pro";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -336,7 +337,8 @@ GENEL KURALLAR:
 2. Fiyatlar sayı (tırnak olmadan), para birimleri GBP/EUR/USD/CAD/CHF metin.
 3. Tarihler YYYY-MM-DD formatında.
 4. Tüm şehirlerin verilerini dahil et — hiçbirini atlama.
-5. Backtick veya markdown kullanma, sadece düz JSON array.`;
+5. Eğer sütunlar arasında "min_age" veya "max_age" varsa: dökümanda o kursa dair yaş şartı ("minimum age", "16+", "18+", "ages 30 and over", "30+" gibi) belirtiliyorsa sadece sayıyı yaz (örn. "30+" → 30, "16+" → 16). Yaş şartı belirtilmemişse boş bırak ("").
+6. Backtick veya markdown kullanma, sadece düz JSON array.`;
 
     const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
