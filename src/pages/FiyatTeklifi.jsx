@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v30-kylas-crm-checkbox-2026-07-02";
+const BFT_BUILD_VERSION = "v31-modal-css-fix-2026-07-02";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -922,8 +922,8 @@ export default function FiyatTeklifi() {
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               <input placeholder="Ad Soyad *" style={{...S.fti, background: student.name ? "#f8fafc" : "#fff"}} value={leadForm.name} onChange={e => setLeadForm(p => ({...p, name:e.target.value}))} />
               <div style={{ display:"flex", gap:8 }}>
-                <input placeholder="+90" style={{...S.fti, width:64, flexShrink:0, textAlign:"center"}} value={leadForm.dialCode} onChange={e => setLeadForm(p => ({...p, dialCode:e.target.value}))} />
-                <input placeholder="5XX XXX XX XX *" style={{...S.fti, flex:1}} type="tel" maxLength={10} value={leadForm.phone} onChange={e => setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,10)}))} />
+                <input className="bft-dial" placeholder="+90" style={{...S.fti, textAlign:"center"}} value={leadForm.dialCode} onChange={e => setLeadForm(p => ({...p, dialCode:e.target.value}))} />
+                <input className="bft-phone" placeholder="5XX XXX XX XX *" style={S.fti} type="tel" maxLength={10} value={leadForm.phone} onChange={e => setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,10)}))} />
               </div>
               <input placeholder="E-posta *" style={S.fti} type="email" value={leadForm.email} onChange={e => setLeadForm(p => ({...p, email:e.target.value}))} />
             </div>
@@ -955,13 +955,20 @@ export default function FiyatTeklifi() {
         * { box-sizing:border-box; margin:0; padding:0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         input:focus { outline:none; border-color:${CYAN} !important; }
-        #bft-root input, #bft-root input[type="text"], #bft-root input[type="number"], #bft-root input[type="date"], #bft-root input[type="tel"], #bft-root input[type="email"] {
+        #bft-root input[type="text"], #bft-root input[type="number"], #bft-root input[type="date"], #bft-root input[type="tel"], #bft-root input[type="email"], #bft-root input:not([type]) {
           background:#fff !important; color:#0f172a !important; border:1.5px solid #e2e8f0 !important;
           border-radius:10px !important; padding:10px 14px !important; font-size:14px !important;
           font-family:inherit !important; box-shadow:none !important; width:100% !important;
           box-sizing:border-box !important; height:44px !important; line-height:normal !important;
           -webkit-appearance:none !important; appearance:none !important;
         }
+        #bft-root input[type="checkbox"] {
+          width:16px !important; height:16px !important; min-width:16px !important; flex-shrink:0 !important;
+          padding:0 !important; margin:0 !important; border-radius:3px !important;
+          -webkit-appearance:auto !important; appearance:auto !important; accent-color:${CYAN} !important;
+        }
+        #bft-root input.bft-dial { width:64px !important; flex:0 0 64px !important; flex-shrink:0 !important; }
+        #bft-root input.bft-phone { flex:1 1 auto !important; width:auto !important; min-width:0 !important; }
         #bft-root button { font-family:inherit !important; }
         @media (max-width: 768px) {
           #bft-root .bft-body { grid-template-columns:1fr !important; }
