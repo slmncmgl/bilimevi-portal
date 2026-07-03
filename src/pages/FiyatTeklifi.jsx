@@ -1020,7 +1020,7 @@ export default function FiyatTeklifi() {
             </div>
             <button onClick={handleLeadSubmit} disabled={!leadForm.name || !leadForm.phone || !leadForm.email || !leadForm.consentKvkk || !leadForm.consentEmail || leadLoading}
               style={{ ...S.btnNext, width:"100%", marginTop:16, padding:"13px 0", opacity: (!leadForm.name||!leadForm.phone||!leadForm.email||!leadForm.consentKvkk||!leadForm.consentEmail||leadLoading) ? 0.5 : 1 }}>
-              {leadLoading ? "Gönderiliyor..." : "📄 PDF İndir"}
+              {leadLoading ? "İndiriliyor..." : "📄 PDF İndir"}
             </button>
             <button onClick={() => setLeadModal(false)} style={{ width:"100%", marginTop:10, background:"none", border:"none", cursor:"pointer", color:"#94a3b8", fontSize:13 }}>İptal</button>
         </div>
