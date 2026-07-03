@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v31-modal-css-fix-2026-07-02";
+const BFT_BUILD_VERSION = "v32-dropdown-2026-07-03";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -44,6 +44,55 @@ const KVKK_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.kvkkUrl &&
 
 // Dial code -> ISO ülke kodu (205 ülke). Bulunamazsa code:"" gider.
 const DIAL_TO_ISO = {"+1":"US", "+7":"RU", "+20":"EG", "+27":"ZA", "+30":"GR", "+31":"NL", "+32":"BE", "+33":"FR", "+34":"ES", "+36":"HU", "+39":"IT", "+40":"RO", "+41":"CH", "+43":"AT", "+44":"GB", "+45":"DK", "+46":"SE", "+47":"NO", "+48":"PL", "+49":"DE", "+51":"PE", "+52":"MX", "+53":"CU", "+54":"AR", "+55":"BR", "+56":"CL", "+57":"CO", "+58":"VE", "+60":"MY", "+61":"AU", "+62":"ID", "+63":"PH", "+64":"NZ", "+65":"SG", "+66":"TH", "+81":"JP", "+82":"KR", "+84":"VN", "+86":"CN", "+90":"TR", "+91":"IN", "+92":"PK", "+93":"AF", "+94":"LK", "+95":"MM", "+98":"IR", "+211":"SS", "+212":"MA", "+213":"DZ", "+216":"TN", "+218":"LY", "+220":"GM", "+221":"SN", "+222":"MR", "+223":"ML", "+224":"GN", "+225":"CI", "+226":"BF", "+227":"NE", "+228":"TG", "+229":"BJ", "+230":"MU", "+231":"LR", "+232":"SL", "+233":"GH", "+234":"NG", "+235":"TD", "+236":"CF", "+237":"CM", "+238":"CV", "+239":"ST", "+240":"GQ", "+241":"GA", "+242":"CG", "+243":"CD", "+244":"AO", "+245":"GW", "+246":"IO", "+248":"SC", "+249":"SD", "+250":"RW", "+251":"ET", "+252":"SO", "+253":"DJ", "+254":"KE", "+255":"TZ", "+256":"UG", "+257":"BI", "+258":"MZ", "+260":"ZM", "+261":"MG", "+262":"RE", "+263":"ZW", "+264":"NA", "+265":"MW", "+266":"LS", "+267":"BW", "+268":"SZ", "+269":"KM", "+290":"SH", "+291":"ER", "+297":"AW", "+298":"FO", "+299":"GL", "+350":"GI", "+351":"PT", "+352":"LU", "+353":"IE", "+354":"IS", "+355":"AL", "+356":"MT", "+357":"CY", "+358":"FI", "+359":"BG", "+370":"LT", "+371":"LV", "+372":"EE", "+373":"MD", "+374":"AM", "+375":"BY", "+376":"AD", "+377":"MC", "+378":"SM", "+380":"UA", "+381":"RS", "+382":"ME", "+383":"XK", "+385":"HR", "+386":"SI", "+387":"BA", "+389":"MK", "+420":"CZ", "+421":"SK", "+423":"LI", "+500":"FK", "+501":"BZ", "+502":"GT", "+503":"SV", "+504":"HN", "+505":"NI", "+506":"CR", "+507":"PA", "+508":"PM", "+509":"HT", "+590":"GP", "+591":"BO", "+592":"GY", "+593":"EC", "+594":"GF", "+595":"PY", "+596":"MQ", "+597":"SR", "+598":"UY", "+599":"CW", "+670":"TL", "+672":"NF", "+673":"BN", "+674":"NR", "+675":"PG", "+676":"TO", "+677":"SB", "+678":"VU", "+679":"FJ", "+680":"PW", "+681":"WF", "+682":"CK", "+683":"NU", "+685":"WS", "+686":"KI", "+687":"NC", "+688":"TV", "+689":"PF", "+690":"TK", "+691":"FM", "+692":"MH", "+850":"KP", "+852":"HK", "+853":"MO", "+855":"KH", "+856":"LA", "+880":"BD", "+886":"TW", "+960":"MV", "+961":"LB", "+962":"JO", "+963":"SY", "+964":"IQ", "+965":"KW", "+966":"SA", "+967":"YE", "+968":"OM", "+970":"PS", "+971":"AE", "+972":"IL", "+973":"BH", "+974":"QA", "+975":"BT", "+976":"MN", "+977":"NP", "+992":"TJ", "+993":"TM", "+994":"AZ", "+995":"GE", "+996":"KG", "+998":"UZ"};
+
+// Türkçe ülke adı -> ISO (dropdown aramada kullanılır, ~40 popüler ülke)
+const COUNTRY_ALIASES = {
+  "turkiye":"TR", "turkey":"TR", "ingiltere":"GB", "birlesik krallik":"GB", "uk":"GB",
+  "almanya":"DE", "amerika":"US", "abd":"US", "usa":"US", "malta":"MT", "irlanda":"IE",
+  "hollanda":"NL", "fransa":"FR", "italya":"IT", "ispanya":"ES", "kanada":"CA",
+  "avustralya":"AU", "rusya":"RU", "cin":"CN", "japonya":"JP", "azerbaycan":"AZ",
+  "kibris":"CY", "yunanistan":"GR", "bulgaristan":"BG", "gurcistan":"GE", "bae":"AE",
+  "dubai":"AE", "katar":"QA", "suudi arabistan":"SA", "misir":"EG", "fas":"MA",
+  "isvicre":"CH", "avusturya":"AT", "belcika":"BE", "isvec":"SE", "norvec":"NO",
+  "danimarka":"DK", "polonya":"PL", "ukrayna":"UA", "romanya":"RO", "cekya":"CZ",
+  "portekiz":"PT", "brezilya":"BR", "hindistan":"IN", "guney kore":"KR", "singapur":"SG",
+  "malezya":"MY", "iran":"IR", "irak":"IQ", "suriye":"SY", "lubnan":"LB",
+};
+
+// Türkçe karakterleri sadeleştirip küçük harfe çevir (arama için)
+function normalizeTR(s) {
+  return (s || "")
+    .replace(/İ/g,"i").replace(/I/g,"i").replace(/ı/g,"i")
+    .replace(/Ü/g,"u").replace(/ü/g,"u").replace(/Ö/g,"o").replace(/ö/g,"o")
+    .replace(/Ş/g,"s").replace(/ş/g,"s").replace(/Ç/g,"c").replace(/ç/g,"c")
+    .replace(/Ğ/g,"g").replace(/ğ/g,"g")
+    .toLowerCase().trim();
+}
+
+// Dropdown listesi: [{dial, iso}] — DIAL_TO_ISO'dan üretilir, +90 en üstte
+const DIAL_LIST = (() => {
+  const arr = Object.entries(DIAL_TO_ISO).map(([dial, iso]) => ({ dial, iso }));
+  arr.sort((a,b) => a.iso === "TR" ? -1 : b.iso === "TR" ? 1 : a.dial.localeCompare(b.dial));
+  return arr;
+})();
+
+// Arama filtresi: dial, iso veya Türkçe ülke adı ile eşleştir
+function filterDialList(query) {
+  const q = normalizeTR(query);
+  if (!q) return DIAL_LIST;
+  const aliasIso = COUNTRY_ALIASES[q]; // tam ülke adı eşleşmesi
+  return DIAL_LIST.filter(({ dial, iso }) => {
+    if (aliasIso && iso === aliasIso) return true;
+    if (dial.replace("+","").includes(q.replace("+",""))) return true;
+    if (normalizeTR(iso).includes(q)) return true;
+    // kısmi ülke adı eşleşmesi
+    for (const [name, code] of Object.entries(COUNTRY_ALIASES)) {
+      if (name.includes(q) && iso === code) return true;
+    }
+    return false;
+  });
+}
+
 
 const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
 const CYAN = "#00C1DE";
@@ -391,6 +440,8 @@ export default function FiyatTeklifi() {
   const [accType, setAccType] = useState("");
   const [leadModal, setLeadModal] = useState(false);
   const [leadForm, setLeadForm] = useState({ name:"", phone:"", email:"", dialCode:"+90", consentKvkk:false, consentEmail:false, consentAdvisor:false });
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
 
   const [leadLoading, setLeadLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -876,7 +927,7 @@ export default function FiyatTeklifi() {
         : null;
       if (endpoint) {
         const isoCode = DIAL_TO_ISO[leadForm.dialCode] || "";
-        await fetch(endpoint, {
+        const leadRes = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -896,6 +947,8 @@ export default function FiyatTeklifi() {
             timestamp: new Date().toISOString(),
           }),
         });
+        const leadJson = await leadRes.json().catch(() => null);
+        console.log("[BFT] Lead sonucu:", leadJson);
       }
     } catch (e) { console.error("Lead gönderilemedi:", e); }
     setLeadLoading(false);
@@ -921,8 +974,33 @@ export default function FiyatTeklifi() {
             <p style={{ fontSize:13, color:"#64748b", marginBottom:20 }}>Bilgilerinizi girin, PDF otomatik indirilecektir.</p>
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               <input placeholder="Ad Soyad *" style={{...S.fti, background: student.name ? "#f8fafc" : "#fff"}} value={leadForm.name} onChange={e => setLeadForm(p => ({...p, name:e.target.value}))} />
-              <div style={{ display:"flex", gap:8 }}>
-                <input className="bft-dial" placeholder="+90" style={{...S.fti, textAlign:"center"}} value={leadForm.dialCode} onChange={e => setLeadForm(p => ({...p, dialCode:e.target.value}))} />
+              <div style={{ display:"flex", gap:8, position:"relative" }}>
+                <div style={{ position:"relative", flexShrink:0 }}>
+                  <button type="button" onClick={() => setCountryOpen(o => !o)}
+                    style={{ ...S.fti, width:78, display:"flex", alignItems:"center", justifyContent:"center", gap:4, cursor:"pointer", background:"#fff", userSelect:"none" }}>
+                    {leadForm.dialCode} <span style={{ fontSize:10, color:"#94a3b8" }}>▾</span>
+                  </button>
+                  {countryOpen && (
+                    <div style={{ position:"absolute", top:"100%", left:0, marginTop:4, width:220, background:"#fff", border:"1px solid #e2e8f0", borderRadius:10, boxShadow:"0 10px 30px rgba(0,0,0,0.12)", zIndex:100 }}>
+                      <input autoFocus placeholder="Ülke ara (TR, 90, Türkiye...)" value={countrySearch}
+                        onChange={e => setCountrySearch(e.target.value)}
+                        style={{ ...S.fti, width:"100%", borderRadius:"10px 10px 0 0", border:"none", borderBottom:"1px solid #e2e8f0" }} />
+                      <div style={{ maxHeight:240, overflowY:"auto" }}>
+                        {filterDialList(countrySearch).map(({ dial, iso }) => (
+                          <div key={dial + iso} onClick={() => { setLeadForm(p => ({ ...p, dialCode: dial })); setCountryOpen(false); setCountrySearch(""); }}
+                            style={{ padding:"10px 14px", cursor:"pointer", fontSize:14, display:"flex", justifyContent:"space-between", background: leadForm.dialCode === dial ? "#f0fdff" : "#fff", color: leadForm.dialCode === dial ? CYAN : "#0f172a" }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
+                            onMouseLeave={e => e.currentTarget.style.background = leadForm.dialCode === dial ? "#f0fdff" : "#fff"}>
+                            <span>{dial}</span><span style={{ color:"#94a3b8" }}>{iso}</span>
+                          </div>
+                        ))}
+                        {filterDialList(countrySearch).length === 0 && (
+                          <div style={{ padding:"12px 14px", fontSize:13, color:"#94a3b8", textAlign:"center" }}>Bulunamadı</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <input className="bft-phone" placeholder="5XX XXX XX XX *" style={S.fti} type="tel" maxLength={10} value={leadForm.phone} onChange={e => setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,10)}))} />
               </div>
               <input placeholder="E-posta *" style={S.fti} type="email" value={leadForm.email} onChange={e => setLeadForm(p => ({...p, email:e.target.value}))} />
@@ -967,7 +1045,6 @@ export default function FiyatTeklifi() {
           padding:0 !important; margin:0 !important; border-radius:3px !important;
           -webkit-appearance:auto !important; appearance:auto !important; accent-color:${CYAN} !important;
         }
-        #bft-root input.bft-dial { width:64px !important; flex:0 0 64px !important; flex-shrink:0 !important; }
         #bft-root input.bft-phone { flex:1 1 auto !important; width:auto !important; min-width:0 !important; }
         #bft-root button { font-family:inherit !important; }
         @media (max-width: 768px) {
