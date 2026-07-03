@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v32-dropdown-2026-07-03";
+const BFT_BUILD_VERSION = "v33-dropdown-renk-cdn-2026-07-03";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -569,7 +569,6 @@ export default function FiyatTeklifi() {
       // jsPDF yükle - birden fazla CDN dene
       if (!window.jspdf) {
         const cdns = [
-          "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js",
           "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
           "https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js",
         ];
@@ -586,8 +585,8 @@ export default function FiyatTeklifi() {
       // Türkçe karakter için DejaVuSans fontunu yükle ve göm (CORS uyumlu CDN)
       if (!window.__bft_font_loaded) {
         const fontUrls = [
-          "https://cdn.jsdelivr.net/gh/jspdf-customfonts/fonts/DejaVuSans.ttf",
           "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
+          "https://unpkg.com/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
         ];
         for (const furl of fontUrls) {
           try {
@@ -976,7 +975,7 @@ export default function FiyatTeklifi() {
               <input placeholder="Ad Soyad *" style={{...S.fti, background: student.name ? "#f8fafc" : "#fff"}} value={leadForm.name} onChange={e => setLeadForm(p => ({...p, name:e.target.value}))} />
               <div style={{ display:"flex", gap:8, position:"relative" }}>
                 <div style={{ position:"relative", flexShrink:0 }}>
-                  <button type="button" onClick={() => setCountryOpen(o => !o)}
+                  <button type="button" className="bft-dial-btn" onClick={() => setCountryOpen(o => !o)}
                     style={{ ...S.fti, width:78, display:"flex", alignItems:"center", justifyContent:"center", gap:4, cursor:"pointer", background:"#fff", userSelect:"none" }}>
                     {leadForm.dialCode} <span style={{ fontSize:10, color:"#94a3b8" }}>▾</span>
                   </button>
@@ -1047,6 +1046,7 @@ export default function FiyatTeklifi() {
         }
         #bft-root input.bft-phone { flex:1 1 auto !important; width:auto !important; min-width:0 !important; }
         #bft-root button { font-family:inherit !important; }
+        #bft-root button.bft-dial-btn { color:#0f172a !important; -webkit-text-fill-color:#0f172a !important; text-shadow:none !important; }
         @media (max-width: 768px) {
           #bft-root .bft-body { grid-template-columns:1fr !important; }
           #bft-root .bft-side { display:none !important; }
