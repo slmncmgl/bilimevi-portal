@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v33-dropdown-renk-cdn-2026-07-03";
+const BFT_BUILD_VERSION = "v34-telefon-valid-2026-07-03";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -913,11 +913,18 @@ export default function FiyatTeklifi() {
 
   const handleLeadSubmit = async () => {
     if (!leadForm.name || !leadForm.phone || !leadForm.email) return;
-    // Telefon 10 hane kontrolü
+    // Telefon validasyonu: TR (+90) → 10 hane katı; diğer ülkeler → min 6 hane
     const cleanPhone = (leadForm.phone || "").replace(/\D/g, "");
-    if (cleanPhone.length !== 10) {
-      alert("Telefon numarasını 10 hane giriniz (başında 0 olmadan).");
-      return;
+    if (leadForm.dialCode === "+90") {
+      if (cleanPhone.length !== 10) {
+        alert("Telefon numarasını 10 hane giriniz (başında 0 olmadan).");
+        return;
+      }
+    } else {
+      if (cleanPhone.length < 6) {
+        alert("Telefon numarasını eksik veya yanlış girdiniz.");
+        return;
+      }
     }
     setLeadLoading(true);
     try {
@@ -1000,7 +1007,7 @@ export default function FiyatTeklifi() {
                     </div>
                   )}
                 </div>
-                <input className="bft-phone" placeholder="5XX XXX XX XX *" style={S.fti} type="tel" maxLength={10} value={leadForm.phone} onChange={e => setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,10)}))} />
+                <input className="bft-phone" placeholder="5XX XXX XX XX *" style={S.fti} type="tel" maxLength={leadForm.dialCode === "+90" ? 10 : 15} value={leadForm.phone} onChange={e => { const max = leadForm.dialCode === "+90" ? 10 : 15; setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,max)})); }} />
               </div>
               <input placeholder="E-posta *" style={S.fti} type="email" value={leadForm.email} onChange={e => setLeadForm(p => ({...p, email:e.target.value}))} />
             </div>
@@ -1020,7 +1027,7 @@ export default function FiyatTeklifi() {
             </div>
             <button onClick={handleLeadSubmit} disabled={!leadForm.name || !leadForm.phone || !leadForm.email || !leadForm.consentKvkk || !leadForm.consentEmail || leadLoading}
               style={{ ...S.btnNext, width:"100%", marginTop:16, padding:"13px 0", opacity: (!leadForm.name||!leadForm.phone||!leadForm.email||!leadForm.consentKvkk||!leadForm.consentEmail||leadLoading) ? 0.5 : 1 }}>
-              {leadLoading ? "İndiriliyor..." : "📄 PDF İndir"}
+              {leadLoading ? "Gönderiliyor..." : "📄 PDF İndir"}
             </button>
             <button onClick={() => setLeadModal(false)} style={{ width:"100%", marginTop:10, background:"none", border:"none", cursor:"pointer", color:"#94a3b8", fontSize:13 }}>İptal</button>
         </div>
