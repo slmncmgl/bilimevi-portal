@@ -4,11 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 // ─── SABİTLER ────────────────────────────────────────────────
-const GEMINI_MODEL   = "gemini-3.1-pro";
+const GEMINI_MODEL   = "gemini-3.5-flash";
 const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2u8MvmPux34VaT8c1S45LYq8KLY9K6pKyBXYydi03SNAW8tPJgp_lB_tMkWj5zpC3/exec";
+
 
 // NOT: Okul listesi, sheet URL'leri ve parse edilecek sekmeler artık hardcode değil.
 // Hepsi Apps Script üzerinden MASTER_INDEX > school_registry sekmesinden dinamik çekiliyor.
