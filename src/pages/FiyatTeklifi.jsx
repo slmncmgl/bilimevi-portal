@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v37-env-id-2026-07-07";
+const BFT_BUILD_VERSION = "v38-rate-origin-2026-07-07";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -136,6 +136,11 @@ async function fetchCSVProxy(desc) {
     body: JSON.stringify(desc),
   });
   const data = await res.json().catch(() => null);
+  if (res.status === 429 || (data && data.rate_limited)) {
+    const err = new Error("Çok fazla istek gönderildi. Lütfen birkaç saniye sonra tekrar deneyiniz.");
+    err.rateLimited = true;
+    throw err;
+  }
   if (!data || !data.success || typeof data.csv !== "string") {
     throw new Error("Veri yüklenemedi");
   }
@@ -488,7 +493,7 @@ export default function FiyatTeklifi() {
     if (isStaff) { const session = getSession(); if (!session) return navigate("/"); setUser(session); }
     fetchNav(isStaff).then(setNav).catch(err => {
       console.error("[BFT] Nav yüklenemedi:", err);
-      if (!isStaff) setNavError("Veri yüklenemedi, bir süre sonra tekrar deneyiniz.");
+      if (!isStaff) setNavError(err.rateLimited ? err.message : "Veri yüklenemedi, bir süre sonra tekrar deneyiniz.");
     });
   }, []);
 
@@ -512,7 +517,7 @@ export default function FiyatTeklifi() {
       .catch(err => {
         console.error("[BFT] Şehir verisi yüklenemedi:", err);
         setCur(p => ({ ...p, cityLoading: false }));
-        if (!isStaff) setNavError("Veri yüklenemedi, bir süre sonra tekrar deneyiniz.");
+        if (!isStaff) setNavError(err.rateLimited ? err.message : "Veri yüklenemedi, bir süre sonra tekrar deneyiniz.");
       });
   }, [cur.city, cur.brand, nav.schoolSheets, cur.isOnline, cur.cityData]);
 
