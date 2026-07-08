@@ -248,7 +248,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5_k4M02agFQcEnQ5gg
               {/* Şifremi Gönder */}
               <button
                 type="button"
-                onClick={() => { setSifrePopup(true); setSifreUsername(username); setSifreMesaj(null); }}
+                onClick={() => { setSifrePopup(true); setSifreUsername("@bilimevi.com"); setSifreMesaj(null); }}
                 style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "12px", cursor: "pointer", textAlign: "left", padding: "0", fontFamily: "'Inter', sans-serif", textDecoration: "underline" }}
               >
                 {t.forgot}
