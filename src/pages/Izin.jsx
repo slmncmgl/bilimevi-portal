@@ -68,6 +68,20 @@ async function fetchIzinSureleri() {
   return map;
 }
 
+// Resmi tatilleri Nager.Date API'den çeker (TR veya IE)
+async function fetchTatiller(ulkeKodu, yillar) {
+  const tatilSet = new Set();
+  try {
+    for (const yil of yillar) {
+      const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${yil}/${ulkeKodu}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      data.forEach(h => { if (h.date) tatilSet.add(h.date); });
+    }
+  } catch (_) {}
+  return tatilSet;
+}
+
 async function submitIzin(data) {
   await fetch(SCRIPT_URL, {
     method: "POST",
@@ -90,7 +104,7 @@ function sonrakiHakedis(girisDateStr) {
   return hakedis.toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
-function isGunuHesapla(baslangic, bitis) {
+function isGunuHesapla(baslangic, bitis, tatilSet) {
   if (!baslangic || !bitis) return 0;
   const start = new Date(baslangic);
   const end = new Date(bitis);
@@ -99,7 +113,26 @@ function isGunuHesapla(baslangic, bitis) {
   const cur = new Date(start);
   while (cur <= end) {
     const gun = cur.getDay();
-    if (gun !== 0 && gun !== 6) count++;
+    const iso = cur.toISOString().split("T")[0];
+    const tatilMi = tatilSet && tatilSet.has(iso);
+    if (gun !== 0 && gun !== 6 && !tatilMi) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+// Tarih aralığındaki resmi tatil sayısını döndürür (hafta içi olanlar)
+function tatilSayisiHesapla(baslangic, bitis, tatilSet) {
+  if (!baslangic || !bitis || !tatilSet) return 0;
+  const start = new Date(baslangic);
+  const end = new Date(bitis);
+  if (end < start) return 0;
+  let count = 0;
+  const cur = new Date(start);
+  while (cur <= end) {
+    const gun = cur.getDay();
+    const iso = cur.toISOString().split("T")[0];
+    if (gun !== 0 && gun !== 6 && tatilSet.has(iso)) count++;
     cur.setDate(cur.getDate() + 1);
   }
   return count;
@@ -170,6 +203,7 @@ export default function Izin() {
   const [cakismaPopup, setCakismaPopup] = useState(null);
   const [adminTab, setAdminTab] = useState("bekleyen");
   const [haftaSonuUyari, setHaftaSonuUyari] = useState(null);
+  const [tatiller, setTatiller] = useState(new Set());
 
   const yarimGun = izinTuru === "Yarım Gün İzin" || izinTuru === "Half Day Leave";
   const digerIzin = DIGER_IZINLER.includes(izinTuru);
@@ -183,7 +217,10 @@ export default function Izin() {
   let isGunu = 0;
   if (yarimGun) isGunu = 0.5;
   else if (digerIzin) isGunu = izinSureleri[izinTuru] || 0;
-  else if (baslangic && bitis) isGunu = isGunuHesapla(baslangic, bitis);
+  else if (baslangic && bitis) isGunu = isGunuHesapla(baslangic, bitis, tatiller);
+
+  const araliktakiTatilSayisi = (baslangic && bitis && !yarimGun && !digerIzin)
+    ? tatilSayisiHesapla(baslangic, bitis, tatiller) : 0;
 
   useEffect(() => {
     const session = getSession();
@@ -230,6 +267,12 @@ export default function Izin() {
       });
       setYaklasanIzinler(gelecek);
       setIslemlerCache(islemler);
+
+      // Resmi tatilleri çek (Fortis → İrlanda, diğerleri → Türkiye)
+      const ulkeKodu = data?.["Şirket"] === "Fortis" ? "IE" : "TR";
+      const buYil = new Date().getFullYear();
+      const tatilSet = await fetchTatiller(ulkeKodu, [buYil, buYil + 1]);
+      setTatiller(tatilSet);
     } catch (_) {}
     setDataLoading(false);
   }
@@ -663,6 +706,14 @@ export default function Izin() {
                         <span>{isGunu === 0.5 ? "Yarım gün izin" : `${isGunu} ${digerIzin ? "takvim" : "iş"} günü`}</span>
                       )}
                       {!hakedistenDusen && <span style={styles.hakedistenDusmeyen}>{t("· hakedişten düşmez", "· not deducted")}</span>}
+                      {araliktakiTatilSayisi > 0 && (
+                        <span style={styles.hakedistenDusmeyen}>
+                          {t(
+                            `· ${araliktakiTatilSayisi} resmi tatil hariç`,
+                            `· ${araliktakiTatilSayisi} public holiday${araliktakiTatilSayisi > 1 ? "s" : ""} excluded`
+                          )}
+                        </span>
+                      )}
                     </div>
                   )}
 
