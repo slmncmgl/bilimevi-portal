@@ -1198,102 +1198,142 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           </div>
         </div>
       )}
-      {showModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalBox} className="izin-modal-box">
-            {formSaving && (
-              <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.85)", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", zIndex: 10 }}>
-                <div style={styles.loadingSpinner} />
-                <span style={{ fontSize: "14px", fontWeight: "600", color: "#0f172a" }}>Kaydediliyor...</span>
-              </div>
-            )}
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>Yeni Kullanıcı Ekle</h3>
-              <button onClick={() => setShowModal(false)} style={styles.modalClose}>✕</button>
-            </div>
-            <form onSubmit={handleYeniKullanici} style={styles.modalForm}>
-              {/* Ad Soyad */}
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Ad Soyad</label>
-                <input type="text" required value={formData.name}
-                  onChange={e => {
-                    const val = e.target.value.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ\s]/g, "");
-                    setFormData(p => ({ ...p, name: val }));
-                  }}
-                  style={styles.modalInput} />
-              </div>
-              {/* Şirket dropdown */}
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Şirket</label>
-                <select required value={formData.sirket}
-                  onChange={e => {
-                    const val = e.target.value;
-                    setFormData(p => ({ ...p, sirket: val, sube: "" }));
-                    if (val) fetchSubeler(val);
-                    else setSubeler([]);
-                  }}
-                  style={styles.modalInput}>
-                  <option value="">Seçiniz</option>
-                  <option value="Bilimevi">Bilimevi</option>
-                  <option value="Premium Vize">Premium Vize</option>
-                  <option value="Fortis">Fortis</option>
-                  <option value="Vagus">Vagus</option>
-                </select>
-              </div>
-              {/* Şube dropdown — şirkete göre dinamik */}
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Şube</label>
-                <select required value={formData.sube}
-                  onChange={e => setFormData(p => ({ ...p, sube: e.target.value }))}
-                  style={styles.modalInput}
-                  disabled={!formData.sirket}>
-                  <option value="">{formData.sirket ? "Seçiniz" : "Önce şirket seçin"}</option>
-                  {subeler.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              {/* Giriş Tarihi */}
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Giriş Tarihi</label>
-                <input type="date" required value={formData.girisTarihi}
-                  onChange={e => {
-                    const val = e.target.value;
-                    const pass = val ? val.split("-").reverse().join("") : "";
-                    setFormData(p => ({ ...p, girisTarihi: val, pass }));
-                  }}
-                  style={styles.modalInput}
-                />
-              </div>
-              {/* E-posta */}
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>E-posta</label>
-                <input type="email" required value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} style={styles.modalInput} />
-              </div>
-              {/* Şifre — otomatik, pasif */}
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Şifre (otomatik)</label>
-                <input type="text" readOnly value={formData.pass} style={{ ...styles.modalInput, background: "#f1f5f9", color: "#64748b", cursor: "not-allowed" }} />
-              </div>
-              {/* TITLE */}
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>Title</label>
-                <select value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} style={styles.modalInput}>
-                  {roller.map(r => <option key={r} value={r.toLowerCase()}>{r}</option>)}
-                </select>
-              </div>
-              {/* CRM ID */}
-              <div style={styles.modalField}>
-                <label style={styles.modalLabel}>CRM ID (opsiyonel)</label>
-                <input type="number" value={formData.crmId} onChange={e => setFormData(p => ({ ...p, crmId: e.target.value }))} style={styles.modalInput} />
-              </div>
-              {formError && <div style={{ color: "#dc2626", fontSize: "13px" }}>{formError}</div>}
-              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "8px" }}>
-                <button type="button" onClick={() => setShowModal(false)} style={styles.cancelBtn}>İptal</button>
-                <button type="submit" disabled={formSaving} style={styles.saveBtn}>{formSaving ? "..." : "Kaydet"}</button>
-              </div>
-            </form>
-          </div>
+   {showModal && (
+  <div style={styles.modalOverlay}>
+    <div style={styles.modalBox} className="izin-modal-box">
+      {formSaving && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.85)", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", zIndex: 10 }}>
+          <div style={styles.loadingSpinner} />
+          <span style={{ fontSize: "14px", fontWeight: "600", color: "#0f172a" }}>Kaydediliyor...</span>
         </div>
       )}
+      <div style={styles.modalHeader}>
+        <h3 style={styles.modalTitle}>Yeni Kullanıcı Ekle</h3>
+        <button onClick={() => setShowModal(false)} style={styles.modalClose}>✕</button>
+      </div>
+      <form onSubmit={handleYeniKullanici} style={styles.modalForm}>
+        {/* Ad Soyad */}
+        <div style={styles.modalField}>
+          <label style={styles.modalLabel}>Ad Soyad</label>
+          <input type="text" required value={formData.name}
+            onChange={e => {
+              const val = e.target.value.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ\s]/g, "");
+              setFormData(p => ({ ...p, name: val }));
+            }}
+            style={styles.modalInput} />
+        </div>
+        {/* Şirket dropdown */}
+        <div style={styles.modalField}>
+          <label style={styles.modalLabel}>Şirket</label>
+          <select required value={formData.sirket}
+            onChange={e => {
+              const val = e.target.value;
+              setFormData(p => ({ ...p, sirket: val, sube: "" }));
+              if (val) fetchSubeler(val);
+              else setSubeler([]);
+            }}
+            style={styles.modalInput}>
+            <option value="">Seçiniz</option>
+            <option value="Bilimevi">Bilimevi</option>
+            <option value="Premium Vize">Premium Vize</option>
+            <option value="Fortis">Fortis</option>
+            <option value="Vagus">Vagus</option>
+          </select>
+        </div>
+        {/* Şube dropdown */}
+        <div style={styles.modalField}>
+          <label style={styles.modalLabel}>Şube</label>
+          <select required value={formData.sube}
+            onChange={e => setFormData(p => ({ ...p, sube: e.target.value }))}
+            style={styles.modalInput}
+            disabled={!formData.sirket}>
+            <option value="">{formData.sirket ? "Seçiniz" : "Önce şirket seçin"}</option>
+            {subeler.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        {/* Giriş Tarihi */}
+        <div style={styles.modalField}>
+          <label style={styles.modalLabel}>Giriş Tarihi</label>
+          <input type="date" required value={formData.girisTarihi}
+            onChange={e => {
+              const val = e.target.value;
+              const pass = val ? val.split("-").reverse().join("") : "";
+              setFormData(p => ({ ...p, girisTarihi: val, pass }));
+            }}
+            style={styles.modalInput}
+          />
+        </div>
+        {/* E-posta */}
+        <div style={styles.modalField}>
+          <label style={styles.modalLabel}>E-posta</label>
+          <input type="email" required value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} style={styles.modalInput} />
+        </div>
+        {/* Şifre */}
+        <div style={styles.modalField}>
+          <label style={styles.modalLabel}>Şifre (otomatik)</label>
+          <input type="text" readOnly value={formData.pass} style={{ ...styles.modalInput, background: "#f1f5f9", color: "#64748b", cursor: "not-allowed" }} />
+        </div>
+        {/* TITLE */}
+        <div style={styles.modalField}>
+          <label style={styles.modalLabel}>Title</label>
+          <select value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} style={styles.modalInput}>
+            {roller.map(r => <option key={r} value={r.toLowerCase()}>{r}</option>)}
+          </select>
+        </div>
+        
+        {/* ─── CRM ID + ÇEK BUTONU ──────────────────────────────────────────── */}
+        <div style={styles.modalField}>
+          <label style={styles.modalLabel}>CRM ID (opsiyonel)</label>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <input 
+              type="number" 
+              value={formData.crmId} 
+              onChange={e => setFormData(p => ({ ...p, crmId: e.target.value }))} 
+              style={{ ...styles.modalInput, flex: 1, marginBottom: 0 }} 
+              placeholder="Örn: 83870"
+            />
+            <button 
+              type="button"
+              onClick={crmIdCek} 
+              disabled={crmIdLoading}
+              style={{
+                padding: "8px 14px",
+                fontSize: "13px",
+                fontWeight: "600",
+                background: crmIdLoading ? "#94a3b8" : "#3b82f6",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: crmIdLoading ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+                transition: "all 0.2s"
+              }}
+            >
+              {crmIdLoading ? "Aranıyor..." : "CRM ID'yi Çek"}
+            </button>
+          </div>
+          {crmIdMsg && (
+            <div style={{ 
+              fontSize: "12px", 
+              marginTop: "4px", 
+              color: crmIdMsg.success ? "#10b981" : "#ef4444",
+              fontWeight: "500"
+            }}>
+              {crmIdMsg.text}
+            </div>
+          )}
+        </div>
+        
+        {formError && <div style={{ color: "#dc2626", fontSize: "13px" }}>{formError}</div>}
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "8px" }}>
+          <button type="button" onClick={() => setShowModal(false)} style={styles.cancelBtn}>İptal</button>
+          <button type="submit" disabled={formSaving} style={styles.saveBtn}>{formSaving ? "..." : "Kaydet"}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+      
       {/* Başlık + Yenile */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }} className="izin-admin-header">
         <h2 style={styles.adminTitle}>Yönetici Paneli</h2>
