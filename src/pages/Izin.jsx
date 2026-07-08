@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5_k4M02agFQcEnQ5ggr-DODKllbwarSsVRJvtXNzFBGD2s-AreSvxy0npgbI7k0kq/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwP9nQmSGn7a0EBSpgyhGlQBYdQ_eapMxKnKnCFW13LM9gEjefy__cK0pKA_-3ExFsf/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -907,6 +907,10 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   const [subeSilSaving, setSubeSilSaving] = useState(false);
   const [saveOverlay, setSaveOverlay] = useState(false);
 
+// State tanımları (useState'lerin olduğu yere ekle)
+const [crmIdLoading, setCrmIdLoading] = useState(false);
+const [crmIdMsg, setCrmIdMsg] = useState(null); // { success: true/false, text: "..." }
+  
   async function acKlasor(row) {
     try {
       const url = scriptUrl + "?action=saglikKlasorBul&ad=" + encodeURIComponent(row["Personel"] || "");
@@ -1042,6 +1046,43 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     } catch (_) { setSubeler([]); }
   }
 
+  const crmIdCek = async () => {
+  const firstName = formData.name.trim().split(" ")[0];
+  
+  if (!firstName) {
+    setCrmIdMsg({ success: false, text: "⚠️ Önce personel adını girin!" });
+    return;
+  }
+  
+  setCrmIdLoading(true);
+  setCrmIdMsg(null);
+  
+  try {
+    // Apps Script endpoint'in (kendi URL'nle değiştir)
+    const response = await fetch("https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "kylasIdGetir",
+        firstName: firstName
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      setFormData(p => ({ ...p, crmId: result.id }));
+      setCrmIdMsg({ success: true, text: result.msg });
+    } else {
+      setCrmIdMsg({ success: false, text: result.msg });
+    }
+  } catch (err) {
+    setCrmIdMsg({ success: false, text: "Hata: " + err.message });
+  } finally {
+    setCrmIdLoading(false);
+  }
+};
+  
   async function handleYeniKullanici(e) {
     e.preventDefault();
     setFormError("");
