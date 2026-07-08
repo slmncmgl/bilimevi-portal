@@ -1057,15 +1057,16 @@ const [crmIdMsg, setCrmIdMsg] = useState(null); // { success: true/false, text: 
   setCrmIdLoading(true);
   setCrmIdMsg(null);
   
-  try {
-    // Apps Script endpoint'in (kendi URL'nle değiştir)
-    const response = await fetch("https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec", {
+ try {
+    // ✅ ARTIK DİNAMİK - SCRIPT_URL değişkenini kullanıyor
+    const response = await fetch(SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "kylasIdGetir",
         firstName: firstName
-      })
+      }),
+      redirect: 'follow' // Apps Script için önemli
     });
     
     const result = await response.json();
