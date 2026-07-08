@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v35-data-proxy-2026-07-07";
+const BFT_BUILD_VERSION = "v37-env-id-2026-07-07";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -94,7 +94,10 @@ function filterDialList(query) {
 }
 
 
-const MASTER_ID = "1eDm6Fw2Z7OeagUXNj2dv63FJx1al8d-4ePXK8D3D2n8";
+// Staff (Vercel): VITE_MASTER_ID env variable'ından gelir.
+// Customer (WordPress): env yok → undefined → ama proxy kullanıldığı için MASTER_ID hiç çağrılmaz.
+// Literal ID YOK — hiçbir build'de kaynak koda sızmaz.
+const MASTER_ID = import.meta.env.VITE_MASTER_ID;
 const CYAN = "#00C1DE";
 
 function parseCSV(csv) {
