@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v34-telefon-valid-2026-07-03";
+const BFT_BUILD_VERSION = "v35-data-proxy-2026-07-07";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -115,19 +115,41 @@ function parseCSV(csv) {
   });
 }
 
-async function fetchCSV(sheetId, sheetName) {
+// Staff (Vercel): doğrudan gviz. Customer (WordPress): proxy (Sheet ID gizli).
+// desc: { kind:"master"|"city_description"|"school", brand?, tab? } — customer için
+//       staff için ayrıca sheetId + sheetName kullanılır.
+async function fetchCSVStaff(sheetId, sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Sheet okunamadi: " + sheetName);
   return parseCSV(await res.text());
 }
 
-async function fetchNav() {
-  const rows = await fetchCSV(MASTER_ID, "master_index");
+async function fetchCSVProxy(desc) {
+  const endpoint = window.location.origin + "/wp-json/bilimevi/v1/data";
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(desc),
+  });
+  const data = await res.json().catch(() => null);
+  if (!data || !data.success || typeof data.csv !== "string") {
+    throw new Error("Veri yüklenemedi");
+  }
+  return parseCSV(data.csv);
+}
+
+async function fetchNav(isStaff) {
+  // Staff: doğrudan gviz (MASTER_ID kodda). Customer: proxy (ID gizli).
+  const rows = isStaff
+    ? await fetchCSVStaff(MASTER_ID, "master_index")
+    : await fetchCSVProxy({ sheet: "master" });
   // Okul+şehir açıklamaları (city_description sekmesi); hata olursa boş geç
   let descriptions = {};
   try {
-    const descRows = await fetchCSV(MASTER_ID, "city_description");
+    const descRows = isStaff
+      ? await fetchCSVStaff(MASTER_ID, "city_description")
+      : await fetchCSVProxy({ sheet: "city_description" });
     descRows.forEach(r => {
       const brand = (r.school_brand || "").trim();
       const city = (r.city || "").trim();
@@ -146,9 +168,17 @@ async function fetchNav() {
     const { city, school_brand: brand, drive_link = "" } = row;
     const langRaw = row.language || "İngilizce";
     const countryTRName = countryTR[row.country] || row.country;
-    const match = drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-    const sheetId = match ? match[1] : null;
-    if (sheetId && brand && !schoolSheets[brand]) schoolSheets[brand] = { sheetId, sheetName: row.sheet_name };
+    // Staff: sheetId'yi drive_link'ten çıkar (doğrudan gviz için).
+    // Customer: sheetId React'e HİÇ gelmez; sadece brand ismi tutulur (proxy alias çözer).
+    if (brand && !schoolSheets[brand]) {
+      if (isStaff) {
+        const match = drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+        const sheetId = match ? match[1] : null;
+        if (sheetId) schoolSheets[brand] = { sheetId, sheetName: row.sheet_name };
+      } else {
+        schoolSheets[brand] = { brand, sheetName: row.sheet_name };
+      }
+    }
     const langs = langRaw.split(",").map(l => l.trim()).filter(Boolean);
     langs.forEach(l => {
       languages.add(l);
@@ -172,17 +202,21 @@ async function fetchNav() {
   };
 }
 
-async function fetchCityData(sheetId, city) {
-  const key = `${sheetId}_${city}`;
+async function fetchCityData(sheetId, city, isStaff, brand) {
+  // Staff: sheetId ile doğrudan gviz. Customer: brand ile proxy (sheetId gizli).
+  const key = `${isStaff ? sheetId : brand}_${city}`;
   if (!window._CITY_CACHE) window._CITY_CACHE = {};
   if (window._CITY_CACHE[key]) return window._CITY_CACHE[key];
+  const getTab = (tab) => isStaff
+    ? fetchCSVStaff(sheetId, tab)
+    : fetchCSVProxy({ sheet: "school", brand, tab });
   try {
     const [courseRows, accRows, feeRows, transferRows, discountRows] = await Promise.all([
-      fetchCSV(sheetId, "courses"),
-      fetchCSV(sheetId, "accommodation"),
-      fetchCSV(sheetId, "fees"),
-      fetchCSV(sheetId, "transfers").catch(() => []),
-      fetchCSV(sheetId, "discounts").catch(() => []),
+      getTab("courses"),
+      getTab("accommodation"),
+      getTab("fees"),
+      getTab("transfers").catch(() => []),
+      getTab("discounts").catch(() => []),
     ]);
     const courseMap = {};
     courseRows.filter(r => r.city === city).forEach(r => {
@@ -437,6 +471,7 @@ export default function FiyatTeklifi() {
   const [destinations, setDestinations] = useState([]);
   const [cur, setCur] = useState(emptyDest());
   const [nav, setNav] = useState({ languages:[], countries:{}, citiesByLang:{}, brandsByCity:{}, schoolSheets:{} });
+  const [navError, setNavError] = useState("");
   const [accType, setAccType] = useState("");
   const [leadModal, setLeadModal] = useState(false);
   const [leadForm, setLeadForm] = useState({ name:"", phone:"", email:"", dialCode:"+90", consentKvkk:false, consentEmail:false, consentAdvisor:false });
@@ -448,7 +483,10 @@ export default function FiyatTeklifi() {
 
   useEffect(() => {
     if (isStaff) { const session = getSession(); if (!session) return navigate("/"); setUser(session); }
-    fetchNav().then(setNav).catch(console.error);
+    fetchNav(isStaff).then(setNav).catch(err => {
+      console.error("[BFT] Nav yüklenemedi:", err);
+      if (!isStaff) setNavError("Veri yüklenemedi, bir süre sonra tekrar deneyiniz.");
+    });
   }, []);
 
   // Customer modunda dil varsayilan İngilizce (Almanca/Fransızca gizli); ulke FIXED_COUNTRY ile sabit
@@ -461,10 +499,18 @@ export default function FiyatTeklifi() {
 
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline || cur.cityData) return;
+    // Staff: sheetId gerekir. Customer: brand yeterli (proxy ID'yi çözer).
     const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
-    if (!sheetId) return;
+    if (isStaff && !sheetId) return;
+    if (!isStaff && !nav.schoolSheets?.[cur.brand]) return;
     setCur(p => ({ ...p, cityLoading: true }));
-    fetchCityData(sheetId, cur.city).then(data => setCur(p => ({ ...p, cityData: data, cityLoading: false, transfer: null })));
+    fetchCityData(sheetId, cur.city, isStaff, cur.brand)
+      .then(data => setCur(p => ({ ...p, cityData: data, cityLoading: false, transfer: null })))
+      .catch(err => {
+        console.error("[BFT] Şehir verisi yüklenemedi:", err);
+        setCur(p => ({ ...p, cityLoading: false }));
+        if (!isStaff) setNavError("Veri yüklenemedi, bir süre sonra tekrar deneyiniz.");
+      });
   }, [cur.city, cur.brand, nav.schoolSheets, cur.isOnline, cur.cityData]);
 
   const courses = cur.cityData?.courses || [];
@@ -966,6 +1012,15 @@ export default function FiyatTeklifi() {
 
   return (
     <>
+    {navError && !isStaff && (
+      <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.96)", zIndex:99998, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center" }}>
+        <p style={{ fontSize:16, fontWeight:600, color:"#0f172a", marginBottom:8 }}>{navError}</p>
+        <button onClick={() => { setNavError(""); window.location.reload(); }}
+          style={{ marginTop:12, padding:"10px 24px", background:CYAN, color:"#fff", border:"none", borderRadius:10, fontWeight:600, cursor:"pointer", fontSize:14 }}>
+          Yeniden Dene
+        </button>
+      </div>
+    )}
     {pdfLoading && (
       <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.85)", zIndex:99999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", backdropFilter:"blur(2px)" }}>
         <div style={{ width:48, height:48, border:`4px solid #e2e8f0`, borderTopColor:CYAN, borderRadius:"50%", animation:"bftSpin 0.8s linear infinite" }} />
