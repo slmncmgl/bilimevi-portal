@@ -1059,15 +1059,19 @@ const [crmIdMsg, setCrmIdMsg] = useState(null); // { success: true/false, text: 
   
  try {
     // ✅ ARTIK DİNAMİK - SCRIPT_URL değişkenini kullanıyor
-    const response = await fetch(SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "kylasIdGetir",
-        firstName: firstName
-      }),
-      redirect: 'follow' // Apps Script için önemli
-    });
+   const response = await fetch(SCRIPT_URL, {
+  method: "POST",
+  mode: 'cors', // CORS modunu açıkça belirt
+  headers: { 
+    "Content-Type": "text/plain;charset=utf-8", // Apps Script bazen JSON header'ı sevmez
+    "Accept": "application/json"
+  },
+  body: JSON.stringify({
+    action: "kylasIdGetir",
+    firstName: firstName
+  }),
+  redirect: 'follow'
+});
     
     const result = await response.json();
     
