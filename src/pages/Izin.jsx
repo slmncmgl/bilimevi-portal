@@ -1,5 +1,3 @@
- 
-
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
@@ -374,17 +372,20 @@ export default function Izin() {
   async function loadAdminList(sessionOverride) {
     setAdminLoading(true);
     try {
-      const userTitle = (sessionOverride?.rol || sessionOverride?.title || user?.rol || user?.title || "staff");
+      const sess = sessionOverride || getSession() || user || {};
+      const userTitle = (sess.rol || sess.title || "staff").toLowerCase().trim();
+      const userSirket = sess.company || personel?.["Şirket"] || "";
+      const userSube   = sess.branch  || personel?.["Şube"]   || "";
       const tumPersonel = await fetchTumPersonel();
       let filtered;
       if (userTitle === "owner" || userTitle === "admin") {
         filtered = tumPersonel;
       } else if (userTitle === "director") {
-        filtered = tumPersonel.filter(p => p["Şirket"] === (sessionOverride?.company || personel?.["Şirket"]));
+        filtered = tumPersonel.filter(p => (p["Şirket"] || "").trim() === userSirket.trim());
       } else {
         filtered = tumPersonel.filter(p =>
-          p["Şirket"] === (sessionOverride?.company || personel?.["Şirket"]) &&
-          p["Şube"] === (sessionOverride?.branch || personel?.["Şube"])
+          (p["Şirket"] || "").trim() === userSirket.trim() &&
+          (p["Şube"] || "").trim() === userSube.trim()
         );
       }
       setAdminList(filtered);
@@ -520,7 +521,7 @@ export default function Izin() {
 
       <main style={styles.main} className="izin-main">
         {adminView ? (
-          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin" || rol === "owner"} adminTab={adminTab} setAdminTab={setAdminTab} isFortis={isFortis} />
+          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin" || rol === "owner"} adminTab={adminTab} setAdminTab={setAdminTab} isFortis={isFortis} isManagerOnly={!(rol === "admin" || rol === "owner")} />
         ) : (
           <div style={styles.pageLayout}>
             <div style={styles.formLayout}>
@@ -827,7 +828,7 @@ export default function Izin() {
   );
 }
 
-function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, adminTab, setAdminTab, isFortis }) {
+function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, adminTab, setAdminTab, isFortis, isManagerOnly }) {
   const [roller, setRoller] = useState([]);
   useEffect(() => { fetchRoller().then(setRoller).catch(() => setRoller(["staff","manager","director","owner","admin"])); }, []);
   const [bekleyenIzinler, setBekleyenIzinler] = useState([]);
@@ -870,7 +871,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     try {
       const csv = await fetchSheetCSV("İşlemler");
       const rows = parseCSV(csv);
-      const bekleyen = rows.filter(r => (r["Durum"] || "").trim() === "Bekliyor");
+      let bekleyen = rows.filter(r => (r["Durum"] || "").trim() === "Bekliyor");
+      // Manager ise sadece kendi şubesindeki personelin taleplerini göster
+      if (isManagerOnly) {
+        const izinliIsimler = list.map(p => p["Ad Soyad"]);
+        bekleyen = bekleyen.filter(r => izinliIsimler.includes(r["Personel"]));
+      }
       setBekleyenIzinler(bekleyen);
     } catch (_) { setBekleyenIzinler([]); }
     setBekleyenLoading(false);
@@ -881,14 +887,18 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     try {
       const csv = await fetchSheetCSV("İşlemler");
       const rows = parseCSV(csv);
+      let filtered = rows.filter(r => r["Personel"] || r["İşlem Zamanı"]);
+      // Manager ise sadece kendi şubesindeki personelin geçmişini göster
+      if (isManagerOnly) {
+        const izinliIsimler = list.map(p => p["Ad Soyad"]);
+        filtered = filtered.filter(r => izinliIsimler.includes(r["Personel"]));
+      }
       // Tarihe göre ters sırala (en yeni en üste)
-      const sorted = rows
-        .filter(r => r["Personel"] || r["İşlem Zamanı"])
-        .sort((a, b) => {
-          const da = new Date(a["İşlem Zamanı"] || 0);
-          const db = new Date(b["İşlem Zamanı"] || 0);
-          return db - da;
-        });
+      const sorted = filtered.sort((a, b) => {
+        const da = new Date(a["İşlem Zamanı"] || 0);
+        const db = new Date(b["İşlem Zamanı"] || 0);
+        return db - da;
+      });
       setIslemGecmisi(sorted);
     } catch (_) { setIslemGecmisi([]); }
     setGecmisLoading(false);
@@ -897,7 +907,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   useEffect(() => {
     if (adminTab === "bekleyen") fetchBekleyen();
     if (adminTab === "gecmis") fetchGecmis();
-  }, [adminTab]);
+  }, [adminTab, list]);
 
   async function onaylaIzin(row) {
     const key = row["Personel"] + row["Başlangıç"];
@@ -1373,16 +1383,22 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                       )}
                     </div>
                     <div style={{ display: "flex", gap: "8px" }}>
-                      <button onClick={() => onaylaIzin(row)} disabled={isProcessing}
-                        style={{ padding: "8px 16px", background: isOnayProcessing ? "#a7f3d0" : "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
-                        {isOnayProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
-                        Onayla
-                      </button>
-                      <button onClick={() => reddetIzin(row)} disabled={isProcessing}
-                        style={{ padding: "8px 16px", background: isReddetProcessing ? "#fecaca" : "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif", display: "flex", alignItems: "center", gap: "6px" }}>
-                        {isReddetProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,0,0,0.2)", borderTopColor: "#dc2626", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
-                        Reddet
-                      </button>
+                      {isAdmin ? (
+                        <>
+                          <button onClick={() => onaylaIzin(row)} disabled={isProcessing}
+                            style={{ padding: "8px 16px", background: isOnayProcessing ? "#a7f3d0" : "#059669", color: "#fff", border: "none", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px" }}>
+                            {isOnayProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : "✓"}
+                            Onayla
+                          </button>
+                          <button onClick={() => reddetIzin(row)} disabled={isProcessing}
+                            style={{ padding: "8px 16px", background: isReddetProcessing ? "#fecaca" : "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px" }}>
+                            {isReddetProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,0,0,0.2)", borderTopColor: "#dc2626", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
+                            Reddet
+                          </button>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: "12px", color: "#94a3b8", fontStyle: "italic", padding: "8px 12px" }}>Sadece görüntüleme</span>
+                      )}
                     </div>
                   </div>
                 );
