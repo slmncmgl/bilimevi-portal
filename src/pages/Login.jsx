@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithCredentials, saveSession, getSession } from "../utils/sheets";
 
@@ -85,6 +85,7 @@ export default function Login() {
   const [sifreUsername, setSifreUsername] = useState("");
   const [sifreLoading, setSifreLoading] = useState(false);
   const [sifreMesaj, setSifreMesaj] = useState(null);
+  const sifreInputRef = useRef(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -107,7 +108,7 @@ export default function Login() {
     setSifreLoading(true);
     setSifreMesaj(null);
     try {
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5_k4M02agFQcEnQ5ggr-DODKllbwarSsVRJvtXNzFBGD2s-AreSvxy0npgbI7k0kq/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAMxzXvNxjhEpxh-Zf3_BB1tfbptyaLFE2TS12xbH4xSHOXu5AG_Nhrk4fkuMfEI8W/exec";
 
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
@@ -248,7 +249,17 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5_k4M02agFQcEnQ5gg
               {/* Şifremi Gönder */}
               <button
                 type="button"
-                onClick={() => { setSifrePopup(true); setSifreUsername("@bilimevi.com"); setSifreMesaj(null); }}
+                onClick={() => {
+                  setSifrePopup(true);
+                  setSifreUsername("@bilimevi.com");
+                  setSifreMesaj(null);
+                  setTimeout(() => {
+                    if (sifreInputRef.current) {
+                      sifreInputRef.current.focus();
+                      sifreInputRef.current.setSelectionRange(0, 0);
+                    }
+                  }, 0);
+                }}
                 style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "12px", cursor: "pointer", textAlign: "left", padding: "0", fontFamily: "'Inter', sans-serif", textDecoration: "underline" }}
               >
                 {t.forgot}
@@ -311,6 +322,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5_k4M02agFQcEnQ5gg
             <h3 style={{ fontSize: "16px", fontWeight: "700", color: "#0f172a", marginBottom: "8px" }}>{t.popupTitle}</h3>
             <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px", lineHeight: 1.6 }}>{t.popupSub}</p>
             <input
+              ref={sifreInputRef}
               type="text"
               value={sifreUsername}
               onChange={e => setSifreUsername(e.target.value)}
