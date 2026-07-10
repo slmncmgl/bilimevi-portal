@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v39-ozet-tablo-logo-bold-2026-07-10";
+const BFT_BUILD_VERSION = "v40-bugfix-logo-wa-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -23,7 +23,10 @@ if (typeof window !== "undefined") {
 // Logolar: customer modda WordPress plugin assets URL'inden yüklenir
 const ASSETS_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.assetsUrl) || null;
 // Bilimevi logosu (her sitede sabit, sağda)
-const BILIMEVI_LOGO = ASSETS_URL ? ASSETS_URL + "Bilimevi_logo.jpg" : null;
+// Customer (WordPress): ASSETS_URL'den. Staff (Vercel, ASSETS_URL yok): GitHub raw'dan.
+const BILIMEVI_LOGO = ASSETS_URL
+  ? ASSETS_URL + "Bilimevi_logo.jpg"
+  : "https://raw.githubusercontent.com/slmncmgl/bilimevi-portal/main/src/assets/Bilimevi_logo.jpg";
 // Site logosu (siteye özel, solda) — shortcode'dan: site_logo="ingilteredil_logo.png"
 const SITE_LOGO_NAME = (typeof window !== "undefined" && window.BFT_CONFIG?.siteLogo && window.BFT_CONFIG.siteLogo.trim())
   ? window.BFT_CONFIG.siteLogo.trim() : null;
@@ -956,10 +959,14 @@ export default function FiyatTeklifi() {
 
         // CTA — sadece staff modda
         if (isStaff) {
+          const waPhone = (user?.phone || "905419189177").replace(/\D/g, "");
+          const waUrl = `https://wa.me/${waPhone}`;
+          const btnX = PAGE_W/2 - 45, btnY = y, btnW = 90, btnH = 10;
           doc.setFillColor(...CYAN_RGB);
-          doc.roundedRect(PAGE_W/2 - 45, y, 90, 10, 5, 5, "F");
+          doc.roundedRect(btnX, btnY, btnW, btnH, 5, 5, "F");
           doc.setFontSize(10); doc.setTextColor(255);
           doc.text("Eğitim Danışmanınıza Şimdi Ulaşın", PAGE_W/2, y + 6.5, { align:"center" });
+          doc.link(btnX, btnY, btnW, btnH, { url: waUrl });
           y += 18;
         }
 
@@ -1022,9 +1029,9 @@ export default function FiyatTeklifi() {
           cols.forEach((c, i) => {
             const v = valueFn(c);
             if (v !== null && v !== undefined && v !== "") {
-              doc.text(String(v), colX(i) + colW - 3, cy, { align:"right" });
+              doc.text(String(v), colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
             } else {
-              doc.setTextColor(200); doc.text("—", colX(i) + colW - 3, cy, { align:"right" });
+              doc.setTextColor(200); doc.text("—", colX(i) + colW/2, cy, { align:"center" });
               doc.setTextColor(opts.color ? opts.color[0] : 60, opts.color ? opts.color[1] : 60, opts.color ? opts.color[2] : 60);
             }
           });
@@ -1599,7 +1606,7 @@ export default function FiyatTeklifi() {
           <div style={S.navBox}>
             {stepName !== "Genel Bilgi" && stepName !== "Özet" && <button onClick={() => { setStep(s => s-1); setTimeout(() => { const r = document.getElementById("bft-root"); if (r) { const t = r.getBoundingClientRect().top + window.pageYOffset - 20; window.scrollTo({ top:t, behavior:"smooth" }); } else window.scrollTo({ top:0, behavior:"smooth" }); }, 100); }} style={S.btnBack}>← Geri</button>}
             {stepName !== "Özet" && stepName !== "Genel Bilgi" && (<button style={{ ...S.btnNext, opacity: !canNext ? 0.5 : 1, cursor: !canNext ? "not-allowed" : "pointer" }} disabled={!canNext} onClick={next}>{step === STEPS.indexOf("Özet") - 1 ? "Özete Geç →" : "İleri →"}</button>)}
-            {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft:"auto" }} className="bft-pdf-btn-mobile">📄 PDF Oluştur</button>)}
+            {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft:"auto" }} className={isStaff ? "bft-pdf-btn-mobile" : ""}>📄 PDF Oluştur</button>)}
           </div>
         </main>
 
