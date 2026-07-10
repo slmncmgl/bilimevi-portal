@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
+import bilimeviLogoAsset from "../assets/Bilimevi_logo.jpg";
 
 // Mode tespiti: shortcode config > domain kontrolü
 function detectMode() {
@@ -14,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v40-bugfix-logo-wa-2026-07-10";
+const BFT_BUILD_VERSION = "v41-logo-import-baslik-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -23,10 +24,10 @@ if (typeof window !== "undefined") {
 // Logolar: customer modda WordPress plugin assets URL'inden yüklenir
 const ASSETS_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.assetsUrl) || null;
 // Bilimevi logosu (her sitede sabit, sağda)
-// Customer (WordPress): ASSETS_URL'den. Staff (Vercel, ASSETS_URL yok): GitHub raw'dan.
+// Customer (WordPress): ASSETS_URL'den. Staff (Vercel, ASSETS_URL yok): Vite import (build'e gömülü, CORS'suz).
 const BILIMEVI_LOGO = ASSETS_URL
   ? ASSETS_URL + "Bilimevi_logo.jpg"
-  : "https://raw.githubusercontent.com/slmncmgl/bilimevi-portal/main/src/assets/Bilimevi_logo.jpg";
+  : bilimeviLogoAsset;
 // Site logosu (siteye özel, solda) — shortcode'dan: site_logo="ingilteredil_logo.png"
 const SITE_LOGO_NAME = (typeof window !== "undefined" && window.BFT_CONFIG?.siteLogo && window.BFT_CONFIG.siteLogo.trim())
   ? window.BFT_CONFIG.siteLogo.trim() : null;
@@ -981,7 +982,7 @@ export default function FiyatTeklifi() {
         let cy = 24;
         doc.setFont(FONT, "bold");
         doc.setFontSize(16); doc.setTextColor(...CYAN_RGB);
-        doc.text("Karşılaştırma Tablosu", MARGIN, cy);
+        doc.text("Karşılaştırma Tablosu", PAGE_W/2, cy, { align:"center" });
         doc.setFont(FONT, "normal");
         cy += 12;
 
