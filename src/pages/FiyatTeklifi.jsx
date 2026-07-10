@@ -337,6 +337,7 @@ function getTotalAccommodationPrice(acc, weeks, startDate) {
 const FEE_NAME_MAP = {
   "Registration Fee": "Kayıt Ücreti",
   "Course Registration": "Kayıt Ücreti",
+  "Course Registration Fee": "Kayıt Ücreti",
   "Application Fee": "Kayıt Ücreti",
   "Enrolment Fee": "Kayıt Ücreti",
   "Accommodation Booking Fee": "Konaklama Yerleştirme Ücreti",
