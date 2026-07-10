@@ -14,7 +14,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v38-rate-origin-2026-07-07";
+const BFT_BUILD_VERSION = "v39-ozet-tablo-logo-bold-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -636,33 +636,46 @@ export default function FiyatTeklifi() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
 
-      // Türkçe karakter için DejaVuSans fontunu yükle ve göm (CORS uyumlu CDN)
+      // Türkçe karakter için DejaVuSans (normal + bold) fontunu yükle ve göm (CORS uyumlu CDN)
       if (!window.__bft_font_loaded) {
-        const fontUrls = [
-          "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
-          "https://unpkg.com/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
+        const fontSet = [
+          { key: "__bft_font_b64", urls: [
+            "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
+            "https://unpkg.com/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
+          ]},
+          { key: "__bft_font_bold_b64", urls: [
+            "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf",
+            "https://unpkg.com/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf",
+          ]},
         ];
-        for (const furl of fontUrls) {
-          try {
-            const resp = await fetch(furl);
-            if (!resp.ok) continue;
-            const buf = await resp.arrayBuffer();
-            let binary = "";
-            const bytes = new Uint8Array(buf);
-            for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-            const b64 = btoa(binary);
-            window.__bft_font_b64 = b64;
-            window.__bft_font_loaded = true;
-            console.log("[BFT] Türkçe font yüklendi:", furl);
-            break;
-          } catch (e) { console.warn("[BFT] Font CDN başarısız:", furl); }
+        for (const f of fontSet) {
+          for (const furl of f.urls) {
+            try {
+              const resp = await fetch(furl);
+              if (!resp.ok) continue;
+              const buf = await resp.arrayBuffer();
+              let binary = "";
+              const bytes = new Uint8Array(buf);
+              for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+              window[f.key] = btoa(binary);
+              console.log("[BFT] Font yüklendi:", furl);
+              break;
+            } catch (e) { console.warn("[BFT] Font CDN başarısız:", furl); }
+          }
         }
+        window.__bft_font_loaded = true;
       }
       if (window.__bft_font_b64) {
         try {
           doc.addFileToVFS("DejaVuSans.ttf", window.__bft_font_b64);
           doc.addFont("DejaVuSans.ttf", "DejaVuSans", "normal");
         } catch(e) { console.warn("[BFT] Font eklenemedi:", e); }
+      }
+      if (window.__bft_font_bold_b64) {
+        try {
+          doc.addFileToVFS("DejaVuSans-Bold.ttf", window.__bft_font_bold_b64);
+          doc.addFont("DejaVuSans-Bold.ttf", "DejaVuSans", "bold");
+        } catch(e) { console.warn("[BFT] Bold font eklenemedi:", e); }
       }
 
       const FONT = window.__bft_font_b64 ? "DejaVuSans" : "helvetica";
@@ -912,6 +925,7 @@ export default function FiyatTeklifi() {
         if (!_dt.isPackage && _dt.appliedDiscounts.length > 0) {
           _dt.appliedDiscounts.forEach((disc, i) => {
             checkPage();
+            doc.setFont(FONT, "bold");
             doc.setFontSize(9); doc.setTextColor(22, 163, 74);
             if (i === 0) doc.text("İndirimler", MARGIN, y);
             const dLabel = `${disc.label} (${disc.value_type === "percentage" ? "%" + disc.value : disc.value_type === "free" ? "Ücretsiz" : disc.value + " Sabit"})`;
@@ -919,6 +933,7 @@ export default function FiyatTeklifi() {
             doc.text(`-${money(disc.amount)}`, PAGE_W - MARGIN, y, { align:"right" });
             y += 5;
           });
+          doc.setFont(FONT, "normal");
           doc.setTextColor(17);
         }
 
@@ -952,6 +967,119 @@ export default function FiyatTeklifi() {
         doc.setFontSize(8); doc.setTextColor(51);
         doc.text("www.bilimevi.com", PAGE_W - MARGIN, 285, { align:"right" });
       });
+
+      // --- Karşılaştırma Tablosu (sadece 2-3 destinasyon) ---
+      if (destinations.length >= 2) {
+        doc.addPage();
+        let cy = 24;
+        doc.setFont(FONT, "bold");
+        doc.setFontSize(16); doc.setTextColor(...CYAN_RGB);
+        doc.text("Karşılaştırma Tablosu", MARGIN, cy);
+        doc.setFont(FONT, "normal");
+        cy += 12;
+
+        const n = destinations.length;
+        const labelW = 42;                         // sol kalem sütunu
+        const colW = (PAGE_W - MARGIN * 2 - labelW) / n;
+        const colX = (i) => MARGIN + labelW + i * colW;
+
+        // Her destinasyonun kalemlerini hesapla
+        const cols = destinations.map(d => {
+          const f = d.isOnline
+            ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
+            : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+          const dt = getDestinationTotals(d, f);
+          const cur = d.course?.currency || f.currency || "GBP";
+          return { d, f, dt, cur };
+        });
+
+        // Başlık satırı: okul adları
+        doc.setFont(FONT, "bold");
+        doc.setFontSize(9); doc.setTextColor(17);
+        cols.forEach((c, i) => {
+          const head = c.d.brand || c.d.city || `Okul ${i+1}`;
+          doc.text(String(head), colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
+        });
+        cy += 4;
+        cols.forEach((c, i) => {
+          doc.setFont(FONT, "normal"); doc.setFontSize(7); doc.setTextColor(120);
+          doc.text(`${c.d.city} · ${c.d.weeks} hafta`, colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
+        });
+        cy += 4;
+        doc.setDrawColor(200); doc.setLineWidth(0.3);
+        doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
+        cy += 6;
+
+        // Satır çizici: sol etiket + her okul için değer
+        const money2 = (n) => Number(n||0).toLocaleString("tr-TR");
+        const checkPageC = () => { if (cy > 270) { doc.addPage(); cy = 24; } };
+        const row = (label, valueFn, opts = {}) => {
+          checkPageC();
+          doc.setFont(FONT, opts.bold ? "bold" : "normal");
+          doc.setFontSize(opts.bold ? 9 : 8.5);
+          doc.setTextColor(opts.color ? opts.color[0] : 60, opts.color ? opts.color[1] : 60, opts.color ? opts.color[2] : 60);
+          doc.text(label, MARGIN, cy);
+          cols.forEach((c, i) => {
+            const v = valueFn(c);
+            if (v !== null && v !== undefined && v !== "") {
+              doc.text(String(v), colX(i) + colW - 3, cy, { align:"right" });
+            } else {
+              doc.setTextColor(200); doc.text("—", colX(i) + colW - 3, cy, { align:"right" });
+              doc.setTextColor(opts.color ? opts.color[0] : 60, opts.color ? opts.color[1] : 60, opts.color ? opts.color[2] : 60);
+            }
+          });
+          cy += 6;
+        };
+
+        // Kurs
+        row("Kurs", c => c.dt.isPackage
+          ? `${c.cur} ${money2(c.d.selectedPackage.package_price)}`
+          : `${c.cur} ${money2(c.d.courseTotalPrice)}`);
+        // Konaklama
+        row("Konaklama", c => {
+          if (c.dt.isPackage && c.d.selectedPackage?.package_type === "with_accommodation") return "Dahil";
+          if (!c.d.acc) return "";
+          return `${c.cur} ${money2(c.d.accTotalPrice)}`;
+        });
+        // Diğer ücretler (kalem kalem)
+        const allFeeNames = [...new Set(cols.flatMap(c => (c.f.items||[]).map(it => it.name)))];
+        allFeeNames.forEach(fn => {
+          row(fn, c => {
+            const it = (c.f.items||[]).find(x => x.name === fn);
+            return it ? `${c.f.currency||c.cur} ${money2(it.amount)}` : "";
+          });
+        });
+        // Transfer
+        if (cols.some(c => c.d.transfer)) {
+          row("Transfer", c => c.d.transfer ? `${c.d.transfer.currency} ${money2(c.d.transfer.one_way)}` : "");
+        }
+        // İndirim
+        if (cols.some(c => !c.dt.isPackage && c.dt.discountsTotal > 0)) {
+          row("İndirim", c => {
+            if (c.dt.isPackage || !c.dt.discountsTotal) return "";
+            return `- ${c.cur} ${money2(c.dt.discountsTotal)}`;
+          }, { color: [22, 163, 74], bold: true });
+        }
+
+        // Genel Toplam
+        cy += 1;
+        doc.setDrawColor(17); doc.setLineWidth(0.6);
+        doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
+        cy += 6;
+        row("GENEL TOPLAM", c => `${c.cur} ${money2(c.dt.grandTotal)}`, { bold: true, color: [17,17,17] });
+
+        // Farklı para birimi uyarısı
+        const currencies = [...new Set(cols.map(c => c.cur))];
+        if (currencies.length > 1) {
+          cy += 4;
+          doc.setFont(FONT, "normal"); doc.setFontSize(7); doc.setTextColor(120);
+          doc.text("* Okullar farklı para birimlerinde fiyatlandırılmıştır; tutarlar doğrudan toplanamaz.", MARGIN, cy);
+        }
+
+        // Footer
+        doc.setFontSize(8); doc.setTextColor(51);
+        doc.text("www.bilimevi.com", PAGE_W - MARGIN, 285, { align:"right" });
+      }
 
       const filename = `Bilimevi_Teklif_${(leadForm.name || student.name || "Teklif").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
       doc.save(filename);
@@ -1133,7 +1261,7 @@ export default function FiyatTeklifi() {
 
       <header style={S.hdr}>
         <div style={S.cnt}>
-          {isStaff ? <button onClick={() => navigate("/dashboard")} style={S.backBtn}>← Dashboard</button> : <img src={logoSrc} alt="Bilimevi" style={{ height:32 }} />}
+          {isStaff ? <button onClick={() => navigate("/dashboard")} style={S.backBtn}>← Dashboard</button> : <span />}
           <span style={S.htitle}>Fiyat Teklifi</span>
           <div style={{ width:100 }} />
         </div>
@@ -1419,13 +1547,13 @@ export default function FiyatTeklifi() {
                     <div style={{ marginBottom:10 }}>
                       <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>{d.selectedPackage ? "Paket Program" : "Kurs"}</div>
                       {d.selectedPackage ? (<>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.selectedPackage.course_name}</span><span style={{ fontWeight:600, color:CYAN }}>{fmt(d.selectedPackage.package_price, cur2)}</span></div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.selectedPackage.course_name}</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.selectedPackage.package_price, cur2)}</span>}</div>
                         <div style={{ fontSize:11, color:"#10b981", fontWeight:600, marginTop:3 }}>{d.selectedPackage.package_type === "with_accommodation" ? "✓ Konaklama Dahil" : "Konaklama Hariç"}</div>
                         {d.selectedPackage.includes_tr && <div style={{ fontSize:11, color:"#64748b", marginTop:4, lineHeight:1.5 }}>Dahil: {d.selectedPackage.includes_tr}</div>}
                       </>) : (<>
-                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.course?.name}</span><span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span></div>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.course?.name}</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span>}</div>
                       {d.courseHsAmount > 0 && (<>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.courseHsStart)} – {formatDateShort(d.courseHsEnd)})</span><span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.courseHsAmount, cur2)}</span></div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.courseHsStart)} – {formatDateShort(d.courseHsEnd)})</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.courseHsAmount, cur2)}</span>}</div>
 
                       </>)}
                       </>)}
@@ -1434,25 +1562,28 @@ export default function FiyatTeklifi() {
                     {d.acc && !d.isOnline && d.selectedPackage?.package_type !== "with_accommodation" && (
                       <div style={{ marginBottom:10 }}>
                         <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board}</span><span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span></div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board}</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span>}</div>
                         {d.accHsAmount > 0 && (<>
-                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span><span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span></div>
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span>}</div>
 
                         </>)}
                         {accSD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>📅 {fmtDate(accSD)} — {fmtDate(accED)}</div>}
                       </div>
                     )}
-                    {!d.selectedPackage && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}><span style={{ color:"#64748b" }}>Kayıt + Materyal</span><span style={{ fontWeight:600 }}>{fmt(f.total, cur2)}</span></div>}
-                    {(d.addons||[]).map((a,ai) => (<div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>{a.name}</span><span>{fmt(a.totalAmount, cur2)}</span></div>))}
-                    {d.transfer && (<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport})</span><span>{fmt(d.transfer.one_way, d.transfer.currency)}</span></div>)}
+                    {!d.selectedPackage && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}><span style={{ color:"#64748b" }}>Kayıt + Materyal</span>{isStaff && <span style={{ fontWeight:600 }}>{fmt(f.total, cur2)}</span>}</div>}
+                    {(d.addons||[]).map((a,ai) => (<div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>{a.name}</span>{isStaff && <span>{fmt(a.totalAmount, cur2)}</span>}</div>))}
+                    {d.transfer && (<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport})</span>{isStaff && <span>{fmt(d.transfer.one_way, d.transfer.currency)}</span>}</div>)}
                     {(() => { const _dt = getDestinationTotals(d, f); return (<>
                     {!_dt.isPackage && _dt.appliedDiscounts.map((disc, di) => (
                       <div key={di} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#16a34a", fontWeight:500 }}>
                         <span>{disc.label} ({disc.value_type === "percentage" ? `%${disc.value}` : disc.value_type === "free" ? "Ücretsiz" : `${disc.value} Sabit`})</span>
-                        <span>- {fmt(disc.amount, cur2)}</span>
+                        {isStaff && <span>- {fmt(disc.amount, cur2)}</span>}
                       </div>
                     ))}
-                    <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}><span>Toplam</span><span style={{ color:CYAN }}>{fmt(_dt.grandTotal, cur2)}</span></div>
+                    {isStaff
+                      ? <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}><span>Toplam</span><span style={{ color:CYAN }}>{fmt(_dt.grandTotal, cur2)}</span></div>
+                      : <div style={{ borderTop:`1.5px solid #e2e8f0`, paddingTop:10, marginTop:4, fontSize:12, color:"#64748b", textAlign:"center" }}>Fiyat detayları PDF teklifinizde yer alacaktır.</div>
+                    }
                     </>); })()}
 
                   </div>
@@ -1472,7 +1603,7 @@ export default function FiyatTeklifi() {
           </div>
         </main>
 
-        <aside style={S.side} className="bft-side">
+        {isStaff && <aside style={S.side} className="bft-side">
           <h3 style={S.sideTtl}>Anlık Özet</h3>
           <div style={S.liveBox}>
             {cur.lang && <div style={{ marginBottom:4 }}>📍 {cur.lang}{cur.country ? ` / ${cur.country}` : ""}{cur.city ? ` / ${cur.city}` : ""}</div>}
@@ -1492,7 +1623,7 @@ export default function FiyatTeklifi() {
           </div>
           {destinations.length > 0 && destinations.map((d,i) => (<div key={i} style={{ fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" }}><strong>{d.city}</strong> · {d.weeks}h · {d.course?.name?.slice(0,20)}</div>))}
           {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={S.pdfBtn}>📄 PDF Oluştur</button>)}
-        </aside>
+        </aside>}
       </div>
     </div>
 
