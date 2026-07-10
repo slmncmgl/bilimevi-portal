@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v41-logo-import-baslik-2026-07-10";
+const BFT_BUILD_VERSION = "v42-fee-birlestir-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -334,6 +334,118 @@ function getTotalAccommodationPrice(acc, weeks, startDate) {
   return { basePrice, hsAmount: hs.amount, totalPrice: basePrice + hs.amount, hsActive: hs.isActive, hsPerWeek: hs.supplementPerWeek, hsStart: hs.startDate, hsEnd: hs.endDate, hsPrice: hs.hsPrice };
 }
 
+const FEE_NAME_MAP = {
+  "Registration Fee": "Kayıt Ücreti",
+  "Course Registration": "Kayıt Ücreti",
+  "Application Fee": "Kayıt Ücreti",
+  "Enrolment Fee": "Kayıt Ücreti",
+  "Accommodation Booking Fee": "Konaklama Yerleştirme Ücreti",
+  "Accommodation Placement": "Konaklama Yerleştirme Ücreti",
+  "Accommodation Placement Fee": "Konaklama Yerleştirme Ücreti",
+  "Host Family Placement Fee": "Konaklama Yerleştirme Ücreti",
+  "Residence Service Fee": "Konaklama Yerleştirme Ücreti",
+  "Course Materials": "Materyal / Kitap Ücreti",
+  "Course Materials Fee": "Materyal / Kitap Ücreti",
+  "Materials Fee": "Materyal / Kitap Ücreti",
+  "Text Book": "Materyal / Kitap Ücreti",
+  "Teaching Materials": "Materyal / Kitap Ücreti",
+  "Insurance": "Sigorta Ücreti",
+  "Student Insurance": "Sigorta Ücreti",
+  "Medical & Travel Insurance": "Sigorta Ücreti",
+  "Liability, accident & health insurance": "Sigorta Ücreti",
+  "Medical Insurance (16-69)": "Sigorta Ücreti",
+  "Weekly Accident/Health Insurance": "Sigorta Ücreti",
+  "Courier Documents": "Evrak Kargo / Posta Ücreti",
+  "Courier Service": "Evrak Kargo / Posta Ücreti",
+  "Courier Fee": "Evrak Kargo / Posta Ücreti",
+  "Visa Document Courier Fee": "Evrak Kargo / Posta Ücreti",
+  "I-20 Document Courier Fee": "Evrak Kargo / Posta Ücreti",
+  "Bank Charges": "Banka Havale Ücreti",
+  "Bank Transfer Fee": "Banka Havale Ücreti",
+  "Homestay U18 Supplement": "Reşit Olmayan (18 Altı) Ek Ücreti",
+  "Unaccompanied Minor Fee": "Reşit Olmayan (18 Altı) Ek Ücreti",
+  "Special Diet Supplement": "Özel Diyet Ek Ücreti",
+  "Homestay Special Dietary Requirements": "Özel Diyet Ek Ücreti",
+  "Homestay Special Diet Supplement": "Özel Diyet Ek Ücreti",
+  "Specific Diet Supplement - 7/14 Meals": "Özel Diyet Ek Ücreti",
+  "Homestay Christmas Supplement": "Noel Dönemi Ek Ücreti",
+  "Christmas Supplement": "Noel Dönemi Ek Ücreti",
+  "Homestay End of Year Supplement": "Noel Dönemi Ek Ücreti",
+  "One-to-One Lessons": "Birebir Özel Ders Ücreti",
+  "Private Lessons 1-4 / 5-9 / 10+ hrs": "Birebir Özel Ders Ücreti",
+  "1-2-1 Private Lesson (55 min)": "Birebir Özel Ders Ücreti",
+  "University Placement (8-15 / 16-23 / >23 wks)": "Üniversite Yerleştirme Ücreti",
+  "University Placement Service": "Üniversite Yerleştirme Ücreti",
+  "US College Preparation Course": "Üniversite Yerleştirme Ücreti",
+  "Internship Placement Fee": "Staj Yerleştirme Ücreti",
+  "Internship Programme Placement Fee": "Staj Yerleştirme Ücreti",
+  "Tuition Summer Supplement": "Yaz Dönemi Ek Ücreti",
+  "Homestay Summer Supplement": "Yaz Dönemi Ek Ücreti",
+  "Residence Summer Supplement": "Yaz Dönemi Ek Ücreti",
+  "Tuition Peak Season Supplement": "Yüksek Sezon Ek Ücreti",
+  "Homestay Peak Season Supplement": "Yüksek Sezon Ek Ücreti",
+  "Residence Peak Season Supplement": "Yüksek Sezon Ek Ücreti",
+  "Residence Deposit": "Depozito / Teminat Ücreti",
+  "Student Apartment Deposit": "Depozito / Teminat Ücreti",
+  "Homestay Deposit": "Depozito / Teminat Ücreti",
+  "Examination Deposit": "Depozito / Teminat Ücreti",
+  "Residence Cleaning Fee": "Temizlik Ücreti",
+  "Student Apartment Cleaning Fee": "Temizlik Ücreti",
+  "Change Fee": "Değişiklik / İptal Ücreti",
+  "Assisted Check-in Fee": "Değişiklik / İptal Ücreti",
+  "Residence Room Move Fee": "Değişiklik / İptal Ücreti",
+  "IELTS Exam Fee": "Sınav Ücreti",
+  "Cambridge Exam Fee": "Sınav Ücreti",
+  "180-day Visa Application Fee": "Vize Başvuru Ücreti",
+  "Visa Administration Fee (in-country extension)": "Vize Başvuru Ücreti",
+  "Visa Assistance Process Package": "Vize Başvuru Ücreti",
+  "Certificate of Acceptance to Study": "Vize Başvuru Ücreti",
+  "1-day Safari": "Aktivite / Gezi Ücreti",
+  "3-day Garden Route Safari": "Aktivite / Gezi Ücreti",
+  "4-day Kruger Park Safari": "Aktivite / Gezi Ücreti",
+  "Gastronomy": "Aktivite / Gezi Ücreti",
+  "Bartending": "Aktivite / Gezi Ücreti",
+  "Professional Certificate in English for Business": "Mesleki Sertifika Ücreti",
+  "Professional Certificate in English for Communication and the Arts": "Mesleki Sertifika Ücreti",
+  "Professional Certificate in English for Media and Technology": "Mesleki Sertifika Ücreti",
+  "Career Pathway Application Package": "Kariyer Paketi Ücreti",
+  "Career Pathway Job Search Package": "Kariyer Paketi Ücreti",
+  "K+ Learning Space & Extra Access 12 months": "Online / Dijital Erişim Ücreti",
+  "K+ Learning Space & Extra Access 3 months": "Online / Dijital Erişim Ücreti",
+  "Homestay Close to School Supplement": "Konaklama Yakınlık Ek Ücreti",
+  "Close To School Supplement": "Konaklama Yakınlık Ek Ücreti",
+  "Homestay Private Bathroom Supplement": "Özel Banyo Ek Ücreti",
+  "Student Apartment Private Bathroom Supplement": "Özel Banyo Ek Ücreti",
+  "Luggage Retainer": "Bagaj Bekletme Ücreti",
+  "Luggage Storage Supplement": "Bagaj Bekletme Ücreti",
+  "Eco Tax": "Devlet / Yerel Vergi",
+  "Migration Office Fee": "Devlet / Yerel Vergi",
+  "Home Address Registration": "Devlet / Yerel Vergi",
+  "Canada Custodianship Fee": "Reşit Olmayan Vasi Ücreti",
+  "Custodianship Fee": "Reşit Olmayan Vasi Ücreti",
+  "PEL Protection of Enrolled Learners": "Öğrenci Koruma Ücreti",
+  "Learners Protection Fee": "Öğrenci Koruma Ücreti",
+  "Administration Fee": "Yönetim / İşlem Ücreti",
+  "Booking with Confidence Plus": "Yönetim / İşlem Ücreti"
+};
+
+// Ham fee ismini TR standart başlığa çevir (tam eşleşme; bulamazsa ham bırak)
+function normalizeFeeName(rawName) {
+  const key = (rawName || "").trim();
+  return FEE_NAME_MAP[key] || key;
+}
+// Aynı TR-standart isme sahip fee'leri tek satırda topla (tutarları toplar)
+function mergeFeeItems(items) {
+  const merged = {};
+  const order = [];
+  (items || []).forEach(it => {
+    const name = normalizeFeeName(it.name);
+    if (!merged[name]) { merged[name] = { ...it, name }; order.push(name); }
+    else { merged[name].amount += it.amount; merged[name].auto = merged[name].auto && it.auto; }
+  });
+  return order.map(n => merged[n]);
+}
+
 function calcFees(fees, weeks, age, accType) {
   const currency = fees?.[0]?.currency || "GBP";
   const items = [];
@@ -367,7 +479,7 @@ function calcFees(fees, weeks, age, accType) {
       total += amt;
     }
   }
-  return { items, total, currency };
+  return { items: mergeFeeItems(items), total, currency };
 }
 
 // ─── İNDİRİM FONKSİYONLARI ───
