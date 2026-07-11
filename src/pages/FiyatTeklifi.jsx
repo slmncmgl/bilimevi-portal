@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v43-tablo-stil-2026-07-10";
+const BFT_BUILD_VERSION = "v44-tablo-cizgi-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1096,7 +1096,11 @@ export default function FiyatTeklifi() {
         doc.setFontSize(16); doc.setTextColor(...CYAN_RGB);
         doc.text("Karşılaştırma Tablosu", PAGE_W/2, cy, { align:"center" });
         doc.setFont(FONT, "normal");
-        cy += 12;
+        cy += 5;
+        // Başlık altı ince gri çizgi (teklif sayfalarındaki gibi)
+        doc.setDrawColor(220); doc.setLineWidth(0.3);
+        doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
+        cy += 7;
 
         const n = destinations.length;
         const labelW = 42;                         // sol kalem sütunu
@@ -1132,7 +1136,8 @@ export default function FiyatTeklifi() {
           doc.text(`${c.d.city} · ${c.d.weeks} hafta`, colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
         });
         cy += 4;
-        doc.setDrawColor(200); doc.setLineWidth(0.3);
+        // Okul başlıkları altı — kalın siyah çizgi (kalemler başlamadan)
+        doc.setDrawColor(17); doc.setLineWidth(0.6);
         doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
         cy += 6;
 
@@ -1144,7 +1149,7 @@ export default function FiyatTeklifi() {
           const baseColor = opts.color || [60, 60, 60];
           // Sol kalem etiketi — her zaman bold
           doc.setFont(FONT, "bold");
-          doc.setFontSize(opts.bold ? 9 : 8.5);
+          doc.setFontSize(opts.big ? 11 : opts.bold ? 9 : 8.5);
           doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
           doc.text(label, MARGIN, cy);
           // Değerler — opts.bold ise bold, değilse normal
@@ -1196,7 +1201,7 @@ export default function FiyatTeklifi() {
         doc.setDrawColor(17); doc.setLineWidth(0.6);
         doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
         cy += 6;
-        row("GENEL TOPLAM", c => `${c.cur} ${money2(c.dt.grandTotal)}`, { bold: true, color: [17,17,17] });
+        row("GENEL TOPLAM", c => `${c.cur} ${money2(c.dt.grandTotal)}`, { bold: true, big: true, color: [17,17,17] });
 
         // Farklı para birimi uyarısı
         const currencies = [...new Set(cols.map(c => c.cur))];
