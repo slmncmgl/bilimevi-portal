@@ -338,6 +338,7 @@ const FEE_NAME_MAP = {
   "Registration Fee": "Kayıt Ücreti",
   "Course Registration": "Kayıt Ücreti",
   "Course Registration Fee": "Kayıt Ücreti",
+  "Administration Fee": "Kayıt Ücreti",
   "Application Fee": "Kayıt Ücreti",
   "Enrolment Fee": "Kayıt Ücreti",
   "Accommodation Booking Fee": "Konaklama Yerleştirme Ücreti",
@@ -1112,23 +1113,23 @@ export default function FiyatTeklifi() {
 
         // Başlık satırı: okul adları (her kelime alt alta, büyük+turkuaz)
         doc.setFont(FONT, "bold");
-        doc.setFontSize(11); doc.setTextColor(...CYAN_RGB);
+        doc.setFontSize(14); doc.setTextColor(...CYAN_RGB);
         let maxWords = 1;
         cols.forEach((c, i) => {
           const head = String(c.d.brand || c.d.city || `Okul ${i+1}`);
           const words = head.split(/\s+/).filter(Boolean);
           if (words.length > maxWords) maxWords = words.length;
           words.forEach((w, wi) => {
-            doc.text(w, colX(i) + colW/2, cy + wi * 5, { align:"center", maxWidth: colW - 2 });
+            doc.text(w, colX(i) + colW/2, cy + wi * 6.5, { align:"center", maxWidth: colW - 2 });
           });
         });
         doc.setTextColor(17);
-        cy += maxWords * 5 + 1;
+        cy += maxWords * 6.5 + 2;
         cols.forEach((c, i) => {
-          doc.setFont(FONT, "normal"); doc.setFontSize(7); doc.setTextColor(120);
+          doc.setFont(FONT, "normal"); doc.setFontSize(9); doc.setTextColor(120);
           doc.text(`${c.d.city} · ${c.d.weeks} hafta`, colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
         });
-        cy += 4;
+        cy += 5;
         // Okul başlıkları altı — kalın siyah çizgi (kalemler başlamadan)
         doc.setDrawColor(17); doc.setLineWidth(0.6);
         doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
