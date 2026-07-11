@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v44-tablo-cizgi-2026-07-10";
+const BFT_BUILD_VERSION = "v45-pastel-fee-basliksiz-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -337,6 +337,7 @@ function getTotalAccommodationPrice(acc, weeks, startDate) {
 const FEE_NAME_MAP = {
   "Registration Fee": "Kayıt Ücreti",
   "Course Registration": "Kayıt Ücreti",
+  "Course Registration Fee": "Kayıt Ücreti",
   "Application Fee": "Kayıt Ücreti",
   "Enrolment Fee": "Kayıt Ücreti",
   "Accommodation Booking Fee": "Konaklama Yerleştirme Ücreti",
@@ -1091,16 +1092,8 @@ export default function FiyatTeklifi() {
       // --- Karşılaştırma Tablosu (sadece 2-3 destinasyon) ---
       if (destinations.length >= 2) {
         doc.addPage();
-        let cy = 24;
-        doc.setFont(FONT, "bold");
-        doc.setFontSize(16); doc.setTextColor(...CYAN_RGB);
-        doc.text("Karşılaştırma Tablosu", PAGE_W/2, cy, { align:"center" });
+        let cy = 28;
         doc.setFont(FONT, "normal");
-        cy += 5;
-        // Başlık altı ince gri çizgi (teklif sayfalarındaki gibi)
-        doc.setDrawColor(220); doc.setLineWidth(0.3);
-        doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
-        cy += 7;
 
         const n = destinations.length;
         const labelW = 42;                         // sol kalem sütunu
@@ -1548,7 +1541,7 @@ export default function FiyatTeklifi() {
                     {/* Konaklama Talep Etmiyorum — tip butonlarinin saginda, gorsel ozellikleri pastel sari */}
                     <div onClick={() => { setAccType(""); setCur(p => ({...p, acc:null, noAccommodation:true})); }}
                       style={{ padding:12, borderRadius:12, cursor:"pointer", textAlign:"center", fontWeight:600, fontSize:13,
-                        border:`1.5px solid ${cur.noAccommodation ? "#f59e0b" : "#fde68a"}`, background: cur.noAccommodation ? "#fef3c7" : "#fffbeb", color: cur.noAccommodation ? "#92400e" : "#b45309" }}>
+                        border:`1.5px solid ${cur.noAccommodation ? "#94a3b8" : "#e2e8f0"}`, background: cur.noAccommodation ? "#f1f5f9" : "#f8fafc", color: cur.noAccommodation ? "#475569" : "#94a3b8" }}>
                       {cur.noAccommodation ? "✓ Konaklama Talep Etmiyorum" : "Konaklama Talep Etmiyorum"}
                     </div>
                   </div>
@@ -1657,7 +1650,7 @@ export default function FiyatTeklifi() {
                   </div>
                   <div onClick={() => setCur(p => ({ ...p, transfer: null }))}
                     style={{ marginTop:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", textAlign:"center", fontWeight:600, fontSize:13,
-                      border:`1.5px solid ${!cur.transfer ? "#f59e0b" : "#fde68a"}`, background: !cur.transfer ? "#fef3c7" : "#fffbeb", color: !cur.transfer ? "#92400e" : "#b45309" }}>
+                      border:`1.5px solid ${!cur.transfer ? "#94a3b8" : "#e2e8f0"}`, background: !cur.transfer ? "#f1f5f9" : "#f8fafc", color: !cur.transfer ? "#475569" : "#94a3b8" }}>
                     {!cur.transfer ? "✓ Transfer İstemiyorum" : "Transfer İstemiyorum"}
                   </div>
                 </div>
