@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v45-pastel-fee-basliksiz-2026-07-10";
+const BFT_BUILD_VERSION = "v46-stepper-numara-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1400,11 +1400,10 @@ export default function FiyatTeklifi() {
         <div style={{ maxWidth:1100, margin:"0 auto", padding:"12px 16px", display:"flex", alignItems:"center" }} className="bft-steps-desktop">
           {STEPS.map((s, i) => (
             <div key={i} style={{ display:"flex", alignItems:"center", flex: i < STEPS.length-1 ? 1 : 0 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
-                <div style={{ width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, background: i <= step ? CYAN : "#e2e8f0", color: i <= step ? "#fff" : "#94a3b8" }}>{i < step ? "✓" : i+1}</div>
-                <span style={{ fontSize:11, fontWeight: i===step?600:400, color: i===step?CYAN:i<step?"#0f172a":"#94a3b8", whiteSpace:"nowrap" }}>{s}</span>
-              </div>
-              {i < STEPS.length-1 && <div style={{ flex:1, height:1, background: i<step?CYAN:"#e2e8f0", margin:"0 8px" }} />}
+              <div style={{ width:26, height:26, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, flexShrink:0,
+                background: i < step ? "#22c55e" : i === step ? CYAN : "#e2e8f0",
+                color: i <= step ? "#fff" : "#94a3b8" }}>{i+1}</div>
+              {i < STEPS.length-1 && <div style={{ flex:1, height:2, background: i<step?"#22c55e":"#e2e8f0", margin:"0 8px" }} />}
             </div>
           ))}
         </div>
