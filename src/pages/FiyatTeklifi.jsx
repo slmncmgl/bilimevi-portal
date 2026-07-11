@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v42-fee-birlestir-2026-07-10";
+const BFT_BUILD_VERSION = "v43-tablo-stil-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -337,7 +337,6 @@ function getTotalAccommodationPrice(acc, weeks, startDate) {
 const FEE_NAME_MAP = {
   "Registration Fee": "Kayıt Ücreti",
   "Course Registration": "Kayıt Ücreti",
-  "Course Registration Fee": "Kayıt Ücreti",
   "Application Fee": "Kayıt Ücreti",
   "Enrolment Fee": "Kayıt Ücreti",
   "Accommodation Booking Fee": "Konaklama Yerleştirme Ücreti",
@@ -1114,14 +1113,20 @@ export default function FiyatTeklifi() {
           return { d, f, dt, cur };
         });
 
-        // Başlık satırı: okul adları
+        // Başlık satırı: okul adları (her kelime alt alta, büyük+turkuaz)
         doc.setFont(FONT, "bold");
-        doc.setFontSize(9); doc.setTextColor(17);
+        doc.setFontSize(11); doc.setTextColor(...CYAN_RGB);
+        let maxWords = 1;
         cols.forEach((c, i) => {
-          const head = c.d.brand || c.d.city || `Okul ${i+1}`;
-          doc.text(String(head), colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
+          const head = String(c.d.brand || c.d.city || `Okul ${i+1}`);
+          const words = head.split(/\s+/).filter(Boolean);
+          if (words.length > maxWords) maxWords = words.length;
+          words.forEach((w, wi) => {
+            doc.text(w, colX(i) + colW/2, cy + wi * 5, { align:"center", maxWidth: colW - 2 });
+          });
         });
-        cy += 4;
+        doc.setTextColor(17);
+        cy += maxWords * 5 + 1;
         cols.forEach((c, i) => {
           doc.setFont(FONT, "normal"); doc.setFontSize(7); doc.setTextColor(120);
           doc.text(`${c.d.city} · ${c.d.weeks} hafta`, colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
@@ -1136,17 +1141,21 @@ export default function FiyatTeklifi() {
         const checkPageC = () => { if (cy > 270) { doc.addPage(); cy = 24; } };
         const row = (label, valueFn, opts = {}) => {
           checkPageC();
-          doc.setFont(FONT, opts.bold ? "bold" : "normal");
+          const baseColor = opts.color || [60, 60, 60];
+          // Sol kalem etiketi — her zaman bold
+          doc.setFont(FONT, "bold");
           doc.setFontSize(opts.bold ? 9 : 8.5);
-          doc.setTextColor(opts.color ? opts.color[0] : 60, opts.color ? opts.color[1] : 60, opts.color ? opts.color[2] : 60);
+          doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
           doc.text(label, MARGIN, cy);
+          // Değerler — opts.bold ise bold, değilse normal
+          doc.setFont(FONT, opts.bold ? "bold" : "normal");
           cols.forEach((c, i) => {
             const v = valueFn(c);
             if (v !== null && v !== undefined && v !== "") {
               doc.text(String(v), colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
             } else {
               doc.setTextColor(200); doc.text("—", colX(i) + colW/2, cy, { align:"center" });
-              doc.setTextColor(opts.color ? opts.color[0] : 60, opts.color ? opts.color[1] : 60, opts.color ? opts.color[2] : 60);
+              doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
             }
           });
           cy += 6;
