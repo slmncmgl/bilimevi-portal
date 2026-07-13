@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v47-tablo-header-logo-2026-07-10";
+const BFT_BUILD_VERSION = "v49-telefon-input-fix-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1355,7 +1355,7 @@ export default function FiyatTeklifi() {
                     </div>
                   )}
                 </div>
-                <input className="bft-phone" placeholder="5XX XXX XX XX *" style={S.fti} type="tel" maxLength={leadForm.dialCode === "+90" ? 10 : 15} value={leadForm.phone} onChange={e => { const max = leadForm.dialCode === "+90" ? 10 : 15; setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,max)})); }} />
+                <input className="bft-phone" placeholder="5XX XXX XX XX *" style={S.fti} type="text" inputMode="numeric" autoComplete="off" maxLength={leadForm.dialCode === "+90" ? 10 : 15} value={leadForm.phone} onChange={e => { const max = leadForm.dialCode === "+90" ? 10 : 15; setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,max)})); }} />
               </div>
               <input placeholder="E-posta *" style={S.fti} type="email" value={leadForm.email} onChange={e => setLeadForm(p => ({...p, email:e.target.value}))} />
             </div>
@@ -1386,6 +1386,7 @@ export default function FiyatTeklifi() {
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
         * { box-sizing:border-box; margin:0; padding:0; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes bftSpin { to { transform: rotate(360deg); } }
         input:focus { outline:none; border-color:${CYAN} !important; }
         #bft-root input[type="text"], #bft-root input[type="number"], #bft-root input[type="date"], #bft-root input[type="tel"], #bft-root input[type="email"], #bft-root input:not([type]) {
           background:#fff !important; color:#0f172a !important; border:1.5px solid #e2e8f0 !important;
@@ -1492,7 +1493,7 @@ export default function FiyatTeklifi() {
 
           {stepName === "Kurs" && (
             <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>{cur.isOnline ? "Kurs Detayı — EC Live" : `Kurs Seçimi — ${cur.brand} ${cur.city}`}{cur.cityLoading && <span style={{ fontSize:11, color:"#94a3b8", fontWeight:400, marginLeft:8 }}>yükleniyor...</span>}</h2>
+              <h2 style={S.ttl}>{cur.isOnline ? "Kurs Detayı — EC Live" : `Kurs Seçimi — ${cur.brand} ${cur.city}`}{cur.cityLoading && <span style={{ display:"inline-flex", alignItems:"center", gap:8, marginLeft:12, verticalAlign:"middle" }}><span style={{ display:"inline-block", width:16, height:16, border:`2.5px solid ${CYAN}`, borderTopColor:"transparent", borderRadius:"50%", animation:"bftSpin 0.7s linear infinite" }} /><span style={{ fontSize:14, color:CYAN, fontWeight:600 }}>Programlar Yükleniyor...</span></span>}</h2>
               <div style={S.r2} className="bft-r2">
                 <div style={S.fld}><label style={S.lbl}>Başlangıç Tarihi (Pazartesi)</label><input type="date" style={S.fti} value={cur.startDate} min={new Date().toISOString().split("T")[0]} onChange={e => handleDateChange(e.target.value)} /></div>
                 <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" min={1} max={52} value={cur.weeks} onChange={e => setCur(p => ({...p, weeks:parseInt(e.target.value)||1, course:null, selectedPackage:null, courseTab:null, acc:null, noAccommodation:false}))} /></div>
