@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v51-libphone-tdz-fix-2026-07-10";
+const BFT_BUILD_VERSION = "v52-inline-dynamic-fix-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -448,7 +448,6 @@ const FEE_NAME_MAP = {
   "Custodianship Fee": "Reşit Olmayan Vasi Ücreti",
   "PEL Protection of Enrolled Learners": "Öğrenci Koruma Ücreti",
   "Learners Protection Fee": "Öğrenci Koruma Ücreti",
-  "Administration Fee": "Yönetim / İşlem Ücreti",
   "Booking with Confidence Plus": "Yönetim / İşlem Ücreti"
 };
 
