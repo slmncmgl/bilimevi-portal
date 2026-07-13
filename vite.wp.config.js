@@ -28,7 +28,7 @@ export default defineConfig({
       input: resolve(__dirname, "src/wp-main.jsx"),
       output: {
         entryFileNames: "fiyat-teklifi.js",
-        chunkFileNames: "fiyat-teklifi-[name].js",
+        inlineDynamicImports: true,
         assetFileNames: (assetInfo) => {
           if (assetInfo.name?.endsWith(".css")) return "fiyat-teklifi.css";
           return assetInfo.name;
