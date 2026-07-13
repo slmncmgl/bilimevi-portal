@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v53-tdz-useeffect-fix-2026-07-10";
+const BFT_BUILD_VERSION = "v54-phone-example-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -56,7 +56,12 @@ function loadPhoneLib() {
   if (_phoneLib) return Promise.resolve(_phoneLib);
   if (_phoneLibLoading) return _phoneLibLoading;
   _phoneLibLoading = import("libphonenumber-js")
-    .then(mod => { _phoneLib = mod; return mod; })
+    .then(mod => {
+      _phoneLib = mod;
+      // Örnek numara metadata'sını da yükle (help text için)
+      import("libphonenumber-js/mobile/examples").then(ex => { _phoneExamples = ex.default || ex.examples || ex; }).catch(() => {});
+      return mod;
+    })
     .catch(e => { console.warn("[BFT] libphonenumber yüklenemedi:", e); _phoneLibLoading = null; return null; });
   return _phoneLibLoading;
 }
@@ -66,6 +71,18 @@ function checkPhoneValid(phone, dialCode) {
   if (!iso) return null;
   try {
     return _phoneLib.isValidPhoneNumber((dialCode || "") + (phone || ""), iso);
+  } catch (e) { return null; }
+}
+// Seçili ülke için örnek numara (ulusal format, dial kodu olmadan). Lib+örnek yoksa null.
+let _phoneExamples = null;
+function getPhoneExample(dialCode) {
+  if (!_phoneLib || !_phoneExamples) return null;
+  const iso = DIAL_TO_ISO[dialCode];
+  if (!iso) return null;
+  try {
+    const ex = _phoneLib.getExampleNumber(iso, _phoneExamples);
+    if (!ex) return null;
+    return ex.formatNational(); // örn: "0501 234 56 78"
   } catch (e) { return null; }
 }
 
@@ -621,14 +638,19 @@ export default function FiyatTeklifi() {
   const [accType, setAccType] = useState("");
   const [leadModal, setLeadModal] = useState(false);
   const [phoneValid, setPhoneValid] = useState(null); // null=bilinmiyor/boş, true/false=validasyon
+  const [phoneExample, setPhoneExample] = useState(""); // seçili ülke örnek numarası (placeholder)
   const [leadForm, setLeadForm] = useState({ name:"", phone:"", email:"", dialCode:"+90", consentKvkk:false, consentEmail:false, consentAdvisor:false });
   // Modal açılınca libphonenumber'ı yükle + numara/ülke değişince valide et.
   // NOT: leadForm'dan SONRA tanımlı olmalı (TDZ'den kaçınmak için).
   useEffect(() => {
-    if (leadModal && !isStaff) loadPhoneLib().then(() => setPhoneValid(checkPhoneValid(leadForm.phone, leadForm.dialCode)));
+    if (leadModal && !isStaff) loadPhoneLib().then(() => {
+      setPhoneValid(checkPhoneValid(leadForm.phone, leadForm.dialCode));
+      const ex = getPhoneExample(leadForm.dialCode); if (ex) setPhoneExample(ex);
+    });
   }, [leadModal, isStaff]);
   useEffect(() => {
     if (!leadModal || isStaff) return;
+    const ex = getPhoneExample(leadForm.dialCode); setPhoneExample(ex || "");
     if (!leadForm.phone) { setPhoneValid(null); return; }
     setPhoneValid(checkPhoneValid(leadForm.phone, leadForm.dialCode));
   }, [leadForm.phone, leadForm.dialCode, leadModal, isStaff]);
@@ -1388,10 +1410,13 @@ export default function FiyatTeklifi() {
                     </div>
                   )}
                 </div>
-                <input className="bft-phone" placeholder="5XX XXX XX XX *" style={S.fti} type="text" inputMode="numeric" autoComplete="off" maxLength={leadForm.dialCode === "+90" ? 10 : 15} value={leadForm.phone} onChange={e => { const max = leadForm.dialCode === "+90" ? 10 : 15; setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,max)})); }} />
+                <input className="bft-phone" placeholder={phoneExample ? `${phoneExample} *` : "5XX XXX XX XX *"} style={S.fti} type="text" inputMode="numeric" autoComplete="off" maxLength={leadForm.dialCode === "+90" ? 10 : 15} value={leadForm.phone} onChange={e => { const max = leadForm.dialCode === "+90" ? 10 : 15; setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,max)})); }} />
               </div>
               {!isStaff && phoneValid === false && leadForm.phone && (
-                <p style={{ margin:"2px 2px 0", fontSize:12, color:"#dc2626" }}>Geçerli bir telefon numarası giriniz (örn: 5XX XXX XX XX).</p>
+                <p style={{ margin:"2px 2px 0", fontSize:12, color:"#dc2626" }}>Geçerli bir telefon numarası giriniz{phoneExample ? ` (örn: ${phoneExample})` : ""}.</p>
+              )}
+              {!isStaff && phoneValid !== false && phoneExample && (
+                <p style={{ margin:"2px 2px 0", fontSize:11, color:"#94a3b8" }}>Örnek: {phoneExample}</p>
               )}
               <input placeholder="E-posta *" style={S.fti} type="email" value={leadForm.email} onChange={e => setLeadForm(p => ({...p, email:e.target.value}))} />
             </div>
