@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v49-telefon-input-fix-2026-07-10";
+const BFT_BUILD_VERSION = "v50-libphonenumber-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -47,6 +47,28 @@ const KVKK_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.kvkkUrl &&
   ? window.BFT_CONFIG.kvkkUrl.trim() : "";
 
 // Dial code -> ISO ülke kodu (205 ülke). Bulunamazsa code:"" gider.
+// libphonenumber-js — lazy yüklenir (modal açılınca), sonuç cache'lenir.
+// Açılış hızına etki etmez; sadece telefon girileceği an yüklenir.
+let _phoneLib = null;
+let _phoneLibLoading = null;
+function loadPhoneLib() {
+  if (_phoneLib) return Promise.resolve(_phoneLib);
+  if (_phoneLibLoading) return _phoneLibLoading;
+  _phoneLibLoading = import("libphonenumber-js")
+    .then(mod => { _phoneLib = mod; return mod; })
+    .catch(e => { console.warn("[BFT] libphonenumber yüklenemedi:", e); _phoneLibLoading = null; return null; });
+  return _phoneLibLoading;
+}
+// Numara + ISO ile geçerlilik. Lib yüklü değilse null döner (bilinmiyor → engelleme).
+function checkPhoneValid(phone, dialCode) {
+  if (!_phoneLib) return null; // henüz yüklenmedi → kararı erteleme
+  const iso = DIAL_TO_ISO[dialCode];
+  if (!iso) return null; // ISO bilinmiyor → libphonenumber'a bırakma, engelleme
+  try {
+    return _phoneLib.isValidPhoneNumber((dialCode || "") + (phone || ""), iso);
+  } catch (e) { return null; }
+}
+
 const DIAL_TO_ISO = {"+1":"US", "+7":"RU", "+20":"EG", "+27":"ZA", "+30":"GR", "+31":"NL", "+32":"BE", "+33":"FR", "+34":"ES", "+36":"HU", "+39":"IT", "+40":"RO", "+41":"CH", "+43":"AT", "+44":"GB", "+45":"DK", "+46":"SE", "+47":"NO", "+48":"PL", "+49":"DE", "+51":"PE", "+52":"MX", "+53":"CU", "+54":"AR", "+55":"BR", "+56":"CL", "+57":"CO", "+58":"VE", "+60":"MY", "+61":"AU", "+62":"ID", "+63":"PH", "+64":"NZ", "+65":"SG", "+66":"TH", "+81":"JP", "+82":"KR", "+84":"VN", "+86":"CN", "+90":"TR", "+91":"IN", "+92":"PK", "+93":"AF", "+94":"LK", "+95":"MM", "+98":"IR", "+211":"SS", "+212":"MA", "+213":"DZ", "+216":"TN", "+218":"LY", "+220":"GM", "+221":"SN", "+222":"MR", "+223":"ML", "+224":"GN", "+225":"CI", "+226":"BF", "+227":"NE", "+228":"TG", "+229":"BJ", "+230":"MU", "+231":"LR", "+232":"SL", "+233":"GH", "+234":"NG", "+235":"TD", "+236":"CF", "+237":"CM", "+238":"CV", "+239":"ST", "+240":"GQ", "+241":"GA", "+242":"CG", "+243":"CD", "+244":"AO", "+245":"GW", "+246":"IO", "+248":"SC", "+249":"SD", "+250":"RW", "+251":"ET", "+252":"SO", "+253":"DJ", "+254":"KE", "+255":"TZ", "+256":"UG", "+257":"BI", "+258":"MZ", "+260":"ZM", "+261":"MG", "+262":"RE", "+263":"ZW", "+264":"NA", "+265":"MW", "+266":"LS", "+267":"BW", "+268":"SZ", "+269":"KM", "+290":"SH", "+291":"ER", "+297":"AW", "+298":"FO", "+299":"GL", "+350":"GI", "+351":"PT", "+352":"LU", "+353":"IE", "+354":"IS", "+355":"AL", "+356":"MT", "+357":"CY", "+358":"FI", "+359":"BG", "+370":"LT", "+371":"LV", "+372":"EE", "+373":"MD", "+374":"AM", "+375":"BY", "+376":"AD", "+377":"MC", "+378":"SM", "+380":"UA", "+381":"RS", "+382":"ME", "+383":"XK", "+385":"HR", "+386":"SI", "+387":"BA", "+389":"MK", "+420":"CZ", "+421":"SK", "+423":"LI", "+500":"FK", "+501":"BZ", "+502":"GT", "+503":"SV", "+504":"HN", "+505":"NI", "+506":"CR", "+507":"PA", "+508":"PM", "+509":"HT", "+590":"GP", "+591":"BO", "+592":"GY", "+593":"EC", "+594":"GF", "+595":"PY", "+596":"MQ", "+597":"SR", "+598":"UY", "+599":"CW", "+670":"TL", "+672":"NF", "+673":"BN", "+674":"NR", "+675":"PG", "+676":"TO", "+677":"SB", "+678":"VU", "+679":"FJ", "+680":"PW", "+681":"WF", "+682":"CK", "+683":"NU", "+685":"WS", "+686":"KI", "+687":"NC", "+688":"TV", "+689":"PF", "+690":"TK", "+691":"FM", "+692":"MH", "+850":"KP", "+852":"HK", "+853":"MO", "+855":"KH", "+856":"LA", "+880":"BD", "+886":"TW", "+960":"MV", "+961":"LB", "+962":"JO", "+963":"SY", "+964":"IQ", "+965":"KW", "+966":"SA", "+967":"YE", "+968":"OM", "+970":"PS", "+971":"AE", "+972":"IL", "+973":"BH", "+974":"QA", "+975":"BT", "+976":"MN", "+977":"NP", "+992":"TJ", "+993":"TM", "+994":"AZ", "+995":"GE", "+996":"KG", "+998":"UZ"};
 
 // Türkçe ülke adı -> ISO (dropdown aramada kullanılır, ~40 popüler ülke)
@@ -600,6 +622,17 @@ export default function FiyatTeklifi() {
   const [navError, setNavError] = useState("");
   const [accType, setAccType] = useState("");
   const [leadModal, setLeadModal] = useState(false);
+  const [phoneValid, setPhoneValid] = useState(null); // null=bilinmiyor/boş, true/false=validasyon
+  // Modal açılınca libphonenumber'ı arka planda yükle (açılış hızına etki etmez)
+  useEffect(() => {
+    if (leadModal && !isStaff) loadPhoneLib().then(() => setPhoneValid(checkPhoneValid(leadForm.phone, leadForm.dialCode)));
+  }, [leadModal, isStaff]);
+  // Numara/ülke değişince yeniden valide et (lib yüklüyse)
+  useEffect(() => {
+    if (!leadModal || isStaff) return;
+    if (!leadForm.phone) { setPhoneValid(null); return; }
+    setPhoneValid(checkPhoneValid(leadForm.phone, leadForm.dialCode));
+  }, [leadForm.phone, leadForm.dialCode, leadModal, isStaff]);
   const [leadForm, setLeadForm] = useState({ name:"", phone:"", email:"", dialCode:"+90", consentKvkk:false, consentEmail:false, consentAdvisor:false });
   const [countryOpen, setCountryOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
@@ -1252,17 +1285,19 @@ export default function FiyatTeklifi() {
 
   const handleLeadSubmit = async () => {
     if (!leadForm.name || !leadForm.phone || !leadForm.email) return;
-    // Telefon validasyonu: TR (+90) → 10 hane katı; diğer ülkeler → min 6 hane
     const cleanPhone = (leadForm.phone || "").replace(/\D/g, "");
-    if (leadForm.dialCode === "+90") {
-      if (cleanPhone.length !== 10) {
-        alert("Telefon numarasını 10 hane giriniz (başında 0 olmadan).");
-        return;
-      }
-    } else {
-      if (cleanPhone.length < 6) {
-        alert("Telefon numarasını eksik veya yanlış girdiniz.");
-        return;
+    // Öncelik: libphonenumber (CRM ile aynı). Yüklü değilse uzunluk kontrolüne düş.
+    const libResult = checkPhoneValid(leadForm.phone, leadForm.dialCode);
+    if (libResult === false) {
+      alert("Geçerli bir telefon numarası giriniz (örn: 5XX XXX XX XX).");
+      return;
+    }
+    if (libResult === null) {
+      // Lib yüklenmemiş/ISO bilinmiyor → yedek uzunluk kontrolü
+      if (leadForm.dialCode === "+90") {
+        if (cleanPhone.length !== 10) { alert("Telefon numarasını 10 hane giriniz (başında 0 olmadan)."); return; }
+      } else {
+        if (cleanPhone.length < 6) { alert("Telefon numarasını eksik veya yanlış girdiniz."); return; }
       }
     }
     setLeadLoading(true);
@@ -1357,6 +1392,9 @@ export default function FiyatTeklifi() {
                 </div>
                 <input className="bft-phone" placeholder="5XX XXX XX XX *" style={S.fti} type="text" inputMode="numeric" autoComplete="off" maxLength={leadForm.dialCode === "+90" ? 10 : 15} value={leadForm.phone} onChange={e => { const max = leadForm.dialCode === "+90" ? 10 : 15; setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,max)})); }} />
               </div>
+              {!isStaff && phoneValid === false && leadForm.phone && (
+                <p style={{ margin:"2px 2px 0", fontSize:12, color:"#dc2626" }}>Geçerli bir telefon numarası giriniz (örn: 5XX XXX XX XX).</p>
+              )}
               <input placeholder="E-posta *" style={S.fti} type="email" value={leadForm.email} onChange={e => setLeadForm(p => ({...p, email:e.target.value}))} />
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:10, marginTop:16 }}>
@@ -1373,8 +1411,8 @@ export default function FiyatTeklifi() {
                 <span>Uzman Eğitim Danışmanının bana ulaşmasını istiyorum.</span>
               </label>
             </div>
-            <button onClick={handleLeadSubmit} disabled={!leadForm.name || !leadForm.phone || !leadForm.email || !leadForm.consentKvkk || !leadForm.consentEmail || leadLoading}
-              style={{ ...S.btnNext, width:"100%", marginTop:16, padding:"13px 0", opacity: (!leadForm.name||!leadForm.phone||!leadForm.email||!leadForm.consentKvkk||!leadForm.consentEmail||leadLoading) ? 0.5 : 1 }}>
+            <button onClick={handleLeadSubmit} disabled={!leadForm.name || !leadForm.phone || !leadForm.email || !leadForm.consentKvkk || !leadForm.consentEmail || leadLoading || phoneValid === false}
+              style={{ ...S.btnNext, width:"100%", marginTop:16, padding:"13px 0", opacity: (!leadForm.name||!leadForm.phone||!leadForm.email||!leadForm.consentKvkk||!leadForm.consentEmail||leadLoading||phoneValid===false) ? 0.5 : 1 }}>
               {leadLoading ? "Gönderiliyor..." : "📄 PDF İndir"}
             </button>
             <button onClick={() => setLeadModal(false)} style={{ width:"100%", marginTop:10, background:"none", border:"none", cursor:"pointer", color:"#94a3b8", fontSize:13 }}>İptal</button>
