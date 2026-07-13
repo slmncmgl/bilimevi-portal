@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v46-stepper-numara-2026-07-10";
+const BFT_BUILD_VERSION = "v47-tablo-header-logo-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1093,8 +1093,36 @@ export default function FiyatTeklifi() {
       // --- Karşılaştırma Tablosu (sadece 2-3 destinasyon) ---
       if (destinations.length >= 2) {
         doc.addPage();
-        let cy = 28;
+        let cy = 16;
         doc.setFont(FONT, "normal");
+
+        // Header: logo + danışman (teklif sayfalarıyla aynı)
+        const C_LOGO_H = 11;
+        if (siteLogo) {
+          try {
+            const w = C_LOGO_H * siteLogo.ratio;
+            doc.addImage(siteLogo.data, "PNG", MARGIN, cy - 2, w, C_LOGO_H);
+          } catch(e){ console.warn("[BFT] tablo site logo", e); }
+        }
+        if (isStaff) {
+          doc.setFontSize(7); doc.setTextColor(150);
+          doc.text("Bilimevi Eğitim Danışmanınız", MARGIN, cy);
+          doc.setFontSize(11); doc.setTextColor(17);
+          doc.text(user?.name || "—", MARGIN, cy + 4);
+          doc.setFontSize(8); doc.setTextColor(85);
+          doc.text(user?.email || "", MARGIN, cy + 8);
+        }
+        if (bilimeviLogo) {
+          try {
+            const w = C_LOGO_H * bilimeviLogo.ratio;
+            doc.addImage(bilimeviLogo.data, "PNG", PAGE_W - MARGIN - w, cy - 2, w, C_LOGO_H);
+          } catch(e){ console.warn("[BFT] tablo bilimevi logo", e); }
+        }
+        cy += C_LOGO_H + 5;
+        doc.setDrawColor(200); doc.setLineWidth(0.2);
+        doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
+        cy += 8;
+        doc.setTextColor(17);
 
         const n = destinations.length;
         const labelW = 42;                         // sol kalem sütunu
