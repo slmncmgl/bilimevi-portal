@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v52-inline-dynamic-fix-2026-07-10";
+const BFT_BUILD_VERSION = "v53-tdz-useeffect-fix-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -621,17 +621,17 @@ export default function FiyatTeklifi() {
   const [accType, setAccType] = useState("");
   const [leadModal, setLeadModal] = useState(false);
   const [phoneValid, setPhoneValid] = useState(null); // null=bilinmiyor/boş, true/false=validasyon
-  // Modal açılınca libphonenumber'ı arka planda yükle (açılış hızına etki etmez)
+  const [leadForm, setLeadForm] = useState({ name:"", phone:"", email:"", dialCode:"+90", consentKvkk:false, consentEmail:false, consentAdvisor:false });
+  // Modal açılınca libphonenumber'ı yükle + numara/ülke değişince valide et.
+  // NOT: leadForm'dan SONRA tanımlı olmalı (TDZ'den kaçınmak için).
   useEffect(() => {
     if (leadModal && !isStaff) loadPhoneLib().then(() => setPhoneValid(checkPhoneValid(leadForm.phone, leadForm.dialCode)));
   }, [leadModal, isStaff]);
-  // Numara/ülke değişince yeniden valide et (lib yüklüyse)
   useEffect(() => {
     if (!leadModal || isStaff) return;
     if (!leadForm.phone) { setPhoneValid(null); return; }
     setPhoneValid(checkPhoneValid(leadForm.phone, leadForm.dialCode));
   }, [leadForm.phone, leadForm.dialCode, leadModal, isStaff]);
-  const [leadForm, setLeadForm] = useState({ name:"", phone:"", email:"", dialCode:"+90", consentKvkk:false, consentEmail:false, consentAdvisor:false });
   const [countryOpen, setCountryOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
 
