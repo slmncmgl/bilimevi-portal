@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v59-not-punto-renk-2026-07-10";
+const BFT_BUILD_VERSION = "v60-tablo-sehir-fee-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -382,11 +382,11 @@ const FEE_NAME_MAP = {
   "Administration Fee": "Kayıt Ücreti",
   "Application Fee": "Kayıt Ücreti",
   "Enrolment Fee": "Kayıt Ücreti",
-  "Accommodation Booking Fee": "Konaklama Yerleştirme Ücreti",
-  "Accommodation Placement": "Konaklama Yerleştirme Ücreti",
-  "Accommodation Placement Fee": "Konaklama Yerleştirme Ücreti",
-  "Host Family Placement Fee": "Konaklama Yerleştirme Ücreti",
-  "Residence Service Fee": "Konaklama Yerleştirme Ücreti",
+  "Accommodation Booking Fee": "Konaklama Ayarlama Ücreti",
+  "Accommodation Placement": "Konaklama Ayarlama Ücreti",
+  "Accommodation Placement Fee": "Konaklama Ayarlama Ücreti",
+  "Host Family Placement Fee": "Konaklama Ayarlama Ücreti",
+  "Residence Service Fee": "Konaklama Ayarlama Ücreti",
   "Course Materials": "Materyal / Kitap Ücreti",
   "Course Materials Fee": "Materyal / Kitap Ücreti",
   "Materials Fee": "Materyal / Kitap Ücreti",
@@ -1203,22 +1203,24 @@ export default function FiyatTeklifi() {
           return { d, f, dt, cur };
         });
 
-        // Başlık satırı: okul adları (her kelime alt alta, büyük+turkuaz)
+        // Başlık satırı: okul adları (her kelime alt alta, büyük+turkuaz, dikey ortalı)
         doc.setFont(FONT, "bold");
         doc.setFontSize(14); doc.setTextColor(...CYAN_RGB);
-        let maxWords = 1;
-        cols.forEach((c, i) => {
-          const head = String(c.d.brand || c.d.city || `Okul ${i+1}`);
-          const words = head.split(/\s+/).filter(Boolean);
-          if (words.length > maxWords) maxWords = words.length;
+        const LH = 6.5; // satır yüksekliği
+        // Önce her okulun kelimelerini ve maxWords'ü hesapla
+        const headWords = cols.map((c, i) => String(c.d.brand || c.d.city || `Okul ${i+1}`).split(/\s+/).filter(Boolean));
+        const maxWords = Math.max(1, ...headWords.map(w => w.length));
+        headWords.forEach((words, i) => {
+          // Bu okulu dikey ortala: (maxWords - kendi kelime sayısı)/2 kadar aşağıdan başla
+          const offset = (maxWords - words.length) / 2;
           words.forEach((w, wi) => {
-            doc.text(w, colX(i) + colW/2, cy + wi * 6.5, { align:"center", maxWidth: colW - 2 });
+            doc.text(w, colX(i) + colW/2, cy + (offset + wi) * LH, { align:"center", maxWidth: colW - 2 });
           });
         });
         doc.setTextColor(17);
-        cy += maxWords * 6.5 + 2;
+        cy += maxWords * LH + 2;
         cols.forEach((c, i) => {
-          doc.setFont(FONT, "normal"); doc.setFontSize(9); doc.setTextColor(120);
+          doc.setFont(FONT, "bold"); doc.setFontSize(10); doc.setTextColor(120);
           doc.text(`${c.d.city} · ${c.d.weeks} hafta`, colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
         });
         cy += 5;
