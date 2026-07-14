@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v54-phone-example-2026-07-10";
+const BFT_BUILD_VERSION = "v57-pdf-footer-not-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -82,7 +82,10 @@ function getPhoneExample(dialCode) {
   try {
     const ex = _phoneLib.getExampleNumber(iso, _phoneExamples);
     if (!ex) return null;
-    return ex.formatNational(); // örn: "0501 234 56 78"
+    // nationalNumber: kütüphanenin doğru ulusal numarası. Her ülke için tutarlı —
+    // TR'de baştaki 0 yok (5XX...), 0'ın numaranın parçası olduğu ülkelerde (CI/BJ/GA/CG) korunur.
+    // Validasyonla %100 uyumlu (kullanıcı örneği girse geçerli sayılır).
+    return ex.nationalNumber;
   } catch (e) { return null; }
 }
 
@@ -880,6 +883,15 @@ export default function FiyatTeklifi() {
       const CYAN_RGB = [0, 193, 222];
       const PAGE_W = 210, MARGIN = 18;
       const CW = PAGE_W - MARGIN * 2;
+      // Her sayfa altına: önemli not (bold, büyük harf) + site adresi
+      const drawFooter = () => {
+        doc.setFont(FONT, "bold"); doc.setFontSize(6.5); doc.setTextColor(90);
+        const noteTxt = "ÖNEMLİ NOT: ÖN BİLGİLENDİRME AMAÇLI BU TEKLİF, KAYIT OLACAĞINIZ TARİHTEKİ OKULLARIN DÖNEMSEL GÜNCELLEMELERİNE GÖRE DEĞİŞKENLİK GÖSTEREBİLİR; GÜNCEL TUTAR VE İNDİRİMLER İÇİN DANIŞMANINIZDAN TEYİT ALMANIZI RİCA EDERİZ.";
+        const noteLines = doc.splitTextToSize(noteTxt, CW);
+        doc.text(noteLines, PAGE_W / 2, 276, { align: "center" });
+        doc.setFont(FONT, "normal"); doc.setFontSize(8); doc.setTextColor(51);
+        doc.text("www.bilimevi.com", PAGE_W - MARGIN, 289, { align: "right" });
+      };
 
       destinations.forEach((d, idx) => {
         if (idx > 0) doc.addPage();
@@ -1139,8 +1151,7 @@ export default function FiyatTeklifi() {
         }
 
         // Footer
-        doc.setFontSize(8); doc.setTextColor(51);
-        doc.text("www.bilimevi.com", PAGE_W - MARGIN, 285, { align:"right" });
+        drawFooter();
       });
 
       // --- Karşılaştırma Tablosu (sadece 2-3 destinasyon) ---
@@ -1287,8 +1298,7 @@ export default function FiyatTeklifi() {
         }
 
         // Footer
-        doc.setFontSize(8); doc.setTextColor(51);
-        doc.text("www.bilimevi.com", PAGE_W - MARGIN, 285, { align:"right" });
+        drawFooter();
       }
 
       const filename = `Bilimevi_Teklif_${(leadForm.name || student.name || "Teklif").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
