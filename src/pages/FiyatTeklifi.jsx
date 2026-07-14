@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v60-tablo-sehir-fee-2026-07-10";
+const BFT_BUILD_VERSION = "v61-url-preselect-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -662,6 +662,8 @@ export default function FiyatTeklifi() {
 
   const [leadLoading, setLeadLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [preselectDone, setPreselectDone] = useState(false); // URL okul+şehir bir kez işlendi mi
+  const [urlWarning, setUrlWarning] = useState(""); // eşleşmezse üst banner uyarısı
 
   useEffect(() => {
     if (isStaff) { const session = getSession(); if (!session) return navigate("/"); setUser(session); }
@@ -678,6 +680,32 @@ export default function FiyatTeklifi() {
     if (cur.lang || cur.isOnline) return;
     setCur(p => ({ ...p, lang: "İngilizce", country: FIXED_COUNTRY || "" }));
   }, [nav.languages, isStaff]);
+
+  // URL'den gelen okul+şehir'i nav yüklenince eşleştir (ingilteredil.com karşılaştırma → teklif geçişi)
+  useEffect(() => {
+    if (isStaff || preselectDone) return;
+    if (!nav.brandsByCity || !Object.keys(nav.brandsByCity).length) return; // nav henüz yok
+    const params = new URLSearchParams(window.location.search);
+    const okul = (params.get("okul") || "").trim();
+    const sehir = (params.get("sehir") || "").trim();
+    if (!okul && !sehir) { setPreselectDone(true); return; } // parametre yok, normal akış
+    // master_index'te bu şehir + okul var mı? (brandsByCity: { "London": ["Kaplan", ...] })
+    let matchedCity = null, matchedBrand = null;
+    Object.entries(nav.brandsByCity).forEach(([cityKey, brands]) => {
+      if (cityKey.toLowerCase() === sehir.toLowerCase()) {
+        const brandList = Array.isArray(brands) ? brands : Array.from(brands);
+        const b = brandList.find(x => x.toLowerCase() === okul.toLowerCase());
+        if (b) { matchedCity = cityKey; matchedBrand = b; }
+      }
+    });
+    if (matchedCity && matchedBrand) {
+      // Eşleşti: dil/ülke/şehir/okul set. Genel Bilgi'den sonra Destinasyon atlanıp Kurs'a geçilecek.
+      setCur(p => ({ ...p, lang: "İngilizce", country: FIXED_COUNTRY || "İngiltere", city: matchedCity, brand: matchedBrand }));
+    } else {
+      setUrlWarning("Şehir ve okulu tekrar seçin.");
+    }
+    setPreselectDone(true);
+  }, [nav.brandsByCity, isStaff, preselectDone]);
 
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline || cur.cityData) return;
@@ -766,7 +794,15 @@ export default function FiyatTeklifi() {
         }]);
       }
       setStep(summaryIdx);
-    } else { setStep(s => s + 1); }
+    } else {
+      // URL'den okul+şehir preselect edildiyse: Genel Bilgi(0) sonrası Destinasyon(1) atlanır, Kurs(2)'a geçilir
+      if (!isStaff && stepName === "Genel Bilgi" && cur.city && cur.brand && !cur.isOnline) {
+        const kursIdx = STEPS.indexOf("Kurs");
+        setStep(kursIdx >= 0 ? kursIdx : s => s + 1);
+      } else {
+        setStep(s => s + 1);
+      }
+    }
     setTimeout(() => {
       const root = document.getElementById("bft-root");
       if (root) {
@@ -1372,6 +1408,12 @@ export default function FiyatTeklifi() {
 
   return (
     <>
+    {urlWarning && !isStaff && (
+      <div style={{ position:"sticky", top:0, zIndex:99999, background:"#fef3c7", borderBottom:"1px solid #fbbf24", padding:"10px 16px", display:"flex", alignItems:"center", justifyContent:"center", gap:12, fontSize:14, color:"#92400e" }}>
+        <span>{urlWarning}</span>
+        <button onClick={() => setUrlWarning("")} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#92400e", lineHeight:1, padding:"0 4px" }}>×</button>
+      </div>
+    )}
     {navError && !isStaff && (
       <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.96)", zIndex:99998, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center" }}>
         <p style={{ fontSize:16, fontWeight:600, color:"#0f172a", marginBottom:8 }}>{navError}</p>
