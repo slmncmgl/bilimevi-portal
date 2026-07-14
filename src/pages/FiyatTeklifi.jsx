@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v57-pdf-footer-not-2026-07-10";
+const BFT_BUILD_VERSION = "v59-not-punto-renk-2026-07-10";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -885,10 +885,10 @@ export default function FiyatTeklifi() {
       const CW = PAGE_W - MARGIN * 2;
       // Her sayfa altına: önemli not (bold, büyük harf) + site adresi
       const drawFooter = () => {
-        doc.setFont(FONT, "bold"); doc.setFontSize(6.5); doc.setTextColor(90);
+        doc.setFont(FONT, "bold"); doc.setFontSize(10.5); doc.setTextColor(220, 100, 100);
         const noteTxt = "ÖNEMLİ NOT: ÖN BİLGİLENDİRME AMAÇLI BU TEKLİF, KAYIT OLACAĞINIZ TARİHTEKİ OKULLARIN DÖNEMSEL GÜNCELLEMELERİNE GÖRE DEĞİŞKENLİK GÖSTEREBİLİR; GÜNCEL TUTAR VE İNDİRİMLER İÇİN DANIŞMANINIZDAN TEYİT ALMANIZI RİCA EDERİZ.";
         const noteLines = doc.splitTextToSize(noteTxt, CW);
-        doc.text(noteLines, PAGE_W / 2, 276, { align: "center" });
+        doc.text(noteLines, PAGE_W / 2, 270, { align: "center" });
         doc.setFont(FONT, "normal"); doc.setFontSize(8); doc.setTextColor(51);
         doc.text("www.bilimevi.com", PAGE_W - MARGIN, 289, { align: "right" });
       };
@@ -1498,7 +1498,7 @@ export default function FiyatTeklifi() {
 
       <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0" }}>
         {/* Masaüstü adım göstergesi */}
-        <div style={{ maxWidth:1100, margin:"0 auto", padding:"12px 16px", display:"flex", alignItems:"center" }} className="bft-steps-desktop">
+        <div style={{ maxWidth: isStaff ? 1100 : 800, margin:"0 auto", padding:"12px 16px", display:"flex", alignItems:"center" }} className="bft-steps-desktop">
           {STEPS.map((s, i) => (
             <div key={i} style={{ display:"flex", alignItems:"center", flex: i < STEPS.length-1 ? 1 : 0 }}>
               <div style={{ width:26, height:26, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, flexShrink:0,
@@ -1520,7 +1520,7 @@ export default function FiyatTeklifi() {
         </div>
       </div>
 
-      <div style={S.body} className="bft-body">
+      <div style={isStaff ? S.body : { maxWidth:800, margin:"20px auto", padding:"0 20px", display:"block" }} className="bft-body">
         <main style={S.main}>
           {stepName === "Genel Bilgi" && (
             <div style={{ animation:"fadeUp 0.3s" }}>
