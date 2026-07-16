@@ -23,7 +23,10 @@ export default defineConfig({
   ],
   build: {
     outDir: "dist-wp",
-    minify: false,   // TEST A: minify KAPALI, React production
+    // minify KAPALI — esbuild minifier, inlineDynamicImports ile birlikte
+    // scope'u bozup React'i çökertiyordu (React #31 / "Cannot access '_'").
+    // gzip farkı ~29KB; kararlılık için kapalı bırakıldı.
+    minify: false,
     emptyOutDir: true,
     rollupOptions: {
       input: resolve(__dirname, "src/wp-main.jsx"),
@@ -39,7 +42,6 @@ export default defineConfig({
     cssCodeSplit: false,
   },
   define: {
-    // GEÇİCİ DEBUG: React tam hata mesajını versin
     "process.env.NODE_ENV": '"production"',
   },
 });
