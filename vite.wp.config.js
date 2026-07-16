@@ -23,6 +23,7 @@ export default defineConfig({
   ],
   build: {
     outDir: "dist-wp",
+    minify: false,   // GEÇİCİ DEBUG: okunabilir hata için
     emptyOutDir: true,
     rollupOptions: {
       input: resolve(__dirname, "src/wp-main.jsx"),
@@ -38,6 +39,7 @@ export default defineConfig({
     cssCodeSplit: false,
   },
   define: {
-    "process.env.NODE_ENV": '"production"',
+    // GEÇİCİ DEBUG: React tam hata mesajını versin
+    "process.env.NODE_ENV": '"development"',
   },
 });
