@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENTR-5ymJxnZihInrYKMhJPPrh6PZfFFoVM7_jAjC1qPHcOdgx/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5_k4M02agFQcEnQ5ggr-DODKllbwarSsVRJvtXNzFBGD2s-AreSvxy0npgbI7k0kq/exec";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -382,6 +382,13 @@ export default function Izin() {
 
   function handleBaslangicChange(val) {
     if (isHaftaSonu(val)) {
+      const d = new Date(val);
+      // Yarım gün izin + Cumartesi + Fortis değilse → izin ver
+      if (yarimGun && d.getDay() === 6 && !isFortis) {
+        setBaslangic(val);
+        cakismaKontrol(val, bitis);
+        return;
+      }
       const yeniTarih = sonrakiIsGununeKaydir(val);
       setBaslangic(yeniTarih);
       setHaftaSonuUyari(t(
@@ -461,6 +468,9 @@ export default function Izin() {
     if (isGunu <= 0) {
       setStatus({ type: "error", msg: t("Geçerli bir izin süresi hesaplanamadı.", "A valid leave duration could not be calculated.") }); return;
     }
+    if (!aciklama.trim()) {
+      setStatus({ type: "error", msg: t("Açıklama alanı zorunludur.", "The description field is required.") }); return;
+    }
     setLoading(true);
     setStatus(null);
 
@@ -511,7 +521,7 @@ export default function Izin() {
   function logout() { clearSession(); navigate("/"); }
   if (!user) return null;
 
-  const submitDisabled = loading || (bitis && baslangic && bitis < baslangic) || isGunu <= 0;
+  const submitDisabled = loading || (bitis && baslangic && bitis < baslangic) || isGunu <= 0 || !aciklama.trim();
 
   return (
     <div style={styles.root}>
@@ -752,9 +762,9 @@ export default function Izin() {
 
                   {/* Açıklama */}
                   <div style={styles.fieldGroup}>
-                    <label style={styles.label}>{t("Açıklama", "Description")} <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>({t("opsiyonel", "optional")})</span></label>
+                    <label style={styles.label}>{t("Açıklama", "Description")} <span style={{ color: "#dc2626", fontWeight: "600" }}>*</span></label>
                     <textarea value={aciklama} onChange={e => setAciklama(e.target.value)}
-                      placeholder={t("Varsa detay ekleyebilirsiniz...", "Add details if any...")} rows={3} style={styles.textarea}
+                      placeholder={t("Kısaca bilgi verebilirsiniz", "You can provide a brief note")} rows={3} style={styles.textarea}
                       onFocus={e => e.target.style.borderColor = "#2563eb"}
                       onBlur={e => e.target.style.borderColor = "#e2e8f0"}
                     />
@@ -907,10 +917,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   const [subeSilSaving, setSubeSilSaving] = useState(false);
   const [saveOverlay, setSaveOverlay] = useState(false);
 
-// State tanımları (useState'lerin olduğu yere ekle)
-const [crmIdLoading, setCrmIdLoading] = useState(false);
-const [crmIdMsg, setCrmIdMsg] = useState(null); // { success: true/false, text: "..." }
-  
   async function acKlasor(row) {
     try {
       const url = scriptUrl + "?action=saglikKlasorBul&ad=" + encodeURIComponent(row["Personel"] || "");
@@ -1046,48 +1052,6 @@ const [crmIdMsg, setCrmIdMsg] = useState(null); // { success: true/false, text: 
     } catch (_) { setSubeler([]); }
   }
 
-  const crmIdCek = async () => {
-  const firstName = formData.name.trim().split(" ")[0];
-  
-  if (!firstName) {
-    setCrmIdMsg({ success: false, text: "⚠️ Önce personel adını girin!" });
-    return;
-  }
-  
-  setCrmIdLoading(true);
-  setCrmIdMsg(null);
-  
- try {
-    // ✅ ARTIK DİNAMİK - SCRIPT_URL değişkenini kullanıyor
-   const response = await fetch(SCRIPT_URL, {
-  method: "POST",
-  mode: 'cors', // CORS modunu açıkça belirt
-  headers: { 
-    "Content-Type": "text/plain;charset=utf-8", // Apps Script bazen JSON header'ı sevmez
-    "Accept": "application/json"
-  },
-  body: JSON.stringify({
-    action: "kylasIdGetir",
-    firstName: firstName
-  }),
-  redirect: 'follow'
-});
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      setFormData(p => ({ ...p, crmId: result.id }));
-      setCrmIdMsg({ success: true, text: result.msg });
-    } else {
-      setCrmIdMsg({ success: false, text: result.msg });
-    }
-  } catch (err) {
-    setCrmIdMsg({ success: false, text: "Hata: " + err.message });
-  } finally {
-    setCrmIdLoading(false);
-  }
-};
-  
   async function handleYeniKullanici(e) {
     e.preventDefault();
     setFormError("");
@@ -1244,142 +1208,102 @@ const [crmIdMsg, setCrmIdMsg] = useState(null); // { success: true/false, text: 
           </div>
         </div>
       )}
-   {showModal && (
-  <div style={styles.modalOverlay}>
-    <div style={styles.modalBox} className="izin-modal-box">
-      {formSaving && (
-        <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.85)", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", zIndex: 10 }}>
-          <div style={styles.loadingSpinner} />
-          <span style={{ fontSize: "14px", fontWeight: "600", color: "#0f172a" }}>Kaydediliyor...</span>
+      {showModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalBox} className="izin-modal-box">
+            {formSaving && (
+              <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.85)", borderRadius: "16px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", zIndex: 10 }}>
+                <div style={styles.loadingSpinner} />
+                <span style={{ fontSize: "14px", fontWeight: "600", color: "#0f172a" }}>Kaydediliyor...</span>
+              </div>
+            )}
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>Yeni Kullanıcı Ekle</h3>
+              <button onClick={() => setShowModal(false)} style={styles.modalClose}>✕</button>
+            </div>
+            <form onSubmit={handleYeniKullanici} style={styles.modalForm}>
+              {/* Ad Soyad */}
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Ad Soyad</label>
+                <input type="text" required value={formData.name}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ\s]/g, "");
+                    setFormData(p => ({ ...p, name: val }));
+                  }}
+                  style={styles.modalInput} />
+              </div>
+              {/* Şirket dropdown */}
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Şirket</label>
+                <select required value={formData.sirket}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(p => ({ ...p, sirket: val, sube: "" }));
+                    if (val) fetchSubeler(val);
+                    else setSubeler([]);
+                  }}
+                  style={styles.modalInput}>
+                  <option value="">Seçiniz</option>
+                  <option value="Bilimevi">Bilimevi</option>
+                  <option value="Premium Vize">Premium Vize</option>
+                  <option value="Fortis">Fortis</option>
+                  <option value="Vagus">Vagus</option>
+                </select>
+              </div>
+              {/* Şube dropdown — şirkete göre dinamik */}
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Şube</label>
+                <select required value={formData.sube}
+                  onChange={e => setFormData(p => ({ ...p, sube: e.target.value }))}
+                  style={styles.modalInput}
+                  disabled={!formData.sirket}>
+                  <option value="">{formData.sirket ? "Seçiniz" : "Önce şirket seçin"}</option>
+                  {subeler.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              {/* Giriş Tarihi */}
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Giriş Tarihi</label>
+                <input type="date" required value={formData.girisTarihi}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const pass = val ? val.split("-").reverse().join("") : "";
+                    setFormData(p => ({ ...p, girisTarihi: val, pass }));
+                  }}
+                  style={styles.modalInput}
+                />
+              </div>
+              {/* E-posta */}
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>E-posta</label>
+                <input type="email" required value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} style={styles.modalInput} />
+              </div>
+              {/* Şifre — otomatik, pasif */}
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Şifre (otomatik)</label>
+                <input type="text" readOnly value={formData.pass} style={{ ...styles.modalInput, background: "#f1f5f9", color: "#64748b", cursor: "not-allowed" }} />
+              </div>
+              {/* TITLE */}
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>Title</label>
+                <select value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} style={styles.modalInput}>
+                  {roller.map(r => <option key={r} value={r.toLowerCase()}>{r}</option>)}
+                </select>
+              </div>
+              {/* CRM ID */}
+              <div style={styles.modalField}>
+                <label style={styles.modalLabel}>CRM ID (opsiyonel)</label>
+                <input type="number" value={formData.crmId} onChange={e => setFormData(p => ({ ...p, crmId: e.target.value }))} style={styles.modalInput} />
+              </div>
+              {formError && <div style={{ color: "#dc2626", fontSize: "13px" }}>{formError}</div>}
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "8px" }}>
+                <button type="button" onClick={() => setShowModal(false)} style={styles.cancelBtn}>İptal</button>
+                <button type="submit" disabled={formSaving} style={styles.saveBtn}>{formSaving ? "..." : "Kaydet"}</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
-      <div style={styles.modalHeader}>
-        <h3 style={styles.modalTitle}>Yeni Kullanıcı Ekle</h3>
-        <button onClick={() => setShowModal(false)} style={styles.modalClose}>✕</button>
-      </div>
-      <form onSubmit={handleYeniKullanici} style={styles.modalForm}>
-        {/* Ad Soyad */}
-        <div style={styles.modalField}>
-          <label style={styles.modalLabel}>Ad Soyad</label>
-          <input type="text" required value={formData.name}
-            onChange={e => {
-              const val = e.target.value.replace(/[^a-zA-ZçğıöşüÇĞİÖŞÜ\s]/g, "");
-              setFormData(p => ({ ...p, name: val }));
-            }}
-            style={styles.modalInput} />
-        </div>
-        {/* Şirket dropdown */}
-        <div style={styles.modalField}>
-          <label style={styles.modalLabel}>Şirket</label>
-          <select required value={formData.sirket}
-            onChange={e => {
-              const val = e.target.value;
-              setFormData(p => ({ ...p, sirket: val, sube: "" }));
-              if (val) fetchSubeler(val);
-              else setSubeler([]);
-            }}
-            style={styles.modalInput}>
-            <option value="">Seçiniz</option>
-            <option value="Bilimevi">Bilimevi</option>
-            <option value="Premium Vize">Premium Vize</option>
-            <option value="Fortis">Fortis</option>
-            <option value="Vagus">Vagus</option>
-          </select>
-        </div>
-        {/* Şube dropdown */}
-        <div style={styles.modalField}>
-          <label style={styles.modalLabel}>Şube</label>
-          <select required value={formData.sube}
-            onChange={e => setFormData(p => ({ ...p, sube: e.target.value }))}
-            style={styles.modalInput}
-            disabled={!formData.sirket}>
-            <option value="">{formData.sirket ? "Seçiniz" : "Önce şirket seçin"}</option>
-            {subeler.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        {/* Giriş Tarihi */}
-        <div style={styles.modalField}>
-          <label style={styles.modalLabel}>Giriş Tarihi</label>
-          <input type="date" required value={formData.girisTarihi}
-            onChange={e => {
-              const val = e.target.value;
-              const pass = val ? val.split("-").reverse().join("") : "";
-              setFormData(p => ({ ...p, girisTarihi: val, pass }));
-            }}
-            style={styles.modalInput}
-          />
-        </div>
-        {/* E-posta */}
-        <div style={styles.modalField}>
-          <label style={styles.modalLabel}>E-posta</label>
-          <input type="email" required value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} style={styles.modalInput} />
-        </div>
-        {/* Şifre */}
-        <div style={styles.modalField}>
-          <label style={styles.modalLabel}>Şifre (otomatik)</label>
-          <input type="text" readOnly value={formData.pass} style={{ ...styles.modalInput, background: "#f1f5f9", color: "#64748b", cursor: "not-allowed" }} />
-        </div>
-        {/* TITLE */}
-        <div style={styles.modalField}>
-          <label style={styles.modalLabel}>Title</label>
-          <select value={formData.title} onChange={e => setFormData(p => ({ ...p, title: e.target.value }))} style={styles.modalInput}>
-            {roller.map(r => <option key={r} value={r.toLowerCase()}>{r}</option>)}
-          </select>
-        </div>
-        
-        {/* ─── CRM ID + ÇEK BUTONU ──────────────────────────────────────────── */}
-        <div style={styles.modalField}>
-          <label style={styles.modalLabel}>CRM ID (opsiyonel)</label>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <input 
-              type="number" 
-              value={formData.crmId} 
-              onChange={e => setFormData(p => ({ ...p, crmId: e.target.value }))} 
-              style={{ ...styles.modalInput, flex: 1, marginBottom: 0 }} 
-              placeholder="Örn: 83870"
-            />
-            <button 
-              type="button"
-              onClick={crmIdCek} 
-              disabled={crmIdLoading}
-              style={{
-                padding: "8px 14px",
-                fontSize: "13px",
-                fontWeight: "600",
-                background: crmIdLoading ? "#94a3b8" : "#3b82f6",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: crmIdLoading ? "not-allowed" : "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.2s"
-              }}
-            >
-              {crmIdLoading ? "Aranıyor..." : "CRM ID'yi Çek"}
-            </button>
-          </div>
-          {crmIdMsg && (
-            <div style={{ 
-              fontSize: "12px", 
-              marginTop: "4px", 
-              color: crmIdMsg.success ? "#10b981" : "#ef4444",
-              fontWeight: "500"
-            }}>
-              {crmIdMsg.text}
-            </div>
-          )}
-        </div>
-        
-        {formError && <div style={{ color: "#dc2626", fontSize: "13px" }}>{formError}</div>}
-        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "8px" }}>
-          <button type="button" onClick={() => setShowModal(false)} style={styles.cancelBtn}>İptal</button>
-          <button type="submit" disabled={formSaving} style={styles.saveBtn}>{formSaving ? "..." : "Kaydet"}</button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
-      
       {/* Başlık + Yenile */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }} className="izin-admin-header">
         <h2 style={styles.adminTitle}>Yönetici Paneli</h2>
@@ -2121,7 +2045,7 @@ const styles = {
   pageLayout: { display: "flex", flexDirection: "column", gap: "24px" },
   formLayout: { display: "flex", flexDirection: "column", gap: "24px", animation: "fadeUp 0.4s ease-out" },
   infoCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "24px 28px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" },
-  infoTitle: { fontSize: "13px", fontWeight: "700", color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "20px" },
+  infoTitle: { fontSize: "13px", fontWeight: "700", color: "#1e3a5f", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "20px" },
   infoLoading: { fontSize: "13px", color: "#94a3b8" },
   infoRow: { display: "flex", flexDirection: "column", alignItems: "center", background: "#f8fafc", borderRadius: "12px", padding: "14px 10px", flex: 1, minWidth: 0 },
   infoLabel: { fontSize: "11px", color: "#94a3b8", fontWeight: "500", marginBottom: "4px", textAlign: "center" },
@@ -2133,10 +2057,10 @@ const styles = {
   progressText: { fontSize: "11px", color: "#94a3b8" },
   hakedisBox: { display: "flex", alignItems: "center", gap: "7px", marginTop: "12px", fontSize: "12px", color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "8px", padding: "8px 12px" },
   formCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "36px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" },
-  formCardTitle: { fontSize: "20px", fontWeight: "700", color: "#0f172a", marginBottom: "28px", letterSpacing: "-0.3px" },
+  formCardTitle: { fontSize: "20px", fontWeight: "700", color: "#1e3a5f", marginBottom: "28px", letterSpacing: "-0.3px" },
   form: { display: "flex", flexDirection: "column", gap: "22px" },
   fieldGroup: { display: "flex", flexDirection: "column", gap: "8px" },
-  label: { fontSize: "12px", fontWeight: "600", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
+  label: { fontSize: "12px", fontWeight: "600", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.5px" },
   izinGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "8px" },
   izinBtn: { padding: "10px", border: "1.5px solid #e2e8f0", borderRadius: "10px", background: "#f8fafc", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif", transition: "all 0.15s" },
   izinBtnActive: { background: "#eff6ff", borderColor: "#2563eb", color: "#1d4ed8", fontWeight: "600" },
@@ -2160,7 +2084,7 @@ const styles = {
   statusError: { background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626" },
   submitBtn: { padding: "13px", background: "linear-gradient(135deg, #1d4ed8, #2563eb)", color: "#fff", border: "none", borderRadius: "12px", fontSize: "15px", fontWeight: "600", cursor: "pointer", transition: "transform 0.15s", boxShadow: "0 4px 14px rgba(37,99,235,0.3)", fontFamily: "Calibri, 'Sora', sans-serif" },
   yaklasanCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "28px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" },
-  yaklasanTitle: { fontSize: "13px", fontWeight: "700", color: "#0f172a", letterSpacing: "0.5px", marginBottom: "16px" },
+  yaklasanTitle: { fontSize: "13px", fontWeight: "700", color: "#1e3a5f", letterSpacing: "0.5px", marginBottom: "16px" },
   yaklasanList: { display: "flex", flexDirection: "column", gap: "8px" },
   yaklasanRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #f1f5f9" },
   yaklasanIsim: { fontSize: "14px", fontWeight: "600", color: "#0f172a", marginBottom: "3px" },
