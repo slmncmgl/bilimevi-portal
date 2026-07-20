@@ -120,7 +120,7 @@ export default function Login() {
     setSifreLoading(true);
     setSifreMesaj(null);
     try {
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENTR-5ymJxnZihInrYKMhJPPrh6PZfFFoVM7_jAjC1qPHcOdgx/exec";
+      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENTR-5ymJxnZihInrYKMhJPPrh6PZfFFoVM7_jAjC1qPHcOdgx/exec";
 
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
@@ -200,16 +200,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENT
         {/* Sol panel */}
         <div style={styles.leftPanel} className="login-left">
           <div style={styles.logoWrap} className="login-logo-wrap">
-            <div style={styles.manualLogo}>
-              <div style={styles.logoMainRow}>Bilimevi</div>
-              <div style={styles.logoSubRow}>
-                <span>S</span><span>t</span><span>u</span><span>d</span><span>y</span>
-                <span>&nbsp;</span>
-                <span>A</span><span>b</span><span>r</span><span>o</span><span>a</span><span>d</span>
-                <span>&nbsp;</span>
-                <span>C</span><span>o</span><span>n</span><span>s</span><span>u</span><span>l</span><span>t</span><span>a</span><span>n</span><span>c</span><span>y</span>
-              </div>
-            </div>
+            <img src={logo} alt="Bilimevi" style={styles.logoImg} />
           </div>
           
           <div style={styles.leftText} className="login-left-text">
@@ -437,7 +428,6 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENT
 }
 
 const styles = {
-  logoImg: { width: "100%", height: "auto", display: "block" }
   root: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative", overflow: "hidden", padding: "20px" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f022 1px, transparent 1px), linear-gradient(90deg, #e2e8f022 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   bgGlow1: { position: "fixed", top: "-20%", left: "-10%", width: "600px", height: "600px", borderRadius: "50%", background: "radial-gradient(circle, #dbeafe88 0%, transparent 70%)", zIndex: 0 },
@@ -445,9 +435,7 @@ const styles = {
   card: { display: "flex", width: "100%", maxWidth: "860px", minHeight: "540px", borderRadius: "24px", overflow: "hidden", boxShadow: "0 25px 60px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)", position: "relative", zIndex: 1, animation: "fadeUp 0.5s ease-out" },
   leftPanel: { width: "40%", background: "linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)", padding: "48px 40px", display: "flex", flexDirection: "column", justifyContent: "space-between" },
   logoWrap: { alignSelf: "flex-start", width: "100%", maxWidth: "260px", marginBottom: "20px" },
-  manualLogo: { display: "flex", flexDirection: "column", fontFamily: "'Inter', sans-serif", width: "100%" },
-  logoMainRow: { fontSize: "60px", fontWeight: "800", color: "#ffffff", letterSpacing: "-1.5px", lineHeight: "1.0" },
-  logoSubRow: { display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "600", color: "rgba(255, 255, 255, 0.75)", marginTop: "6px", lineHeight: "1.0", textTransform: "uppercase" },
+  logoImg: { width: "100%", height: "auto", display: "block" },
   leftText: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 0" },
   leftTitle: { fontSize: "26px", fontWeight: "700", color: "#fff", marginBottom: "12px", letterSpacing: "-0.5px" },
   leftSub: { fontSize: "14px", color: "rgba(255,255,255,0.7)", lineHeight: "1.7" },
