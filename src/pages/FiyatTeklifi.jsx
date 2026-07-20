@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v64-weeks-remember-2026-07-14";
+const BFT_BUILD_VERSION = "v66-hs-detail-pdf-2026-07-14";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1078,9 +1078,14 @@ export default function FiyatTeklifi() {
         doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
 
         if (d.courseHsAmount > 0) {
+          doc.setFont(FONT, "bold");
           doc.setFontSize(9); doc.setTextColor(146,64,14);
-          doc.text(`High Season (${formatDateShort(d.courseHsStart)}-${formatDateShort(d.courseHsEnd)})`, MARGIN + 32, y);
+          const hsLabel = d.courseHsPerWeek
+            ? `High Season (+${money(d.courseHsPerWeek)}/hafta, ${formatDateShort(d.courseHsStart)}-${formatDateShort(d.courseHsEnd)})`
+            : `High Season (${formatDateShort(d.courseHsStart)}-${formatDateShort(d.courseHsEnd)})`;
+          doc.text(hsLabel, MARGIN + 32, y);
           doc.text(`+${money(d.courseHsAmount)}`, PAGE_W - MARGIN, y, { align:"right" });
+          doc.setFont(FONT, "normal");
           y += 5;
           doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
         }
@@ -1105,9 +1110,14 @@ export default function FiyatTeklifi() {
           doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
 
           if (d.accHsAmount > 0) {
+            doc.setFont(FONT, "bold");
             doc.setFontSize(9); doc.setTextColor(146,64,14);
-            doc.text(`High Season (${formatDateShort(d.accHsStart)}-${formatDateShort(d.accHsEnd)})`, MARGIN + 32, y);
+            const accHsLabel = d.accHsPerWeek
+              ? `High Season (+${money(d.accHsPerWeek)}/hafta, ${formatDateShort(d.accHsStart)}-${formatDateShort(d.accHsEnd)})`
+              : `High Season (${formatDateShort(d.accHsStart)}-${formatDateShort(d.accHsEnd)})`;
+            doc.text(accHsLabel, MARGIN + 32, y);
             doc.text(`+${money(d.accHsAmount)}`, PAGE_W - MARGIN, y, { align:"right" });
+            doc.setFont(FONT, "normal");
             y += 5;
             doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
           }
@@ -1151,7 +1161,7 @@ export default function FiyatTeklifi() {
           _dt.appliedDiscounts.forEach((disc, i) => {
             checkPage();
             doc.setFont(FONT, "bold");
-            doc.setFontSize(9); doc.setTextColor(22, 163, 74);
+            doc.setFontSize(10); doc.setTextColor(22, 163, 74);
             if (i === 0) doc.text("İndirimler", MARGIN, y);
             const dLabel = `${disc.label} (${disc.value_type === "percentage" ? "%" + disc.value : disc.value_type === "free" ? "Ücretsiz" : disc.value + " Sabit"})`;
             doc.text(dLabel, MARGIN + 32, y);
