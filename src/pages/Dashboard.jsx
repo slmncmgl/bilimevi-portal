@@ -118,7 +118,7 @@ const MODULE_CONFIG = [
   },
   {
     key: "katalogparse",
-    title: "(BETA) Katalog Parse",
+    title: "Katalog Parse",
     desc: "Okul PDF kataloglarını veritabanına aktar",
     path: "/katalog-parse",
     icon: (
