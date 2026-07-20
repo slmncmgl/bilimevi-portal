@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v62-kurs-turkce-2026-07-10";
+const BFT_BUILD_VERSION = "v64-weeks-remember-2026-07-14";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -616,8 +616,8 @@ function getDestinationTotals(d, fees) {
 }
 
 const fmt = (n, cur) => `${cur || ""} ${Number(n || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`;
-const emptyDest = (sd = "2026-07-06") => ({
-  lang: "", country: "", city: "", brand: "", course: null, weeks: 4, acc: null, startDate: sd,
+const emptyDest = (sd = "2026-07-06", w = 4) => ({
+  lang: "", country: "", city: "", brand: "", course: null, weeks: w, acc: null, startDate: sd,
   isOnline: false, cityData: null, cityLoading: false, addons: [], transfer: null,
   selectedPackage: null, noAccommodation: false,
   courseBasePrice: 0, courseHsAmount: 0, courseTotalPrice: 0, courseHsActive: false,
@@ -818,7 +818,7 @@ export default function FiyatTeklifi() {
     }, 100);
   };
 
-  const addNew = () => { if (destinations.length >= 3) return; setCur(emptyDest(cur.startDate)); setStep(1); };
+  const addNew = () => { if (destinations.length >= 3) return; setCur(emptyDest(cur.startDate, cur.weeks)); setStep(1); };
   const reset = () => { setDestinations([]); setCur(emptyDest()); setStudent({ name:"", age:"", gender:"" }); setStep(0); };
 
   const loadScript = (src) => new Promise((resolve, reject) => {
@@ -948,7 +948,7 @@ export default function FiyatTeklifi() {
         const accEndD = new Date(endD); accEndD.setDate(endD.getDate() + 2);
 
         let y = 20;
-        const money = (n) => Number(n||0).toLocaleString("tr-TR") + ",00";
+        const money = (n) => Number(n||0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         // Header
         doc.setFont(FONT, "normal");
@@ -1272,7 +1272,7 @@ export default function FiyatTeklifi() {
         cy += 6;
 
         // Satır çizici: sol etiket + her okul için değer
-        const money2 = (n) => Number(n||0).toLocaleString("tr-TR");
+        const money2 = (n) => Number(n||0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const checkPageC = () => { if (cy > 270) { doc.addPage(); cy = 24; } };
         const row = (label, valueFn, opts = {}) => {
           checkPageC();
@@ -1596,8 +1596,8 @@ export default function FiyatTeklifi() {
               <h2 style={S.ttl}>Destinasyon Seçimi</h2>
               <p style={S.slbl}>DİL</p>
               <div style={S.g3}>
-                {nav.languages.filter(l => isStaff || l === "İngilizce").map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
-                <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
+                {nav.languages.filter(l => isStaff || l === "İngilizce").map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
+                <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
               </div>
               {(isStaff || !FIXED_COUNTRY) && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
               {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
