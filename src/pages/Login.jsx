@@ -22,7 +22,7 @@ const translations = {
     googleBtn: "Google ile Giriş Yap",
     errorConn: "Bağlantı hatası. Lütfen tekrar deneyin.",
     popupTitle: "Şifreni Hatırlat",
-    popupSub: 'Şirket mail adresinizi girdiğinizde "Şifreniz" mail adresinize gönderilecektir.',
+    popupSub: "Şirket mail adresinizi girdiğinizde \"Şifreniz\" mail adresinize gönderilecektir.",
     popupCancel: "İptal",
     popupSend: "Gönder",
     popupSending: "Gönderiliyor...",
@@ -90,7 +90,7 @@ export default function Login() {
   const [sifreMesaj, setSifreMesaj] = useState(null);
   const sifreInputRef = useRef(null);
   const [retrying, setRetrying] = useState(false);
-  const [, setRetryCount] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
   const [countdown, setCountdown] = useState(5);
   const countdownIntervalRef = useRef(null);
 
@@ -113,7 +113,7 @@ export default function Login() {
         clearInterval(countdownIntervalRef.current);
       }
     };
-  }, [navigate]);
+  }, []);
 
   async function sifreyiGonder() {
     if (!sifreUsername.trim()) return;
@@ -135,7 +135,7 @@ export default function Login() {
     setSifreLoading(false);
   }
 
-  function baslatYenidenDenemeSayaci() {
+  function baslatYenidenDenemeSayaci(isRetryAttempt) {
     setRetrying(true);
     setCountdown(5);
     let kalan = 5;
@@ -171,10 +171,10 @@ export default function Login() {
         setError(res.msg);
         setLoading(false);
       }
-    } catch (_) {
+    } catch (err) {
       if (!isRetryAttempt) {
         setLoading(false);
-        baslatYenidenDenemeSayaci();
+        baslatYenidenDenemeSayaci(true);
       } else {
         setError(t.errorConn);
         setLoading(false);
@@ -396,7 +396,7 @@ export default function Login() {
         body { font-family: 'Inter', sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
-        @media (max-width: 640px) {
+      @media (max-width: 640px) {
           body > div > div { padding: 0 !important; } 
           .login-card { 
             flex-direction: column !important; 
@@ -433,13 +433,13 @@ const styles = {
   bgGlow1: { position: "fixed", top: "-20%", left: "-10%", width: "600px", height: "600px", borderRadius: "50%", background: "radial-gradient(circle, #dbeafe88 0%, transparent 70%)", zIndex: 0 },
   bgGlow2: { position: "fixed", bottom: "-20%", right: "-10%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, #ede9fe66 0%, transparent 70%)", zIndex: 0 },
   card: { display: "flex", width: "100%", maxWidth: "860px", minHeight: "540px", borderRadius: "24px", overflow: "hidden", boxShadow: "0 25px 60px -12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)", position: "relative", zIndex: 1, animation: "fadeUp 0.5s ease-out" },
-  leftPanel: { width: "40%", background: "linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 50%, #2563eb 100%)", padding: "48px 40px", display: "flex", flexDirection: "column", justifyContent: "space-between" },
+  leftPanel: { width: "40%", background: "linear-gradient(180deg, #ffffff 0%, #f0f5ff 30%, #dbeafe 60%, #1e3a8a 100%)", padding: "48px 40px", display: "flex", flexDirection: "column", justifyContent: "space-between" },
   logoWrap: { alignSelf: "flex-start", width: "100%", maxWidth: "260px", marginBottom: "20px" },
   logoImg: { width: "100%", height: "auto", display: "block" },
   leftText: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 0" },
-  leftTitle: { fontSize: "26px", fontWeight: "700", color: "#fff", marginBottom: "12px", letterSpacing: "-0.5px" },
-  leftSub: { fontSize: "14px", color: "rgba(255,255,255,0.7)", lineHeight: "1.7" },
-  leftFooter: { fontSize: "11px", color: "rgba(255,255,255,0.35)", letterSpacing: "0.5px" },
+  leftTitle: { fontSize: "26px", fontWeight: "700", color: "#1e3a8a", marginBottom: "12px", letterSpacing: "-0.5px" },
+  leftSub: { fontSize: "14px", color: "#475569", lineHeight: "1.7" },
+  leftFooter: { fontSize: "11px", color: "#94a3b8", letterSpacing: "0.5px" },
   rightPanel: { flex: 1, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 40px" },
   formWrap: { width: "100%", maxWidth: "360px" },
   formTitle: { fontSize: "26px", fontWeight: "700", color: "#0f172a", marginBottom: "6px", letterSpacing: "-0.5px" },
