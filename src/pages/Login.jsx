@@ -25,7 +25,8 @@ const translations = {
     popupCancel: "İptal",
     popupSend: "Gönder",
     popupSending: "Gönderiliyor...",
-    popupSuccess: "Şifreniz kayıtlı mail adresinize gönderildi."
+    popupSuccess: "Şifreniz kayıtlı mail adresinize gönderildi.",
+    retryOverlay: "Giriş Yapılıyor..."
   },
   en: {
     title: "Welcome",
@@ -46,7 +47,8 @@ const translations = {
     popupCancel: "Cancel",
     popupSend: "Send",
     popupSending: "Sending...",
-    popupSuccess: "Your password has been sent to your registered email address."
+    popupSuccess: "Your password has been sent to your registered email address.",
+    retryOverlay: "Signing in..."
   }
 };
 
@@ -86,6 +88,10 @@ export default function Login() {
   const [sifreLoading, setSifreLoading] = useState(false);
   const [sifreMesaj, setSifreMesaj] = useState(null);
   const sifreInputRef = useRef(null);
+  const [retrying, setRetrying] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [countdown, setCountdown] = useState(5);
+  const countdownIntervalRef = useRef(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -101,6 +107,11 @@ export default function Login() {
         setUsername(u); setPassword(p); setRemember(true);
       } catch (_) {}
     }
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
   }, []);
 
   async function sifreyiGonder() {
@@ -108,7 +119,7 @@ export default function Login() {
     setSifreLoading(true);
     setSifreMesaj(null);
     try {
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAMxzXvNxjhEpxh-Zf3_BB1tfbptyaLFE2TS12xbH4xSHOXu5AG_Nhrk4fkuMfEI8W/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENTR-5ymJxnZihInrYKMhJPPrh6PZfFFoVM7_jAjC1qPHcOdgx/exec";
 
       const res = await fetch(SCRIPT_URL, {
         method: "POST",
@@ -123,9 +134,24 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAMxzXvNxjhEpxh-Zf3
     setSifreLoading(false);
   }
 
-  async function handleLogin(e) {
-    e.preventDefault();
-    if (!username || !password) return;
+  function baslatYenidenDenemeSayaci(isRetryAttempt) {
+    setRetrying(true);
+    setCountdown(5);
+    let kalan = 5;
+    countdownIntervalRef.current = setInterval(() => {
+      kalan -= 1;
+      setCountdown(kalan);
+      if (kalan <= 0) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+        setRetrying(false);
+        setRetryCount(1);
+        attemptLogin(true);
+      }
+    }, 1000);
+  }
+
+  async function attemptLogin(isRetryAttempt) {
     setLoading(true);
     setError("");
     try {
@@ -142,12 +168,25 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAMxzXvNxjhEpxh-Zf3
         navigate(redirect ? decodeURIComponent(redirect) : "/dashboard");
       } else {
         setError(res.msg);
+        setLoading(false);
       }
     } catch (err) {
-      setError(t.errorConn);
-    } finally {
-      setLoading(false);
+      if (!isRetryAttempt) {
+        setLoading(false);
+        baslatYenidenDenemeSayaci(true);
+      } else {
+        setError(t.errorConn);
+        setLoading(false);
+        setRetryCount(0);
+      }
     }
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    if (!username || !password) return;
+    setRetryCount(0);
+    attemptLogin(false);
   }
 
   return (
@@ -182,9 +221,6 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAMxzXvNxjhEpxh-Zf3
         {/* Sağ panel */}
         <div style={styles.rightPanel} className="login-right">
           <div style={styles.formWrap}>
-            <h1 style={styles.formTitle}>{t.formTitle}</h1>
-            <p style={styles.formSub}>{t.formSub}</p>
-
             <form onSubmit={handleLogin} style={styles.form}>
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>{t.username}</label>
@@ -260,7 +296,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAMxzXvNxjhEpxh-Zf3
                     }
                   }, 0);
                 }}
-                style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "12px", cursor: "pointer", textAlign: "left", padding: "0", fontFamily: "'Inter', sans-serif", textDecoration: "underline" }}
+                style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "12px", cursor: "pointer", textAlign: "left", padding: "0", fontFamily: "'Inter', sans-serif", textDecoration: "underline", marginBottom: "8px" }}
               >
                 {t.forgot}
               </button>
@@ -314,6 +350,19 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzAMxzXvNxjhEpxh-Zf3
           </div>
         </div>
       </div>
+
+      {/* Yeniden Deneme Overlay (Glassmorphism) */}
+      {retrying && (
+        <div style={styles.retryScrim}>
+          <div style={styles.retryCard}>
+            <div style={styles.retrySpinnerWrap}>
+              <span style={styles.retrySpinner} />
+              <span style={styles.retryCountdown}>{countdown}</span>
+            </div>
+            <p style={styles.retryText}>{t.retryOverlay}</p>
+          </div>
+        </div>
+      )}
 
       {/* Şifre Gönder Popup */}
       {sifrePopup && (
@@ -423,4 +472,10 @@ const styles = {
   dividerLine: { flex: 1, height: "1px", background: "#e2e8f0" },
   dividerText: { fontSize: "12px", color: "#94a3b8", fontWeight: "500" },
   googleBtn: { width: "100%", padding: "12px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", fontSize: "14px", fontWeight: "500", color: "#374151", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", transition: "border-color 0.2s", fontFamily: "'Inter', sans-serif" },
+  retryScrim: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
+  retryCard: { background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: "20px", padding: "36px 44px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", boxShadow: "0 20px 60px rgba(0,0,0,0.25)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" },
+  retrySpinnerWrap: { position: "relative", width: "64px", height: "64px", display: "flex", alignItems: "center", justifyContent: "center" },
+  retrySpinner: { position: "absolute", inset: 0, border: "3px solid rgba(255,255,255,0.25)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
+  retryCountdown: { fontSize: "20px", fontWeight: "700", color: "#fff", fontFamily: "'Inter', sans-serif" },
+  retryText: { fontSize: "14px", fontWeight: "600", color: "#fff", fontFamily: "'Inter', sans-serif", letterSpacing: "-0.2px" },
 };
