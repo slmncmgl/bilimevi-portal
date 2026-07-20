@@ -7,8 +7,8 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5_k4M02agFQcEnQ5gg
 const MODULE_CONFIG = [
   {
     key: "izin",
-    title: "(BETA) İzin Yönetimi",
-    titleEn: "(BETA) Leave Management",
+    title: "İzin Yönetimi",
+    titleEn: "Leave Management",
     desc: "İzin talepleri ve personel takibi",
     descEn: "Leave requests and staff tracking",
     path: "/izin",
@@ -102,7 +102,7 @@ const MODULE_CONFIG = [
   },
   {
     key: "fiyatteklifi",
-    title: "(BETA) Fiyat Teklifi",
+    title: "Fiyat Teklifi",
     desc: "Dil okulu fiyat teklifi oluştur",
     path: "/fiyat-teklifi",
     icon: (
