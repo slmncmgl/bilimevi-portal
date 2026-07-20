@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithCredentials, saveSession, getSession } from "../utils/sheets";
+import logo from "../assets/Bilimevi_study_abroad.png";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "931368494993-gahav7fg7ss663e3v82enk2e6au6onfa.apps.googleusercontent.com";
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "https://bilimevi-portal.vercel.app/auth/callback";
@@ -436,6 +437,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENT
 }
 
 const styles = {
+  logoImg: { width: "100%", height: "auto", display: "block" }
   root: { minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative", overflow: "hidden", padding: "20px" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f022 1px, transparent 1px), linear-gradient(90deg, #e2e8f022 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   bgGlow1: { position: "fixed", top: "-20%", left: "-10%", width: "600px", height: "600px", borderRadius: "50%", background: "radial-gradient(circle, #dbeafe88 0%, transparent 70%)", zIndex: 0 },
