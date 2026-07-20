@@ -22,7 +22,7 @@ const translations = {
     googleBtn: "Google ile Giriş Yap",
     errorConn: "Bağlantı hatası. Lütfen tekrar deneyin.",
     popupTitle: "Şifreni Hatırlat",
-    popupSub: "Şirket mail adresinizi girdiğinizde \"Şifreniz\" mail adresinize gönderilecektir.",
+    popupSub: 'Şirket mail adresinizi girdiğinizde "Şifreniz" mail adresinize gönderilecektir.',
     popupCancel: "İptal",
     popupSend: "Gönder",
     popupSending: "Gönderiliyor...",
@@ -90,7 +90,7 @@ export default function Login() {
   const [sifreMesaj, setSifreMesaj] = useState(null);
   const sifreInputRef = useRef(null);
   const [retrying, setRetrying] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const [, setRetryCount] = useState(0);
   const [countdown, setCountdown] = useState(5);
   const countdownIntervalRef = useRef(null);
 
@@ -113,7 +113,7 @@ export default function Login() {
         clearInterval(countdownIntervalRef.current);
       }
     };
-  }, []);
+  }, [navigate]);
 
   async function sifreyiGonder() {
     if (!sifreUsername.trim()) return;
@@ -135,7 +135,7 @@ export default function Login() {
     setSifreLoading(false);
   }
 
-  function baslatYenidenDenemeSayaci(isRetryAttempt) {
+  function baslatYenidenDenemeSayaci() {
     setRetrying(true);
     setCountdown(5);
     let kalan = 5;
@@ -171,10 +171,10 @@ export default function Login() {
         setError(res.msg);
         setLoading(false);
       }
-    } catch (err) {
+    } catch (_) {
       if (!isRetryAttempt) {
         setLoading(false);
-        baslatYenidenDenemeSayaci(true);
+        baslatYenidenDenemeSayaci();
       } else {
         setError(t.errorConn);
         setLoading(false);
@@ -396,7 +396,7 @@ export default function Login() {
         body { font-family: 'Inter', sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
-      @media (max-width: 640px) {
+        @media (max-width: 640px) {
           body > div > div { padding: 0 !important; } 
           .login-card { 
             flex-direction: column !important; 
