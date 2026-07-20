@@ -13,7 +13,7 @@ const PIPELINE_CONFIG = {
   fortis:   { id: 31228, name: "Fortis Abroad", stageId: 217289, stageName: "New Data",   subSource: "fortis"      },
 };
 
-const KYLAS_API_KEY = "eaa699c8-cbb8-4be3-b0d3-b78cbe95cc9a:19886";
+const KYLAS_API_KEY = import.meta.env.VITE_KYLAS_API_KEY;
 
 export default function InstagramDM() {
   const navigate = useNavigate();
