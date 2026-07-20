@@ -1,644 +1,556 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bir Kelime Bir İşlem</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config={theme:{extend:{colors:{'summer-blue':'#4fc3f7','summer-sand':'#fff9c4','summer-sun':'#ffa726','summer-sea':'#0288d1','summer-coral':'#ff7043','summer-ocean':'#00bcd4'},fontFamily:{sans:['Inter','sans-serif']}}}}</script>
-    <style>
-        *{-webkit-tap-highlight-color:transparent;}
-        html,body{touch-action:manipulation;-ms-touch-action:manipulation;}
-        body{font-family:'Inter',sans-serif;background-color:#e0f7fa;background-image:linear-gradient(135deg,#e0f7fa 0%,#b2ebf2 50%,#80deea 100%);min-height:100vh;}
-        .tile{transition:all 0.15s ease;}.tile:active:not(.cursor-not-allowed){transform:translateY(3px)scale(0.95);}
-        #rules-panel{overflow:hidden;transition:max-height 0.5s ease-in-out;max-height:0;}
-        @keyframes tileShineSweep{0%{background-position:-150% 0;}100%{background-position:250% 0;}}
-        .tile-shine{background-image:linear-gradient(120deg,transparent 40%,rgba(255,255,255,0.85)50%,transparent 60%);background-size:200% 100%;animation:tileShineSweep 0.5s ease-out;}
-        @keyframes helpBubbleFade{0%{opacity:0;transform:translateY(4px);}15%{opacity:1;transform:translateY(0);}85%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-4px);}}
-        .help-bubble-anim{animation:helpBubbleFade 5s ease-in-out forwards;}
-        .player-name-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.9);border:1px solid #e0e0e0;border-radius:9999px;padding:3px 10px;font-size:12px;font-weight:600;color:#0288d1;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
-        .player-name-chip button{background:none;border:none;cursor:pointer;font-size:12px;opacity:0.6;transition:opacity 0.2s;padding:0;}
-        .player-name-chip button:hover{opacity:1;}
-        @keyframes nameChipPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.45);}50%{box-shadow:0 0 0 7px rgba(245,158,11,0);}}
-        .name-highlight-pulse{background:linear-gradient(90deg,#fef3c7,#fde68a)!important;border:2px solid #f59e0b!important;animation:nameChipPulse 1.6s ease-in-out infinite;}
-        .img-btn{display:block;width:100%;max-width:280px;margin:0 auto 0.75rem;background:none;border:none;padding:0;cursor:pointer;transition:transform 0.15s ease,filter 0.15s ease;line-height:0;}
-        .img-btn img{width:100%;height:auto;display:block;pointer-events:none;}
-        .img-btn:hover:not(:disabled){transform:translateY(-3px) scale(1.03);}
-        .img-btn:active:not(:disabled){transform:translateY(1px) scale(0.98);}
-        .img-btn:disabled{filter:grayscale(0.6) opacity(0.5);cursor:not-allowed;}
-        /* Boş şablon + kod-metin buton sistemi */
-        .wbtn{position:relative;width:100%;max-width:280px;aspect-ratio:3/1;margin:0 auto 0.75rem;background:url('assets/ui/btn-template.png') center/100% 100% no-repeat;border:none;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease,filter 0.15s ease;}
-        .wbtn:hover:not(:disabled){transform:translateY(-3px) scale(1.03);}
-        .wbtn:active:not(:disabled){transform:translateY(1px) scale(0.98);}
-        .wbtn:disabled{filter:grayscale(0.55) opacity(0.55);cursor:not-allowed;}
-        .wbtn span{position:relative;z-index:2;font-weight:800;font-size:clamp(15px,4.5vw,22px);letter-spacing:.5px;line-height:1;padding:0 9%;text-align:center;white-space:nowrap;transform:translateY(-5%);text-shadow:0 2px 0 rgba(80,50,10,.28);}
-        .wbtn.t-orange span{color:#d9822b;}
-        .wbtn.t-blue span{color:#0277bd;}
-        .wbtn.t-teal span{color:#0f8b80;}
-        .wbtn.t-purple span{color:#8b3fb8;}
-        .wbtn.t-red span{color:#c0392b;}
-        /* WORDLE */
-        .wd-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;}
-        .wd-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:clamp(18px,6vw,30px);border-radius:8px;border:2px solid #e2e8f0;background:#fff;color:#334155;text-transform:uppercase;transition:transform .12s ease;min-width:0;}
-        .wd-cell.filled{border-color:#94a3b8;transform:scale(1.04);}
-        .wd-cell.dead{color:#cbd5e1;border-color:#e2e8f0;background:#f8fafc;}
-        .wd-cell.ghost{color:#86efac;border-color:#e2e8f0;background:#fff;transform:none;}
-        .wd-cell.g{background:#22c55e;border-color:#16a34a;color:#fff;}
-        .wd-cell.y{background:#eab308;border-color:#ca8a04;color:#fff;}
-        .wd-cell.x{background:#94a3b8;border-color:#64748b;color:#fff;}
-        .wd-cell.reveal{animation:wd-flip .4s ease forwards;}
-        @keyframes wd-flip{0%{transform:scaleY(1);}50%{transform:scaleY(0);}100%{transform:scaleY(1);}}
-        .wd-cell.g.glow{border-color:#fbbf24;box-shadow:0 0 12px 3px rgba(251,191,36,.7);transition:box-shadow 1s ease-out,border-color 1s ease-out;}
-        .wd-cell.g.glow-fade{border-color:#16a34a;box-shadow:none;transition:box-shadow 1s ease-out,border-color 1s ease-out;}
-        .wd-key{padding:8px 0;border-radius:7px;background:#e2e8f0;color:#334155;font-weight:800;font-size:clamp(11px,3.2vw,15px);border:none;cursor:pointer;transition:filter .12s;min-width:0;overflow:hidden;}
-        .wd-key:hover{filter:brightness(.93);}
-        .wd-key.g{background:#22c55e;color:#fff;}
-        .wd-key.y{background:#eab308;color:#fff;}
-        .wd-key.x{background:#94a3b8;color:#fff;}
-        .wd-key.wide{grid-column:span 2;font-size:clamp(9px,2.6vw,12px);}
-        .wd-badge{font-size:.5em;font-weight:900;vertical-align:super;margin-left:1px;opacity:.95;}
-        .wd-mini{font-size:11px;line-height:1.35;letter-spacing:1px;}
-                .presence-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e;animation:pulse-dot 2s ease-in-out infinite;display:inline-block;}
-        @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.5;}}
-        .wd-rx-picker{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.25);padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap;max-width:280px;z-index:60;}
-        /* Hover titremesini (sub-pixel jitter) engelle: GPU katmanı + net geçiş */
-        button{backface-visibility:hidden;-webkit-backface-visibility:hidden;}
-        .hover\:-translate-y-1{transform:translateZ(0);transition:transform 0.18s ease,box-shadow 0.18s ease!important;}
-        .hover\:-translate-y-1:hover{transform:translateY(-4px) translateZ(0);}
-        @keyframes btnSpin{to{transform:rotate(360deg);}}
-        .btn-spinner{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,0.35);border-top-color:#fff;border-radius:50%;animation:btnSpin 0.7s linear infinite;vertical-align:middle;}
-        .font-retro{font-family:'Orbitron',sans-serif;}
-        .retro-highscore-box{background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);border:3px solid #334155;border-radius:1rem;padding:0.75rem;box-shadow:inset 0 0 20px rgba(0,0,0,0.4);}
-        .retro-row-1{color:#fbbf24;}.retro-row-2{color:#cbd5e1;}.retro-row-3{color:#d97706;}.retro-row-other{color:#94a3b8;}
-        ::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-track{background:rgba(255,255,255,0.4);border-radius:10px;}::-webkit-scrollbar-thumb{background:#4fc3f7;border-radius:10px;}
-    </style>
-<base target="_blank">
-</head>
-<body class="text-gray-800 flex flex-col items-center justify-center p-4">
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getSession, clearSession } from "../utils/sheets";
 
-<div id="game-mode-select-screen" class="max-w-md w-full bg-white/90 backdrop-blur-sm p-6 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-56 mx-auto mb-2 object-contain" />
-    <div class="flex justify-center mb-3"><span class="player-name-chip">🎮 <span id="main-menu-name"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div>
-    <button onclick="switchToScreen('bkbi-menu-screen')" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Bir Kelime Bir İşlem</button>
-    <button onclick="switchToScreen('wordle-welcome-screen')" class="w-full py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-6">Wordle</button>
-    <div class="grid grid-cols-2 gap-2 mb-4">
-        <button onclick="toggleRulesPanel()" id="btn-rules-toggle" class="py-2.5 bg-blue-50 text-summer-sea font-bold text-xs rounded-xl hover:bg-blue-100 transition-all">Kurallar</button>
-        <button onclick="switchToScreen('scoreboard-screen')" class="py-2.5 bg-blue-50 text-summer-sea font-bold text-xs rounded-xl hover:bg-blue-100 transition-all">Skor Tablosu</button>
-    </div>
-    <div id="rules-panel"><div class="bg-blue-50 p-4 rounded-xl text-left text-sm mt-3 shadow-inner text-gray-700 min-h-[150px]"><div id="rules-typewriter-content"></div></div></div>
-    <div class="flex items-center justify-center gap-3 mt-6"><p class="text-xs text-gray-300">v5.7</p><div class="flex items-center gap-1.5 text-xs text-gray-300"><span class="presence-dot"></span><span class="presence-count">0</span> çevrimiçi</div></div>
-</div>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5_k4M02agFQcEnQ5ggr-DODKllbwarSsVRJvtXNzFBGD2s-AreSvxy0npgbI7k0kq/exec";
 
-<div id="bkbi-menu-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-56 mx-auto mb-6 object-contain" />
-    <button onclick="switchToScreen('kelime-welcome-screen')" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Kelime</button>
-    <button onclick="switchToScreen('sayi-welcome-screen')" class="w-full py-3 bg-gradient-to-r from-summer-sea to-summer-ocean text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">İşlem</button>
-    <button onclick="startSoloKarma(this)" class="w-full py-3 bg-gradient-to-r from-summer-ocean to-summer-blue text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Karma</button>
-    <button onclick="switchToScreen('game-mode-select-screen')" class="w-full mt-3 py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
-    <div class="grid grid-cols-2 gap-3 mt-4">
-        <button onclick="toggleRulesPanel()" class="py-2.5 bg-blue-50 text-summer-sea font-bold text-xs rounded-xl hover:bg-blue-100 transition-all">Kurallar</button>
-        <button onclick="switchToScreen('scoreboard-screen')" class="py-2.5 bg-blue-50 text-summer-sea font-bold text-xs rounded-xl hover:bg-blue-100 transition-all">Skor Tablosu</button>
-    </div>
-    <div class="flex items-center justify-center gap-3 mt-4"><p class="text-xs text-gray-300">v5.7</p><div class="flex items-center gap-1.5 text-xs text-gray-300"><span class="presence-dot"></span><span class="presence-count">0</span> çevrimiçi</div></div>
-</div>
-
-<div id="wordle-welcome-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-56 mx-auto mb-6 object-contain" />
-    <button onclick="startSoloWordle(this)" class="w-full py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Tek Kişilik Oyun</button>
-    <button onclick="openWordleLobby()" class="w-full py-3 bg-white text-emerald-600 font-bold text-lg rounded-2xl shadow border-2 border-emerald-200 hover:bg-emerald-50 transition-all">Arkadaşlarınla Oyna</button>
-    <button onclick="switchToScreen('game-mode-select-screen')" class="w-full mt-3 py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
-    <div class="grid grid-cols-2 gap-3 mt-4">
-        <button onclick="toggleRulesPanel()" class="py-2.5 bg-blue-50 text-summer-sea font-bold text-xs rounded-xl hover:bg-blue-100 transition-all">Kurallar</button>
-        <button onclick="switchToScreen('scoreboard-screen')" class="py-2.5 bg-blue-50 text-summer-sea font-bold text-xs rounded-xl hover:bg-blue-100 transition-all">Skor Tablosu</button>
-    </div>
-    <div class="flex items-center justify-center gap-3 mt-4"><p class="text-xs text-gray-300">v5.7</p><div class="flex items-center gap-1.5 text-xs text-gray-300"><span class="presence-dot"></span><span class="presence-count">0</span> çevrimiçi</div></div>
-</div>
-
-<div id="kelime-welcome-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-56 mx-auto mb-6 object-contain" />
-    <button onclick="startSoloKelime(this)" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-xl rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Tek Kişilik Oyun</button>
-    <button onclick="showMpLobbyScreen('kelime')" class="w-full py-3 bg-white text-summer-sea font-bold text-lg rounded-2xl shadow border-2 border-blue-200 hover:bg-blue-50 transition-all mb-3">Arkadaşlarınla Oyna</button>
-    <button onclick="openAdventureMap()" class="w-full py-3 bg-gradient-to-r from-purple-400 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Macera</button>
-    <button onclick="switchToScreen('bkbi-menu-screen')" class="w-full mt-3 py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
-    <div class="grid grid-cols-2 gap-3 mt-4">
-        <button onclick="toggleRulesPanel()" class="py-2.5 bg-blue-50 text-summer-sea font-bold text-xs rounded-xl hover:bg-blue-100 transition-all">Kurallar</button>
-        <button onclick="switchToScreen('scoreboard-screen')" class="py-2.5 bg-blue-50 text-summer-sea font-bold text-xs rounded-xl hover:bg-blue-100 transition-all">Skor Tablosu</button>
-    </div>
-    <div class="flex items-center justify-center gap-3 mt-4"><p class="text-xs text-gray-300">v5.7</p><div class="flex items-center gap-1.5 text-xs text-gray-300"><span class="presence-dot"></span><span class="presence-count">0</span> çevrimiçi</div></div>
-</div>
-
-<div id="sayi-welcome-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-56 mx-auto mb-6 object-contain" />
-    <button onclick="startSoloSayi(this)" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-xl rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Tek Kişilik Oyun</button>
-    <button onclick="showMpLobbyScreen('sayi')" class="w-full py-3 bg-white text-summer-sea font-bold text-lg rounded-2xl shadow border-2 border-blue-200 hover:bg-blue-50 transition-all">Arkadaşlarınla Oyna</button>
-    <button onclick="switchToScreen('bkbi-menu-screen')" class="w-full mt-3 py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
-    <div class="grid grid-cols-2 gap-3 mt-4">
-        <button onclick="toggleRulesPanel()" class="py-2.5 bg-blue-50 text-summer-sea font-bold text-xs rounded-xl hover:bg-blue-100 transition-all">Kurallar</button>
-        <button onclick="switchToScreen('scoreboard-screen')" class="py-2.5 bg-blue-50 text-summer-sea font-bold text-xs rounded-xl hover:bg-blue-100 transition-all">Skor Tablosu</button>
-    </div>
-    <div class="flex items-center justify-center gap-3 mt-4"><p class="text-xs text-gray-300">v5.7</p><div class="flex items-center gap-1.5 text-xs text-gray-300"><span class="presence-dot"></span><span class="presence-count">0</span> çevrimiçi</div></div>
-</div>
-
-<div id="wordle-game-screen" class="hidden max-w-md w-full overflow-x-hidden bg-white/90 backdrop-blur-sm p-3 rounded-3xl shadow-2xl border-4 border-white">
-    <div class="flex justify-between items-center mb-3 text-sm">
-        <span class="font-bold text-summer-sea">Tur <span id="wd-round">1</span>/<span id="wd-max-round">3</span></span>
-        <span class="font-black text-lg" id="wd-time-left">2:00</span>
-        <span class="font-bold text-summer-coral">Puan: <span id="wd-score">0</span></span>
-    </div>
-    <div id="wd-board" class="flex flex-col gap-1.5 mb-3"></div>
-    <p id="wd-status" class="hidden text-center text-sm font-bold mb-2"></p>
-    <div id="wd-keyboard" class="flex flex-col gap-1.5 mb-3"></div>
-    <div id="wd-opponents" class="hidden bg-blue-50 rounded-xl p-3 text-left"><p class="text-xs font-bold text-summer-sea uppercase tracking-wider mb-2">Rakipler</p><div id="wd-opponents-list" class="flex flex-col gap-2"></div></div>
-    <div class="flex justify-end mt-2 gap-2">
-        <button onclick="hostFinishGameNow()" data-finish="mp-finish" class="finish-btn hidden px-3 py-1.5 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
-        <button onclick="guestLeaveGame()" data-finish="mp-leave" class="finish-btn hidden px-3 py-1.5 bg-white text-gray-400 font-semibold text-xs rounded-full shadow-md border border-gray-200 hover:bg-gray-100 hover:text-gray-600 transition-colors">🚪 Oyundan Ayrıl</button>
-        <button onclick="soloWordleFinish()" data-finish="wd-solo-finish" class="finish-btn hidden px-3 py-1.5 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
-    </div>
-</div>
-
-<div id="wordle-game-over-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-sun relative overflow-hidden">
-    <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-summer-sun to-summer-coral"></div>
-    <h2 class="text-4xl font-extrabold text-gray-800 mb-2 mt-4">Oyun Bitti!</h2>
-    <p class="text-gray-500 mb-4">Kelime yarışı tamamlandı.</p>
-    <div class="flex justify-center mb-4"><span class="player-name-chip gameover-name-chip">🎮 <span class="gameover-name-text"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div>
-    <p class="hidden gameover-name-hint text-xs text-amber-600 font-semibold mb-4">Devam etmeden önce adını değiştirip kaydet ✏️</p>
-    <div class="bg-orange-50 rounded-2xl p-6 mb-6"><p class="text-sm font-bold text-orange-400 uppercase tracking-widest mb-1">Toplam Skor</p><p id="wd-final-score" class="text-6xl font-black text-summer-coral">0</p></div>
-    <div id="wd-mp-results" class="hidden bg-blue-50 rounded-2xl p-4 mb-6 text-left"><p class="text-sm font-bold text-summer-sea uppercase tracking-widest mb-2 text-center">🏆 Bu Oyunun Sonuçları</p><div id="wd-mp-results-list" class="flex flex-col gap-1"></div></div>
-    <div id="wd-last-word" class="hidden bg-orange-50 rounded-2xl p-4 mb-6"><p class="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1">Son Turun Kelimesi</p><p id="wd-last-word-text" class="text-3xl font-black text-summer-coral tracking-widest">-----</p></div>
-    <div id="wd-solo-btns" class="hidden flex flex-col gap-3 mb-4">
-        <button onclick="startSoloWordle()" class="w-full py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">🔄 Tekrar Oyna</button>
-        <button onclick="switchToScreen('wordle-welcome-screen')" class="w-full py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Wordle Menüsü</button>
-    </div>
-    <button onclick="tryReturnToMenuFromGameOver()" id="wd-mp-menu-btn" class="gameover-menu-btn w-full py-3 bg-summer-sea text-white font-bold text-lg rounded-2xl shadow-lg hover:bg-blue-700 transition-all">Ana Menüye Dön</button>
-</div>
-
-<div id="adventure-map-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-6 rounded-3xl shadow-2xl text-center border-4 border-white max-h-[90vh] overflow-y-auto">
-    <h1 class="text-3xl font-extrabold text-summer-sea mb-1">Macera</h1>
-    <p class="text-gray-500 mb-3 text-sm">Bölümleri sırayla geç, yıldızları topla!</p>
-    <div class="bg-blue-50 rounded-xl p-3 mb-4 text-left text-xs text-gray-600 leading-relaxed"><span class="font-bold text-summer-sea">Nasıl puan alınır?</span> Her harf 1 puan (5 harfli kelime = 5 puan). Uzun kelimeler daha çok puan! Her bölümün bir hedefi var — hedefi geçince ⭐, fazlasıyla aşınca ⭐⭐ veya ⭐⭐⭐ kazanırsın.</div>
-    <div id="adventure-level-grid" class="grid grid-cols-4 gap-3 mb-4"></div>
-    <button onclick="switchToScreen('kelime-welcome-screen')" class="w-full py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
-</div>
-
-<div id="adventure-level-intro-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-ocean relative overflow-hidden">
-    <div class="text-6xl mb-2">🚩</div>
-    <h2 class="text-3xl font-extrabold text-summer-sea mb-1">Bölüm <span id="adv-intro-num">1</span></h2>
-    <div class="bg-blue-50 rounded-2xl p-5 my-5"><p class="text-xs font-bold text-summer-sea uppercase tracking-widest mb-2">🎯 Hedef</p><p id="adv-intro-goal" class="text-xl font-bold text-gray-700">-</p></div>
-    <div class="flex items-center justify-center gap-4 text-sm text-gray-500 mb-6"><span>⏱️ <span id="adv-intro-time">120</span> sn</span><span id="adv-intro-nojoker" class="hidden">🚫 Joker yok</span></div>
-    <button onclick="startAdventureLevel()" class="w-full py-3 bg-gradient-to-r from-summer-ocean to-summer-blue text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-2">Başla 🚀</button>
-    <button onclick="switchToScreen('adventure-map-screen')" class="w-full py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Haritaya Dön</button>
-</div>
-
-<div id="adventure-level-complete-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-sun relative overflow-hidden">
-    <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-summer-sun to-summer-coral"></div>
-    <h2 id="adv-complete-title" class="text-4xl font-extrabold text-gray-800 mb-2 mt-4">Bölüm Tamam!</h2>
-    <div id="adv-complete-stars" class="text-5xl mb-4 tracking-widest">⭐⭐⭐</div>
-    <p id="adv-complete-msg" class="text-gray-500 mb-4">-</p>
-    <div class="bg-orange-50 rounded-2xl p-5 mb-6"><p class="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1">Skorun</p><p id="adv-complete-score" class="text-5xl font-black text-summer-coral">0</p></div>
-    <button id="adv-next-btn" onclick="adventureNextLevel()" class="w-full py-3 bg-gradient-to-r from-summer-ocean to-summer-blue text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-2">Sonraki Bölüm ➜</button>
-    <button onclick="adventureRetryLevel()" class="w-full py-2.5 mb-2 bg-white text-summer-sea font-bold rounded-xl border-2 border-blue-200 hover:bg-blue-50 transition-colors">🔄 Tekrar Dene</button>
-    <button onclick="switchToScreen('adventure-map-screen')" class="w-full py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">🗺️ Haritaya Dön</button>
-</div>
-
-<div id="scoreboard-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-6 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <h2 class="text-3xl font-extrabold text-summer-sea mb-4">Skor Tablosu</h2>
-    <div class="flex bg-gray-100 rounded-xl p-1 mb-4">
-        <button onclick="switchScoreTab('bkbi')" id="score-tab-bkbi" class="score-tab-btn flex-1 py-1.5 rounded-lg font-bold text-sm transition-all bg-summer-sea text-white">Bir Kelime Bir İşlem</button>
-        <button onclick="switchScoreTab('wordle')" id="score-tab-wordle" class="score-tab-btn flex-1 py-1.5 rounded-lg font-bold text-sm transition-all text-gray-500">🔤 Wordle</button>
-    </div>
-    <div class="retro-highscore-box"><div class="grid grid-cols-12 font-retro text-xs text-slate-400 tracking-wider mb-3 px-2"><span class="col-span-2 text-left">POS</span><span class="col-span-5 text-left">NAME</span><span class="col-span-5 text-left">SCORE</span></div><div id="retro-top10-list" class="flex flex-col gap-1"><p class="text-slate-500 text-sm">Yükleniyor...</p></div></div>
-    <button onclick="switchToScreen('game-mode-select-screen')" class="w-full mt-3 py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
-</div>
-
-<div id="round-select-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <h2 class="text-3xl font-extrabold text-summer-sea mb-2">Kaç Tur Oynayalım?</h2><p class="text-gray-500 mb-4">Tur sayısı ve süresini seç</p>
-    <div class="grid grid-cols-3 gap-2 mb-4"><button onclick="selectSoloRoundCount(3)" data-solo-round="3" class="solo-round-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">3</button><button onclick="selectSoloRoundCount(5)" data-solo-round="5" class="solo-round-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">5</button><button onclick="selectSoloRoundCount(7)" data-solo-round="7" class="solo-round-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">7</button></div>
-    <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Tur Süresi (dk)</p>
-    <div class="grid grid-cols-3 gap-2 mb-6"><button onclick="selectSoloDuration(1)" data-solo-duration="1" class="solo-duration-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">1</button><button onclick="selectSoloDuration(2)" data-solo-duration="2" class="solo-duration-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">2</button><button onclick="selectSoloDuration(3)" data-solo-duration="3" class="solo-duration-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">3</button></div>
-    <button onclick="startGame()" id="btn-solo-start" disabled class="wbtn t-orange mb-3"><span>OYUNU BAŞLAT</span></button>
-    <button onclick="switchToScreen('kelime-welcome-screen')" class="w-full py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
-</div>
-
-<div id="sayi-round-select-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <h2 class="text-3xl font-extrabold text-summer-sea mb-2">İşlem</h2><p class="text-gray-500 mb-6">Kaç tur oynayalım?</p>
-    <div class="grid grid-cols-3 gap-2 mb-6"><button onclick="selectSayiRoundCount(3)" data-sayi-round="3" class="sayi-round-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">3</button><button onclick="selectSayiRoundCount(5)" data-sayi-round="5" class="sayi-round-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">5</button><button onclick="selectSayiRoundCount(7)" data-sayi-round="7" class="sayi-round-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">7</button></div>
-    <button onclick="startSayiGame()" id="btn-sayi-start" disabled class="w-full py-3 bg-gray-300 text-white font-bold text-lg rounded-2xl shadow-lg transition-all mb-3 cursor-not-allowed">Oyunu Başlat 🚀</button>
-    <button onclick="switchToScreen('sayi-welcome-screen')" class="w-full py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
-</div>
-
-<div id="karma-round-select-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <h2 class="text-3xl font-extrabold text-summer-sea mb-2">🎲 Bir Kelime Bir İşlem</h2><p class="text-gray-500 mb-6">Toplam kaç tur?</p>
-    <div class="grid grid-cols-3 gap-2 mb-6"><button onclick="selectKarmaRoundCount(3)" data-karma-round="3" class="karma-round-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">3</button><button onclick="selectKarmaRoundCount(5)" data-karma-round="5" class="karma-round-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">5</button><button onclick="selectKarmaRoundCount(7)" data-karma-round="7" class="karma-round-btn py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-2xl border-2 border-blue-200 transition-colors">7</button></div>
-    <button onclick="startKarmaGame()" id="btn-karma-start" disabled class="w-full py-3 bg-gray-300 text-white font-bold text-lg rounded-2xl shadow-lg transition-all mb-3 cursor-not-allowed">Oyunu Başlat 🚀</button>
-    <button onclick="switchToScreen('game-mode-select-screen')" class="w-full py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
-</div>
-
-<div id="sayi-game-screen" class="hidden w-full max-w-2xl flex flex-col h-full max-h-[90vh] p-2">
-    <div class="relative flex justify-end mb-1">
-        <div id="sayi-help-bubble" class="hidden absolute right-0 -top-8 bg-summer-sea text-white text-xs px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">✏️ Adınızı değiştirebilirsiniz</div>
-        <span class="player-name-chip">🎮 <span id="sayi-player-name-display"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span>
-    </div>
-    <div class="flex justify-between items-center bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-md mb-2 border-2 border-white"><div class="text-center"><p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Tur</p><p class="text-2xl font-black text-summer-sea"><span id="sayi-current-round">1</span>/<span id="sayi-max-round">3</span></p></div><div class="text-center bg-blue-100 px-6 py-2 rounded-xl"><p class="text-xs font-bold text-blue-500 uppercase tracking-wider">Süre</p><p id="sayi-time-left" class="text-3xl font-black text-summer-ocean">1:30</p></div><div class="text-center"><p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Puan</p><p id="sayi-score" class="text-3xl font-black text-summer-coral">0</p></div></div>
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-4 mb-4 text-center border-2 border-white"><p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Hedef Sayı</p><p id="sayi-target" class="text-5xl font-black text-summer-sea">000</p><p class="text-sm text-gray-500 mt-2">En Yakın: <span id="sayi-best-result" class="font-bold text-summer-coral">-</span></p><p id="sayi-diff-help" class="hidden text-xs mt-1 font-semibold text-summer-ocean"></p></div>
-    <button onclick="finishSayiRoundEarly()" id="btn-sayi-exact-finish" class="hidden w-full py-2.5 mb-3 bg-gradient-to-r from-green-400 to-green-600 text-white font-bold rounded-xl shadow-lg animate-pulse">🎯 Tam İsabet! Turu Bitir</button>
-    <div id="sayi-mp-exact-banner" class="hidden w-full py-3 mb-4 bg-green-50 border-2 border-green-300 text-green-600 font-bold rounded-xl text-center text-sm"></div>
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-4 mb-4 flex flex-col items-center justify-center min-h-[70px] border-2 border-white"><p id="sayi-expression-display" class="text-2xl font-bold text-summer-sea">Bir sayı seç...</p></div>
-    <div id="sayi-numbers-rack" class="flex flex-wrap justify-center gap-x-2 gap-y-3 md:gap-3 mb-4"></div>
-    <div class="grid grid-cols-4 gap-2 mb-4"><button onclick="selectSayiOperator('+')" class="sayi-op-btn py-2.5 bg-white text-summer-sea font-black text-2xl rounded-xl shadow border-2 border-blue-200 hover:bg-blue-50">+</button><button onclick="selectSayiOperator('−')" class="sayi-op-btn py-2.5 bg-white text-summer-sea font-black text-2xl rounded-xl shadow border-2 border-blue-200 hover:bg-blue-50">−</button><button onclick="selectSayiOperator('×')" class="sayi-op-btn py-2.5 bg-white text-summer-sea font-black text-2xl rounded-xl shadow border-2 border-blue-200 hover:bg-blue-50">×</button><button onclick="selectSayiOperator('÷')" class="sayi-op-btn py-2.5 bg-white text-summer-sea font-black text-2xl rounded-xl shadow border-2 border-blue-200 hover:bg-blue-50">÷</button></div>
-    <div class="grid grid-cols-2 gap-2"><button onclick="undoSayiOperation()" class="py-1.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors text-sm">↩️ Geri Al</button><button onclick="resetSayiNumbers()" class="py-1.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors text-sm">🔄 Baştan Kombinle</button></div>
-    <div class="flex justify-end mt-2 gap-2">
-        <button onclick="sayiFinishGameNow()" data-finish="sayi" class="finish-btn hidden px-3 py-1.5 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
-        <button onclick="karmaFinishGameNow()" data-finish="karma" class="finish-btn hidden px-3 py-1.5 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
-        <button onclick="hostFinishGameNow()" data-finish="mp-finish" class="finish-btn hidden px-3 py-1.5 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
-        <button onclick="guestLeaveGame()" data-finish="mp-leave" class="finish-btn hidden px-3 py-1.5 bg-white text-gray-400 font-semibold text-xs rounded-full shadow-md border border-gray-200 hover:bg-gray-100 hover:text-gray-600 transition-colors">🚪 Oyundan Ayrıl</button>
-    </div>
-</div>
-
-<div id="wordle-round-over-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-4 border-summer-sun max-h-[90vh] overflow-y-auto"><div class="text-5xl mb-2">🔤</div><h3 class="text-3xl font-extrabold text-summer-sea mb-1"><span id="wd-ro-title">Tur Bitti!</span></h3><p class="text-gray-500 mb-3">Kelime: <span id="wd-ro-secret" class="font-black text-2xl text-summer-coral tracking-widest">-----</span></p><div id="wd-ro-ranks" class="bg-blue-50 rounded-xl p-3 mb-4 text-left flex flex-col gap-1"></div><p class="text-gray-500 mb-1">Kazandığın Puan: <span id="wd-ro-points" class="font-bold text-summer-coral">0</span></p><p class="text-gray-500 mb-6">Toplam Skorun: <span id="wd-ro-total" class="font-black text-2xl text-summer-coral">0</span></p><button onclick="hostStartNextRound()" id="btn-wd-next-round" class="hidden w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Sonraki Tur ➜</button><button onclick="hostFinishGameNow()" id="btn-wd-ro-finish" class="hidden w-full mt-2 py-2 bg-red-50 text-red-500 font-bold rounded-xl border-2 border-red-200 hover:bg-red-100 transition-colors text-sm">🏁 Oyunu Burada Bitir</button><p id="wd-ro-guest-text" class="hidden text-gray-500 animate-pulse">Host'un kararını bekliyorsun...</p></div></div>
-
-<div id="sayi-round-over-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-4 border-summer-sun max-h-[90vh] overflow-y-auto"><div class="text-5xl mb-2">🔢</div><h3 class="text-3xl font-extrabold text-summer-sea mb-1"><span id="sayi-round-over-title">Tur Bitti!</span></h3><p class="text-gray-500">Hedef: <span id="sayi-round-over-target" class="font-bold">000</span></p><div id="sayi-computer-solution"></div><p class="text-gray-500 mb-4">Kazandığın Puan: <span id="sayi-round-over-points" class="font-bold text-summer-coral">0</span></p><p class="text-gray-500 mb-6">Toplam Skorun: <span id="sayi-round-over-total" class="font-black text-2xl text-summer-coral">0</span></p><button onclick="sayiGoToNextRound()" id="btn-sayi-next-round" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Sonraki Tur ➜</button><button onclick="hostFinishGameNow()" id="btn-sayi-round-over-finish" class="hidden w-full mt-2 py-2 bg-red-50 text-red-500 font-bold rounded-xl border-2 border-red-200 hover:bg-red-100 transition-colors text-sm">🏁 Oyunu Burada Bitir</button><p id="sayi-round-over-guest-text" class="hidden text-gray-500 animate-pulse">Host'un kararını bekliyorsun...</p></div></div>
-<div id="sayi-game-over-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-sun relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-summer-sun to-summer-coral"></div><h2 class="text-4xl font-extrabold text-gray-800 mb-2 mt-4">Oyun Bitti!</h2><p class="text-gray-500 mb-4">İşlem modunu tamamladın!</p><div class="flex justify-center mb-4"><span class="player-name-chip gameover-name-chip">🎮 <span class="gameover-name-text"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div><p class="hidden gameover-name-hint text-xs text-amber-600 font-semibold mb-4">Devam etmeden önce adını değiştirip kaydet ✏️</p><div class="bg-orange-50 rounded-2xl p-6 mb-6"><p class="text-sm font-bold text-orange-400 uppercase tracking-widest mb-1">Toplam Skor</p><p id="sayi-final-score" class="text-6xl font-black text-summer-coral">0</p></div><div id="sayi-mp-results" class="hidden bg-blue-50 rounded-2xl p-4 mb-6 text-left"><p class="text-sm font-bold text-summer-sea uppercase tracking-widest mb-2 text-center">🏆 Bu Oyunun Sonuçları</p><div id="sayi-mp-results-list" class="flex flex-col gap-1"></div></div><div id="sayi-mp-last-solution" class="hidden bg-blue-50 rounded-2xl p-4 mb-6 text-left"></div><button onclick="tryReturnToMenuFromGameOver()" class="gameover-menu-btn w-full py-3 bg-summer-sea text-white font-bold text-lg rounded-2xl shadow-lg hover:bg-blue-700 transition-all">Ana Menüye Dön</button></div>
-
-<div id="karma-round-over-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-4 border-summer-sun"><div class="text-5xl mb-2">🎲</div><h3 class="text-3xl font-extrabold text-summer-sea mb-1"><span id="karma-round-over-title">Tur Bitti!</span></h3><p class="text-gray-500 mb-2">Bu Turdan Kazandığın: <span id="karma-round-over-points" class="font-bold text-summer-coral">+0</span></p><p class="text-gray-500 mb-6">Toplam Skorun: <span id="karma-round-over-total" class="font-black text-2xl text-summer-coral">0</span></p><button onclick="karmaGoToNextRound()" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Sonraki Tur ➜</button></div></div>
-<div id="karma-game-over-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-sun relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-summer-sun to-summer-coral"></div><h2 class="text-4xl font-extrabold text-gray-800 mb-2 mt-4">Oyun Bitti!</h2><p class="text-gray-500 mb-4">Bir Kelime Bir İşlem'de harika iş çıkardın.</p><div class="flex justify-center mb-4"><span class="player-name-chip gameover-name-chip">🎮 <span class="gameover-name-text"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div><p class="hidden gameover-name-hint text-xs text-amber-600 font-semibold mb-4">Devam etmeden önce adını değiştirip kaydet ✏️</p><div class="bg-orange-50 rounded-2xl p-6 mb-6"><p class="text-sm font-bold text-orange-400 uppercase tracking-widest mb-1">Toplam Skor</p><p id="karma-final-score" class="text-6xl font-black text-summer-coral">0</p></div><button onclick="tryReturnToMenuFromGameOver()" class="gameover-menu-btn w-full py-3 bg-summer-sea text-white font-bold text-lg rounded-2xl shadow-lg hover:bg-blue-700 transition-all">Ana Menüye Dön</button></div>
-
-<div id="mp-lobby-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-6 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-40 mx-auto mb-4 object-contain" />
-    <h2 class="text-2xl font-extrabold text-summer-sea mb-4">Arkadaşlarınla Oyna</h2>
-    <button onclick="openMpHost(this)" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-6">➕ Oyun Kur</button>
-    <p class="text-left text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Aktif Oyunlar</p>
-    <div id="mp-active-list" class="flex flex-col gap-2 mb-6 max-h-60 overflow-y-auto"><p class="text-gray-400 text-sm">Yükleniyor...</p></div>
-    <button onclick="leaveMpLobbyScreen()" class="w-full py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
-</div>
-
-<div id="mp-waiting-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-6 rounded-3xl shadow-2xl text-center border-4 border-white">
-    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-32 mx-auto mb-3 object-contain" />
-    <div class="flex justify-center mb-3"><span class="player-name-chip">🎮 <span id="mp-waiting-name"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div>
-    <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Oyun Kodu</p>
-    <p id="mp-game-code" class="text-4xl font-black text-summer-sea mb-6 tracking-widest"></p>
-    <p class="text-left text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Oyuncular</p>
-    <div id="mp-player-list" class="flex flex-col gap-1 mb-6 text-left"></div>
-    <div id="mp-host-controls" class="hidden">
-        <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Kaç Tur?</p>
-        <div class="grid grid-cols-3 gap-2 mb-4"><button onclick="selectMpRoundCount(3)" data-round="3" class="mp-round-btn py-2.5 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">3</button><button onclick="selectMpRoundCount(5)" data-round="5" class="mp-round-btn py-2.5 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">5</button><button onclick="selectMpRoundCount(7)" data-round="7" class="mp-round-btn py-2.5 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">7</button></div>
-        <div id="mp-duration-section"><p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Tur Süresi (dk)</p>
-        <div class="grid grid-cols-3 gap-2 mb-4"><button onclick="selectMpDuration(1)" data-duration="1" class="mp-duration-btn py-2.5 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">1dk</button><button onclick="selectMpDuration(1.5)" data-duration="1.5" class="mp-duration-btn py-2.5 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">1.5dk</button><button onclick="selectMpDuration(2)" data-duration="2" class="mp-duration-btn py-2.5 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">2dk</button></div></div>
-        <button onclick="startMultiplayerGame()" id="btn-mp-start" disabled class="w-full py-3 bg-gray-300 text-white font-bold text-lg rounded-2xl shadow-lg transition-all mb-3 cursor-not-allowed">Oyunu Başlat 🚀</button>
-    </div>
-    <p id="mp-guest-waiting-text" class="hidden text-gray-500 mb-3 animate-pulse">Host'un oyunu başlatmasını bekliyorsun...</p>
-    <button onclick="leaveMultiplayerLobby()" class="w-full py-2.5 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">Lobiden Ayrıl</button>
-</div>
-
-<div id="game-screen" class="hidden w-full max-w-2xl flex flex-col h-full max-h-[90vh] p-2">
-    <div class="relative flex justify-end mb-1">
-        <div id="kelime-help-bubble" class="hidden absolute right-0 -top-8 bg-summer-sea text-white text-xs px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">✏️ Adınızı değiştirebilirsiniz</div>
-        <span class="player-name-chip">🎮 <span id="player-name-display"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span>
-    </div>
-    <div class="flex justify-between items-center bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-md mb-2 border-2 border-white"><div class="text-center"><p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Tur</p><p class="text-2xl font-black text-summer-sea"><span id="current-round">1</span>/<span id="max-round-display">10</span></p></div><div class="text-center bg-blue-100 px-6 py-2 rounded-xl"><p class="text-xs font-bold text-blue-500 uppercase tracking-wider">Süre</p><p id="time-left" class="text-3xl font-black text-summer-ocean">3:00</p></div><div class="text-center"><p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Puan</p><p id="score" class="text-3xl font-black text-summer-coral">0</p></div></div>
-    
-    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-4 mb-4 flex flex-col items-center justify-center min-h-[100px] border-2 border-white relative" onclick="focusMobileKeyboard()"><div id="active-word-display" class="flex gap-2 min-h-[3rem] items-center justify-center flex-wrap"><p class="text-gray-400 font-medium">Harflere tıklayın veya klavyeyi kullanın...</p></div><input id="mobile-keyboard-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" class="absolute inset-0 w-full h-full opacity-0 cursor-text" style="font-size:16px;" /><button onclick="event.stopPropagation(); clearActiveWord()" class="absolute right-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 hover:bg-red-200 hover:text-red-600 transition-colors z-10">✕</button></div>
-    <div id="letters-rack" class="flex flex-wrap justify-center gap-2 md:gap-3 mb-6 min-h-[5rem]"></div>
-    <div class="flex gap-4 mb-6"><button onclick="shuffleLettersAndPlay()" id="btn-shuffle" class="flex-1 py-2.5 bg-white text-summer-sea font-bold rounded-xl shadow border-2 border-blue-200 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"><span>🔄</span> Karıştır</button><button onclick="submitWord()" id="btn-submit" class="flex-2 w-2/3 py-2.5 bg-summer-sea text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-lg"><span>✅</span> Kelimeyi Onayla</button></div>
-    <div class="bg-white/90 backdrop-blur-sm flex-1 rounded-2xl shadow-md p-4 overflow-hidden flex flex-col border-2 border-white"><h3 class="font-bold text-gray-700 mb-3 border-b pb-2 flex justify-between"><span>Bulunan Kelimeler</span><span class="text-sm font-normal text-summer-sea"><span id="word-count">0</span> Kelime</span></h3><div id="found-words-list" class="flex-1 overflow-y-auto flex flex-wrap gap-2 content-start"></div></div>
-    <div class="flex justify-end mt-2 gap-2">
-        <button onclick="finishAdventureLevelEarly()" data-finish="adventure" class="finish-btn hidden px-3 py-1.5 bg-gradient-to-r from-green-400 to-green-600 text-white font-bold text-sm rounded-full shadow-md hover:shadow-lg transition-all animate-pulse">🎯 Hedef Tamam! Bölümü Bitir</button>
-        <button onclick="soloFinishGameNow()" data-finish="solo" class="finish-btn hidden px-3 py-1.5 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
-        <button onclick="karmaFinishGameNow()" data-finish="karma" class="finish-btn hidden px-3 py-1.5 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
-        <button onclick="hostFinishGameNow()" data-finish="mp-finish" class="finish-btn hidden px-3 py-1.5 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
-        <button onclick="guestLeaveGame()" data-finish="mp-leave" class="finish-btn hidden px-3 py-1.5 bg-white text-gray-400 font-semibold text-xs rounded-full shadow-md border border-gray-200 hover:bg-gray-100 hover:text-gray-600 transition-colors">🚪 Oyundan Ayrıl</button>
-    </div>
-</div>
-
-<div id="sayi-joker-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-6 rounded-3xl shadow-2xl max-w-sm w-full"><div class="text-center mb-4"><h3 class="text-2xl font-bold text-summer-sun">⭐ Joker Sayıyı Seç</h3><p class="text-sm text-gray-500 mt-1">1-9 arası istediğin sayı</p></div><div class="grid grid-cols-3 gap-2">
-<button onclick="assignSayiJoker(1)" class="py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">1</button>
-<button onclick="assignSayiJoker(2)" class="py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">2</button>
-<button onclick="assignSayiJoker(3)" class="py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">3</button>
-<button onclick="assignSayiJoker(4)" class="py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">4</button>
-<button onclick="assignSayiJoker(5)" class="py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">5</button>
-<button onclick="assignSayiJoker(6)" class="py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">6</button>
-<button onclick="assignSayiJoker(7)" class="py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">7</button>
-<button onclick="assignSayiJoker(8)" class="py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">8</button>
-<button onclick="assignSayiJoker(9)" class="py-3 bg-blue-50 text-summer-sea font-black text-xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">9</button>
-</div><button onclick="closeSayiJokerModal()" class="w-full mt-3 py-1.5 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300">İptal</button></div></div>
-<div id="rename-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-6 rounded-3xl shadow-2xl max-w-sm w-full"><div class="text-center mb-4"><h3 class="text-2xl font-bold text-summer-sea">✏️ Adını Değiştir</h3><p class="text-sm text-gray-500 mt-1">Yeni skorların bu isimle kaydedilir</p></div><input id="rename-input" type="text" maxlength="20" placeholder="Yeni ismin..." class="w-full px-4 py-2.5 border-2 border-blue-200 rounded-xl text-center font-bold text-summer-sea focus:outline-none focus:border-summer-sea mb-4" style="font-size:16px;" /><div class="flex gap-2"><button onclick="closeRenameModal()" class="flex-1 py-1.5 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300">İptal</button><button onclick="saveNewName()" id="rename-save-btn" class="flex-1 py-1.5 bg-summer-sea text-white rounded-xl font-bold hover:bg-blue-700">Kaydet</button></div></div></div>
-<div id="joker-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-6 rounded-3xl shadow-2xl max-w-sm w-full"><div class="text-center mb-4"><h3 class="text-2xl font-bold text-summer-sun">Joker Harfi Seç</h3></div><div id="joker-keyboard" class="flex flex-wrap justify-center gap-2"></div><button onclick="closeJokerModal()" class="w-full mt-3 py-1.5 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300">İptal</button></div></div>
-<div id="mp-countdown-overlay" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-50"><p class="text-white text-xl font-bold mb-2">Hazır ol!</p><span id="mp-countdown-number" class="text-white text-9xl font-black">5</span></div>
-
-<div id="round-over-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-4 border-summer-sun max-h-[90vh] overflow-y-auto"><div class="text-5xl mb-2">⏱️</div><h3 class="text-3xl font-extrabold text-summer-sea mb-1"><span id="round-over-title">Tur Bitti!</span></h3><p class="text-gray-500 mb-4">Toplam Skorun</p><p id="round-over-score" class="text-5xl font-black text-summer-coral mb-6">0</p><div id="round-over-bonus-banner" class="hidden bg-amber-50 border-2 border-amber-300 text-amber-700 text-sm font-bold rounded-xl p-3 mb-4"></div><div id="round-over-leaderboard" class="flex flex-col gap-1 mb-6 text-left"></div><div id="round-over-top-words" class="hidden text-left mb-4"><p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">📚 Bu Harflerle En İyiler</p><div id="round-over-top-words-list" class="flex flex-wrap gap-2"></div></div><div id="round-over-missed-words" class="hidden text-left mb-4"><p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Kaçırdığın Kelimeler</p><div id="round-over-missed-words-list" class="flex flex-wrap gap-2"></div></div><button onclick="goToNextRound()" id="btn-next-round" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Sonraki Tur ➜</button><button onclick="hostFinishGameNow()" id="btn-round-over-finish" class="hidden w-full mt-2 py-2 bg-red-50 text-red-500 font-bold rounded-xl border-2 border-red-200 hover:bg-red-100 transition-colors text-sm">🏁 Oyunu Burada Bitir</button><p id="round-over-guest-text" class="hidden text-gray-500 animate-pulse">Host'un kararını bekliyorsun...</p></div></div>
-<div id="game-over-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-sun relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-summer-sun to-summer-coral"></div><h2 class="text-4xl font-extrabold text-gray-800 mb-2 mt-4">Oyun Bitti!</h2><p class="text-gray-500 mb-4">Harika bir yaz performansı sergiledin.</p><div class="flex justify-center mb-4"><span class="player-name-chip gameover-name-chip">🎮 <span class="gameover-name-text"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div><p class="hidden gameover-name-hint text-xs text-amber-600 font-semibold mb-4">Devam etmeden önce adını değiştirip kaydet ✏️</p><div class="bg-orange-50 rounded-2xl p-6 mb-6"><p class="text-sm font-bold text-orange-400 uppercase tracking-widest mb-1">Toplam Skor</p><p id="final-score" class="text-6xl font-black text-summer-coral">0</p></div><div id="game-over-bonus-banner" class="hidden bg-amber-50 border-2 border-amber-300 text-amber-700 text-sm font-bold rounded-xl p-3 mb-4"></div><div class="bg-blue-50 rounded-2xl p-4 mb-6 text-left"><p class="text-sm font-bold text-summer-sea uppercase tracking-widest mb-2 text-center" id="leaderboard-title">Skor Tablosu</p><div id="leaderboard-list" class="flex flex-col gap-1"><p class="text-gray-400 text-sm text-center">Yükleniyor...</p></div></div><button onclick="tryReturnToMenuFromGameOver()" class="gameover-menu-btn w-full py-3 bg-summer-sea text-white font-bold text-lg rounded-2xl shadow-lg hover:bg-blue-700 transition-all">Ana Menüye Dön</button></div>
-<div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none"></div>
-
-<script>
-const AudioContext=window.AudioContext||window.webkitAudioContext;const audioCtx=new AudioContext();
-const sounds={playTone(f,t,d,v=0.1){if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t;o.frequency.setValueAtTime(f,audioCtx.currentTime);g.gain.setValueAtTime(v,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+d);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+d);},playChord(f,t,d,v=0.07){f.forEach(x=>this.playTone(x,t,d,v));},playClick:()=>sounds.playChord([659.25,987.77],'sine',0.08,0.05),playError:()=>sounds.playChord([233.08,277.18],'sine',0.25,0.06),playSuccess:()=>{sounds.playChord([523.25,659.25],'sine',0.15,0.07);setTimeout(()=>sounds.playChord([523.25,659.25,783.99],'sine',0.45,0.06),120);},playStart:()=>{sounds.playChord([392,493.88],'sine',0.18,0.06);setTimeout(()=>sounds.playChord([523.25,659.25,783.99],'sine',0.4,0.07),160);},playRoll:()=>sounds.playTone(880,'sine',0.04,0.02)};
-function showToast(m,t='error'){const c=document.getElementById('toast-container');const el=document.createElement('div');el.className=`${t==='error'?'bg-red-500':'bg-green-500'} text-white px-6 py-3 rounded-full shadow-lg font-bold text-sm transform transition-all duration-300 translate-y-[-20px] opacity-0`;el.textContent=m;c.appendChild(el);setTimeout(()=>{el.classList.remove('translate-y-[-20px]','opacity-0');el.classList.add('translate-y-0','opacity-100');},10);setTimeout(()=>{el.classList.remove('translate-y-0','opacity-100');el.classList.add('translate-y-[-20px]','opacity-0');setTimeout(()=>el.remove(),300);},2000);}
-
-const WEB_APP_URL='https://script.google.com/macros/s/AKfycbzQivxeUgVu5MKBJBR_-RjCrrKPiHIk2mIkgPPP2NfJc7ArJ13-XIHE5kmsCOL00KTO/exec';
-const VOWELS=['A','E','I','İ','O','Ö','U','Ü'],CONSONANTS=['B','C','Ç','D','F','G','Ğ','H','J','K','L','M','N','P','R','S','Ş','T','V','Y','Z'];
-const ALPHABET=[...VOWELS,...CONSONANTS].sort((a,b)=>a.localeCompare(b,'tr'));
-const LETTER_SCRAMBLE_STEP_MS=500,SAYI_SMALL=[1,2,3,4,5,6,7,8,9],SAYI_LARGE=[10,25,50,75,100];
-const dictionary=new Set(["YAZ","SU","KUM","GÜNEŞ","DENİZ","PLAJ","TATİL","SICAK","ADA","KAMP"]);
-let turkishWordSet=null,turkishWordSetCore=null;
-async function loadDict(){try{const r=await fetch('assets/kelimeler.txt');const t=await r.text();const s=new Set();t.split('\n').forEach(l=>{const w=l.trim();if(w)s.add(w);});turkishWordSet=s;}catch(e){try{const r2=await fetch('https://raw.githubusercontent.com/CanNuhlar/Turkce-Kelime-Listesi/master/turkce_kelime_listesi.txt');const t2=await r2.text();const s2=new Set();t2.split('\n').forEach(l=>{const w=l.trim();if(!w||/[\s/'\-0-9]/.test(w)||w.length<3)return;s2.add(w.toLocaleUpperCase('tr-TR'));});turkishWordSet=s2;}catch(e2){}}try{const rc=await fetch('assets/kelimeler_temel.txt');const tc=await rc.text();const sc=new Set();tc.split('\n').forEach(l=>{const w=l.trim();if(w)sc.add(w);});turkishWordSetCore=sc;}catch(ec){}}
-loadDict().then(()=>{try{buildWordlePools();}catch(e){}});
-
-let game={isPlaying:false,score:0,currentRound:1,maxRounds:10,playerName:'',hasCustomName:false,previousLetters:null,selectedRoundCount:null,selectedDurationMinutes:null,karma:{active:false,currentRound:1,maxRounds:3,score:0},roundLetters:[],activeWord:[],foundWords:[],timeRemaining:180,pendingJokerTile:null,adventure:{active:false,level:null,jokerUsed:false},wordle:{secret:'',guesses:[],current:[],cursor:0,_animRow:-1,solved:false,score:0,timeRemaining:120,isPlaying:false,_lastScoredRound:null,_reported:false},sayi:{numbers:[],target:0,currentRound:1,maxRounds:3,score:0,bestResultThisRound:null,selectedTileId:null,selectedOperator:null,timeRemaining:90,isPlaying:false,history:[]},mp:{gameId:null,isHost:false,gameType:'kelime',selectedRoundCount:null,selectedDurationMinutes:null,previousLetters:null,lastSyncedRound:null,lastBonusAppliedRound:null,currentPlayerCount:1}};
-let timerInterval=null,mpTimerInterval=null,sayiTimerInterval=null,computerSolutionAnimationInterval=null,roundOverUnlockInterval=null;
-let playerNameReady=false,playerNamePromise=null;
-
-// # karakteri Firebase'de geçersiz olduğu için - kullan
-async function initPlayerName(){const saved=localStorage.getItem('bkbi_playerName');if(saved){game.playerName=saved;game.hasCustomName=true;playerNameReady=true;updateAllPlayerNameDisplays();return;}try{const r=await fetch(`${WEB_APP_URL}?mode=oyuncu`);const d=await r.json();const rr=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'registerPlayer'})});const rd=await rr.json();if(!game.hasCustomName)game.playerName=rd.playerName.replace(/#/g,'-');playerNameReady=true;}catch(e){if(!game.hasCustomName)game.playerName='Oyuncu-'+(Math.floor(Math.random()*9000)+1000);playerNameReady=true;}}
-playerNamePromise=initPlayerName();playerNamePromise.then(()=>updateAllPlayerNameDisplays());
-async function getOrCreatePlayerName(){if(playerNameReady&&game.playerName)return game.playerName;if(playerNamePromise)await playerNamePromise;if(!game.playerName)game.playerName='Oyuncu-'+(Math.floor(Math.random()*9000)+1000);return game.playerName;}
-function updatePlayerNameDisplay(id){const el=document.getElementById(id);if(el&&game.playerName)el.textContent=game.playerName;}
-function updateAllPlayerNameDisplays(){updatePlayerNameDisplay('player-name-display');updatePlayerNameDisplay('sayi-player-name-display');const wn=document.getElementById('mp-waiting-name');if(wn&&game.playerName)wn.textContent=game.playerName;const mn=document.getElementById('main-menu-name');if(mn&&game.playerName)mn.textContent=game.playerName;document.querySelectorAll('.gameover-name-text').forEach(el=>{if(game.playerName)el.textContent=game.playerName;});}
-function updateNameGateUI(){const locked=!game.hasCustomName;document.querySelectorAll('.gameover-menu-btn').forEach(b=>{b.disabled=locked;b.classList.toggle('opacity-50',locked);b.classList.toggle('cursor-not-allowed',locked);});document.querySelectorAll('.gameover-name-chip').forEach(c=>c.classList.toggle('name-highlight-pulse',locked));document.querySelectorAll('.gameover-name-hint').forEach(h=>h.classList.toggle('hidden',!locked));}
-function resetMpState(){detachMpListeners();clearInterval(mpTimerInterval);clearInterval(sayiTimerInterval);clearInterval(timerInterval);if(game.mp.gameId&&game.mp.isHost){try{window.fb.onDisconnect(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`)).cancel();window.fb.onDisconnect(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`)).cancel();}catch(e){}}game.mp.gameId=null;game.mp.isHost=false;game.mp.gameType='kelime';game.mp.lastSyncedRound=null;game.mp.lastBonusAppliedRound=null;game.mp.previousLetters=null;game.mp.currentPlayerCount=1;game.adventure.active=false;game.wordle.isPlaying=false;game.wordle._roundEndRequested=false;}
-function tryReturnToMenuFromGameOver(){if(!game.hasCustomName){showToast('Ana menüye dönmeden önce adını değiştirip kaydetmelisin! ✏️');openRenameModal();return;}resetMpState();switchToScreen('game-mode-select-screen');}
-function openRenameModal(){const inp=document.getElementById('rename-input');inp.value=game.playerName||'';document.getElementById('rename-modal').classList.remove('hidden');setTimeout(()=>inp.focus(),100);}
-function closeRenameModal(){document.getElementById('rename-modal').classList.add('hidden');}
-async function saveNewName(){const inp=document.getElementById('rename-input');const newName=inp.value.trim().replace(/#/g,'-');if(!newName){showToast('İsim boş olamaz!');return;}if(newName===game.playerName){game.hasCustomName=true;updateNameGateUI();closeRenameModal();return;}const oldName=game.playerName;const inLobby=!!game.mp.gameId;game.playerName=newName;game.hasCustomName=true;localStorage.setItem('bkbi_playerName',newName);updateAllPlayerNameDisplays();updateNameGateUI();closeRenameModal();if(inLobby){try{await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/players`),{[oldName]:null,[newName]:true});}catch(e){}}showToast('İsmin güncellendi! 🎮','success');}
-let helpBubbleShown=false;
-function showRenameHelpBubbleOnce(bubbleId){if(helpBubbleShown)return;helpBubbleShown=true;const b=document.getElementById(bubbleId);if(!b)return;b.classList.remove('hidden');b.classList.add('help-bubble-anim');setTimeout(()=>{b.classList.add('hidden');b.classList.remove('help-bubble-anim');},5000);}
-
-const ALL_SCREENS=['game-mode-select-screen','bkbi-menu-screen','wordle-welcome-screen','kelime-welcome-screen','sayi-welcome-screen','scoreboard-screen','sayi-game-screen','sayi-game-over-screen','karma-game-over-screen','game-screen','game-over-screen','wordle-game-screen','wordle-game-over-screen','mp-lobby-screen','mp-waiting-screen','adventure-map-screen','adventure-level-intro-screen','adventure-level-complete-screen'];
-
-// ===== WORDLE MODU =====
-const WORDLE_LEN=5,WORDLE_MAX_GUESSES=5,WORDLE_ROUND_MS=120000;
-const WORDLE_COMMON=['ABACI','ABONE','ACELE','ACEMİ','ACILI','ADALI','ADRES','ADSIZ','AFGAN','AFYON','AHLAK','AHŞAP','AJANS','AKICI','AKŞAM','ALARM','ALBAY','ALMAK','ALTIN','ALÇAK','AMBAR','ANKET','ANLAM','APTAL','ARABA','ARACI','ARAMA','ARENA','ARMUT','ASKER','ASLAN','ASTAR','ATLAS','AVANS','AVARE','AYDIN','AYRAN','AÇLIK','BACAK','BADEM','BAGAJ','BAHAR','BAHÇE','BAKAM','BAKIM','BAKIR','BAKMA','BALCI','BALIK','BALTA','BANDO','BANKA','BARAJ','BASIN','BASKI','BASİT','BATIK','BAYAN','BAYAT','BAĞCI','BAĞIR','BAŞAK','BAŞKA','BEBEK','BEDEL','BELGE','BENEK','BENZİ','BESİN','BEYAZ','BEYİN','BOMBA','BORSA','BOYUN','BOYUT','BOZUK','BOĞAZ','BUCAK','BUHAR','BUKET','BULGU','BULMA','BULUT','BURMA','BURUN','BUZLU','BUĞRA','BÖCEK','BÖLGE','BÖLÜM','BÖREK','BÜTÜN','BÜYÜK','BİBER','BİDON','BİLEK','BİLET','BİLGİ','BİNEK','BİRAZ','BİTKİ','BİTİŞ','CADDE','CAMLI','CANLI','CASUS','CEKET','CEMAL','CEVAP','CEVİZ','CEYDA','CIVIK','COŞKU','CÜMLE','CİHAZ','CİVAR','DAHİL','DALAK','DALGA','DALIŞ','DAMAR','DAMAT','DAMLA','DAVET','DAVUL','DAYAK','DAĞCI','DAİRE','DELİK','DEMET','DEMİR','DENGE','DENİZ','DERGİ','DERİN','DETAY','DEVAM','DEVRİ','DEVİR','DEĞER','DOLAM','DOLAP','DOLGU','DOSYA','DOĞAL','DOĞRU','DOĞUM','DURAK','DURUM','DUVAR','DUYAR','DUYGU','DÖNEM','DÖNER','DÖNME','DÖNÜM','DÖŞEK','DÜDÜK','DÜNYA','DÜRÜM','DÜZEN','DÜĞME','DÜĞÜN','DÜŞÜK','DİKEN','DİKEY','DİKİŞ','DİLEK','DİLİM','DİREK','DİYAR','DİZEL','EDEBİ','EJDER','EKLEM','EKMEK','EKRAN','EKSİK','EKİBİ','ELMAS','EMSAL','ENDAM','ENGEL','ERGEN','ERKEK','ERKEN','ESNAF','ETKİN','EVRAK','EYLEM','FAKİR','FALEZ','FALSO','FAYDA','FENER','FENOL','FERDİ','FEVRİ','FIRIN','FORMA','FORSA','FORUM','FRENK','FULAR','FÜTUR','FİDAN','FİGÜR','FİKİR','FİLİZ','FİNAL','FİRMA','FİTİL','FİYAT','GALİP','GARAJ','GARİP','GEDİK','GELEN','GELİN','GELİR','GENİŞ','GEREK','GEÇEN','GEÇİT','GEÇİŞ','GOCUK','GURUP','GURUR','GÖLGE','GÖNÜL','GÖREV','GÖRÜŞ','GÖVDE','GÖÇME','GÖÇÜK','GÖĞÜS','GÜDÜK','GÜDÜM','GÜLER','GÜLME','GÜMÜŞ','GÜNAH','GÜNEŞ','GÜVEN','GÜVEÇ','GÜZEL','GÜÇLÜ','GİDEN','GİDER','GİRDİ','GİRİŞ','GİTAR','GİYSİ','HABER','HAFTA','HAFİF','HAKLI','HAKİM','HALAT','HALAY','HALKA','HAMAM','HAMLE','HAMUR','HANIM','HAREM','HASIR','HASTA','HATIR','HAVAS','HAVUZ','HAYAL','HAYAT','HAYIR','HAZER','HAZIR','HEDEF','HEKİM','HELAL','HESAP','HEYBE','HIRKA','HIZLI','HOŞÇA','HURDA','HUZUR','HİDRA','HİLAL','HİSSE','ILICA','IRMAK','ISLAK','JAPON','KABAK','KABAN','KABIN','KABLO','KABUK','KADEH','KADIN','KADRO','KAFES','KAHVE','KALEM','KALIN','KALIP','KANAL','KANAT','KANCA','KANIT','KANUN','KAPAK','KAPAN','KAPÇI','KARAR','KARGA','KARIŞ','KARMA','KARNE','KASAP','KASIM','KAVAK','KAVGA','KAVUN','KAYAK','KAYIK','KAYIT','KAYMA','KAZAK','KAÇAK','KAÇIŞ','KAĞIT','KEBAP','KEFAL','KELEK','KEMAN','KEMER','KENAR','KENDİ','KESER','KESİM','KESİN','KIDEM','KISIM','KIYMA','KIZAK','KOLAY','KOLON','KOMUT','KOMŞU','KONAK','KONUK','KONUM','KONUT','KOPYA','KORKU','KOYUN','KOÇAK','KOÇAN','KOŞUL','KUBAT','KULAK','KULÜP','KUMAŞ','KUMLU','KUPON','KURAK','KURAL','KURUL','KURUM','KUYUM','KUZEY','KUŞAK','KUŞKU','KÖFTE','KÖMÜR','KÖPEK','KÖPRÜ','KÖRPE','KÜREK','KÜTÜK','KÜÇÜK','KİBAR','KİLİM','KİLİT','KİMSE','KİMYA','KİRAZ','KİRPİ','KİTAP','KİTLE','LAMBA','LANET','LATİN','LAZIM','LEGAL','LEVHA','LEĞEN','LODOS','LOKMA','LOKUM','LONCA','LÜZUM','LİDER','LİFLİ','LİMAN','LİMON','LİSAN','LİSTE','MADEN','MAKAM','MAKAS','MAKET','MAKUL','MALUM','MANGO','MANTO','MARKA','MARUL','MASAL','MASKE','MASUM','MAÇKA','MECAL','MEDYA','MEKAN','MELEK','MELEZ','MEMUR','MERAK','MESAJ','MESUT','METAL','MEYVE','MEZAR','MEŞRU','MISIR','MODEM','MORAL','MOTOR','MUHAL','MUTLU','MÜDÜR','MÜHÜR','MÜJDE','MÜZİK','MİDYE','MİLLİ','MİMAR','MİRAS','NABIZ','NAKİT','NAMAZ','NAMLU','NASIL','NASIR','NAZAR','NEDEN','NEFES','NEHİR','NESİL','NOKTA','NUTUK','NÖBET','NÜFUS','NİKAH','NİKEL','NİSAN','NİYET','NİŞAN','OKUMA','OLASI','OLGUN','OLMAZ','OMLET','ONART','OPERA','ORGAN','ORMAN','ORTAK','ORTAM','OVACI','OYNAK','PAKET','PALET','PALTO','PAMPA','PAMUK','PANEL','PANİK','PAPAZ','PARKE','PARÇA','PASTA','PATİK','PAZAR','PAÇAL','PEDAL','PELİN','PEMBE','PERDE','PEŞİN','PINAR','PLAKA','PLAZA','POLİS','POSTA','PRENS','PİLAV','PİLOT','RADAR','RADON','RADYO','RAHAT','RAKAM','RAKET','RAKİP','RAMAK','RAPOR','REKOR','RESİM','REÇEL','ROBOT','ROKET','ROMAN','RUMUZ','RÖTAR','SABAH','SABIK','SABIR','SAHNE','SAHRA','SAHİL','SAKAL','SAKIN','SAKİN','SALON','SALÇA','SAMAN','SANAT','SANAY','SARAY','SARGI','SARIL','SATIR','SATIŞ','SAVAŞ','SAYFA','SAYGI','SAYIM','SAZLI','SAÇAK','SAÇMA','SAĞIR','SEBZE','SEFER','SEHER','SEKİZ','SELAM','SEMER','SEPET','SERGİ','SERİN','SEVGİ','SEZON','SEÇKİ','SEÇİM','SICAK','SIFIR','SINAV','SINIF','SOKAK','SOKMA','SOLAK','SOMUN','SOMUT','SONRA','SONUÇ','SORUN','SOYLU','SOĞAN','SOĞUK','SUBAY','SUCUK','SULAK','SUNUM','SUNUŞ','SURAT','SÖĞÜT','SÜRAT','SÜREÇ','SÜRÜM','SÜTLÜ','SİHİR','SİLAH','SİLGİ','SİMİT','SİNEK','SİNİR','SİPER','SİRKE','SİVRİ','SİYAH','TABAK','TABAN','TABLA','TABLO','TABUR','TAHTA','TAKAS','TAKIM','TAKMA','TALAN','TALEP','TAMAM','TAMİR','TANIK','TANIM','TANIŞ','TARAF','TARAK','TARLA','TARİH','TATLI','TATİL','TAVAN','TAVLA','TAVUK','TAŞIT','TEKEL','TEKNE','TEKİR','TELAŞ','TEMAS','TEMEL','TEMPO','TEMİZ','TENHA','TENİS','TEORİ','TEPSİ','TERAS','TERFİ','TERZİ','TERİM','TESİS','TETİK','TIRAŞ','TOHUM','TOKAT','TONAJ','TOPUK','TOPUZ','TOPÇU','TORBA','TORUN','TUZAK','TUZLU','TÜFEK','TÜNEL','TÜRBE','TÜRKÜ','TÜTÜN','TİPİK','ULEMA','UMMAN','UNSUR','UYARI','UYGUN','UYSAL','UZMAN','UÇMAK','UĞRAŞ','VAHŞİ','VAKIF','VAKİT','VALİZ','VAPUR','VARIŞ','VARLI','VATAN','VEKİL','VERGİ','VERİM','VURUŞ','VİRAJ','VİTES','VİTRİ','VİZÖR','YABAN','YAKIN','YAKIT','YAKUT','YALAN','YALIN','YAMAÇ','YAMUK','YANAK','YANAL','YANIK','YANIT','YAPAY','YARAR','YARIK','YARIM','YARIN','YARIŞ','YASAK','YASAL','YATAK','YATAY','YAYCI','YAYIN','YAZAR','YAZIK','YAĞCI','YAŞAM','YAŞLI','YEDEK','YELEK','YEMEK','YEMİN','YENGE','YEREL','YERLİ','YETKİ','YETİM','YEŞİL','YILAN','YOKSA','YOKUŞ','YOLCU','YONCA','YORUM','YOSUN','YOĞUN','YUMAK','YUNUS','YÜZEY','YÜZME','YÜZÜK','ZAFER','ZAMAN','ZARAR','ZARİF','ZAYIF','ZEHİR','ZEMİN','ZIRVA','ZORBA','ZORLU','ZÜPPE','ZİFİR','ZİHİN','ZİRVE','ÇADIR','ÇAKAL','ÇAKIL','ÇAKMA','ÇALIŞ','ÇAMUR','ÇANTA','ÇAPAK','ÇAPUT','ÇARŞI','ÇATAL','ÇEKİÇ','ÇELİK','ÇETİN','ÇEVRE','ÇEŞME','ÇIKMA','ÇIRAK','ÇOBAN','ÇOCUK','ÇORAP','ÇORBA','ÇOĞUL','ÇUKUR','ÇÖMEZ','ÇÖZÜM','ÇİFTE','ÇİLEK','ÇİMEN','ÇİZGİ','ÇİZME','ÇİÇEK','ÖDEME','ÖDÜNÇ','ÖKSÜZ','ÖLÇEK','ÖLÇÜM','ÖNCÜL','ÖNLEM','ÖRDEK','ÖRGÜT','ÖRNEK','ÖZGÜR','ÖZLEM','ÖĞLEN','ÜNLÜK','ÜSLUP','ÜSTAT','ÜZGÜN','İBRET','İFADE','İHBAR','İHMAL','İKLİM','İKRAM','İLAVE','İLERİ','İLHAM','İLKİN','İMDAT','İMKAN','İNANÇ','İNCİR','İNFAZ','İNSAN','İNŞAT','İPLİK','İPTAL','İSTEK','İSTİF','İSYAN','İZLEM','İÇERİ','İÇLİK','İŞLEM','ŞAFAK','ŞAHİN','ŞAHİT','ŞAPKA','ŞARAP','ŞARKI','ŞAVKI','ŞAŞMA','ŞEBEK','ŞEHİR','ŞEKER','ŞERİF','ŞERİT','ŞOFÖR','ŞUBAT','ŞURUP','ŞÖLEN','ŞÜKÜR','ŞİFRE','ŞİMDİ','ŞİŞKO'];
-let wordleSecretPool=null,wordleGuessPool=null;
-function buildWordlePools(){const okChars=w=>w.length===WORDLE_LEN&&[...w].every(c=>ALPHABET.includes(c));wordleSecretPool=WORDLE_COMMON.slice();const gp=new Set(WORDLE_COMMON);if(turkishWordSet)[...turkishWordSet].filter(okChars).forEach(w=>gp.add(w));else if(turkishWordSetCore)[...turkishWordSetCore].filter(okChars).forEach(w=>gp.add(w));wordleGuessPool=gp;}
-function pickWordleSecret(exclude){if(!wordleSecretPool||!wordleSecretPool.length)return null;const used=game.wordle._usedWords||(game.wordle._usedWords=new Set());if(exclude)used.add(exclude);for(let i=0;i<100;i++){const w=wordleSecretPool[Math.floor(Math.random()*wordleSecretPool.length)];if(!used.has(w)){used.add(w);return w;}}used.clear();return wordleSecretPool[Math.floor(Math.random()*wordleSecretPool.length)];}
-function isValidWordleGuess(w){if(w.length!==WORDLE_LEN)return false;if(wordleGuessPool&&wordleGuessPool.has(w))return true;if(wordleSecretPool&&wordleSecretPool.includes(w))return true;return false;}
-// 'g'=yeşil (doğru yerde), 'y'=sarı (var, yanlış yerde), 'x'=gri (yok)
-function evaluateWordleGuess(secret,guess){const n=secret.length,res=new Array(n).fill('x');const s=[...secret],g=[...guess],used=new Array(n).fill(false);for(let i=0;i<n;i++)if(g[i]===s[i]){res[i]='g';used[i]=true;}for(let i=0;i<n;i++){if(res[i]==='g')continue;for(let j=0;j<n;j++){if(used[j])continue;if(g[i]===s[j]){res[i]='y';used[j]=true;break;}}}return res.join('');}
-function wordleRankPoints(rank){return rank===1?30:rank===2?20:rank===3?10:0;}
-const WORDLE_MARK={g:'🟩',y:'🟨',x:'⬜'};
-
-// ===== ADVENTURE MODU =====
-const ADVENTURE_LEVELS=[
-{id:1,mod:'kelime',sure:120,hedef:{minScore:30},aciklama:'30 puan topla',yildiz:{iki:{minScore:50},uc:{minScore:80}}},
-{id:2,mod:'kelime',sure:120,hedef:{minScore:40},aciklama:'40 puan topla',yildiz:{iki:{minScore:70},uc:{minScore:110}}},
-{id:3,mod:'kelime',sure:120,hedef:{minWords:5},aciklama:'5 kelime bul',yildiz:{iki:{minWords:8},uc:{minWords:12}}},
-{id:4,mod:'kelime',sure:120,hedef:{minScore:60},aciklama:'60 puan topla',yildiz:{iki:{minScore:100},uc:{minScore:140}}},
-{id:5,mod:'kelime',sure:120,hedef:{minWordsOfLength:{uzunluk:4,adet:1}},aciklama:'4+ harfli 1 kelime bul',yildiz:{iki:{minWordsOfLength:{uzunluk:4,adet:2}},uc:{minWordsOfLength:{uzunluk:4,adet:3}}}},
-{id:6,mod:'kelime',sure:120,hedef:{minScore:80},aciklama:'80 puan topla',yildiz:{iki:{minScore:130},uc:{minScore:180}}},
-{id:7,mod:'kelime',sure:120,hedef:{minWords:6,minScore:80},aciklama:'6 kelime bul ve 80 puan al',yildiz:{iki:{minWords:9,minScore:130},uc:{minWords:12,minScore:180}}},
-{id:8,mod:'kelime',sure:120,hedef:{minWordsOfLength:{uzunluk:5,adet:2}},aciklama:'5+ harfli 2 kelime bul',yildiz:{iki:{minWordsOfLength:{uzunluk:5,adet:3}},uc:{minWordsOfLength:{uzunluk:5,adet:4}}}},
-{id:9,mod:'kelime',sure:90,hedef:{minScore:100},aciklama:'90 saniyede 100 puan topla',yildiz:{iki:{minScore:150},uc:{minScore:200}}},
-{id:10,mod:'kelime',sure:120,hedef:{noJoker:true,minScore:60},aciklama:'Joker kullanmadan 60 puan al',yildiz:{iki:{noJoker:true,minScore:100},uc:{noJoker:true,minScore:140}}},
-{id:11,mod:'kelime',sure:90,hedef:{minWords:8},aciklama:'90 saniyede 8 kelime bul',yildiz:{iki:{minWords:12},uc:{minWords:16}}},
-{id:12,mod:'kelime',sure:120,hedef:{minWordsOfLength:{uzunluk:5,adet:3}},aciklama:'5+ harfli 3 kelime bul',yildiz:{iki:{minWordsOfLength:{uzunluk:5,adet:4}},uc:{minWordsOfLength:{uzunluk:5,adet:5}}}},
-{id:13,mod:'kelime',sure:90,hedef:{noJoker:true,minScore:80},aciklama:'Joker yok, 90 saniyede 80 puan',yildiz:{iki:{noJoker:true,minScore:130},uc:{noJoker:true,minScore:180}}},
-{id:14,mod:'kelime',sure:120,hedef:{minScore:130},aciklama:'130 puan topla',yildiz:{iki:{minScore:200},uc:{minScore:280}}},
-{id:15,mod:'kelime',sure:120,hedef:{minWordsOfLength:{uzunluk:6,adet:2}},aciklama:'6+ harfli 2 kelime bul',yildiz:{iki:{minWordsOfLength:{uzunluk:6,adet:3}},uc:{minWordsOfLength:{uzunluk:6,adet:4}}}}
+const MODULE_CONFIG = [
+  {
+    key: "izin",
+    title: "İzin Yönetimi",
+    titleEn: "Leave Management",
+    desc: "İzin talepleri ve personel takibi",
+    descEn: "Leave requests and staff tracking",
+    path: "/izin",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
+      </svg>
+    ),
+    color: "#2563eb",
+    bg: "#eff6ff",
+    border: "#bfdbfe",
+  },
+  {
+    key: "instagram",
+    title: "Instagram DM",
+    desc: "DM analizi ve CRM aktarımı",
+    path: "/instagram",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+      </svg>
+    ),
+    color: "#db2777",
+    bg: "#fdf2f8",
+    border: "#fbcfe8",
+  },
+  {
+    key: "quiz",
+    title: "Sınav Cevapları",
+    desc: "Sınav sonuçları ve raporlama",
+    path: "/sinav-cevaplari",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M9 11l3 3L22 4"/>
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+      </svg>
+    ),
+    color: "#059669",
+    bg: "#ecfdf5",
+    border: "#a7f3d0",
+  },
+  {
+    key: "bulten",
+    title: "Bülten Düzenleyici",
+    desc: "E-bülten içerik üretimi",
+    path: "/bulten",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+        <polyline points="22,6 12,13 2,6"/>
+      </svg>
+    ),
+    color: "#7c3aed",
+    bg: "#f5f3ff",
+    border: "#ddd6fe",
+  },
+  {
+    key: "stm",
+    title: "STM",
+    desc: "Satış ve takip modülü",
+    path: "/stm",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-8 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/>
+      </svg>
+    ),
+    color: "#0891b2",
+    bg: "#ecfeff",
+    border: "#a5f3fc",
+  },
+  {
+    key: "kayitguncelle",
+    title: "Sözleşme Güncelle",
+    desc: "Öğrenci kaydını düzelt ve sözleşmeyi yeniden gönder",
+    path: "/kayit-guncelle",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+    ),
+    color: "#0891b2",
+    bg: "#ecfeff",
+    border: "#a5f3fc",
+  },
+  {
+    key: "fiyatteklifi",
+    title: "Fiyat Teklifi",
+    desc: "Dil okulu fiyat teklifi oluştur",
+    path: "/fiyat-teklifi",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+    ),
+    color: "#ea580c",
+    bg: "#fff7ed",
+    border: "#fed7aa",
+  },
+  {
+    key: "katalogparse",
+    title: "Katalog Parse",
+    desc: "Okul PDF kataloglarını veritabanına aktar",
+    path: "/katalog-parse",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="12" y1="18" x2="12" y2="12"/>
+        <line x1="9" y1="15" x2="15" y2="15"/>
+      </svg>
+    ),
+    color: "#1d4ed8",
+    bg: "#eff6ff",
+    border: "#bfdbfe",
+  },
+  {
+    key: "performansanalizi",
+    title: "Performans Analizi",
+    desc: "Danışman sınav sayılarını ve başarı ortalamalarını takip et",
+    path: "/performans-analizi",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M12 20V10M18 20V4M6 20v-4" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M3 20h18" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    color: "#0891b2",
+    bg: "#ecfeff",
+    border: "#a5f3fc",
+  },
 ];
-function getAdventureLevel(id){return ADVENTURE_LEVELS.find(l=>l.id===id)||null;}
-// Bir koşul kümesini oyun sonucuna göre kontrol et
-function checkAdventureConditions(cond,result){if(!cond)return false;if(cond.minScore!==undefined&&result.score<cond.minScore)return false;if(cond.minWords!==undefined&&result.words.length<cond.minWords)return false;if(cond.noJoker&&result.jokerUsed)return false;if(cond.minWordsOfLength){const n=result.words.filter(w=>w.length>=cond.minWordsOfLength.uzunluk).length;if(n<cond.minWordsOfLength.adet)return false;}return true;}
-// Kaç yıldız? 0=başarısız, 1/2/3
-function calcAdventureStars(level,result){if(!checkAdventureConditions(level.hedef,result))return 0;let stars=1;if(level.yildiz&&level.yildiz.iki&&checkAdventureConditions(level.yildiz.iki,result))stars=2;if(level.yildiz&&level.yildiz.uc&&checkAdventureConditions(level.yildiz.uc,result))stars=3;return stars;}
-// localStorage kalıcılık
-const ADV_STORAGE_KEY='bkbi_adventure_v1';
-function loadAdventureProgress(){try{const raw=localStorage.getItem(ADV_STORAGE_KEY);if(raw)return JSON.parse(raw);}catch(e){}return{stars:{},unlockedMax:1};}
-function saveAdventureProgress(p){try{localStorage.setItem(ADV_STORAGE_KEY,JSON.stringify(p));}catch(e){}}
-function recordAdventureResult(levelId,stars){const p=loadAdventureProgress();if(stars>0){if(!p.stars[levelId]||stars>p.stars[levelId])p.stars[levelId]=stars;const next=levelId+1;if(next>p.unlockedMax&&getAdventureLevel(next))p.unlockedMax=next;}saveAdventureProgress(p);return p;}
-function openAdventureMap(){resetMpState();renderAdventureMap();switchToScreen('adventure-map-screen');}
-function renderAdventureMap(){const p=loadAdventureProgress();const grid=document.getElementById('adventure-level-grid');grid.innerHTML='';ADVENTURE_LEVELS.forEach(lv=>{const stars=p.stars[lv.id]||0;const unlocked=lv.id<=p.unlockedMax;const cell=document.createElement('button');if(unlocked){cell.className='aspect-square rounded-xl font-black text-lg flex flex-col items-center justify-center shadow border-2 transition-all '+(stars>0?'bg-gradient-to-br from-summer-ocean to-summer-blue text-white border-summer-ocean':'bg-white text-summer-sea border-blue-200 hover:bg-blue-50');cell.innerHTML=`<span>${lv.id}</span><span class="text-[10px] leading-none mt-0.5">${stars>0?'⭐'.repeat(stars):'&nbsp;'}</span>`;cell.onclick=()=>openAdventureLevelIntro(lv.id);}else{cell.className='aspect-square rounded-xl flex items-center justify-center bg-gray-100 text-gray-300 border-2 border-gray-200 cursor-not-allowed';cell.innerHTML='🔒';cell.disabled=true;}grid.appendChild(cell);});}
-function openAdventureLevelIntro(levelId){const lv=getAdventureLevel(levelId);if(!lv)return;game.adventure.level=lv;document.getElementById('adv-intro-num').textContent=lv.id;document.getElementById('adv-intro-goal').textContent=lv.aciklama;document.getElementById('adv-intro-time').textContent=lv.sure;document.getElementById('adv-intro-nojoker').classList.toggle('hidden',!lv.hedef.noJoker);switchToScreen('adventure-level-intro-screen');}
-function startAdventureLevel(){const lv=game.adventure.level;if(!lv)return;if(audioCtx.state==='suspended')audioCtx.resume();game.adventure.active=true;game.adventure.jokerUsed=false;game.score=0;game.currentRound=1;game.maxRounds=1;game.foundWords=[];game.previousLetters=null;game.selectedDurationMinutes=lv.sure/60;hideAllScreens();document.getElementById('game-screen').classList.remove('hidden');hideAllFinishBtns();updatePlayerNameDisplay('player-name-display');updateUI();startRound();}
-function endAdventureLevel(){const lv=game.adventure.level;game.adventure.active=false;const result={score:game.score,words:game.foundWords.slice(),jokerUsed:game.adventure.jokerUsed};const stars=calcAdventureStars(lv,result);recordAdventureResult(lv.id,stars);hideAllScreens();document.getElementById('adventure-level-complete-screen').classList.remove('hidden');const starsEl=document.getElementById('adv-complete-stars');const titleEl=document.getElementById('adv-complete-title');const msgEl=document.getElementById('adv-complete-msg');const nextBtn=document.getElementById('adv-next-btn');if(stars>0){starsEl.textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);titleEl.textContent='Bölüm Tamam!';msgEl.textContent=stars===3?'Mükemmel! 3 yıldız topladın! 🎉':stars===2?'Harika! Bir yıldız daha var.':'Geçtin! Daha fazla yıldız için tekrar dene.';const hasNext=getAdventureLevel(lv.id+1);nextBtn.classList.toggle('hidden',!hasNext);sounds.playSuccess();setTimeout(()=>sounds.playSuccess(),400);}else{starsEl.textContent='☆☆☆';titleEl.textContent='Başaramadın';msgEl.textContent=`Hedef: ${lv.aciklama}. Tekrar dene!`;nextBtn.classList.add('hidden');sounds.playError();}document.getElementById('adv-complete-score').textContent=game.score;}
-function adventureNextLevel(){const lv=game.adventure.level;const next=getAdventureLevel(lv.id+1);if(next)openAdventureLevelIntro(next.id);else{renderAdventureMap();switchToScreen('adventure-map-screen');}}
-function adventureRetryLevel(){openAdventureLevelIntro(game.adventure.level.id);}
 
-const ALL_MODALS=['sayi-round-over-modal','karma-round-over-modal','round-over-modal','wordle-round-over-modal','joker-modal','mp-countdown-overlay','rename-modal','sayi-joker-modal'];
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [time, setTime] = useState(new Date());
+  const [sozlesmeLoading, setSozlesmeLoading] = useState(false);
+  const [sozlesmeHata, setSozlesmeHata] = useState(null);
 
-function hideAllScreens(){ALL_SCREENS.forEach(id=>document.getElementById(id).classList.add('hidden'));}
-function hideAllModals(){ALL_MODALS.forEach(id=>document.getElementById(id).classList.add('hidden'));}
-function hideAllFinishBtns(){document.querySelectorAll('.finish-btn').forEach(b=>b.classList.add('hidden'));}
-function setBtnLoading(btn,on){if(!btn)return;if(on){btn.dataset.orig=btn.innerHTML;btn.innerHTML='<span class="btn-spinner"></span>';btn.disabled=true;}else{if(btn.dataset.orig)btn.innerHTML=btn.dataset.orig;btn.disabled=false;}}
-function showFinishBtn(kind){document.querySelectorAll(`.finish-btn[data-finish="${kind}"]`).forEach(b=>b.classList.remove('hidden'));}
-function hideFinishBtn(kind){document.querySelectorAll(`.finish-btn[data-finish="${kind}"]`).forEach(b=>b.classList.add('hidden'));}
-function switchToScreen(screenId){hideAllScreens();hideAllModals();hideAllFinishBtns();clearInterval(sayiTimerInterval);clearInterval(timerInterval);clearInterval(computerSolutionAnimationInterval);document.getElementById(screenId).classList.remove('hidden');if(screenId==='scoreboard-screen')switchScoreTab(currentScoreTab||'bkbi');}
+  useEffect(() => {
+    const session = getSession();
+    if (!session) { navigate("/"); return; }
+    setUser(session);
+    const timer = setInterval(() => setTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-const RULES_LINES=['📖 KELİME: Her tur 3 Sesli, 4 Sessiz ve 1 Joker harf düşer. Harfleri kullanarak en uzun kelimeleri yaz. Harf başına 1 puan!','🔢 İŞLEM: 6 sayı verilir, hedefe en yakın sonucu dört işlemle bul! Tam isabet 10 puan, fark kadar puan düşer.','🎲 KARMA: Kelime + İşlem turları art arda oynanır. Her ikisinde de skorun toplanır!','🔤 WORDLE: 5 harfli gizli kelimeyi tahmin et! 🟩 Yeşil = doğru yerde, 🟨 Sarı = var ama yanlış yerde, ⬜ Gri = yok. 5 tahmin hakkın var.','🔤 WORDLE İPUCU: Bir harf kelimede 2+ kez geçiyorsa üst simge ile gösterilir (ör. İ²). Yeşil harfler sonraki satıra taşınır.','🤝 ÇOKOYUNCULU: Arkadaşlarınla aynı anda yarış! Wordle\'de 1. bulan 30, 2. bulan 20, 3. bulan 10 puan alır. Beraberlikte hızlı çözen önde!'];
-let rulesPanelOpen=false,rulesAnimationStarted=false;
-function toggleRulesPanel(){const p=document.getElementById('rules-panel');const b=document.getElementById('btn-rules-toggle');rulesPanelOpen=!rulesPanelOpen;p.style.maxHeight=rulesPanelOpen?'800px':'0';b.textContent=rulesPanelOpen?'📜 Kuralları Gizle':'📜 Kurallar';if(rulesPanelOpen&&!rulesAnimationStarted){rulesAnimationStarted=true;typeRulesLines();}}
-async function typeRulesLines(){const c=document.getElementById('rules-typewriter-content');c.innerHTML='';for(const line of RULES_LINES){const le=document.createElement('p');le.className='mb-2';const ts=document.createElement('span');const cs=document.createElement('span');cs.className='rules-cursor';cs.textContent='|';le.appendChild(document.createTextNode('• '));le.appendChild(ts);le.appendChild(cs);c.appendChild(le);for(let i=0;i<line.length;i++){ts.textContent+=line[i];await new Promise(r=>setTimeout(r,18));}await new Promise(r=>setTimeout(r,1000));cs.remove();}}
-
-let currentScoreTab='kelime';
-function switchScoreTab(tab){currentScoreTab=tab;document.querySelectorAll('.score-tab-btn').forEach(b=>{b.classList.remove('bg-summer-sea','text-white');b.classList.add('text-gray-500');});const el=document.getElementById(`score-tab-${tab}`);if(el){el.classList.add('bg-summer-sea','text-white');el.classList.remove('text-gray-500');}loadScoreTabContent(tab);}
-function parseScoreEntries(d){if(!Array.isArray(d))return[];return d.filter(item=>{const n=String(item.name||'').trim();if(!n||n==='POS'||n==='NAME'||n==='SCORE')return false;const s=Number(item.score);return!isNaN(s)&&s>0;}).map(item=>({name:String(item.name).trim(),score:Number(item.score)}));}
-async function loadScoreTabContent(tab){const listEl=document.getElementById('retro-top10-list');listEl.innerHTML='<p class="text-slate-500 text-sm">Yükleniyor...</p>';try{let entries=[];if(tab==='bkbi'){const [r1,r2,r3]=await Promise.all([fetch(`${WEB_APP_URL}?mode=solo`).then(r=>r.json()).catch(()=>[]),fetch(`${WEB_APP_URL}?mode=sayi`).then(r=>r.json()).catch(()=>[]),fetch(`${WEB_APP_URL}?mode=karma`).then(r=>r.json()).catch(()=>[])]);const all=[...parseScoreEntries(r1),...parseScoreEntries(r2),...parseScoreEntries(r3)];const best={};all.forEach(e=>{if(!best[e.name]||e.score>best[e.name])best[e.name]=e.score;});entries=Object.entries(best).map(([name,score])=>({name,score})).sort((a,b)=>b.score-a.score).slice(0,10).map((e,i)=>({...e,pos:i+1}));}else{const r=await fetch(`${WEB_APP_URL}?mode=wordle`);const d=await r.json();entries=parseScoreEntries(d).sort((a,b)=>b.score-a.score).slice(0,10).map((e,i)=>({...e,pos:i+1}));}if(entries.length===0){listEl.innerHTML='<p class="text-slate-500 text-sm">Henüz skor yok</p>';return;}function gm(pos){return pos===1?'👑':pos===2?'🥈':pos===3?'🥉':'';}function gr(pos){return pos<=3?`retro-row-${pos}`:'retro-row-other';}listEl.innerHTML=entries.map(e=>`<div class="grid grid-cols-12 items-center font-retro text-sm ${gr(e.pos)} py-1"><span class="col-span-2 text-left">${gm(e.pos)} ${e.pos}</span><span class="col-span-5 text-left truncate">${e.name}</span><span class="col-span-5 text-left">${e.score}</span></div>`).join('');}catch(err){listEl.innerHTML='<p class="text-slate-500 text-sm">Yüklenemedi</p>';}}
-
-async function startSoloKelime(btn){setBtnLoading(btn,true);resetMpState();await getOrCreatePlayerName();setBtnLoading(btn,false);game.selectedRoundCount=7;game.selectedDurationMinutes=1.5;startGame();}
-async function startSoloSayi(btn){setBtnLoading(btn,true);resetMpState();await getOrCreatePlayerName();setBtnLoading(btn,false);game.selectedRoundCount=7;startSayiGame();}
-async function startSoloKarma(btn){setBtnLoading(btn,true);resetMpState();await getOrCreatePlayerName();setBtnLoading(btn,false);game.selectedRoundCount=7;startKarmaGame();}
-
-function selectSoloRoundCount(c){game.selectedRoundCount=c;document.querySelectorAll('.solo-round-btn').forEach(b=>{const s=String(b.dataset.soloRound)===String(c);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateSoloStartButtonState();}
-function selectSoloDuration(m){game.selectedDurationMinutes=m;document.querySelectorAll('.solo-duration-btn').forEach(b=>{const s=Number(b.dataset.soloDuration)===Number(m);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateSoloStartButtonState();}
-function updateSoloStartButtonState(){const b=document.getElementById('btn-solo-start');const r=game.selectedRoundCount!==null&&game.selectedDurationMinutes;b.disabled=!r;}
-
-function startGame(){if(game.selectedRoundCount===null||!game.selectedDurationMinutes)return;if(audioCtx.state==='suspended')audioCtx.resume();game.score=0;game.currentRound=1;game.maxRounds=game.selectedRoundCount;game.foundWords=[];game.previousLetters=null;hideAllScreens();document.getElementById('game-screen').classList.remove('hidden');showFinishBtn('solo');updatePlayerNameDisplay('player-name-display');showRenameHelpBubbleOnce('kelime-help-bubble');updateUI();startRound();}
-function startRound(){game.activeWord=[];game.foundWords=[];game.timeRemaining=game.selectedDurationMinutes*60;game.isPlaying=false;document.getElementById('found-words-list').innerHTML='';document.getElementById('word-count').textContent='0';updateUI();generateLetters();const td=document.getElementById('time-left');clearInterval(timerInterval);td.textContent='Hazırlanıyor...';document.getElementById('letters-rack').innerHTML='';runLocalCountdown(5,()=>{td.textContent='Dağıtılıyor...';td.classList.add('text-sm','md:text-lg','animate-pulse');sounds.playStart();renderLettersRack(true,()=>{game.isPlaying=true;td.classList.remove('text-sm','md:text-lg','animate-pulse');startTimer();});});}
-function countCommonLetters(sA,sB){const bC={};sB.forEach(l=>bC[l]=(bC[l]||0)+1);let c=0;sA.forEach(l=>{if(bC[l]>0){c++;bC[l]--;}});return c;}
-function shuffleKeepingJokerLast(letters){const j=letters.find(t=>t.isJoker);const r=letters.filter(t=>!t.isJoker).sort(()=>Math.random()-0.5);return j?[...r,j]:r;}
-function generateRoundLetterSet(prev){let v,c,com,att=0;do{v=[...VOWELS].sort(()=>Math.random()-0.5).slice(0,3);c=[...CONSONANTS].sort(()=>Math.random()-0.5).slice(0,4);com=[...v,...c];att++;}while(prev&&countCommonLetters(com,prev)>2&&att<200);return shuffleKeepingJokerLast([...v.map((l,i)=>({id:`v_${i}`,letter:l,isJoker:false})),...c.map((l,i)=>({id:`c_${i}`,letter:l,isJoker:false})),{id:'joker_1',letter:'★',isJoker:true}]);}
-function generateLetters(){game.roundLetters=generateRoundLetterSet(game.previousLetters).map(t=>({...t,isUsed:false}));game.previousLetters=game.roundLetters.filter(t=>!t.isJoker).map(t=>t.letter);}
-function renderLettersRack(animate=false,onComplete=null){const rack=document.getElementById('letters-rack');rack.innerHTML='';const bS=document.getElementById('btn-shuffle'),bSu=document.getElementById('btn-submit');if(animate){bS.disabled=true;bSu.disabled=true;bS.classList.add('opacity-50','cursor-not-allowed');bSu.classList.add('opacity-50','cursor-not-allowed');}game.roundLetters.forEach((tile,idx)=>{const el=document.createElement('div');el.innerHTML='<span class="text-2xl md:text-3xl font-black drop-shadow-sm"></span>';if(animate){el.className='tile w-10 h-12 md:w-14 md:h-16 rounded-xl shadow-inner flex items-center justify-center font-bold text-xl md:text-2xl select-none bg-gray-300 text-gray-500 cursor-not-allowed';setTimeout(()=>animateScrambleLetter(el,tile,LETTER_SCRAMBLE_STEP_MS),idx*LETTER_SCRAMBLE_STEP_MS);}else{setFinalTileAppearance(el,tile);}el.addEventListener('click',()=>{if(game.isPlaying&&!tile.isUsed)selectLetter(tile);});rack.appendChild(el);});if(animate)setTimeout(()=>{bS.disabled=false;bSu.disabled=false;bS.classList.remove('opacity-50','cursor-not-allowed');bSu.classList.remove('opacity-50','cursor-not-allowed');if(onComplete)onComplete();},game.roundLetters.length*LETTER_SCRAMBLE_STEP_MS);}
-function animateScrambleLetter(el,tile,dur){const sp=el.querySelector('span');const ch="ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ!?*@#";let t=0;const iv=setInterval(()=>{sp.textContent=ch[Math.floor(Math.random()*ch.length)];if(t%3===0)sounds.playRoll();t++;},50);setTimeout(()=>{clearInterval(iv);setFinalTileAppearance(el,tile);sounds.playClick();},dur);}
-function setFinalTileAppearance(el,tile){const sp=el.querySelector('span');sp.textContent=tile.letter;el.className='tile w-10 h-12 md:w-14 md:h-16 rounded-xl shadow-[0_4px_0_0_rgba(0,0,0,0.1)] flex items-center justify-center font-bold text-xl md:text-2xl transition-all select-none border-2 border-transparent';if(tile.isUsed)el.classList.add('bg-gray-200','text-gray-400','opacity-50','cursor-not-allowed','border-gray-300');else{el.classList.add('cursor-pointer');if(tile.isJoker){el.classList.add('bg-gradient-to-b','from-summer-sun','to-orange-500','text-white','hover:from-orange-400','hover:to-orange-600','border-orange-600');sp.classList.add('text-3xl');}else el.classList.add('bg-white','text-summer-sea','hover:bg-blue-50','border-blue-200');}}
-function shuffleLettersAndPlay(){if(!game.isPlaying)return;if(game.activeWord.length>0){game.activeWord.forEach(item=>{const t=game.roundLetters.find(t=>t.id===item.originId);if(t){t.isUsed=false;if(t.isJoker)t.letter='★';}});game.activeWord=[];updateActiveWordDisplay();}sounds.playRoll();game.roundLetters=shuffleKeepingJokerLast(game.roundLetters);renderLettersRack(false);}
-function startTimer(){clearInterval(timerInterval);const td=document.getElementById('time-left');function update(){const m=Math.floor(game.timeRemaining/60),s=game.timeRemaining%60;td.textContent=`${m}:${s.toString().padStart(2,'0')}`;td.classList.toggle('text-red-500',game.timeRemaining<=10);if(game.timeRemaining<=0){clearInterval(timerInterval);endRound();}else game.timeRemaining--;}update();timerInterval=setInterval(update,1000);}
-function selectLetter(tile){if(tile.isJoker)openJokerModal(tile);else{game.activeWord.push({...tile,originId:tile.id});tile.isUsed=true;sounds.playClick();updateActiveWordDisplay();renderLettersRack(false);}}
-function updateActiveWordDisplay(){const d=document.getElementById('active-word-display');d.innerHTML='';if(game.activeWord.length===0){d.innerHTML='<p class="text-gray-400 font-medium">Harflere tıklayın veya klavyeyi kullanın...</p>';return;}game.activeWord.forEach((item,i)=>{const el=document.createElement('div');el.className=`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center font-bold text-xl text-white cursor-pointer transform transition-transform hover:scale-110 shadow-md ${item.isJoker?'bg-summer-sun':'bg-summer-sea'}`;el.textContent=item.letter;el.onclick=()=>removeLetterFromWord(i);d.appendChild(el);});}
-function removeLetterFromWord(idx){if(!game.isPlaying)return;const item=game.activeWord[idx];game.activeWord.splice(idx,1);const t=game.roundLetters.find(t=>t.id===item.originId);if(t){t.isUsed=false;if(t.isJoker)t.letter='★';}sounds.playClick();updateActiveWordDisplay();renderLettersRack(false);}
-function clearActiveWord(){if(!game.isPlaying||game.activeWord.length===0)return;game.activeWord.forEach(item=>{const t=game.roundLetters.find(t=>t.id===item.originId);if(t){t.isUsed=false;if(t.isJoker)t.letter='★';}});game.activeWord=[];sounds.playError();updateActiveWordDisplay();renderLettersRack(false);}
-function submitWord(){if(!game.isPlaying)return;if(game.activeWord.length<3){showToast("Kelime en az 3 harfli olmalı!");sounds.playError();return;}const ws=game.activeWord.map(w=>w.letter).join('');if(game.foundWords.includes(ws)){showToast("Bu kelimeyi zaten buldun!");sounds.playError();clearActiveWord();return;}if(turkishWordSet&&!turkishWordSet.has(ws)&&!dictionary.has(ws)){showToast("Bu bir kelime değil!");sounds.playError();return;}const pts=game.activeWord.filter(item=>!item.isJoker).length;game.score+=pts;game.foundWords.push(ws);showToast(`+${pts} Puan!`,'success');sounds.playSuccess();addWordToList(ws,pts);updateUI();if(game.mp.gameId)window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/scores/${game.playerName}`),{total:game.score,foundWords:game.foundWords}).catch(()=>{});game.activeWord.forEach(item=>{const t=game.roundLetters.find(t=>t.id===item.originId);if(t){t.isUsed=false;if(t.isJoker)t.letter='★';}});game.activeWord=[];updateActiveWordDisplay();shuffleAndShineLetters();if(game.adventure.active)checkAdventureGoalReached();}
-function checkAdventureGoalReached(){const lv=game.adventure.level;if(!lv)return;const result={score:game.score,words:game.foundWords.slice(),jokerUsed:game.adventure.jokerUsed};if(checkAdventureConditions(lv.hedef,result))showFinishBtn('adventure');}
-function finishAdventureLevelEarly(){if(!game.adventure.active)return;clearInterval(timerInterval);game.isPlaying=false;hideFinishBtn('adventure');endAdventureLevel();}
-function shuffleAndShineLetters(){game.roundLetters=shuffleKeepingJokerLast(game.roundLetters);renderLettersRack(false);sounds.playRoll();document.querySelectorAll('#letters-rack .tile').forEach(el=>{el.classList.add('tile-shine');setTimeout(()=>el.classList.remove('tile-shine'),500);});}
-function addWordToList(w,p){const list=document.getElementById('found-words-list');const el=document.createElement('div');el.className="bg-blue-50 border border-blue-100 text-summer-sea px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm";el.innerHTML=`<span>${w}</span><span class="bg-summer-sun text-white text-xs px-2 py-0.5 rounded-full">+${p}</span>`;list.prepend(el);document.getElementById('word-count').textContent=game.foundWords.length;}
-function endRound(){game.isPlaying=false;sounds.playStart();if(game.karma.active){karmaHandleRoundEnd(game.score);return;}if(game.mp.gameId){if(game.mp.isHost)hostEndRound();return;}if(game.currentRound<game.maxRounds){document.getElementById('round-over-title').textContent=`${game.currentRound}. Tur Bitti!`;document.getElementById('round-over-score').textContent=game.score;document.getElementById('round-over-missed-words').classList.add('hidden');renderTopWords();document.getElementById('round-over-modal').classList.remove('hidden');}else endGame();}
-function goToNextRound(){document.getElementById('round-over-modal').classList.add('hidden');game.currentRound++;startRound();}
-function soloFinishGameNow(){clearInterval(timerInterval);endGame();}
-function karmaFinishGameNow(){clearInterval(timerInterval);clearInterval(sayiTimerInterval);game.karma.active=false;endKarmaGame();}
-function endGame(){if(game.adventure.active){endAdventureLevel();return;}hideAllScreens();document.getElementById('game-over-screen').classList.remove('hidden');document.getElementById('final-score').textContent=game.score;hideAllFinishBtns();updateAllPlayerNameDisplays();updateNameGateUI();sounds.playSuccess();setTimeout(()=>sounds.playSuccess(),500);submitScoreAndShowLeaderboard();}
-function categoryLabel(rc){return rc===Infinity?'Sonsuz':rc;}
-async function submitScoreAndShowLeaderboard(){const cat=categoryLabel(game.maxRounds);const listEl=document.getElementById('leaderboard-list');document.getElementById('leaderboard-title').textContent=`🏆 Skor Tablosu — ${cat} Tur`;try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'solo',playerName:game.playerName,score:game.score,category:cat})});const r=await fetch(`${WEB_APP_URL}?mode=solo`);const pl=await r.json();const ranked=pl.map(p=>({name:p.name,score:p.scores?p.scores[String(cat)]:p.score})).filter(p=>p.score!==null&&p.score!==undefined&&p.score!=='').sort((a,b)=>b.score-a.score).slice(0,8);if(ranked.length===0){listEl.innerHTML='<p class="text-gray-400 text-sm text-center">Henüz skor yok</p>';return;}listEl.innerHTML=ranked.map((p,i)=>`<div class="flex justify-between items-center px-3 py-2 rounded-lg ${p.name===game.playerName?'bg-summer-sun text-white font-bold':'bg-white text-gray-700'}"><span>${i+1}. ${p.name}</span><span>${p.score}</span></div>`).join('');}catch(err){listEl.innerHTML='<p class="text-gray-400 text-sm text-center">Skor tablosuna ulaşılamadı</p>';}}
-function updateUI(){document.getElementById('score').textContent=game.score;document.getElementById('current-round').textContent=game.currentRound;document.getElementById('max-round-display').textContent=game.maxRounds===Infinity?'∞':game.maxRounds;}
-
-function buildJokerKeyboard(){const c=document.getElementById('joker-keyboard');c.innerHTML='';ALPHABET.forEach(l=>{const b=document.createElement('button');b.className="w-10 h-10 bg-gray-100 rounded-lg font-bold text-gray-700 hover:bg-summer-sun hover:text-white transition-colors border border-gray-200 shadow-sm";b.textContent=l;b.onclick=()=>selectJokerLetter(l);c.appendChild(b);});}
-function openJokerModal(tile){game.pendingJokerTile=tile;game.jokerModalOpenedAt=Date.now();document.getElementById('joker-modal').classList.remove('hidden');}
-function closeJokerModal(){document.getElementById('joker-modal').classList.add('hidden');game.pendingJokerTile=null;}
-function selectJokerLetter(letter,fromKeyboard){if(!fromKeyboard&&game.jokerModalOpenedAt&&Date.now()-game.jokerModalOpenedAt<350)return;if(game.pendingJokerTile){const t=game.pendingJokerTile;t.letter=letter;t.isUsed=true;game.adventure.jokerUsed=true;game.activeWord.push({...t,originId:t.id});sounds.playClick();closeJokerModal();updateActiveWordDisplay();renderLettersRack(false);}}
-
-function generateSayiRound(){const lc=[1,1,1,2,2][Math.floor(Math.random()*5)];const ln=[...SAYI_LARGE].sort(()=>Math.random()-0.5).slice(0,lc);const sn=[];for(let i=0;i<6-lc;i++)sn.push(SAYI_SMALL[Math.floor(Math.random()*SAYI_SMALL.length)]);return{numbers:[...ln,...sn].sort(()=>Math.random()-0.5),target:Math.floor(Math.random()*900)+100};}
-function selectSayiRoundCount(c){game.selectedRoundCount=c;document.querySelectorAll('.sayi-round-btn').forEach(b=>{const s=String(b.dataset.sayiRound)===String(c);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateSayiStartButtonState();}
-function updateSayiStartButtonState(){const b=document.getElementById('btn-sayi-start');const r=game.selectedRoundCount!==null;b.disabled=!r;b.classList.toggle('bg-gray-300',!r);b.classList.toggle('cursor-not-allowed',!r);b.classList.toggle('bg-gradient-to-r',r);b.classList.toggle('from-summer-sun',r);b.classList.toggle('to-summer-coral',r);b.classList.toggle('hover:shadow-xl',r);}
-function startSayiGame(){if(game.selectedRoundCount===null)return;game.sayi={numbers:[],target:0,currentRound:1,maxRounds:game.selectedRoundCount,score:0,bestResultThisRound:null,selectedTileId:null,selectedOperator:null,timeRemaining:90,isPlaying:false,history:[]};hideAllScreens();document.getElementById('sayi-game-screen').classList.remove('hidden');document.getElementById('sayi-max-round').textContent=game.sayi.maxRounds;showFinishBtn('sayi');updatePlayerNameDisplay('sayi-player-name-display');showRenameHelpBubbleOnce('sayi-help-bubble');updateSayiUI();startSayiRound();}
-function startSayiRound(){const{numbers,target}=generateSayiRound();game.sayi.numbers=numbers.map((v,i)=>({id:`n_${i}`,value:v,used:false,isJoker:false}));game.sayi.numbers.push({id:'sjoker_1',value:null,used:false,isJoker:true});game.sayi.target=target;game.sayi.bestResultThisRound=null;game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;game.sayi.timeRemaining=90;game.sayi.isPlaying=false;game.sayi.history=[];document.getElementById('sayi-target').textContent=target;document.getElementById('sayi-best-result').textContent='-';resetSayiOperatorButtonStyles();updateSayiExpressionDisplay();updateSayiUI();considerSayiBestResult();const td=document.getElementById('sayi-time-left');clearInterval(sayiTimerInterval);td.textContent='Hazırlanıyor...';document.getElementById('sayi-numbers-rack').innerHTML='';runLocalCountdown(5,()=>{td.textContent='Dağıtılıyor...';td.classList.add('text-sm','animate-pulse');sounds.playStart();renderSayiNumbersRack(true,()=>{game.sayi.isPlaying=true;td.classList.remove('text-sm','animate-pulse');startSayiTimer();});});}
-function startSayiTimer(){clearInterval(sayiTimerInterval);const td=document.getElementById('sayi-time-left');function tick(){const m=Math.floor(game.sayi.timeRemaining/60),s=game.sayi.timeRemaining%60;td.textContent=`${m}:${s.toString().padStart(2,'0')}`;td.classList.toggle('text-red-500',game.sayi.timeRemaining<=10);if(game.sayi.timeRemaining<=0){clearInterval(sayiTimerInterval);endSayiRound();}else game.sayi.timeRemaining--;}tick();sayiTimerInterval=setInterval(tick,1000);}
-function renderSayiNumbersRack(animate=false,onComplete=null){const rack=document.getElementById('sayi-numbers-rack');rack.innerHTML='';const nonJoker=game.sayi.numbers.filter(t=>!t.used&&!t.isJoker).sort((a,b)=>a.value-b.value);const joker=game.sayi.numbers.find(t=>t.isJoker&&!t.used);const vis=joker?[...nonJoker,joker]:nonJoker;vis.forEach((tile,idx)=>{const el=document.createElement('div');if(animate){el.className='w-12 h-12 md:w-14 md:h-14 rounded-xl shadow flex items-center justify-center font-black text-xl select-none border-2 bg-gray-300 text-gray-500 cursor-not-allowed';el.textContent='?';setTimeout(()=>animateScrambleNumber(el,tile,LETTER_SCRAMBLE_STEP_MS),idx*LETTER_SCRAMBLE_STEP_MS);}else{const sel=game.sayi.selectedTileId===tile.id;if(tile.isJoker&&tile.value===null){el.className='w-12 h-12 md:w-14 md:h-14 rounded-xl shadow flex items-center justify-center font-black text-2xl cursor-pointer transition-all border-2 bg-gradient-to-br from-amber-300 to-amber-500 text-white border-amber-400 hover:scale-105';el.textContent='★';}else if(tile.isJoker){el.className=`w-12 h-12 md:w-14 md:h-14 rounded-xl shadow flex items-center justify-center font-black text-xl cursor-pointer transition-all border-2 ${sel?'bg-summer-sea text-white border-summer-sea scale-110':'bg-amber-50 text-amber-600 border-amber-400 hover:bg-amber-100'}`;el.textContent=tile.value;}else{el.className=`w-12 h-12 md:w-14 md:h-14 rounded-xl shadow flex items-center justify-center font-black text-xl cursor-pointer transition-all border-2 ${sel?'bg-summer-sea text-white border-summer-sea scale-110':'bg-white text-summer-sea border-blue-200 hover:bg-blue-50'}`;el.textContent=tile.value;}el.onclick=()=>selectSayiTile(tile.id);}rack.appendChild(el);});if(animate)setTimeout(()=>{if(onComplete)onComplete();},vis.length*LETTER_SCRAMBLE_STEP_MS);}
-function animateScrambleNumber(el,tile,dur){let t=0;const iv=setInterval(()=>{el.textContent=Math.floor(Math.random()*100);if(t%3===0)sounds.playRoll();t++;},50);setTimeout(()=>{clearInterval(iv);if(tile.isJoker){el.textContent='★';el.className='w-12 h-12 md:w-14 md:h-14 rounded-xl shadow flex items-center justify-center font-black text-2xl cursor-pointer transition-all border-2 bg-gradient-to-br from-amber-300 to-amber-500 text-white border-amber-400 hover:scale-105';}else{el.textContent=tile.value;el.className='w-12 h-12 md:w-14 md:h-14 rounded-xl shadow flex items-center justify-center font-black text-xl cursor-pointer transition-all border-2 bg-white text-summer-sea border-blue-200 hover:bg-blue-50';}el.onclick=()=>selectSayiTile(tile.id);sounds.playClick();},dur);}
-function selectSayiOperator(op){if(!game.sayi.isPlaying)return;if(game.sayi.selectedTileId===null){showToast('Önce bir sayı seç!');return;}game.sayi.selectedOperator=op;updateSayiExpressionDisplay();document.querySelectorAll('.sayi-op-btn').forEach(b=>{const bt=b.textContent.trim();const match=(op==='+'&&bt==='+')||(op==='−'&&bt==='−')||(op==='×'&&bt==='×')||(op==='÷'&&bt==='÷');b.classList.toggle('bg-summer-sea',match);b.classList.toggle('text-white',match);});}
-function resetSayiOperatorButtonStyles(){document.querySelectorAll('.sayi-op-btn').forEach(b=>b.classList.remove('bg-summer-sea','text-white'));}
-function selectSayiTile(tileId){if(!game.sayi.isPlaying)return;const tile=game.sayi.numbers.find(t=>t.id===tileId);if(!tile||tile.used)return;if(tile.isJoker&&tile.value===null){game.sayiJokerModalOpenedAt=Date.now();document.getElementById('sayi-joker-modal').classList.remove('hidden');return;}if(game.sayi.selectedTileId===null||game.sayi.selectedTileId===tileId){game.sayi.selectedTileId=(game.sayi.selectedTileId===tileId)?null:tileId;game.sayi.selectedOperator=null;resetSayiOperatorButtonStyles();updateSayiExpressionDisplay();renderSayiNumbersRack();return;}if(game.sayi.selectedOperator===null){game.sayi.selectedTileId=tileId;updateSayiExpressionDisplay();renderSayiNumbersRack();return;}const first=game.sayi.numbers.find(t=>t.id===game.sayi.selectedTileId);const result=computeSayiOperation(first.value,game.sayi.selectedOperator,tile.value);if(result===null){showToast('Geçersiz işlem!');sounds.playError();game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;resetSayiOperatorButtonStyles();updateSayiExpressionDisplay();renderSayiNumbersRack();return;}first.used=true;tile.used=true;const rid=`r_${Date.now()}_${Math.floor(Math.random()*1000)}`;game.sayi.numbers.push({id:rid,value:result,used:false,isJoker:false});game.sayi.history.push({type:'combine',firstId:first.id,secondId:tile.id,resultId:rid});game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;resetSayiOperatorButtonStyles();sounds.playClick();updateSayiExpressionDisplay();renderSayiNumbersRack();considerSayiBestResult();}
-function computeSayiOperation(a,op,b){if(op==='+')return a+b;if(op==='−'||op==='-'){if(a<b)return null;return a-b;}if(op==='×'||op==='*')return a*b;if(op==='÷'||op==='/'){if(b===0||a%b!==0)return null;return a/b;}return null;}
-function updateSayiExpressionDisplay(){const el=document.getElementById('sayi-expression-display');if(game.sayi.selectedTileId===null){el.textContent='Bir sayı seç...';return;}const t=game.sayi.numbers.find(t=>t.id===game.sayi.selectedTileId);el.textContent=game.sayi.selectedOperator===null?`${t.value} [işlem seç]`:`${t.value} ${game.sayi.selectedOperator} ?`;}
-function assignSayiJoker(n){if(game.sayiJokerModalOpenedAt&&Date.now()-game.sayiJokerModalOpenedAt<350)return;const j=game.sayi.numbers.find(t=>t.isJoker);if(j&&!j.used){j.value=n;game.sayi.history.push({type:'joker',tileId:j.id});sounds.playClick();showToast(`Joker: ${n} ⭐`,'success');}document.getElementById('sayi-joker-modal').classList.add('hidden');renderSayiNumbersRack();considerSayiBestResult();}
-function closeSayiJokerModal(){document.getElementById('sayi-joker-modal').classList.add('hidden');}
-function considerSayiBestResult(){game.sayi.numbers.forEach(t=>{if(t.value===null)return;const bd=game.sayi.bestResultThisRound===null?Infinity:Math.abs(game.sayi.target-game.sayi.bestResultThisRound);const d=Math.abs(game.sayi.target-t.value);if(d<bd)game.sayi.bestResultThisRound=t.value;});document.getElementById('sayi-best-result').textContent=game.sayi.bestResultThisRound!==null?game.sayi.bestResultThisRound:'-';const help=document.getElementById('sayi-diff-help');const best=game.sayi.bestResultThisRound;if(best===null){help.classList.add('hidden');}else{const diff=game.sayi.target-best;if(diff===0){help.className='text-xs mt-1 font-semibold text-green-500';help.textContent='🎯 Tam isabet!';}else{help.className='text-xs mt-1 font-semibold text-summer-ocean';help.textContent=`Fark: ${Math.abs(diff)}`;}help.classList.remove('hidden');}updateExactFinishUI();}
-function updateExactFinishUI(){const isExact=game.sayi.bestResultThisRound===game.sayi.target;const exactBtn=document.getElementById('btn-sayi-exact-finish');if(!game.mp.gameId){exactBtn.classList.toggle('hidden',!isExact);exactBtn.textContent='🎯 Tam İsabet! Turu Bitir';exactBtn.onclick=finishSayiRoundEarly;return;}
-// MULTIPLAYER: tam isabet bulununca Firebase'e yaz (bir kez)
-if(isExact&&!game.sayi._exactReported){game.sayi._exactReported=true;window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/exactHits`),{[game.playerName]:true}).catch(()=>{});}
-}
-function finishSayiRoundEarly(){if(!game.sayi.isPlaying)return;document.getElementById('btn-sayi-exact-finish').classList.add('hidden');endSayiRound();}
-function resetSayiNumbers(){game.sayi.numbers=game.sayi.numbers.filter(t=>!t.id.startsWith('r_'));game.sayi.numbers.forEach(t=>{t.used=false;if(t.isJoker)t.value=null;});game.sayi.history=[];game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;resetSayiOperatorButtonStyles();updateSayiExpressionDisplay();renderSayiNumbersRack();showToast('Sayılar sıfırlandı!','success');}
-function undoSayiOperation(){if(!game.sayi.isPlaying)return;if(game.sayi.history.length===0){showToast('Geri alınacak işlem yok');return;}const last=game.sayi.history.pop();if(last.type==='joker'){const j=game.sayi.numbers.find(t=>t.id===last.tileId);if(j)j.value=null;}else{const f=game.sayi.numbers.find(t=>t.id===last.firstId);const s=game.sayi.numbers.find(t=>t.id===last.secondId);if(f)f.used=false;if(s)s.used=false;game.sayi.numbers=game.sayi.numbers.filter(t=>t.id!==last.resultId);}game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;resetSayiOperatorButtonStyles();sounds.playClick();updateSayiExpressionDisplay();renderSayiNumbersRack();}
-function calculateSayiPoints(target,best){if(best===null)return 0;const d=Math.abs(target-best);if(d===0)return 50;if(d===1)return 40;if(d<=20)return Math.round(20*(20-d)/18);return 0;}
-function sayiFinishGameNow(){clearInterval(sayiTimerInterval);clearInterval(computerSolutionAnimationInterval);game.sayi.isPlaying=false;const pts=calculateSayiPoints(game.sayi.target,game.sayi.bestResultThisRound);game.sayi.score+=pts;hideFinishBtn('sayi');endSayiGame();}
-
-function findBestSolution(numbers,target){let best=null;const initial=numbers.map((v,i)=>({value:v,id:`s_${i}`}));function scoreSolution(steps,diff){let score=diff*1000+steps.length*100;for(const st of steps){if(st.op==='×')score+=8;else if(st.op==='÷')score+=6;else score+=1;if(st.result%100===0)score-=4;else if(st.result%10===0)score-=2;if(st.result>target*3)score+=5;}return score;}function consider(steps,result){const diff=Math.abs(target-result);const score=scoreSolution(steps,diff);if(best===null||score<best.score)best={result,diff,steps:steps.map(s=>s.desc),score,stepCount:steps.length};}function solve(tiles,steps,depth){tiles.forEach(t=>consider(steps,t.value));if(best&&best.diff===0&&steps.length>=best.stepCount)return;if(depth>=4)return;for(let i=0;i<tiles.length;i++){for(let j=i+1;j<tiles.length;j++){const a=tiles[i],b=tiles[j];const rem=tiles.filter((_,idx)=>idx!==i&&idx!==j);const hi=Math.max(a.value,b.value),lo=Math.min(a.value,b.value);const cand=[{result:a.value+b.value,op:'+',desc:`${a.value} + ${b.value} = ${a.value+b.value}`},{result:hi-lo,op:'−',desc:`${hi} − ${lo} = ${hi-lo}`,ok:hi!==lo},{result:a.value*b.value,op:'×',desc:`${a.value} × ${b.value} = ${a.value*b.value}`,ok:a.value!==1&&b.value!==1},{result:lo!==0&&hi%lo===0?hi/lo:null,op:'÷',desc:`${hi} ÷ ${lo} = ${hi/lo}`,ok:lo!==0&&lo!==1&&hi%lo===0}];for(const c of cand){if(c.ok===false||c.result===null||c.result<0||!Number.isInteger(c.result))continue;solve([...rem,{value:c.result,id:'c'}],[...steps,c],depth+1);}}}}solve(initial,[],0);return{result:best.result,diff:best.diff,steps:best.steps};}
-function showComputerSolutionInModal(target,numbers){const solution=findBestSolution(numbers,target);const oldDiv=document.getElementById('sayi-computer-solution');if(oldDiv)oldDiv.remove();const pointsRow=document.querySelector('#sayi-round-over-modal .text-gray-500.mb-4');if(!pointsRow)return;const solutionDiv=document.createElement('div');solutionDiv.id='sayi-computer-solution';solutionDiv.className='bg-blue-50 rounded-xl p-3 mb-3 text-left';solutionDiv.innerHTML='<p class="text-xs font-bold text-summer-sea uppercase tracking-wider mb-2">💡 Bilgisayarın Çözümü</p><div id="sayi-solution-steps" class="text-sm text-gray-700 space-y-1"></div><p id="sayi-solution-final" class="text-sm font-bold text-summer-sea mt-2"></p>';pointsRow.before(solutionDiv);const stepsDiv=document.getElementById('sayi-solution-steps'),finalP=document.getElementById('sayi-solution-final');if(!solution||!solution.steps||solution.steps.length===0){finalP.textContent='Çözüm bulunamadı 🤷';return;}clearInterval(computerSolutionAnimationInterval);let stepIndex=0;computerSolutionAnimationInterval=setInterval(()=>{if(stepIndex<solution.steps.length){const stepEl=document.createElement('div');stepEl.className='bg-white px-2 py-1 rounded text-sm font-mono';stepEl.textContent=solution.steps[stepIndex];stepsDiv.appendChild(stepEl);sounds.playClick();stepIndex++;}else{clearInterval(computerSolutionAnimationInterval);if(solution.diff===0){finalP.className='text-sm font-bold text-green-500 mt-2';finalP.textContent=`🎯 Tam Sonuç: ${solution.result}`;}else{finalP.className='text-sm font-bold text-summer-sea mt-2';finalP.textContent=`Sonuç: ${solution.result} (Hedeften ${solution.diff} uzak)`;}}},600);}
-function endSayiRound(){clearInterval(sayiTimerInterval);game.sayi.isPlaying=false;const base=calculateSayiPoints(game.sayi.target,game.sayi.bestResultThisRound);const isExact=game.sayi.bestResultThisRound===game.sayi.target;const timeBonus=isExact?Math.max(0,game.sayi.timeRemaining):0;const pts=base+timeBonus;if(game.karma.active){clearInterval(computerSolutionAnimationInterval);karmaHandleRoundEnd(pts);return;}game.sayi.score+=pts;updateSayiUI();const _nb=document.getElementById('btn-sayi-next-round');_nb.classList.remove('hidden');_nb.onclick=sayiGoToNextRound;document.getElementById('btn-sayi-round-over-finish').classList.add('hidden');document.getElementById('sayi-round-over-guest-text').classList.add('hidden');document.getElementById('sayi-round-over-title').textContent=`${game.sayi.currentRound}. Tur Bitti!`;document.getElementById('sayi-round-over-target').textContent=game.sayi.target;document.getElementById('sayi-round-over-points').textContent=isExact&&timeBonus>0?`+${base} +${timeBonus} ⏱️ = +${pts}`:`+${pts}`;document.getElementById('sayi-round-over-total').textContent=game.sayi.score;const originalNumbers=game.sayi.numbers.filter(t=>!t.id.startsWith('r_')&&!t.isJoker).map(t=>t.value);showComputerSolutionInModal(game.sayi.target,originalNumbers);document.getElementById('sayi-round-over-modal').classList.remove('hidden');}
-function sayiGoToNextRound(){clearInterval(computerSolutionAnimationInterval);document.getElementById('sayi-round-over-modal').classList.add('hidden');if(game.sayi.currentRound>=game.sayi.maxRounds)endSayiGame();else{game.sayi.currentRound++;startSayiRound();}}
-function updateSayiUI(){document.getElementById('sayi-current-round').textContent=game.sayi.currentRound;document.getElementById('sayi-score').textContent=game.sayi.score;}
-async function endSayiGame(){hideAllScreens();document.getElementById('sayi-game-over-screen').classList.remove('hidden');document.getElementById('sayi-final-score').textContent=game.sayi.score;document.getElementById('sayi-mp-results').classList.add('hidden');hideFinishBtn('sayi');updateAllPlayerNameDisplays();updateNameGateUI();sounds.playSuccess();try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'sayi',playerName:game.playerName,score:game.sayi.score,category:game.sayi.maxRounds})});}catch(e){}}
-
-function selectKarmaRoundCount(c){game.selectedRoundCount=c;document.querySelectorAll('.karma-round-btn').forEach(b=>{const s=String(b.dataset.karmaRound)===String(c);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateKarmaStartButtonState();}
-function updateKarmaStartButtonState(){const b=document.getElementById('btn-karma-start');const r=game.selectedRoundCount!==null;b.disabled=!r;b.classList.toggle('bg-gray-300',!r);b.classList.toggle('cursor-not-allowed',!r);b.classList.toggle('bg-gradient-to-r',r);b.classList.toggle('from-summer-sun',r);b.classList.toggle('to-summer-coral',r);b.classList.toggle('hover:shadow-xl',r);}
-function startKarmaGame(){if(game.selectedRoundCount===null)return;game.karma={active:true,currentRound:1,maxRounds:game.selectedRoundCount,score:0};hideAllScreens();document.getElementById('game-screen').classList.remove('hidden');showFinishBtn('karma');updatePlayerNameDisplay('player-name-display');updatePlayerNameDisplay('sayi-player-name-display');showRenameHelpBubbleOnce('kelime-help-bubble');startKarmaRound();}
-function startKarmaRound(){const rt=game.karma.currentRound%2===1?'kelime':'sayi';if(rt==='kelime'){game.selectedDurationMinutes=1;game.previousLetters=null;game.score=0;document.getElementById('game-screen').classList.remove('hidden');document.getElementById('sayi-game-screen').classList.add('hidden');showFinishBtn('karma');startRound();}else{document.getElementById('game-screen').classList.add('hidden');document.getElementById('sayi-game-screen').classList.remove('hidden');showFinishBtn('karma');startSayiRound();}document.getElementById('current-round').textContent=game.karma.currentRound;document.getElementById('max-round-display').textContent=game.karma.maxRounds;document.getElementById('sayi-current-round').textContent=game.karma.currentRound;document.getElementById('sayi-max-round').textContent=game.karma.maxRounds;}
-function karmaHandleRoundEnd(p){clearInterval(timerInterval);clearInterval(sayiTimerInterval);clearInterval(computerSolutionAnimationInterval);game.karma.score+=p;const rl=game.karma.currentRound%2===1?'Kelime':'Sayı';document.getElementById('karma-round-over-title').textContent=`${game.karma.currentRound}. Tur Bitti! (${rl})`;document.getElementById('karma-round-over-points').textContent=`+${p}`;document.getElementById('karma-round-over-total').textContent=game.karma.score;document.getElementById('karma-round-over-modal').classList.remove('hidden');}
-function karmaGoToNextRound(){document.getElementById('karma-round-over-modal').classList.add('hidden');if(game.karma.currentRound>=game.karma.maxRounds){endKarmaGame();return;}game.karma.currentRound++;startKarmaRound();}
-async function endKarmaGame(){game.karma.active=false;hideAllScreens();document.getElementById('karma-game-over-screen').classList.remove('hidden');document.getElementById('karma-final-score').textContent=game.karma.score;hideFinishBtn('karma');updateAllPlayerNameDisplays();updateNameGateUI();sounds.playSuccess();try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'karma',playerName:game.playerName,score:game.karma.score,category:game.karma.maxRounds})});}catch(e){}}
-
-// ==================== MULTIPLAYER ====================
-let mpActiveListenerRef=null,mpWaitingListenerRef=null;
-function detachMpListeners(){if(mpActiveListenerRef){window.fb.off(mpActiveListenerRef);mpActiveListenerRef=null;}if(mpWaitingListenerRef){window.fb.off(mpWaitingListenerRef);mpWaitingListenerRef=null;}}
-function generateGameId(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let id='';for(let i=0;i<5;i++)id+=c[Math.floor(Math.random()*c.length)];return id;}
-function showMpLobbyScreen(gameType){game.mp.gameType=gameType;switchToScreen('mp-lobby-screen');const listEl=document.getElementById('mp-active-list');listEl.innerHTML='<p class="text-gray-400 text-sm">Yükleniyor...</p>';detachMpListeners();mpActiveListenerRef=window.fb.ref(window.fb.db,'lobbies-index');window.fb.onValue(mpActiveListenerRef,(snap)=>{const data=snap.val()||{};const now=Date.now();const waiting=[];Object.entries(data).forEach(([id,l])=>{if(!l||l.status!=='waiting')return;if(l.gameType&&l.gameType!==gameType)return;const isStale=!l.createdAt||(now-l.createdAt)>3*60*1000;if(isStale){window.fb.remove(window.fb.ref(window.fb.db,`lobbies/${id}`)).catch(()=>{});window.fb.remove(window.fb.ref(window.fb.db,`lobbies-index/${id}`)).catch(()=>{});return;}waiting.push([id,l]);});console.log('Aktif lobiler:',waiting.length,waiting.map(w=>w[0]));if(waiting.length===0){listEl.innerHTML='<p class="text-gray-400 text-sm">Şu an aktif oyun yok. İlk oyunu sen kur!</p>';return;}listEl.innerHTML=waiting.map(([id,l])=>`<div class="flex justify-between items-center bg-blue-50 border border-blue-100 rounded-xl px-4 py-3"><div class="text-left"><p class="font-bold text-summer-sea">${l.host}'in Oyunu</p><p class="text-xs text-gray-500">${l.playerCount||1} oyuncu · ${l.gameType==='sayi'?'🔢 Sayı':l.gameType==='wordle'?'🔤 Kelime Yarışı':'📖 Kelime'} · Kod: ${id}</p></div><button onclick="joinMpGame('${id}',this)" class="px-3 py-1.5 bg-summer-sea text-white font-bold rounded-lg text-xs hover:bg-blue-700">Katıl</button></div>`).join('');});}
-function openWordleLobby(){resetMpState();if(!wordleSecretPool)try{buildWordlePools();}catch(e){}showMpLobbyScreen('wordle');}
-function leaveMpLobbyScreen(){detachMpListeners();if(game.mp.gameType==='sayi')switchToScreen('sayi-welcome-screen');else if(game.mp.gameType==='wordle')switchToScreen('wordle-welcome-screen');else switchToScreen('kelime-welcome-screen');}
-async function openMpHost(btn){setBtnLoading(btn,true);try{await getOrCreatePlayerName();await createLobby(game.playerName);switchToScreen('mp-waiting-screen');updateAllPlayerNameDisplays();document.getElementById('mp-player-list').innerHTML=`<div class="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg"><span>👑</span><span class="font-bold text-summer-sea">${game.playerName}</span><span class="text-xs text-gray-400">(sen)</span></div>`;document.getElementById('mp-host-controls').classList.remove('hidden');document.getElementById('mp-duration-section').classList.toggle('hidden',game.mp.gameType!=='kelime');document.getElementById('mp-guest-waiting-text').classList.add('hidden');}catch(e){showToast('Bağlantı hatası, tekrar dene!');}setBtnLoading(btn,false);}
-async function joinMpGame(gameId,btn){setBtnLoading(btn,true);try{await getOrCreatePlayerName();await joinLobby(gameId,game.playerName);switchToScreen('mp-waiting-screen');updateAllPlayerNameDisplays();document.getElementById('mp-player-list').innerHTML=`<div class="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg"><span>🙂</span><span class="font-bold text-summer-sea">${game.playerName}</span><span class="text-xs text-gray-400">(sen)</span></div>`;document.getElementById('mp-host-controls').classList.add('hidden');document.getElementById('mp-guest-waiting-text').classList.remove('hidden');}catch(e){showToast('Katılamadın, tekrar dene!');}setBtnLoading(btn,false);}
-async function createLobby(name){const gid=generateGameId();const now=Date.now();await window.fb.set(window.fb.ref(window.fb.db,`lobbies-index/${gid}`),{host:name,status:'waiting',gameType:game.mp.gameType,playerCount:1,createdAt:now});await window.fb.set(window.fb.ref(window.fb.db,`lobbies/${gid}`),{host:name,status:'waiting',gameType:game.mp.gameType,roundCount:null,players:{[name]:true},createdAt:window.fb.serverTimestamp()});window.fb.onDisconnect(window.fb.ref(window.fb.db,`lobbies/${gid}`)).remove();window.fb.onDisconnect(window.fb.ref(window.fb.db,`lobbies-index/${gid}`)).remove();game.mp.gameId=gid;game.mp.isHost=true;game.score=0;game.foundWords=[];game.sayi={score:0,_lastScoredRound:null};game.wordle={secret:'',guesses:[],current:[],cursor:0,_animRow:-1,solved:false,score:0,timeRemaining:120,isPlaying:false,_lastScoredRound:null,_roundEndRequested:false,_totalSolveMs:0,_usedWords:new Set()};game.mp.lastSyncedRound=null;game.mp.lastBonusAppliedRound=null;subscribeToWaitingRoom(gid);}
-async function joinLobby(gid,name){const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${gid}/players`));const ex=snap.val()||{};let fn=name;if(ex[fn]){let c=2;while(ex[`${name} (${c})`])c++;fn=`${name} (${c})`;}await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${gid}/players`),{[fn]:true});window.fb.onDisconnect(window.fb.ref(window.fb.db,`lobbies/${gid}/players/${fn}`)).remove();await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${gid}`),{playerCount:Object.keys(ex).length+1});game.playerName=fn;game.mp.gameId=gid;game.mp.isHost=false;game.score=0;game.foundWords=[];game.sayi={score:0,_lastScoredRound:null};game.wordle={secret:'',guesses:[],current:[],cursor:0,_animRow:-1,solved:false,score:0,timeRemaining:120,isPlaying:false,_lastScoredRound:null,_roundEndRequested:false,_totalSolveMs:0,_usedWords:new Set()};game.mp.lastSyncedRound=null;subscribeToWaitingRoom(gid);}
-function subscribeToWaitingRoom(gid){if(mpWaitingListenerRef){window.fb.off(mpWaitingListenerRef);mpWaitingListenerRef=null;}document.getElementById('mp-game-code').textContent=gid;mpWaitingListenerRef=window.fb.ref(window.fb.db,`lobbies/${gid}`);window.fb.onValue(mpWaitingListenerRef,(snap)=>{const data=snap.val();if(!data){showToast('Bu oyun artık mevcut değil.');leaveMultiplayerLobby();return;}handleLobbyUpdate(data);});}
-function handleSayiExactHits(data){const banner=document.getElementById('sayi-mp-exact-banner');const hits=data.exactHits?Object.keys(data.exactHits).length:0;const total=data.players?Object.keys(data.players).length:game.mp.currentPlayerCount;const iHit=data.exactHits&&data.exactHits[game.playerName];if(hits===0){banner.classList.add('hidden');return;}banner.classList.remove('hidden');const allHit=hits>=total&&total>0;if(allHit){if(game.mp.isHost){banner.className='w-full py-3 mb-4 bg-gradient-to-r from-green-400 to-green-600 text-white font-bold rounded-xl text-center cursor-pointer';banner.textContent='🎯 Herkes tam isabet buldu! Sonraki Tur ➜';banner.onclick=()=>{banner.classList.add('hidden');hostAdvanceSayiRound();};}else{banner.className='w-full py-3 mb-4 bg-green-50 border-2 border-green-300 text-green-600 font-bold rounded-xl text-center text-sm';banner.textContent='🎯 Herkes buldu! Host sonraki tura geçiyor...';banner.onclick=null;}}else{banner.className='w-full py-3 mb-4 bg-green-50 border-2 border-green-300 text-green-600 font-bold rounded-xl text-center text-sm';banner.textContent=iHit?`🎯 Tam isabet buldun! (${hits}/${total}) Diğerleri bekleniyor...`:`🎯 ${hits}/${total} oyuncu tam isabet buldu`;banner.onclick=null;}}
-async function hostAdvanceSayiRound(){const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`));const d=snap.val();if(!d)return;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{exactHits:null});const isLast=(d.roundCount!=='Sonsuz')&&(d.currentRound>=d.roundCount);if(isLast){await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'finished'});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'finished'});}else{hostStartNextRound();}}
-// ---- SOLO WORDLE ----
-function startSoloWordle(btn){if(btn)setBtnLoading(btn,true);if(!wordleSecretPool)try{buildWordlePools();}catch(e){}const secret=pickWordleSecret(null);if(!secret){showToast('Kelime listesi yüklenemedi!');if(btn)setBtnLoading(btn,false);return;}game.mp.gameId=null;game.wordle={secret,guesses:[],current:[],cursor:0,_animRow:-1,solved:false,score:0,isPlaying:false,timeRemaining:90,_lastScoredRound:null,_roundEndRequested:false,_totalSolveMs:0,_usedWords:new Set([secret]),soloMode:true,soloRound:1,soloMaxRounds:7,soloRoundStart:0};hideAllScreens();document.getElementById('wordle-game-screen').classList.remove('hidden');document.getElementById('wd-round').textContent='1';document.getElementById('wd-max-round').textContent='7';document.getElementById('wd-score').textContent='0';document.getElementById('wd-status').classList.add('hidden');document.getElementById('wd-opponents').classList.add('hidden');document.querySelectorAll('#wordle-game-screen .finish-btn').forEach(b=>b.classList.add('hidden'));showFinishBtn('wd-solo-finish');resetWordleCurrent();renderWordleBoard();renderWordleKeyboard();if(btn)setBtnLoading(btn,false);runLocalCountdown(5,()=>{game.wordle.isPlaying=true;game.wordle.soloRoundStart=Date.now();startSoloWordleTimer();renderWordleBoard();showFinishBtn('wd-solo-finish');});}
-function soloWordleFinish(){clearInterval(soloWordleTimerInterval);game.wordle.isPlaying=false;endSoloWordle();}
-let soloWordleTimerInterval=null;
-function startSoloWordleTimer(){clearInterval(soloWordleTimerInterval);soloWordleTimerInterval=setInterval(()=>{const g=game.wordle;if(!g.soloMode||!g.isPlaying){clearInterval(soloWordleTimerInterval);return;}const el=Date.now()-g.soloRoundStart;const rem=Math.max(0,Math.ceil((90000-el)/1000));document.getElementById('wd-time-left').textContent=`${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`;if(rem<=0){clearInterval(soloWordleTimerInterval);g.isPlaying=false;endSoloWordleRound();}},250);}
-function endSoloWordleRound(){clearInterval(soloWordleTimerInterval);const g=game.wordle;g.isPlaying=false;const solved=g.solved;const pts=solved?(WORDLE_MAX_GUESSES+1-g.guesses.length)*20:0;g.score+=pts;const solveMs=solved?(Date.now()-g.soloRoundStart):90000;g._totalSolveMs=(g._totalSolveMs||0)+solveMs;document.getElementById('wd-score').textContent=g.score;if(g.soloRound>=g.soloMaxRounds){setTimeout(()=>endSoloWordle(),800);return;}showWordleStatus(`${solved?'Doğru! +'+pts+' puan':'Kelime: '+g.secret} — sonraki tura geçiliyor...`,solved?'text-green-500':'text-summer-coral');setTimeout(()=>{g.soloRound++;const newSecret=pickWordleSecret(g.secret);g.secret=newSecret;g.guesses=[];g.solved=false;g._animRow=-1;g.soloRoundStart=0;document.getElementById('wd-round').textContent=g.soloRound;document.getElementById('wd-status').classList.add('hidden');resetWordleCurrent();renderWordleBoard();renderWordleKeyboard();runLocalCountdown(5,()=>{g.isPlaying=true;g.soloRoundStart=Date.now();startSoloWordleTimer();renderWordleBoard();showFinishBtn('wd-solo-finish');});},1500);}
-function endSoloWordle(){clearInterval(soloWordleTimerInterval);const g=game.wordle;const pts=g.solved?(WORDLE_MAX_GUESSES+1-g.guesses.length)*20:0;g.score=pts;hideAllScreens();document.getElementById('wordle-game-over-screen').classList.remove('hidden');document.getElementById('wd-solo-btns').classList.add('hidden');document.getElementById('wd-mp-menu-btn').classList.remove('hidden');updateAllPlayerNameDisplays();updateNameGateUI();document.getElementById('wd-final-score').textContent=pts;document.getElementById('wd-mp-results').classList.add('hidden');const lw=document.getElementById('wd-last-word');document.getElementById('wd-last-word-text').textContent=g.secret;lw.classList.remove('hidden');const ob=document.getElementById('wd-solo-btns');if(ob)ob.classList.remove('hidden');const mb=document.getElementById('wd-mp-menu-btn');if(mb)mb.classList.add('hidden');sounds.playSuccess();try{fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'wordle',playerName:game.playerName,score:pts,category:'solo'})});}catch(e){}}
-// ---- WORDLE render & giriş ----
-function renderWordleBoard(){const b=document.getElementById('wd-board');const rows=[];const g=game.wordle;const known=wordleLetterStates();const cnt={};if(g.secret)[...g.secret].forEach(c=>cnt[c]=(cnt[c]||0)+1);for(let i=0;i<WORDLE_MAX_GUESSES;i++){const guess=g.guesses[i];const isCur=i===g.guesses.length&&!g.solved&&g.isPlaying;let cells='';if(guess){const ev=evaluateWordleGuess(g.secret,guess);const greens={};[...guess].forEach((c,k)=>{if(ev[k]==='g')greens[c]=(greens[c]||0)+1;});const isLast=i===g.guesses.length-1&&g._animRow!==i;for(let j=0;j<WORDLE_LEN;j++){const m=ev[j],ch=guess[j],n=cnt[ch]||0;const allPlaced=(greens[ch]||0)>=n;const badge=(m!=='x'&&n>1&&!allPlaced)?`<sup class="wd-badge">${n}</sup>`:'';const anim=isLast?` reveal" style="animation-delay:${j*120}ms`:'';cells+=`<div class="wd-cell ${m}${anim}">${ch}${badge}</div>`;}if(isLast)g._animRow=i;}else{for(let j=0;j<WORDLE_LEN;j++){if(isCur){const ch=g.current[j]||'';const ghost=j>=g.cursor&&ch?' ghost':'';const dead=ch&&!ghost&&known[ch]==='x'?' dead':'';cells+=`<div class="wd-cell ${ch?'filled':''}${dead}${ghost}">${ch}</div>`;}else cells+='<div class="wd-cell"></div>';}}rows.push(`<div class="wd-row">${cells}</div>`);}b.innerHTML=rows.join('');const cur=b.children[Math.min(g.guesses.length,WORDLE_MAX_GUESSES-1)];if(cur&&cur.scrollIntoView)cur.scrollIntoView({block:'nearest'});}
-function wordleLetterStates(){const st={};const g=game.wordle;const rank={x:0,y:1,g:2};g.guesses.forEach(gu=>{const ev=evaluateWordleGuess(g.secret,gu);[...gu].forEach((ch,i)=>{const m=ev[i];if(!st[ch]||rank[m]>rank[st[ch]])st[ch]=m;});});return st;}
-function renderWordleKeyboard(){const kb=document.getElementById('wd-keyboard');const st=wordleLetterStates();const cnt={};const g=game.wordle;if(g.secret)[...g.secret].forEach(c=>cnt[c]=(cnt[c]||0)+1);const greensAll=wordleGreens();const rows=[['Q','W','E','R','T','Y','U','I','O','P','Ğ','Ü'],['A','S','D','F','G','H','J','K','L','Ş','İ'],['Z','X','C','V','B','N','M','Ö','Ç','⌫']];const DISABLED_KEYS=new Set(['Q','W','X']);let html='';rows.forEach(r=>{const cols=r.map(ch=>{if(ch==='⌫')return 1.5;return 1;});const tpl=cols.map(c=>c===1?'1fr':`${c}fr`).join(' ');html+=`<div class="grid gap-1" style="grid-template-columns:${tpl}">`+r.map(ch=>{if(ch==='⌫')return '<button class="wd-key" onclick="wordleBackspace()" style="font-size:clamp(13px,3.5vw,16px)">⌫</button>';if(DISABLED_KEYS.has(ch))return `<button class="wd-key" disabled style="opacity:.25;cursor:default">${ch}</button>`;const n=cnt[ch]||0;const placed=greensAll.filter(x=>x===ch).length;const bd=(st[ch]&&st[ch]!=='x'&&n>1&&placed<n)?`<sup class="wd-badge">${n}</sup>`:'';return `<button class="wd-key ${st[ch]||''}" onclick="wordleKey('${ch}')">${ch}${bd}</button>`;}).join('')+'</div>';});html+='<div class="mt-1"><button class="wd-key w-full py-2.5" onclick="wordleClearRow()" style="background:#fee2e2;color:#ef4444;font-size:clamp(11px,3vw,14px)">TEMİZLE</button></div>';kb.innerHTML=html;}
-function wordleGreens(){const g=game.wordle;const arr=new Array(WORDLE_LEN).fill('');if(!g.secret)return arr;g.guesses.forEach(gu=>{const ev=evaluateWordleGuess(g.secret,gu);for(let i=0;i<WORDLE_LEN;i++)if(ev[i]==='g')arr[i]=gu[i];});return arr;}
-function resetWordleCurrent(){game.wordle.current=wordleGreens();game.wordle.cursor=0;}
-function wordleKey(ch){const g=game.wordle;if(!g.isPlaying||g.solved)return;if(g.cursor>=WORDLE_LEN)return;g.current[g.cursor]=ch;g.cursor++;renderWordleBoard();sounds.playClick();if(g.cursor>=WORDLE_LEN)setTimeout(()=>{if(game.wordle.cursor>=WORDLE_LEN)wordleSubmit();},120);}
-function wordleClearRow(){const g=game.wordle;if(!g.isPlaying||g.solved)return;resetWordleCurrent();renderWordleBoard();sounds.playClick();}
-function wordleBackspace(){const g=game.wordle;if(!g.isPlaying||g.solved)return;if(g.cursor<=0)return;g.cursor--;g.current[g.cursor]=wordleGreens()[g.cursor]||'';renderWordleBoard();}
-function wordleSubmit(){const g=game.wordle;if(!g.isPlaying||g.solved)return;const w=(g.current||[]).join('');if(w.length!==WORDLE_LEN){showToast(`${WORDLE_LEN} harfli bir kelime yaz!`);return;}if(!isValidWordleGuess(w)){showToast('Bu kelime listede yok!');sounds.playError();return;}g.guesses.push(w);const solved=w===g.secret;if(solved){g.solved=true;g.isPlaying=false;sounds.playSuccess();}else{sounds.playClick();if(g.guesses.length>=WORDLE_MAX_GUESSES){g.isPlaying=false;showWordleStatus(`Bilemedin! Kelime: ${g.secret} — diğerleri bekleniyor...`,'text-summer-coral');}}
-resetWordleCurrent();renderWordleBoard();renderWordleKeyboard();
-const _glowDelay=WORDLE_LEN*120+400;setTimeout(()=>{const _brd=document.getElementById('wd-board');if(!_brd)return;const _lr=_brd.children[game.wordle.guesses.length-1];if(!_lr)return;_lr.querySelectorAll('.wd-cell.g').forEach(c=>{c.classList.add('glow');setTimeout(()=>{c.classList.remove('glow');c.classList.add('glow-fade');},1000);});},_glowDelay);
-if(g.soloMode){if(g.solved||g.guesses.length>=WORDLE_MAX_GUESSES)setTimeout(()=>endSoloWordleRound(),600);return;}
-if(game.mp.gameId){const upd={guesses:g.guesses};if(solved){upd.solved=true;upd.solvedAt=window.fb.serverNow();}window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/wordleData/${game.playerName}`),upd).catch(()=>{});}}
-function showWordleStatus(txt,cls){const el=document.getElementById('wd-status');el.className=`text-center text-sm font-bold mb-2 ${cls||''}`;el.textContent=txt;el.classList.remove('hidden');}
-function wordleSolversRanked(data){const wd=data.wordleData||{};return Object.entries(wd).filter(([n,v])=>v&&v.solved).map(([n,v])=>({name:n,solvedAt:v.solvedAt||0})).sort((a,b)=>a.solvedAt-b.solvedAt);}
-function wordlePlayerDone(v){return !!v&&(v.solved||((v.guesses||[]).length>=WORDLE_MAX_GUESSES));}
-function renderWordleOpponents(data){const box=document.getElementById('wd-opponents');const list=document.getElementById('wd-opponents-list');const wd=data.wordleData||{};const ranked=wordleSolversRanked(data);const others=Object.entries(wd).filter(([n])=>n!==game.playerName);if(ranked.length===0||others.length===0){box.classList.add('hidden');return;}box.classList.remove('hidden');list.innerHTML=others.map(([n,v])=>{const gs=v.guesses||[];const pat=gs.map(gu=>[...evaluateWordleGuess(data.secretWord,gu)].map(m=>WORDLE_MARK[m]).join('')).slice(-3).join('<br>');const r=ranked.findIndex(x=>x.name===n)+1;const badge=v&&v.solved?`<span class="text-green-500 font-bold text-xs">✓ ${r}. buldu</span>`:wordlePlayerDone(v)?`<span class="text-gray-400 text-xs">✗ bilemedi</span>`:`<span class="text-gray-400 text-xs">${gs.length} tahmin</span>`;return `<div class="bg-white rounded-lg px-2 py-1.5"><div class="flex justify-between items-center"><span class="font-bold text-summer-sea text-sm">${n}</span>${badge}</div><div class="wd-mini text-gray-600">${pat||'—'}</div></div>`;}).join('');}
-function enterOrSyncMultiplayerWordleRound(data){hideAllScreens();document.getElementById('wordle-game-screen').classList.remove('hidden');if(game.mp.isHost){showFinishBtn('mp-finish');hideFinishBtn('mp-leave');}else{hideFinishBtn('mp-finish');showFinishBtn('mp-leave');}
-if(game.mp.lastSyncedRound!==data.currentRound){game.mp.lastSyncedRound=data.currentRound;const g=game.wordle;g.secret=data.secretWord;g.guesses=[];g.solved=false;g.isPlaying=false;g._roundEndRequested=false;g.score=g.score||0;if(!g._usedWords)g._usedWords=new Set();g._usedWords.add(data.secretWord);document.getElementById('wd-status').classList.add('hidden');document.getElementById('wd-round').textContent=data.currentRound;document.getElementById('wd-max-round').textContent=data.roundCount;document.getElementById('wd-score').textContent=g.score;resetWordleCurrent();renderWordleBoard();renderWordleKeyboard();runMultiplayerCountdown(data.countdownEndsAt,()=>{game.wordle.isPlaying=true;renderWordleBoard();startMultiplayerTimer(data.roundEndsAt,'wd-time-left');});}
-renderWordleOpponents(data);
-const g=game.wordle;if(g.solved){const r=wordleSolversRanked(data).findIndex(x=>x.name===game.playerName)+1;if(r>0)showWordleStatus(`🎉 ${r}. buldun! (+${wordleRankPoints(r)} puan) Diğerleri bekleniyor...`,'text-green-500');}
-// Host: 3 kişi bulunca VEYA herkes bulunca turu bitir
-if(game.mp.isHost&&!game.wordle._roundEndRequested){const solvers=wordleSolversRanked(data).length;const names=data.players?Object.keys(data.players):[];const total=names.length||game.mp.currentPlayerCount;const wd=data.wordleData||{};const done=names.filter(n=>wordlePlayerDone(wd[n])).length;const allDone=total>0&&done>=total;const limit=Math.min(3,total);if((solvers>=limit&&solvers>0)||allDone){game.wordle._roundEndRequested=true;clearInterval(mpTimerInterval);setTimeout(()=>hostEndRound(),600);}}}
-function showMultiplayerWordleRoundOverModal(data){clearInterval(mpTimerInterval);game.wordle.isPlaying=false;const ranked=wordleSolversRanked(data);const myRank=ranked.findIndex(x=>x.name===game.playerName)+1;const pts=wordleRankPoints(myRank);if(game.wordle._lastScoredRound!==data.currentRound){game.wordle._lastScoredRound=data.currentRound;game.wordle.score=(game.wordle.score||0)+pts;const roundStart=(data.roundEndsAt||0)-WORDLE_ROUND_MS;const myData=(data.wordleData||{})[game.playerName];const mySolveMs=(myData&&myData.solved&&myData.solvedAt)?(myData.solvedAt-roundStart):WORDLE_ROUND_MS;game.wordle._totalSolveMs=(game.wordle._totalSolveMs||0)+Math.max(0,Math.min(mySolveMs,WORDLE_ROUND_MS));if(game.mp.gameId)window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/scores/${game.playerName}`),{total:game.wordle.score,solveMs:game.wordle._totalSolveMs}).catch(()=>{});}
-document.getElementById('wd-ro-title').textContent=`${data.currentRound}. Tur Bitti!`;document.getElementById('wd-ro-secret').textContent=data.secretWord;document.getElementById('wd-ro-points').textContent=`+${pts}`;document.getElementById('wd-ro-total').textContent=game.wordle.score;const rb=document.getElementById('wd-ro-ranks');const reactions=data.wordleReactions||{};const curRound=data.currentRound;rb.innerHTML=ranked.length?ranked.map((p,i)=>{const medal=['🥇','🥈','🥉'][i]||'　';const isSelf=p.name===game.playerName;const cls=isSelf?'font-black text-summer-sea':'text-gray-600';const rxKey=`${curRound}_${game.playerName}_${p.name}`;const allRx=Object.entries(reactions).filter(([k])=>k.startsWith(`${curRound}_`)&&k.endsWith(`_${p.name}`)&&!k.includes(`_${p.name}_${p.name}`)).map(([k,v])=>{const parts=k.split('_');const sender=parts.slice(1,-1).join('_');return {emoji:v,sender};});const rxDisplay=allRx.length?`<span class="ml-1">${allRx.map(r=>`<span class="cursor-pointer" onclick="showToast('${r.emoji} ${r.sender}\\'den','success')">${r.emoji}</span>`).join('')}</span>`:'';const rxBtn=(!isSelf&&i<3)?`<button onclick="openWordleReactionPicker(this,'${p.name}')" class="ml-1 text-xs opacity-50 hover:opacity-100 transition-opacity" title="Tepki gönder">💬</button>`:'';return `<div class="flex justify-between items-center text-sm relative ${cls}"><span>${medal} ${i+1}. ${p.name}${rxDisplay}${rxBtn}</span><span class="font-bold">+${wordleRankPoints(i+1)}</span></div>`;}).join(''):'<p class="text-sm text-gray-400 text-center">Kimse bulamadı!</p>';
-const nb=document.getElementById('btn-wd-next-round'),fb2=document.getElementById('btn-wd-ro-finish'),gt=document.getElementById('wd-ro-guest-text');const isLast=(data.roundCount!=='Sonsuz')&&(data.currentRound>=data.roundCount);if(game.mp.isHost){nb.classList.toggle('hidden',isLast);fb2.classList.remove('hidden');fb2.textContent=isLast?'🏁 Oyunu Bitir ve Sonuçları Gör':'🏁 Oyunu Burada Bitir';fb2.className=isLast?'w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all':'w-full mt-2 py-1.5 bg-red-50 text-red-500 font-bold rounded-xl border-2 border-red-200 hover:bg-red-100 transition-colors text-sm';gt.classList.add('hidden');}else{nb.classList.add('hidden');fb2.classList.add('hidden');gt.classList.remove('hidden');gt.textContent=isLast?'Host sonuçları açıyor...':"Host'un kararını bekliyorsun...";}
-document.getElementById('wordle-round-over-modal').classList.remove('hidden');}
-const WORDLE_REACTIONS=['👏','🔥','🧿','❤️','😱','🤯','💪','🎯','😂','🫡','⭐','💎'];
-function openWordleReactionPicker(btn,targetName){document.querySelectorAll('.wd-rx-picker').forEach(e=>e.remove());const p=document.createElement('div');p.className='wd-rx-picker';p.innerHTML=WORDLE_REACTIONS.map(e=>`<button onclick="sendWordleReaction('${e}','${targetName}')" class="text-2xl hover:scale-125 transition-transform p-1">${e}</button>`).join('');btn.parentElement.appendChild(p);setTimeout(()=>{const close=e=>{if(!p.contains(e.target)){p.remove();document.removeEventListener('click',close);}};document.addEventListener('click',close);},10);}
-async function sendWordleReaction(emoji,targetName){document.querySelectorAll('.wd-rx-picker').forEach(e=>e.remove());if(!game.mp.gameId)return;const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`));const data=snap.val();if(!data)return;const key=`${data.currentRound}_${game.playerName}_${targetName}`;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/wordleReactions`),{[key]:emoji});}
-function handleLobbyUpdate(data){if(data.status==='waiting'){document.getElementById('mp-waiting-screen').classList.remove('hidden');document.getElementById('game-screen').classList.add('hidden');document.getElementById('sayi-game-screen').classList.add('hidden');renderWaitingRoom(data);}else if(data.status==='playing'){hideAllModals();document.getElementById('round-over-modal').classList.add('hidden');document.getElementById('sayi-round-over-modal').classList.add('hidden');if(data.gameType==='wordle'){enterOrSyncMultiplayerWordleRound(data);}else if(data.gameType==='sayi'){enterOrSyncMultiplayerSayiRound(data);handleSayiExactHits(data);}else enterOrSyncMultiplayerRound(data);}else if(data.status==='roundover'){if(data.gameType==='wordle')showMultiplayerWordleRoundOverModal(data);else if(data.gameType==='sayi')showMultiplayerSayiRoundOverModal(data);else showMultiplayerRoundOverModal(data);}else if(data.status==='finished'){clearInterval(mpTimerInterval);showMultiplayerGameOver(data);}}
-function renderWaitingRoom(data){const listEl=document.getElementById('mp-player-list');const players=Object.keys(data.players||{});game.mp.currentPlayerCount=players.length;listEl.innerHTML=players.map(p=>`<div class="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg"><span>${p===data.host?'👑':'🙂'}</span><span class="font-bold text-summer-sea">${p}</span>${p===game.playerName?'<span class="text-xs text-gray-400">(sen)</span>':''}</div>`).join('');updateMpStartButtonState();}
-function selectMpRoundCount(c){game.mp.selectedRoundCount=c;document.querySelectorAll('.mp-round-btn').forEach(b=>{const s=String(b.dataset.round)===String(c);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateMpStartButtonState();}
-function selectMpDuration(m){game.mp.selectedDurationMinutes=m;document.querySelectorAll('.mp-duration-btn').forEach(b=>{const s=Number(b.dataset.duration)===Number(m);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateMpStartButtonState();}
-function updateMpStartButtonState() {
-    const b = document.getElementById('btn-mp-start');
-    const hep = game.mp.currentPlayerCount >= 2;
-    const ready = game.mp.selectedRoundCount && (game.mp.gameType!=='kelime' || game.mp.selectedDurationMinutes) && hep;
-    b.disabled = !ready;
-    
-    if (!ready) {
-        b.className = 'w-full py-3 bg-gray-200 text-gray-700 font-bold text-lg rounded-2xl shadow-lg transition-all mb-3 cursor-not-allowed';
-    } else {
-        b.className = 'w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all';
+  async function sozlesmeAc() {
+    setSozlesmeLoading(true);
+    setSozlesmeHata(null);
+    try {
+      const res = await fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "danismanSozlesmeBul",
+          sirket: user.company,
+          sube: user.branch,
+          ad: user.name
+        })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.msg || "Hata");
+      window.open(json.url, "_blank");
+    } catch (err) {
+      setSozlesmeHata(err.message);
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "sozlesmeHataMailAt",
+          kullanici: user.name,
+          sirket: user.company,
+          sube: user.branch,
+          hata: err.message
+        })
+      }).catch(() => {});
     }
-    
-    b.textContent = hep ? 'Oyunu Başlat 🚀' : 'Arkadaşının katılmasını bekle...';
+    setSozlesmeLoading(false);
+  }
+
+  function logout() {
+    clearSession();
+    navigate("/");
+  }
+
+  const allowedModules = MODULE_CONFIG.filter(m => user?.modules?.[m.key]);
+  const isFortis = user?.company === "Fortis";
+  const greeting = isFortis
+    ? (time.getHours() < 12 ? "Good morning" : time.getHours() < 18 ? "Good afternoon" : "Good evening")
+    : (time.getHours() < 12 ? "Günaydın" : time.getHours() < 18 ? "İyi günler" : "İyi akşamlar");
+
+  if (!user) return null;
+
+  return (
+    <div style={styles.root}>
+      <div style={styles.bgGrid} />
+      <div style={styles.bgGlow} />
+
+      {/* Header */}
+      <header style={styles.header}>
+        <div style={styles.headerInner} className="dash-header-inner">
+          <img
+            src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg"
+            alt="Bilimevi"
+            style={styles.headerLogo}
+          />
+          <div style={styles.headerRight} className="dash-header-right">
+            {["admin", "owner", "director", "manager"].includes(user.rol) && (
+              <button onClick={() => navigate("/izin?panel=admin")}
+                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#2563eb"}
+                onMouseLeave={e => e.currentTarget.style.background = "#1e3a5f"}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                  <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                </svg>
+                {isFortis ? "Admin Panel" : "Yönetici Paneli"}
+              </button>
+            )}
+            <div style={styles.userInfo}>
+              <div style={styles.avatar}>
+                {user.name?.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div style={styles.userName} className="dash-user-name">{user.name}</div>
+                <div style={styles.userMeta} className="dash-user-meta">{user.company} · {user.branch}</div>
+              </div>
+            </div>
+            <button onClick={logout} style={styles.logoutBtn}
+              onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              {isFortis ? "Logout" : "Çıkış"}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main */}
+      <main style={styles.main} className="dash-main">
+        <div style={styles.greeting}>
+          <h1 style={styles.greetingTitle} className="dash-greeting-title">
+            {greeting}, <span style={styles.greetingName}>{user.name?.split(" ")[0]}</span> 👋
+          </h1>
+          <p style={styles.greetingDate}>
+            {time.toLocaleDateString(isFortis ? "en-GB" : "tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
+        </div>
+
+        {allowedModules.length === 0 ? (
+          <div style={styles.emptyState}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" width="48" height="48">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <p>{isFortis ? "You don't have access to any modules yet." : "Henüz erişim izniniz bulunmuyor."}</p>
+            <span>{isFortis ? "Please contact your manager." : "Yöneticinizle iletişime geçin."}</span>
+          </div>
+        ) : (
+          <div className="dash-grid" style={{
+            ...styles.grid,
+            gridTemplateColumns: allowedModules.length === 1 ? "1fr" :
+                                 allowedModules.length === 2 ? "repeat(2, 1fr)" :
+                                 "repeat(2, 1fr)",
+          }}>
+            {allowedModules.map((mod, i) => (
+              <button
+                key={mod.key}
+                onClick={() => navigate(mod.path)}
+                className="dash-module-card" style={{
+                  ...styles.moduleCard,
+                  animationDelay: `${i * 0.08}s`,
+                  "--hover-border": mod.color,
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "translateY(-4px)";
+                  e.currentTarget.style.borderColor = mod.color + "66";
+                  e.currentTarget.style.boxShadow = `0 20px 40px -12px ${mod.color}22`;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                  e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
+                }}
+              >
+                <div className="dash-module-icon" style={{ ...styles.moduleIcon, background: mod.bg, color: mod.color, border: `1px solid ${mod.border}` }}>
+                  {mod.icon}
+                </div>
+                <div style={styles.moduleContent}>
+                  <h3 style={styles.moduleTitle}>{isFortis ? (mod.titleEn || mod.title) : mod.title}</h3>
+                  <p style={styles.moduleDesc}>{isFortis ? (mod.descEn || mod.desc) : mod.desc}</p>
+                </div>
+                <div style={{ ...styles.moduleArrow, color: mod.color }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+                    <polyline points="9 18 15 12 9 6"/>
+                  </svg>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+
+      </main>
+
+
+      {/* Danışman Sözleşme Popup */}
+      {sozlesmeHata && (
+        <div onClick={() => setSozlesmeHata(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: "20px", padding: "28px", maxWidth: "400px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>{isFortis ? "An error occurred" : "Bir hata oluştu"}</h3>
+            </div>
+            <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "8px", lineHeight: 1.6 }}>{sozlesmeHata}</p>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "20px" }}>{isFortis ? "A notification has been sent to the IT team." : "IT ekibine bildirim gönderildi."}</p>
+            <button onClick={() => setSozlesmeHata(null)}
+              style={{ width: "100%", padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "inherit" }}>
+              {isFortis ? "Close" : "Kapat"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 640px) {
+          .dash-header-inner { padding: 12px 16px !important; flex-wrap: wrap; gap: 8px; }
+          .dash-user-name { display: none !important; }
+          .dash-user-meta { display: none !important; }
+          .dash-greeting-title { font-size: 22px !important; }
+          .dash-main { padding: 20px 12px 48px !important; }
+          .dash-grid { grid-template-columns: 1fr !important; }
+          .dash-module-card { padding: 16px !important; gap: 12px !important; }
+          .dash-module-icon { width: 44px !important; height: 44px !important; border-radius: 10px !important; }
+          .dash-module-icon svg { width: 22px !important; height: 22px !important; }
+          .dash-header-right { gap: 6px !important; flex-wrap: wrap; }
+          .dash-header-right button { padding: 6px 10px !important; font-size: 11px !important; }
+        }
+      `}</style>
+    </div>
+  );
 }
-    
-async function startMultiplayerGame(){if(!game.mp.selectedRoundCount||(game.mp.gameType==='kelime'&&!game.mp.selectedDurationMinutes)||!game.mp.gameId||game.mp.currentPlayerCount<2)return;const _sb=document.getElementById('btn-mp-start');setBtnLoading(_sb,true);try{if(game.mp.gameType==='wordle'){const secret=pickWordleSecret(null);if(!secret){showToast('Kelime listesi yüklenemedi, tekrar dene!');setBtnLoading(_sb,false);return;}const kept=game.wordle._usedWords||new Set();game.wordle={secret:'',guesses:[],current:[],cursor:0,_animRow:-1,solved:false,score:0,timeRemaining:120,isPlaying:false,_lastScoredRound:null,_roundEndRequested:false,_totalSolveMs:0,_usedWords:kept};const cdEnd=window.fb.serverNow()+5000;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',gameType:'wordle',roundCount:game.mp.selectedRoundCount,currentRound:1,secretWord:secret,wordleData:null,countdownEndsAt:cdEnd,roundEndsAt:cdEnd+WORDLE_ROUND_MS});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'playing',gameType:'wordle'});setBtnLoading(_sb,false);return;}if(game.mp.gameType==='sayi'){await startMultiplayerSayiGame();setBtnLoading(_sb,false);return;}game.mp.previousLetters=null;const letters=generateRoundLetterSet(null);game.mp.previousLetters=letters.filter(t=>!t.isJoker).map(t=>t.letter);const cdEnd=window.fb.serverNow()+5000;const animMs=letters.length*LETTER_SCRAMBLE_STEP_MS;const roundEnd=cdEnd+animMs+(game.mp.selectedDurationMinutes*60000);await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',gameType:'kelime',roundCount:game.mp.selectedRoundCount,roundDurationMinutes:game.mp.selectedDurationMinutes,currentRound:1,letters:letters,countdownEndsAt:cdEnd,roundEndsAt:roundEnd});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'playing',gameType:'kelime'});}catch(e){showToast('Başlatılamadı, tekrar dene!');}setBtnLoading(_sb,false);}
-async function startMultiplayerSayiGame(){const{numbers,target}=generateSayiRound();const cdEnd=window.fb.serverNow()+5000;const animMs=numbers.length*LETTER_SCRAMBLE_STEP_MS;const roundEnd=cdEnd+animMs+90000;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',gameType:'sayi',roundCount:game.mp.selectedRoundCount,currentRound:1,sayiNumbers:numbers,sayiTarget:target,countdownEndsAt:cdEnd,roundEndsAt:roundEnd});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'playing',gameType:'sayi'});}
-function enterOrSyncMultiplayerRound(data){hideAllScreens();document.getElementById('game-screen').classList.remove('hidden');if(game.mp.isHost){showFinishBtn('mp-finish');hideFinishBtn('mp-leave');}else{hideFinishBtn('mp-finish');showFinishBtn('mp-leave');}updatePlayerNameDisplay('player-name-display');if(game.mp.lastSyncedRound===data.currentRound)return;game.mp.lastSyncedRound=data.currentRound;game.currentRound=data.currentRound;game.maxRounds=data.roundCount;game.roundLetters=data.letters.map(t=>({...t,isUsed:false}));game.activeWord=[];game.foundWords=[];game.isPlaying=false;document.getElementById('found-words-list').innerHTML='';document.getElementById('word-count').textContent='0';document.getElementById('letters-rack').innerHTML='';updateUI();updateActiveWordDisplay();runMultiplayerCountdown(data.countdownEndsAt,()=>{renderLettersRack(true,()=>{game.isPlaying=true;startMultiplayerTimer(data.roundEndsAt,'time-left');});});}
-function enterOrSyncMultiplayerSayiRound(data){hideAllScreens();document.getElementById('sayi-game-screen').classList.remove('hidden');if(game.mp.isHost){showFinishBtn('mp-finish');hideFinishBtn('mp-leave');}else{hideFinishBtn('mp-finish');showFinishBtn('mp-leave');}updatePlayerNameDisplay('sayi-player-name-display');if(game.mp.lastSyncedRound===data.currentRound)return;game.mp.lastSyncedRound=data.currentRound;game.sayi.numbers=data.sayiNumbers.map((v,i)=>({id:`n_${i}`,value:v,used:false,isJoker:false}));game.sayi.numbers.push({id:'sjoker_1',value:null,used:false,isJoker:true});game.sayi.target=data.sayiTarget;game.sayi.currentRound=data.currentRound;game.sayi.maxRounds=data.roundCount;game.sayi.bestResultThisRound=null;game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;game.sayi.timeRemaining=90;game.sayi.isPlaying=false;game.sayi.history=[];game.sayi._exactReported=false;document.getElementById('sayi-mp-exact-banner').classList.add('hidden');document.getElementById('btn-sayi-exact-finish').classList.add('hidden');game.sayi.score=game.sayi.score||0;document.getElementById('sayi-target').textContent=data.sayiTarget;document.getElementById('sayi-best-result').textContent='-';document.getElementById('sayi-current-round').textContent=data.currentRound;document.getElementById('sayi-max-round').textContent=data.roundCount;resetSayiOperatorButtonStyles();updateSayiExpressionDisplay();updateSayiUI();considerSayiBestResult();document.getElementById('sayi-numbers-rack').innerHTML='';runMultiplayerCountdown(data.countdownEndsAt,()=>{renderSayiNumbersRack(true,()=>{game.sayi.isPlaying=true;startMultiplayerTimer(data.roundEndsAt,'sayi-time-left');});});}
-function runLocalCountdown(sec,onComplete){const ov=document.getElementById('mp-countdown-overlay');const ne=document.getElementById('mp-countdown-number');let rem=sec;ne.textContent=rem;ov.classList.remove('hidden');const iv=setInterval(()=>{rem--;if(rem<=0){clearInterval(iv);ov.classList.add('hidden');onComplete();}else{ne.textContent=rem;sounds.playClick();}},1000);}
-function runMultiplayerCountdown(cdEnd,onComplete){if(!cdEnd||cdEnd-window.fb.serverNow()<=0){onComplete();return;}const ov=document.getElementById('mp-countdown-overlay');const ne=document.getElementById('mp-countdown-number');ne.textContent='5';ov.classList.remove('hidden');const iv=setInterval(()=>{const rem=Math.ceil((cdEnd-window.fb.serverNow())/1000);if(rem<=0){clearInterval(iv);ov.classList.add('hidden');onComplete();}else{ne.textContent=rem;sounds.playClick();}},1000);}
-function startMultiplayerTimer(roundEndsAt,timerElId){clearInterval(mpTimerInterval);const td=document.getElementById(timerElId||'time-left');let ended=false;function tick(){const msLeft=roundEndsAt-window.fb.serverNow();const rem=Math.max(0,Math.ceil(msLeft/1000));game.sayi.timeRemaining=rem;const m=Math.floor(rem/60),s=rem%60;td.textContent=`${m}:${s.toString().padStart(2,'0')}`;td.classList.toggle('text-red-500',rem<=10);if(msLeft<=0&&!ended){ended=true;clearInterval(mpTimerInterval);game.isPlaying=false;game.sayi.isPlaying=false;const eb=document.getElementById('sayi-mp-exact-banner');if(eb)eb.classList.add('hidden');const ef=document.getElementById('btn-sayi-exact-finish');if(ef)ef.classList.add('hidden');if(game.mp.isHost)hostEndRound();}}tick();mpTimerInterval=setInterval(tick,250);}
-function computeLongestWordBonus(sc){let ml=0,ca=[];Object.entries(sc||{}).forEach(([n,s])=>{const ws=s.foundWords||[];if(ws.length===0)return;let lo='';ws.forEach(w=>{if(w.length>lo.length)lo=w;});if(lo.length>ml){ml=lo.length;ca=[{name:n,word:lo,total:s.total||0}];}else if(lo.length===ml&&ml>0){ca.push({name:n,word:lo,total:s.total||0});}});if(ml===0||ca.length===0)return null;if(ca.length===1)return{winners:[{name:ca[0].name,word:ca[0].word}],length:ml};const mt=Math.min(...ca.map(c=>c.total));return{winners:ca.filter(c=>c.total===mt).map(c=>({name:c.name,word:c.word})),length:ml};}
-function processLongestWordBonus(data){const bd=data.longestWordBonus;if(!bd||bd.round!==data.currentRound)return null;const aw=bd.winners.some(w=>w.name===game.playerName);if(aw&&game.mp.lastBonusAppliedRound!==data.currentRound){game.mp.lastBonusAppliedRound=data.currentRound;game.score+=5;updateUI();window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/scores/${game.playerName}`),{total:game.score,foundWords:game.foundWords}).catch(()=>{});}return bd;}
-function renderBonusBanner(bd,elId){const b=document.getElementById(elId);if(!bd){b.classList.add('hidden');b.innerHTML='';return;}b.classList.remove('hidden');b.innerHTML=`🏆 Turun En Uzun Kelimesi: ${bd.winners.map(w=>`${w.name} ("${w.word}")`).join(' ve ')} — <strong>+5 puan</strong>`;}
-async function hostEndRound(){const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`));const data=snap.val();if(!data)return;const isLast=(data.roundCount!=='Sonsuz')&&(data.currentRound>=data.roundCount);const bonus=(data.gameType==='sayi'||data.gameType==='wordle')?null:computeLongestWordBonus(data.scores);const bu={longestWordBonus:bonus?{round:data.currentRound,...bonus}:null};if(data.gameType==='wordle'){await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'roundover'});return;}if(isLast){await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'finished',...bu});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'finished'});}else{await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'roundover',...bu});}}
-function computeMissedWords(data){const mw=new Set(game.foundWords);const ms=new Set();Object.entries(data.scores||{}).forEach(([n,s])=>{if(n===game.playerName)return;(s.foundWords||[]).forEach(w=>{if(!mw.has(w))ms.add(w);});});return Array.from(ms);}
-function searchWordsInSet(set,base,jokerCount,maxLen){if(!set||set.size===0)return[];const found=[];for(const w of set){if(w.length>maxLen||w.length<3)continue;let miss=0;const c={};let ok=true;for(const ch of w){c[ch]=(c[ch]||0)+1;if(c[ch]>(base[ch]||0)){miss++;if(miss>jokerCount){ok=false;break;}}}if(ok)found.push(w);}found.sort((a,b)=>b.length-a.length||a.localeCompare(b,'tr'));return found;}
-function findTopWordsFromLetters(){const letters=game.roundLetters.filter(t=>!t.isJoker).map(t=>t.letter);const jokerCount=game.roundLetters.filter(t=>t.isJoker).length;if(letters.length===0)return[];const base={};letters.forEach(l=>base[l]=(base[l]||0)+1);const maxLen=letters.length+jokerCount;const coreResults=searchWordsInSet(turkishWordSetCore,base,jokerCount,maxLen).slice(0,10);if(coreResults.length>=10)return coreResults;const already=new Set(coreResults);const extra=searchWordsInSet(turkishWordSet,base,jokerCount,maxLen).filter(w=>!already.has(w));return[...coreResults,...extra].slice(0,10);}
-function renderTopWords(){const sec=document.getElementById('round-over-top-words');const list=document.getElementById('round-over-top-words-list');const words=findTopWordsFromLetters();if(words.length===0){sec.classList.add('hidden');list.innerHTML='';return;}const mine=new Set(game.foundWords);sec.classList.remove('hidden');list.innerHTML=words.map(w=>mine.has(w)?`<span class="bg-green-50 text-green-600 border border-green-200 px-2 py-1 rounded-lg text-sm font-bold">✓ ${w}</span>`:`<span class="bg-blue-50 text-summer-sea border border-blue-200 px-2 py-1 rounded-lg text-sm font-bold">${w}</span>`).join('');}
-function lockNextRoundButton(btn,sec){clearInterval(roundOverUnlockInterval);let rem=sec;btn.disabled=true;btn.classList.add('opacity-50','cursor-not-allowed');btn.classList.remove('hover:shadow-xl','hover:-translate-y-1');btn.textContent=`Kelimeler gösteriliyor... (${rem})`;roundOverUnlockInterval=setInterval(()=>{rem--;if(rem<=0){clearInterval(roundOverUnlockInterval);btn.disabled=false;btn.classList.remove('opacity-50','cursor-not-allowed');btn.classList.add('hover:shadow-xl','hover:-translate-y-1');btn.textContent='Sonraki Tur ➜';}else btn.textContent=`Kelimeler gösteriliyor... (${rem})`;},1000);}
-function showMultiplayerRoundOverModal(data){document.getElementById('round-over-title').textContent=`${data.currentRound}. Tur Bitti!`;document.getElementById('round-over-score').textContent=game.score;const bd=processLongestWordBonus(data);renderBonusBanner(bd,'round-over-bonus-banner');const ranked=Object.entries(data.scores||{}).map(([n,s])=>({name:n,total:s.total||0})).sort((a,b)=>b.total-a.total);document.getElementById('round-over-leaderboard').innerHTML=ranked.map((p,i)=>`<div class="flex justify-between px-3 py-1.5 rounded-lg text-sm ${p.name===game.playerName?'bg-summer-sun text-white font-bold':'bg-blue-50 text-gray-700'}"><span>${i+1}. ${p.name}</span><span>${p.total}</span></div>`).join('');const missed=computeMissedWords(data);const ms=document.getElementById('round-over-missed-words');const ml=document.getElementById('round-over-missed-words-list');if(missed.length>0){ms.classList.remove('hidden');ml.innerHTML=missed.map(w=>`<span class="bg-red-50 text-red-500 border border-red-200 px-2 py-1 rounded-lg text-sm font-bold">${w}</span>`).join('');}else{ms.classList.add('hidden');ml.innerHTML='';}renderTopWords();const nb=document.getElementById('btn-next-round');const fb=document.getElementById('btn-round-over-finish');const gt=document.getElementById('round-over-guest-text');if(game.mp.isHost){nb.classList.remove('hidden');nb.onclick=hostStartNextRound;fb.classList.remove('hidden');gt.classList.add('hidden');lockNextRoundButton(nb,5);}else{clearInterval(roundOverUnlockInterval);nb.classList.add('hidden');fb.classList.add('hidden');gt.classList.remove('hidden');}document.getElementById('round-over-modal').classList.remove('hidden');}
-function showMultiplayerSayiRoundOverModal(data){const alreadyScored=game.sayi._lastScoredRound===data.currentRound;const base=calculateSayiPoints(data.sayiTarget,game.sayi.bestResultThisRound);const isExact=game.sayi.bestResultThisRound===data.sayiTarget;const timeBonus=isExact?Math.max(0,game.sayi.timeRemaining||0):0;const pts=base+timeBonus;if(!alreadyScored){game.sayi._lastScoredRound=data.currentRound;game.sayi.score=(game.sayi.score||0)+pts;if(game.mp.gameId)window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/scores/${game.playerName}`),{total:game.sayi.score}).catch(()=>{});}document.getElementById('sayi-round-over-title').textContent=`${data.currentRound}. Tur Bitti!`;document.getElementById('sayi-round-over-target').textContent=data.sayiTarget;document.getElementById('sayi-round-over-points').textContent=isExact&&timeBonus>0?`+${base} +${timeBonus} ⏱️ = +${pts}`:`+${pts}`;document.getElementById('sayi-round-over-total').textContent=game.sayi.score;const orig=game.sayi.numbers.filter(t=>!t.id.startsWith('r_')&&!t.isJoker).map(t=>t.value);showComputerSolutionInModal(data.sayiTarget,orig);const nb=document.getElementById('btn-sayi-next-round');const fb=document.getElementById('btn-sayi-round-over-finish');const gt=document.getElementById('sayi-round-over-guest-text');if(game.mp.isHost){nb.classList.remove('hidden');nb.onclick=hostStartNextRound;fb.classList.remove('hidden');gt.classList.add('hidden');}else{nb.classList.add('hidden');fb.classList.add('hidden');gt.classList.remove('hidden');}document.getElementById('sayi-round-over-modal').classList.remove('hidden');}
-async function hostStartNextRound(){const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`));const data=snap.val();if(data.gameType==='wordle'){const secret=pickWordleSecret(data.secretWord);const cdEnd=window.fb.serverNow()+5000;game.wordle._roundEndRequested=false;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',currentRound:data.currentRound+1,secretWord:secret,wordleData:null,countdownEndsAt:cdEnd,roundEndsAt:cdEnd+WORDLE_ROUND_MS});return;}if(data.gameType==='sayi'){const{numbers,target}=generateSayiRound();const cdEnd=window.fb.serverNow()+5000;const animMs=numbers.length*LETTER_SCRAMBLE_STEP_MS;const roundEnd=cdEnd+animMs+90000;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',currentRound:data.currentRound+1,sayiNumbers:numbers,sayiTarget:target,exactHits:null,countdownEndsAt:cdEnd,roundEndsAt:roundEnd});return;}const dm=data.roundDurationMinutes||3;const letters=generateRoundLetterSet(game.mp.previousLetters);game.mp.previousLetters=letters.filter(t=>!t.isJoker).map(t=>t.letter);const cdEnd=window.fb.serverNow()+5000;const animMs=letters.length*LETTER_SCRAMBLE_STEP_MS;const roundEnd=cdEnd+animMs+(dm*60000);await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',currentRound:data.currentRound+1,letters:letters,countdownEndsAt:cdEnd,roundEndsAt:roundEnd});}
-async function hostFinishGameNow(){const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`));const data=snap.val();const bonus=(data&&data.gameType!=='sayi'&&data.gameType!=='wordle')?computeLongestWordBonus(data.scores):null;const bu={longestWordBonus:bonus?{round:data.currentRound,...bonus}:null};await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'finished',...bu});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'finished'});}
-async function guestLeaveGame(){if(!game.mp.gameId||game.mp.isHost)return;const gid=game.mp.gameId;resetMpState();try{await window.fb.remove(window.fb.ref(window.fb.db,`lobbies/${gid}/players/${game.playerName}`));}catch(e){}switchToScreen('game-mode-select-screen');showToast('Oyundan ayrıldın','success');}
-async function showMultiplayerGameOver(data){hideAllScreens();['wordle-round-over-modal','sayi-round-over-modal','karma-round-over-modal','round-over-modal','mp-countdown-overlay'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden');});updateAllPlayerNameDisplays();updateNameGateUI();if(data.gameType==='wordle'){document.getElementById('wordle-game-over-screen').classList.remove('hidden');document.getElementById('wd-final-score').textContent=game.wordle.score||0;sounds.playSuccess();const wr=Object.entries(data.scores||{}).map(([n,s])=>({name:n,total:s.total||0,solveMs:s.solveMs||0})).sort((a,b)=>b.total-a.total||(a.solveMs-b.solveMs));const hasTie=wr.some((p,i)=>i>0&&p.total===wr[i-1].total);const wbox=document.getElementById('wd-mp-results'),wlist=document.getElementById('wd-mp-results-list');if(wr.length>0){wbox.classList.remove('hidden');wlist.innerHTML=wr.map((p,i)=>{const tied=hasTie&&wr.filter(x=>x.total===p.total).length>1;const timeStr=tied&&p.solveMs?` <span class="text-xs text-gray-400">(${(p.solveMs/1000).toFixed(1)}sn)</span>`:'';return `<div class="flex justify-between items-center px-3 py-2 rounded-lg ${p.name===game.playerName?'bg-summer-sun text-white font-bold':'bg-white text-gray-700'}"><span>${i+1}. ${p.name}${timeStr}</span><span>${p.total}</span></div>`;}).join('');}else wbox.classList.add('hidden');const lw=document.getElementById('wd-last-word');if(data.secretWord){document.getElementById('wd-last-word-text').textContent=data.secretWord;lw.classList.remove('hidden');}else lw.classList.add('hidden');try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'wordle',playerName:game.playerName,score:game.wordle.score||0,category:data.roundCount})});}catch(e){}return;}
-if(data.gameType==='sayi'){document.getElementById('sayi-game-over-screen').classList.remove('hidden');document.getElementById('sayi-final-score').textContent=game.sayi.score||0;const sr=Object.entries(data.scores||{}).map(([n,s])=>({name:n,total:s.total||0})).sort((a,b)=>b.total-a.total);const box=document.getElementById('sayi-mp-results');const lst=document.getElementById('sayi-mp-results-list');if(sr.length>0){box.classList.remove('hidden');lst.innerHTML=sr.map((p,i)=>`<div class="flex justify-between items-center px-3 py-2 rounded-lg ${p.name===game.playerName?'bg-summer-sun text-white font-bold':'bg-white text-gray-700'}"><span>${i+1}. ${p.name}</span><span>${p.total}</span></div>`).join('');}else{box.classList.add('hidden');}const solBox=document.getElementById('sayi-mp-last-solution');if(data.sayiNumbers&&data.sayiTarget){const sol=findBestSolution(data.sayiNumbers,data.sayiTarget);let h=`<p class="text-sm font-bold text-summer-sea uppercase tracking-widest mb-2 text-center">💡 Son Turun Çözümü (Hedef: ${data.sayiTarget})</p><div class="space-y-1">`;(sol&&sol.steps?sol.steps:[]).forEach(s=>{h+=`<div class="bg-white px-2 py-1 rounded text-sm font-mono">${s}</div>`;});h+='</div>';if(sol)h+=sol.diff===0?`<p class="text-sm font-bold text-green-500 mt-2">🎯 Tam Sonuç: ${sol.result}</p>`:`<p class="text-sm font-bold text-summer-sea mt-2">Sonuç: ${sol.result} (Hedeften ${sol.diff} uzak)</p>`;solBox.innerHTML=h;solBox.classList.remove('hidden');}else{solBox.classList.add('hidden');}try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'sayi',playerName:game.playerName,score:game.sayi.score||0,category:'mp-islem'})});}catch(e){}}else{document.getElementById('game-over-screen').classList.remove('hidden');sounds.playSuccess();const bd=processLongestWordBonus(data);renderBonusBanner(bd,'game-over-bonus-banner');document.getElementById('final-score').textContent=game.score;const ranked=Object.entries(data.scores||{}).map(([n,s])=>({name:n,total:s.total||0})).sort((a,b)=>b.total-a.total);document.getElementById('leaderboard-title').textContent='🏆 Bu Oyunun Sonuçları';document.getElementById('leaderboard-list').innerHTML=ranked.map((p,i)=>`<div class="flex justify-between items-center px-3 py-2 rounded-lg ${p.name===game.playerName?'bg-summer-sun text-white font-bold':'bg-white text-gray-700'}"><span>${i+1}. ${p.name}</span><span>${p.total}</span></div>`).join('');try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'solo',playerName:game.playerName,score:game.score,category:'mp-kelime'})});}catch(e){}}}
-async function leaveMultiplayerLobby(){const gid=game.mp.gameId;const isHost=game.mp.isHost;detachMpListeners();clearInterval(mpTimerInterval);if(gid){try{if(isHost){await window.fb.remove(window.fb.ref(window.fb.db,`lobbies/${gid}`));await window.fb.remove(window.fb.ref(window.fb.db,`lobbies-index/${gid}`));}else{await window.fb.remove(window.fb.ref(window.fb.db,`lobbies/${gid}/players/${game.playerName}`));}}catch(e){}}game.mp.gameId=null;game.mp.isHost=false;switchToScreen('game-mode-select-screen');}
 
-function processGameplayKeyInput(rawKey){if(game.wordle.isPlaying&&!document.getElementById('wordle-game-screen').classList.contains('hidden')){const k=rawKey.toLocaleUpperCase('tr-TR');if(rawKey==='Enter'){wordleSubmit();return;}if(rawKey==='Backspace'){wordleBackspace();return;}if(ALPHABET.includes(k)){wordleKey(k);return;}return;}
-if(!game.isPlaying)return;if(!document.getElementById('joker-modal').classList.contains('hidden')){const key=rawKey.toLocaleUpperCase('tr-TR');if(ALPHABET.includes(key))selectJokerLetter(key,true);else if(rawKey==='Escape')closeJokerModal();return;}const key=rawKey.toLocaleUpperCase('tr-TR');if(rawKey==='Enter'){submitWord();return;}if(rawKey==='Backspace'){if(game.activeWord.length>0)removeLetterFromWord(game.activeWord.length-1);return;}if(rawKey==='*'||rawKey==='?'||rawKey==='.'){const jt=game.roundLetters.find(t=>t.isJoker&&!t.isUsed);if(jt)openJokerModal(jt);return;}const at=game.roundLetters.find(t=>!t.isUsed&&!t.isJoker&&t.letter===key);if(at)selectLetter(at);else if(ALPHABET.includes(key)){const jt=game.roundLetters.find(t=>t.isJoker&&!t.isUsed);if(jt){jt.letter=key;jt.isUsed=true;game.activeWord.push({...jt,originId:jt.id});sounds.playClick();updateActiveWordDisplay();renderLettersRack(false);}}}
-window.addEventListener('keydown',(e)=>{if(document.activeElement&&document.activeElement.id==='mobile-keyboard-input')return;processGameplayKeyInput(e.key);});
-function focusMobileKeyboard(){if(game.isPlaying)document.getElementById('mobile-keyboard-input').focus();}
-const mki=document.getElementById('mobile-keyboard-input');
-mki.addEventListener('input',(e)=>{const val=e.target.value;if(val.length>0){const uv=val.toLocaleUpperCase('tr-TR');for(const ch of uv)processGameplayKeyInput(ch);}e.target.value='';});
-mki.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key==='Backspace'){e.preventDefault();processGameplayKeyInput(e.key);}});
-
-buildJokerKeyboard();
-let srk1=false,srk9=false,srHold=0,srTrig=false;
-document.addEventListener('keydown',(e)=>{if(e.key==='1')srk1=true;if(e.key==='9')srk9=true;});
-document.addEventListener('keyup',(e)=>{if(e.key==='1')srk1=false;if(e.key==='9')srk9=false;if(!srk1||!srk9)srTrig=false;});
-setInterval(()=>{const sv=!document.getElementById('scoreboard-screen').classList.contains('hidden');if(!sv||!srk1||!srk9){srHold=0;return;}if(srTrig)return;srHold+=100;if(srHold>=3000){srTrig=true;resetScoreboard();}},100);
-async function resetScoreboard(){if(!confirm('Tüm skor tablosunu kalıcı olarak silmek istediğine emin misin?'))return;try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'reset'})});showToast('Skor tablosu sıfırlandı!','success');loadScoreTabContent(currentScoreTab);}catch(e){showToast('Sıfırlama başarısız oldu');}}
-</script>
-
-<script type="module">
-import {initializeApp}from"https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
-import {getDatabase,ref,set,get,update,onValue,off,remove,serverTimestamp,onDisconnect}from"https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
-const fc={apiKey:"AIzaSyCEAc1RBQrQwHy4MCzJ4e7TfddyzTWI2Ws",authDomain:"kelimelik-3fa74.firebaseapp.com",databaseURL:"https://kelimelik-3fa74-default-rtdb.europe-west1.firebasedatabase.app",projectId:"kelimelik-3fa74",storageBucket:"kelimelik-3fa74.firebasestorage.app",messagingSenderId:"140828268062",appId:"1:140828268062:web:4275f0e0a6395d259b800f"};
-const app=initializeApp(fc);const db=getDatabase(app);let sto=0;
-onValue(ref(db,'.info/serverTimeOffset'),(s)=>{sto=s.val()||0;});
-window.fb={db,ref,set,get,update,onValue,off,remove,serverTimestamp,onDisconnect,serverNow:()=>Date.now()+sto};
-// === PRESENCE ===
-const presenceSessionId='s_'+Math.random().toString(36).slice(2,10)+'_'+Date.now().toString(36);
-const myPresRef=ref(db,'presence/'+presenceSessionId);
-onValue(ref(db,'.info/connected'),(snap)=>{if(snap.val()===true){onDisconnect(myPresRef).remove();set(myPresRef,{t:serverTimestamp()});}});
-onValue(ref(db,'presence'),(snap)=>{const v=snap.val();const count=v?Object.keys(v).length:0;document.querySelectorAll('.presence-count').forEach(el=>{el.textContent=count;});});
-</script>
-</body>
-</html>
+const styles = {
+  root: {
+    minHeight: "100vh",
+    background: "#f8fafc",
+    fontFamily: "'Inter', sans-serif",
+    position: "relative",
+    overflow: "hidden",
+  },
+  bgGrid: {
+    position: "fixed",
+    inset: 0,
+    backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)",
+    backgroundSize: "40px 40px",
+    zIndex: 0,
+  },
+  bgGlow: {
+    position: "fixed",
+    top: "-10%",
+    right: "-5%",
+    width: "500px",
+    height: "500px",
+    borderRadius: "50%",
+    background: "radial-gradient(circle, #dbeafe44 0%, transparent 70%)",
+    zIndex: 0,
+  },
+  header: {
+    position: "sticky",
+    top: 0,
+    background: "rgba(255,255,255,0.85)",
+    backdropFilter: "blur(12px)",
+    borderBottom: "1px solid #e2e8f0",
+    zIndex: 10,
+  },
+  headerInner: {
+    maxWidth: "900px",
+    margin: "0 auto",
+    padding: "16px 24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerLogo: {
+    height: "32px",
+    objectFit: "contain",
+  },
+  headerRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "20px",
+  },
+  userInfo: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  avatar: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #1d4ed8, #7c3aed)",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "14px",
+    fontWeight: "700",
+    flexShrink: 0,
+  },
+  userName: {
+    fontSize: "13px",
+    fontWeight: "600",
+    color: "#0f172a",
+  },
+  userMeta: {
+    fontSize: "11px",
+    color: "#94a3b8",
+  },
+  logoutBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "8px 14px",
+    border: "1px solid #fecaca",
+    borderRadius: "8px",
+    background: "transparent",
+    color: "#dc2626",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "background 0.2s",
+    fontFamily: "'Inter', sans-serif",
+  },
+  main: {
+    maxWidth: "900px",
+    margin: "0 auto",
+    padding: "48px 24px 64px",
+    position: "relative",
+    zIndex: 1,
+  },
+  greeting: {
+    marginBottom: "40px",
+    animation: "fadeUp 0.5s ease-out",
+  },
+  greetingTitle: {
+    fontSize: "32px",
+    fontWeight: "700",
+    color: "#0f172a",
+    letterSpacing: "-0.8px",
+    marginBottom: "6px",
+  },
+  greetingName: {
+    color: "#2563eb",
+  },
+  greetingDate: {
+    fontSize: "14px",
+    color: "#94a3b8",
+    fontWeight: "400",
+  },
+  grid: {
+    display: "grid",
+    gap: "16px",
+  },
+  moduleCard: {
+    display: "flex",
+    alignItems: "center",
+    gap: "20px",
+    background: "#fff",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: "20px",
+    padding: "24px 28px",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    textAlign: "left",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+    animation: "fadeUp 0.5s ease-out both",
+    fontFamily: "'Inter', sans-serif",
+    width: "100%",
+  },
+  moduleIcon: {
+    width: "64px",
+    height: "64px",
+    borderRadius: "16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  moduleContent: {
+    flex: 1,
+  },
+  moduleTitle: {
+    fontSize: "17px",
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: "4px",
+    letterSpacing: "-0.3px",
+  },
+  moduleDesc: {
+    fontSize: "13px",
+    color: "#94a3b8",
+    fontWeight: "400",
+  },
+  moduleArrow: {
+    flexShrink: 0,
+    opacity: 0.4,
+  },
+  emptyState: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "12px",
+    padding: "80px 40px",
+    background: "#fff",
+    borderRadius: "20px",
+    border: "1.5px solid #e2e8f0",
+    textAlign: "center",
+    color: "#94a3b8",
+    fontSize: "16px",
+  },
+};
