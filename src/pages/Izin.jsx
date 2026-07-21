@@ -973,9 +973,19 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   async function onaylaIzin(row) {
     const key = row["Personel"] + row["Başlangıç"];
     setOnayLoading(key);
+    const izinTuru = row["İzin Türü"] || row["Mazeret"] || "";
+    const isHakedisArtisi = izinTuru.indexOf("Hakediş Artışı") !== -1;
     await fetch(scriptUrl, {
       method: "POST", mode: "no-cors",
-      body: JSON.stringify({ action: "onaylaIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], gunSayisi: row["Talep Edilen İzin Günü"] || row["Gün Sayısı"], izinTuru: row["İzin Türü"] || row["Mazeret"], adminEmail }),
+      body: JSON.stringify({
+        action: isHakedisArtisi ? "onaylaHakedisArtisi" : "onaylaIzin",
+        personel: row["Personel"],
+        baslangic: row["Başlangıç"],
+        bitis: row["Bitiş"],
+        gunSayisi: row["Talep Edilen İzin Günü"] || row["Gün Sayısı"],
+        izinTuru: izinTuru,
+        adminEmail
+      }),
     });
     setTimeout(() => {
       setOnayLoading(null);
@@ -987,9 +997,18 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   async function reddetIzin(row) {
     const key = row["Personel"] + row["Başlangıç"];
     setReddetLoading(key);
+    const izinTuru = row["İzin Türü"] || row["Mazeret"] || "";
+    const isHakedisArtisi = izinTuru.indexOf("Hakediş Artışı") !== -1;
     await fetch(scriptUrl, {
       method: "POST", mode: "no-cors",
-      body: JSON.stringify({ action: "reddetIzin", personel: row["Personel"], baslangic: row["Başlangıç"], bitis: row["Bitiş"], izinTuru: row["İzin Türü"] || row["Mazeret"], adminEmail }),
+      body: JSON.stringify({
+        action: isHakedisArtisi ? "reddetHakedisArtisi" : "reddetIzin",
+        personel: row["Personel"],
+        baslangic: row["Başlangıç"],
+        bitis: row["Bitiş"],
+        izinTuru: izinTuru,
+        adminEmail
+      }),
     });
     setTimeout(() => {
       setReddetLoading(null);
