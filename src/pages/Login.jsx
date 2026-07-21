@@ -119,20 +119,43 @@ export default function Login() {
     if (!sifreUsername.trim()) return;
     setSifreLoading(true);
     setSifreMesaj(null);
+
     try {
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENTR-5ymJxnZihInrYKMhJPPrh6PZfFFoVM7_jAjC1qPHcOdgx/exec";
 
-      const res = await fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "sifreyiGonder", email: sifreUsername.trim() })
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.msg || (lang === "tr" ? "Kullanıcı bulunamadı" : "User not found"));
+      let res;
+      try {
+        res = await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: "sifreyiGonder", email: sifreUsername.trim() })
+        });
+      } catch (networkErr) {
+        setSifreMesaj({ type: "error", msg: t.errorConn });
+        setSifreLoading(false);
+        return;
+      }
+
+      let json;
+      try {
+        json = await res.json();
+      } catch (parseErr) {
+        setSifreMesaj({ type: "error", msg: t.errorConn });
+        setSifreLoading(false);
+        return;
+      }
+
+      if (!json.success) {
+        setSifreMesaj({ type: "error", msg: json.msg || (lang === "tr" ? "Kullanıcı bulunamadı" : "User not found") });
+        setSifreLoading(false);
+        return;
+      }
+
       setSifreMesaj({ type: "success", msg: t.popupSuccess });
-    } catch (err) {
-      setSifreMesaj({ type: "error", msg: err.message });
+      setSifreLoading(false);
+    } catch (beklenmedikErr) {
+      setSifreMesaj({ type: "error", msg: t.errorConn });
+      setSifreLoading(false);
     }
-    setSifreLoading(false);
   }
 
   function baslatYenidenDenemeSayaci(isRetryAttempt) {
