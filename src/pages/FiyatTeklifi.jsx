@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v67-na-fallback-hafta-sil-2026-07-14";
+const BFT_BUILD_VERSION = "v68-konaklama-suresi-2026-07-14";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -497,7 +497,7 @@ function courseLabel(course) {
   return invalid ? (course.name || "") : tr;
 }
 
-function calcFees(fees, weeks, age, accType) {
+function calcFees(fees, weeks, age, accType, accWeeks) {
   const currency = fees?.[0]?.currency || "GBP";
   const items = [];
   let total = 0;
@@ -525,7 +525,9 @@ function calcFees(fees, weeks, age, accType) {
   if (age && age <= 17 && isHomestay) {
     const u18 = (fees || []).find(f => (f.name || "").toLowerCase().includes("u18") || (f.name || "").toLowerCase().includes("under 18"));
     if (u18 && !items.find(i => i.name === u18.name)) {
-      const amt = u18.calc_type === "per_week" ? u18.amount * weeks : u18.amount;
+      // U18 gözetim ücreti konaklamaya bağlıdır → konaklama süresi kullanılır
+      const u18Weeks = (accWeeks && accWeeks > 0) ? accWeeks : weeks;
+      const amt = u18.calc_type === "per_week" ? u18.amount * u18Weeks : u18.amount;
       items.push({ name: u18.name, amount: amt, currency: u18.currency || currency, auto: true });
       total += amt;
     }
@@ -620,7 +622,7 @@ function getDestinationTotals(d, fees) {
 
 const fmt = (n, cur) => `${cur || ""} ${Number(n || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`;
 const emptyDest = (sd = "2026-07-06", w = 4) => ({
-  lang: "", country: "", city: "", brand: "", course: null, weeks: w, acc: null, startDate: sd,
+  lang: "", country: "", city: "", brand: "", course: null, weeks: w, accWeeks: w, accWeeksTouched: false, acc: null, startDate: sd,
   isOnline: false, cityData: null, cityLoading: false, addons: [], transfer: null,
   selectedPackage: null, noAccommodation: false,
   courseBasePrice: 0, courseHsAmount: 0, courseTotalPrice: 0, courseHsActive: false,
@@ -648,6 +650,7 @@ export default function FiyatTeklifi() {
   // Hafta alanının ham metni. null → cur.weeks gösterilir. Kullanıcı alanı tamamen
   // silebilsin diye ayrı tutulur (aksi halde boş değer anında 1'e sıçrıyordu).
   const [weeksInput, setWeeksInput] = useState(null);
+  const [accWeeksInput, setAccWeeksInput] = useState(null);
   const [nav, setNav] = useState({ languages:[], countries:{}, citiesByLang:{}, brandsByCity:{}, schoolSheets:{} });
   const [navError, setNavError] = useState("");
   const [accType, setAccType] = useState("");
@@ -739,9 +742,9 @@ export default function FiyatTeklifi() {
   const accs = cur.cityData?.acc || [];
   const feesData = cur.isOnline
     ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-    : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type);
+    : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks);
   const coursePriceData = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
-  const accPriceData = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
+  const accPriceData = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.accWeeks || cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
   const courseTotal = coursePriceData.totalPrice;
   const accTotal = accPriceData.totalPrice;
   const addonsCost = (cur.addons||[]).reduce((s,a) => s+(a.totalAmount||0), 0);
@@ -790,7 +793,7 @@ export default function FiyatTeklifi() {
     const isLastBeforeSummary = step === STEPS.indexOf("Özet") - 1;
     if (isLastBeforeSummary) {
       const coursePrice = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
-      const accPrice = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
+      const accPrice = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.accWeeks || cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
       const isDup = destinations.some(d => d.city === cur.city && d.course?.name === cur.course?.name && d.acc?.name === cur.acc?.name && d.selectedPackage?.package_price === cur.selectedPackage?.package_price);
       if (!isDup) {
         const cityDesc = nav.descriptions?.[`${cur.brand}__${cur.city}`] || "";
@@ -945,13 +948,15 @@ export default function FiyatTeklifi() {
         if (idx > 0) doc.addPage();
         const f = d.isOnline
           ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-          : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+          : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"GBP", EUR:"EUR", USD:"USD", CAD:"CAD" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
         const endD = addWeeksToDate(startD, d.weeks);
         const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
-        const accEndD = new Date(endD); accEndD.setDate(endD.getDate() + 2);
+        // Konaklama bitişi kendi süresine göre (kurs süresinden farklı olabilir)
+        const accEndBase = addWeeksToDate(startD, d.accWeeks || d.weeks);
+        const accEndD = new Date(accEndBase); accEndD.setDate(accEndBase.getDate() + 2);
 
         let y = 20;
         const money = (n) => Number(n||0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1108,6 +1113,8 @@ export default function FiyatTeklifi() {
           doc.text(money(d.accBasePrice), PAGE_W - MARGIN, y, { align:"right" });
           y += 5;
           doc.setFontSize(8); doc.setTextColor(85);
+          doc.text(`Konaklama Süresi: ${d.accWeeks || d.weeks} hafta`, MARGIN + 32, y);
+          y += 4;
           doc.text(`Giriş: ${fmtDate(accStartD)}  |  Çıkış: ${fmtDate(accEndD)}`, MARGIN + 32, y);
           y += 4;
           doc.setTextColor(120);
@@ -1255,7 +1262,7 @@ export default function FiyatTeklifi() {
         const cols = destinations.map(d => {
           const f = d.isOnline
             ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-            : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+            : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
           const dt = getDestinationTotals(d, f);
           const cur = d.course?.currency || f.currency || "GBP";
           return { d, f, dt, cur };
@@ -1320,7 +1327,9 @@ export default function FiyatTeklifi() {
         row("Konaklama", c => {
           if (c.dt.isPackage && c.d.selectedPackage?.package_type === "with_accommodation") return "Dahil";
           if (!c.d.acc) return "";
-          return `${c.cur} ${money2(c.d.accTotalPrice)}`;
+          const aw = c.d.accWeeks || c.d.weeks;
+          const suffix = aw !== c.d.weeks ? ` (${aw} hf)` : "";
+          return `${c.cur} ${money2(c.d.accTotalPrice)}${suffix}`;
         });
         // Diğer ücretler (kalem kalem)
         const allFeeNames = [...new Set(cols.flatMap(c => (c.f.items||[]).map(it => it.name)))];
@@ -1409,7 +1418,7 @@ export default function FiyatTeklifi() {
             consentAdvisor: !!leadForm.consentAdvisor,
             subSource: SUB_SOURCE,
             destinations: destinations.map(d => {
-              const _f = d.isOnline ? { items:[], total:65 } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+              const _f = d.isOnline ? { items:[], total:65 } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
               const _dt = getDestinationTotals(d, _f);
               return { city: d.city, brand: d.brand, weeks: d.weeks,
                 course: d.course?.name, total: _dt.grandTotal, currency: d.course?.currency || _f.currency || "GBP" };
@@ -1638,9 +1647,18 @@ export default function FiyatTeklifi() {
                   setWeeksInput(raw);                        // boş bırakılabilsin
                   const n = parseInt(raw, 10);
                   if (raw !== "" && !isNaN(n) && n >= 1 && n !== cur.weeks) {
-                    setCur(p => ({...p, weeks: Math.min(n, 52), course:null, selectedPackage:null, courseTab:null, acc:null, noAccommodation:false}));
+                    const w = Math.min(n, 52);
+                    setCur(p => ({...p, weeks: w,
+                      accWeeks: p.accWeeksTouched ? Math.min(p.accWeeks || w, w) : w,
+                      course:null, selectedPackage:null, courseTab:null, acc:null, noAccommodation:false}));
                   }
-                }} onBlur={() => setWeeksInput(null)} /></div>
+                }} onBlur={() => setWeeksInput(null)} />
+                  {cur.accWeeks && cur.accWeeks !== cur.weeks && !cur.isOnline && (
+                    <div style={{ marginTop:6, padding:"6px 10px", background:"#fef3c7", border:"1px solid #fbbf24", borderRadius:8, fontSize:11, color:"#92400e", fontWeight:600 }}>
+                      ⚠️ Kurs süresi ile konaklama süresi farklı! (Konaklama: {cur.accWeeks} hafta)
+                    </div>
+                  )}
+                </div>
               </div>
               {!cur.isOnline && (() => {
                 const packages = getAvailablePackages(cur.cityData?.discounts, cur.weeks, cur.startDate);
@@ -1710,7 +1728,7 @@ export default function FiyatTeklifi() {
                 const types = [...new Set(accs.map(a => a.type))];
                 return (<>
                   <div style={S.g3}>
-                    {types.map(t => (<div key={t} style={accType===t ? S.selActive : S.sel} onClick={() => { setAccType(t); setCur(p => ({...p, acc:null, noAccommodation:false})); }}>{t}</div>))}
+                    {types.map(t => (<div key={t} style={accType===t ? S.selActive : S.sel} onClick={() => { setAccType(t); setCur(p => ({...p, acc:null, noAccommodation:false, accWeeks: p.accWeeksTouched ? Math.min(p.accWeeks || p.weeks, p.weeks) : p.weeks})); }}>{t}</div>))}
                     {/* Konaklama Talep Etmiyorum — tip butonlarinin saginda, gorsel ozellikleri pastel sari */}
                     <div onClick={() => { setAccType(""); setCur(p => ({...p, acc:null, noAccommodation:true})); }}
                       style={{ padding:12, borderRadius:12, cursor:"pointer", textAlign:"center", fontWeight:600, fontSize:13,
@@ -1719,10 +1737,32 @@ export default function FiyatTeklifi() {
                     </div>
                   </div>
                   {accType && (
+                    <div style={{ marginTop:16, padding:"12px 14px", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:10, display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                      <label style={{ ...S.lbl, margin:0 }}>Konaklama Süresi (Hafta)</label>
+                      <input style={{ ...S.fti, width:110 }} type="number" min={1} max={cur.weeks}
+                        value={accWeeksInput !== null ? accWeeksInput : (cur.accWeeks || cur.weeks)}
+                        onChange={e => {
+                          const raw = e.target.value;
+                          const n = parseInt(raw, 10);
+                          if (raw !== "" && !isNaN(n) && n >= 1) {
+                            const v = Math.min(n, cur.weeks);   // vize kuralı: kurs süresini aşamaz
+                            setAccWeeksInput(String(v));        // aşan değer ekranda da kısılır
+                            setCur(p => ({...p, accWeeks: v, accWeeksTouched: true}));
+                          } else {
+                            setAccWeeksInput(raw);              // boş bırakılabilsin
+                          }
+                        }}
+                        onBlur={() => setAccWeeksInput(null)} />
+                      <span style={{ fontSize:11, color:"#94a3b8" }}>
+                        Kurs süresi {cur.weeks} hafta. Konaklama daha kısa olabilir, uzun olamaz.
+                      </span>
+                    </div>
+                  )}
+                  {accType && (
                     <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:10 }}>
                       {accs.filter(a => a.type === accType).map((a,i) => {
                         const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board && cur.acc?.bathroom===a.bathroom && cur.acc?.price===a.price;
-                        const hsActive = getAccommodationHighSeasonSupplement(a, cur.weeks, cur.startDate).isActive;
+                        const hsActive = getAccommodationHighSeasonSupplement(a, cur.accWeeks || cur.weeks, cur.startDate).isActive;
                         return (<div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a, noAccommodation:false}))}>
                           <div>
                             <div style={{ fontWeight:600 }}>{a.name}</div>
@@ -1732,7 +1772,7 @@ export default function FiyatTeklifi() {
                           </div>
                           <div style={{ textAlign:"right", flexShrink:0 }}>
                             <div style={{ fontWeight:700, color: hsActive ? "#f59e0b" : "inherit" }}>{a.currency} {hsActive ? a.hs_price : a.price}/h</div>
-                            <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>{cur.weeks}h: {a.currency} {((hsActive ? a.hs_price : a.price) * cur.weeks).toLocaleString("tr-TR")}</div>
+                            <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>{cur.accWeeks || cur.weeks}h: {a.currency} {((hsActive ? a.hs_price : a.price) * (cur.accWeeks || cur.weeks)).toLocaleString("tr-TR")}</div>
                           </div>
                         </div>);
                       })}
@@ -1750,7 +1790,7 @@ export default function FiyatTeklifi() {
                 const allFees = cur.cityData?.fees || [];
                 const age = parseInt(student.age) || 0;
                 const startD = cur.startDate ? new Date(cur.startDate) : null;
-                const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type).items;
+                const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks).items;
                 const optional = allFees.filter(f => {
                   if (!["optional_service","supplement","upgrade","course_addon","post_departure"].includes(f.addon_type)) return false;
                   if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
@@ -1836,7 +1876,7 @@ export default function FiyatTeklifi() {
               <h2 style={S.ttl}>Teklif Özeti</h2>
               {destinations.length === 0 && <p style={{ color:"#94a3b8" }}>Henüz destinasyon eklenmedi.</p>}
               {destinations.map((d,i) => {
-                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
                 const cur2 = d.course?.currency || f.currency;
                 const sD = d.startDate ? new Date(d.startDate) : null;
                 const eD = sD ? addWeeksToDate(sD, d.weeks) : null;
@@ -1863,7 +1903,7 @@ export default function FiyatTeklifi() {
                     {d.acc && !d.isOnline && d.selectedPackage?.package_type !== "with_accommodation" && (
                       <div style={{ marginBottom:10 }}>
                         <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board}</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span>}</div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board} ({d.accWeeks || d.weeks} hafta)</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span>}</div>
                         {d.accHsAmount > 0 && (<>
                           <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span>}</div>
 
@@ -1945,13 +1985,15 @@ function PdfTemplate({ destinations, student, user, logoSrc }) {
   return (
     <div id="pdf-area" style={{ display:"none", fontFamily:"Arial, Helvetica, sans-serif", background:"#fff" }}>
       {destinations.map((d, idx) => {
-        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type);
+        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
         const endD = addWeeksToDate(startD, d.weeks);
         const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
-        const accEndD = new Date(endD); accEndD.setDate(endD.getDate() + 2);
+        // Konaklama bitişi kendi süresine göre (kurs süresinden farklı olabilir)
+        const accEndBase = addWeeksToDate(startD, d.accWeeks || d.weeks);
+        const accEndD = new Date(accEndBase); accEndD.setDate(accEndBase.getDate() + 2);
         const notes = [];
         if (d.course?.morning) notes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
         if (d.course?.notes && !d.courseHsActive) notes.push(d.course.notes);
