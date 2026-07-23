@@ -38,7 +38,7 @@ const MODULE_CONFIG = [
       </svg>
     ),
     color: "#db2777",
-    bg: "#fdf2f8",
+    bg: "#FFE0BA",
     border: "#fbcfe8",
   },
   {
