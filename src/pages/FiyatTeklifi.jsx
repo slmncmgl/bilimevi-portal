@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v68-konaklama-suresi-2026-07-14";
+const BFT_BUILD_VERSION = "v70-konaklama-ui-2026-07-14";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1467,7 +1467,7 @@ export default function FiyatTeklifi() {
             <h3 style={{ fontSize:18, fontWeight:700, marginBottom:8, color:"#0f172a" }}>Teklifinizi İndirin</h3>
             <p style={{ fontSize:13, color:"#64748b", marginBottom:20 }}>Bilgilerinizi girin, PDF otomatik indirilecektir.</p>
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              <input placeholder="Ad Soyad *" style={{...S.fti, background: student.name ? "#f8fafc" : "#fff"}} value={leadForm.name} onChange={e => setLeadForm(p => ({...p, name:e.target.value}))} />
+              <input placeholder="Ad Soyad *" style={{...S.fti, background: student.name ? "#f8fafc" : "#fff"}} value={leadForm.name} onChange={e => setLeadForm(p => ({...p, name:e.target.value.replace(/[^a-zA-ZçÇğĞıİöÖşŞüÜ\s'-]/g, "")}))} />
               <div style={{ display:"flex", gap:8, position:"relative" }}>
                 <div style={{ position:"relative", flexShrink:0 }}>
                   <button type="button" className="bft-dial-btn" onClick={() => setCountryOpen(o => !o)}
@@ -1601,7 +1601,7 @@ export default function FiyatTeklifi() {
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>Öğrenci Bilgileri</h2>
               <div style={S.r2} className="bft-r2">
-                <div style={S.fld}><label style={S.lbl}>Ad Soyad</label><input style={S.fti} value={student.name} onChange={e => setStudent(p => ({...p, name:e.target.value}))} /></div>
+                <div style={S.fld}><label style={S.lbl}>Ad Soyad</label><input style={S.fti} value={student.name} onChange={e => setStudent(p => ({...p, name:e.target.value.replace(/[^a-zA-ZçÇğĞıİöÖşŞüÜ\s'-]/g, "")}))} /></div>
                 <div style={S.fld}><label style={S.lbl}>Yaş</label><input style={S.fti} type="number" value={student.age} onChange={e => setStudent(p => ({...p, age:e.target.value}))} /></div>
               </div>
               <div style={S.fld}>
@@ -1653,11 +1653,6 @@ export default function FiyatTeklifi() {
                       course:null, selectedPackage:null, courseTab:null, acc:null, noAccommodation:false}));
                   }
                 }} onBlur={() => setWeeksInput(null)} />
-                  {cur.accWeeks && cur.accWeeks !== cur.weeks && !cur.isOnline && (
-                    <div style={{ marginTop:6, padding:"6px 10px", background:"#fef3c7", border:"1px solid #fbbf24", borderRadius:8, fontSize:11, color:"#92400e", fontWeight:600 }}>
-                      ⚠️ Kurs süresi ile konaklama süresi farklı! (Konaklama: {cur.accWeeks} hafta)
-                    </div>
-                  )}
                 </div>
               </div>
               {!cur.isOnline && (() => {
@@ -1737,25 +1732,29 @@ export default function FiyatTeklifi() {
                     </div>
                   </div>
                   {accType && (
-                    <div style={{ marginTop:16, padding:"12px 14px", background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:10, display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
-                      <label style={{ ...S.lbl, margin:0 }}>Konaklama Süresi (Hafta)</label>
-                      <input style={{ ...S.fti, width:110 }} type="number" min={1} max={cur.weeks}
-                        value={accWeeksInput !== null ? accWeeksInput : (cur.accWeeks || cur.weeks)}
-                        onChange={e => {
-                          const raw = e.target.value;
-                          const n = parseInt(raw, 10);
-                          if (raw !== "" && !isNaN(n) && n >= 1) {
-                            const v = Math.min(n, cur.weeks);   // vize kuralı: kurs süresini aşamaz
-                            setAccWeeksInput(String(v));        // aşan değer ekranda da kısılır
-                            setCur(p => ({...p, accWeeks: v, accWeeksTouched: true}));
-                          } else {
-                            setAccWeeksInput(raw);              // boş bırakılabilsin
-                          }
-                        }}
-                        onBlur={() => setAccWeeksInput(null)} />
-                      <span style={{ fontSize:11, color:"#94a3b8" }}>
-                        Kurs süresi {cur.weeks} hafta. Konaklama daha kısa olabilir, uzun olamaz.
-                      </span>
+                    <div style={{ marginTop:16 }}>
+                      <div style={{ ...S.fld, maxWidth:220, marginBottom:0 }}>
+                        <label style={S.lbl}>Konaklama Süresi (Hafta)</label>
+                        <input style={S.fti} type="number" min={1} max={cur.weeks}
+                          value={accWeeksInput !== null ? accWeeksInput : (cur.accWeeks || cur.weeks)}
+                          onChange={e => {
+                            const raw = e.target.value;
+                            const n = parseInt(raw, 10);
+                            if (raw !== "" && !isNaN(n) && n >= 1) {
+                              const v = Math.min(n, cur.weeks);   // vize kuralı: kurs süresini aşamaz
+                              setAccWeeksInput(String(v));        // aşan değer ekranda da kısılır
+                              setCur(p => ({...p, accWeeks: v, accWeeksTouched: true}));
+                            } else {
+                              setAccWeeksInput(raw);              // boş bırakılabilsin
+                            }
+                          }}
+                          onBlur={() => setAccWeeksInput(null)} />
+                      </div>
+                      {cur.accWeeks && cur.accWeeks !== cur.weeks && (
+                        <div style={{ marginTop:10, padding:"10px 12px", background:"#fef3c7", border:"1px solid #fbbf24", borderRadius:8, fontSize:12, color:"#92400e", fontWeight:600 }}>
+                          ⚠️ Kurs süresi ile konaklama süresi farklı! (Kurs: {cur.weeks} hafta · Konaklama: {cur.accWeeks} hafta)
+                        </div>
+                      )}
                     </div>
                   )}
                   {accType && (
