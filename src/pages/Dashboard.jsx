@@ -295,7 +295,7 @@ export default function Dashboard() {
                   ...styles.moduleCard,
                   animationDelay: `${i * 0.08}s`,
                   "--hover-border": mod.color,
-                  ...(mod.key === "fiyatteklifi" ? { gridColumn: 2, gridRow: 1 } : {}),
+                  ...(mod.key === "fiyatteklifi" ? { gridColumn: 2, gridRow: 1, background: mod.bg, borderColor: mod.border } : {}),
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = "translateY(-4px)";
