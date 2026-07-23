@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v66-hs-detail-pdf-2026-07-14";
+const BFT_BUILD_VERSION = "v67-na-fallback-hafta-sil-2026-07-14";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -489,9 +489,12 @@ function mergeFeeItems(items) {
 }
 
 // Kurs GÖSTERİM ismi: Türkçe varsa Türkçe, yoksa İngilizce'ye düş. İç mantık hep name (İngilizce) kullanır.
+// Sheets formül hataları (#N/A, #YOK, #REF! vb.) geçersiz sayılır → İngilizce isim gösterilir.
 function courseLabel(course) {
   if (!course) return "";
-  return (course.turkishName && course.turkishName.trim()) || course.name || "";
+  const tr = (course.turkishName || "").trim();
+  const invalid = !tr || tr.startsWith("#") || /^n\/?a$/i.test(tr);
+  return invalid ? (course.name || "") : tr;
 }
 
 function calcFees(fees, weeks, age, accType) {
@@ -642,6 +645,9 @@ export default function FiyatTeklifi() {
   const [student, setStudent] = useState({ name:"", age:"", gender:"" });
   const [destinations, setDestinations] = useState([]);
   const [cur, setCur] = useState(emptyDest());
+  // Hafta alanının ham metni. null → cur.weeks gösterilir. Kullanıcı alanı tamamen
+  // silebilsin diye ayrı tutulur (aksi halde boş değer anında 1'e sıçrıyordu).
+  const [weeksInput, setWeeksInput] = useState(null);
   const [nav, setNav] = useState({ languages:[], countries:{}, citiesByLang:{}, brandsByCity:{}, schoolSheets:{} });
   const [navError, setNavError] = useState("");
   const [accType, setAccType] = useState("");
@@ -1627,7 +1633,14 @@ export default function FiyatTeklifi() {
               <h2 style={S.ttl}>{cur.isOnline ? "Kurs Detayı — EC Live" : `Kurs Seçimi — ${cur.brand} ${cur.city}`}{cur.cityLoading && <span style={{ display:"inline-flex", alignItems:"center", gap:8, marginLeft:12, verticalAlign:"middle" }}><span style={{ display:"inline-block", width:16, height:16, border:`2.5px solid ${CYAN}`, borderTopColor:"transparent", borderRadius:"50%", animation:"bftSpin 0.7s linear infinite" }} /><span style={{ fontSize:14, color:CYAN, fontWeight:600 }}>Programlar Yükleniyor...</span></span>}</h2>
               <div style={S.r2} className="bft-r2">
                 <div style={S.fld}><label style={S.lbl}>Başlangıç Tarihi (Pazartesi)</label><input type="date" style={S.fti} value={cur.startDate} min={new Date().toISOString().split("T")[0]} onChange={e => handleDateChange(e.target.value)} /></div>
-                <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" min={1} max={52} value={cur.weeks} onChange={e => setCur(p => ({...p, weeks:parseInt(e.target.value)||1, course:null, selectedPackage:null, courseTab:null, acc:null, noAccommodation:false}))} /></div>
+                <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" min={1} max={52} value={weeksInput !== null ? weeksInput : cur.weeks} onChange={e => {
+                  const raw = e.target.value;
+                  setWeeksInput(raw);                        // boş bırakılabilsin
+                  const n = parseInt(raw, 10);
+                  if (raw !== "" && !isNaN(n) && n >= 1 && n !== cur.weeks) {
+                    setCur(p => ({...p, weeks: Math.min(n, 52), course:null, selectedPackage:null, courseTab:null, acc:null, noAccommodation:false}));
+                  }
+                }} onBlur={() => setWeeksInput(null)} /></div>
               </div>
               {!cur.isOnline && (() => {
                 const packages = getAvailablePackages(cur.cityData?.discounts, cur.weeks, cur.startDate);
