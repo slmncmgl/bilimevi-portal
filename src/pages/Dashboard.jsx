@@ -112,9 +112,9 @@ const MODULE_CONFIG = [
         <path d="M2 12l10 5 10-5"/>
       </svg>
     ),
-    color: "#ea580c",
-    bg: "#fff7ed",
-    border: "#fed7aa",
+    color: "#d97706",
+    bg: "#fffbeb",
+    border: "#fde68a",
   },
   {
     key: "katalogparse",
@@ -295,6 +295,7 @@ export default function Dashboard() {
                   ...styles.moduleCard,
                   animationDelay: `${i * 0.08}s`,
                   "--hover-border": mod.color,
+                  ...(mod.key === "fiyatteklifi" ? { gridColumn: 2, gridRow: 1 } : {}),
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = "translateY(-4px)";
@@ -362,6 +363,7 @@ export default function Dashboard() {
           .dash-greeting-title { font-size: 22px !important; }
           .dash-main { padding: 20px 12px 48px !important; }
           .dash-grid { grid-template-columns: 1fr !important; }
+          .dash-module-card { grid-column: auto !important; grid-row: auto !important; }
           .dash-module-card { padding: 16px !important; gap: 12px !important; }
           .dash-module-icon { width: 44px !important; height: 44px !important; border-radius: 10px !important; }
           .dash-module-icon svg { width: 22px !important; height: 22px !important; }
