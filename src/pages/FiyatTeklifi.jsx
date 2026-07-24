@@ -1,2148 +1,761 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { getSession } from "../utils/sheets";
-import bilimeviLogoAsset from "../assets/Bilimevi_logo.jpg";
-
-// Mode tespiti: shortcode config > domain kontrolü
-function detectMode() {
-  if (typeof window !== "undefined") {
-    if (window.BFT_CONFIG?.mode) return window.BFT_CONFIG.mode;
-    const host = window.location.hostname;
-    if (host.includes("vercel.app") || host.includes("localhost")) return "staff";
-  }
-  return "customer";
-}
-const APP_MODE = detectMode();
-
-// Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v70-konaklama-ui-2026-07-14";
-if (typeof window !== "undefined") {
-  console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
-  window.__BFT_VERSION = BFT_BUILD_VERSION;
-}
-
-// Logolar: customer modda WordPress plugin assets URL'inden yüklenir
-const ASSETS_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.assetsUrl) || null;
-// Bilimevi logosu (her sitede sabit, sağda)
-// Customer (WordPress): ASSETS_URL'den. Staff (Vercel, ASSETS_URL yok): Vite import (build'e gömülü, CORS'suz).
-const BILIMEVI_LOGO = ASSETS_URL
-  ? ASSETS_URL + "Bilimevi_logo.jpg"
-  : bilimeviLogoAsset;
-// Site logosu (siteye özel, solda) — shortcode'dan: site_logo="ingilteredil_logo.png"
-const SITE_LOGO_NAME = (typeof window !== "undefined" && window.BFT_CONFIG?.siteLogo && window.BFT_CONFIG.siteLogo.trim())
-  ? window.BFT_CONFIG.siteLogo.trim() : null;
-const SITE_LOGO = (ASSETS_URL && SITE_LOGO_NAME) ? ASSETS_URL + SITE_LOGO_NAME : null;
-// Geriye dönük uyumluluk
-const LOGO_URL = BILIMEVI_LOGO;
-
-// Customer modda sabit ülke (shortcode'dan: country="İngiltere")
-const FIXED_COUNTRY = (typeof window !== "undefined" && window.BFT_CONFIG?.country && window.BFT_CONFIG.country.trim())
-  ? window.BFT_CONFIG.country.trim()
-  : null;
-
-// subSource ve KVKK URL (shortcode'dan, dinamik)
-const SUB_SOURCE = (typeof window !== "undefined" && window.BFT_CONFIG?.subSource && window.BFT_CONFIG.subSource.trim())
-  ? window.BFT_CONFIG.subSource.trim() : "ingilteredil";
-const KVKK_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.kvkkUrl && window.BFT_CONFIG.kvkkUrl.trim())
-  ? window.BFT_CONFIG.kvkkUrl.trim() : "";
-
-// Dial code -> ISO ülke kodu (205 ülke). Bulunamazsa code:"" gider.
-const DIAL_TO_ISO = {"+1":"US", "+7":"RU", "+20":"EG", "+27":"ZA", "+30":"GR", "+31":"NL", "+32":"BE", "+33":"FR", "+34":"ES", "+36":"HU", "+39":"IT", "+40":"RO", "+41":"CH", "+43":"AT", "+44":"GB", "+45":"DK", "+46":"SE", "+47":"NO", "+48":"PL", "+49":"DE", "+51":"PE", "+52":"MX", "+53":"CU", "+54":"AR", "+55":"BR", "+56":"CL", "+57":"CO", "+58":"VE", "+60":"MY", "+61":"AU", "+62":"ID", "+63":"PH", "+64":"NZ", "+65":"SG", "+66":"TH", "+81":"JP", "+82":"KR", "+84":"VN", "+86":"CN", "+90":"TR", "+91":"IN", "+92":"PK", "+93":"AF", "+94":"LK", "+95":"MM", "+98":"IR", "+211":"SS", "+212":"MA", "+213":"DZ", "+216":"TN", "+218":"LY", "+220":"GM", "+221":"SN", "+222":"MR", "+223":"ML", "+224":"GN", "+225":"CI", "+226":"BF", "+227":"NE", "+228":"TG", "+229":"BJ", "+230":"MU", "+231":"LR", "+232":"SL", "+233":"GH", "+234":"NG", "+235":"TD", "+236":"CF", "+237":"CM", "+238":"CV", "+239":"ST", "+240":"GQ", "+241":"GA", "+242":"CG", "+243":"CD", "+244":"AO", "+245":"GW", "+246":"IO", "+248":"SC", "+249":"SD", "+250":"RW", "+251":"ET", "+252":"SO", "+253":"DJ", "+254":"KE", "+255":"TZ", "+256":"UG", "+257":"BI", "+258":"MZ", "+260":"ZM", "+261":"MG", "+262":"RE", "+263":"ZW", "+264":"NA", "+265":"MW", "+266":"LS", "+267":"BW", "+268":"SZ", "+269":"KM", "+290":"SH", "+291":"ER", "+297":"AW", "+298":"FO", "+299":"GL", "+350":"GI", "+351":"PT", "+352":"LU", "+353":"IE", "+354":"IS", "+355":"AL", "+356":"MT", "+357":"CY", "+358":"FI", "+359":"BG", "+370":"LT", "+371":"LV", "+372":"EE", "+373":"MD", "+374":"AM", "+375":"BY", "+376":"AD", "+377":"MC", "+378":"SM", "+380":"UA", "+381":"RS", "+382":"ME", "+383":"XK", "+385":"HR", "+386":"SI", "+387":"BA", "+389":"MK", "+420":"CZ", "+421":"SK", "+423":"LI", "+500":"FK", "+501":"BZ", "+502":"GT", "+503":"SV", "+504":"HN", "+505":"NI", "+506":"CR", "+507":"PA", "+508":"PM", "+509":"HT", "+590":"GP", "+591":"BO", "+592":"GY", "+593":"EC", "+594":"GF", "+595":"PY", "+596":"MQ", "+597":"SR", "+598":"UY", "+599":"CW", "+670":"TL", "+672":"NF", "+673":"BN", "+674":"NR", "+675":"PG", "+676":"TO", "+677":"SB", "+678":"VU", "+679":"FJ", "+680":"PW", "+681":"WF", "+682":"CK", "+683":"NU", "+685":"WS", "+686":"KI", "+687":"NC", "+688":"TV", "+689":"PF", "+690":"TK", "+691":"FM", "+692":"MH", "+850":"KP", "+852":"HK", "+853":"MO", "+855":"KH", "+856":"LA", "+880":"BD", "+886":"TW", "+960":"MV", "+961":"LB", "+962":"JO", "+963":"SY", "+964":"IQ", "+965":"KW", "+966":"SA", "+967":"YE", "+968":"OM", "+970":"PS", "+971":"AE", "+972":"IL", "+973":"BH", "+974":"QA", "+975":"BT", "+976":"MN", "+977":"NP", "+992":"TJ", "+993":"TM", "+994":"AZ", "+995":"GE", "+996":"KG", "+998":"UZ"};
-
-// libphonenumber-js — lazy yüklenir (modal açılınca), sonuç cache'lenir. DIAL_TO_ISO'dan SONRA tanımlı (TDZ'den kaçınmak için).
-let _phoneLib = null;
-let _phoneLibLoading = null;
-function loadPhoneLib() {
-  if (_phoneLib) return Promise.resolve(_phoneLib);
-  if (_phoneLibLoading) return _phoneLibLoading;
-  _phoneLibLoading = import("libphonenumber-js")
-    .then(mod => {
-      _phoneLib = mod;
-      // Örnek numara metadata'sını da yükle (help text için)
-      import("libphonenumber-js/mobile/examples").then(ex => { _phoneExamples = ex.default || ex.examples || ex; }).catch(() => {});
-      return mod;
-    })
-    .catch(e => { console.warn("[BFT] libphonenumber yüklenemedi:", e); _phoneLibLoading = null; return null; });
-  return _phoneLibLoading;
-}
-function checkPhoneValid(phone, dialCode) {
-  if (!_phoneLib) return null;
-  const iso = DIAL_TO_ISO[dialCode];
-  if (!iso) return null;
-  try {
-    return _phoneLib.isValidPhoneNumber((dialCode || "") + (phone || ""), iso);
-  } catch (e) { return null; }
-}
-// Seçili ülke için örnek numara (ulusal format, dial kodu olmadan). Lib+örnek yoksa null.
-let _phoneExamples = null;
-function getPhoneExample(dialCode) {
-  if (!_phoneLib || !_phoneExamples) return null;
-  const iso = DIAL_TO_ISO[dialCode];
-  if (!iso) return null;
-  try {
-    const ex = _phoneLib.getExampleNumber(iso, _phoneExamples);
-    if (!ex) return null;
-    // nationalNumber: kütüphanenin doğru ulusal numarası. Her ülke için tutarlı —
-    // TR'de baştaki 0 yok (5XX...), 0'ın numaranın parçası olduğu ülkelerde (CI/BJ/GA/CG) korunur.
-    // Validasyonla %100 uyumlu (kullanıcı örneği girse geçerli sayılır).
-    return ex.nationalNumber;
-  } catch (e) { return null; }
-}
-
-
-// Türkçe ülke adı -> ISO (dropdown aramada kullanılır, ~40 popüler ülke)
-const COUNTRY_ALIASES = {
-  "turkiye":"TR", "turkey":"TR", "ingiltere":"GB", "birlesik krallik":"GB", "uk":"GB",
-  "almanya":"DE", "amerika":"US", "abd":"US", "usa":"US", "malta":"MT", "irlanda":"IE",
-  "hollanda":"NL", "fransa":"FR", "italya":"IT", "ispanya":"ES", "kanada":"CA",
-  "avustralya":"AU", "rusya":"RU", "cin":"CN", "japonya":"JP", "azerbaycan":"AZ",
-  "kibris":"CY", "yunanistan":"GR", "bulgaristan":"BG", "gurcistan":"GE", "bae":"AE",
-  "dubai":"AE", "katar":"QA", "suudi arabistan":"SA", "misir":"EG", "fas":"MA",
-  "isvicre":"CH", "avusturya":"AT", "belcika":"BE", "isvec":"SE", "norvec":"NO",
-  "danimarka":"DK", "polonya":"PL", "ukrayna":"UA", "romanya":"RO", "cekya":"CZ",
-  "portekiz":"PT", "brezilya":"BR", "hindistan":"IN", "guney kore":"KR", "singapur":"SG",
-  "malezya":"MY", "iran":"IR", "irak":"IQ", "suriye":"SY", "lubnan":"LB",
-};
-
-// Türkçe karakterleri sadeleştirip küçük harfe çevir (arama için)
-function normalizeTR(s) {
-  return (s || "")
-    .replace(/İ/g,"i").replace(/I/g,"i").replace(/ı/g,"i")
-    .replace(/Ü/g,"u").replace(/ü/g,"u").replace(/Ö/g,"o").replace(/ö/g,"o")
-    .replace(/Ş/g,"s").replace(/ş/g,"s").replace(/Ç/g,"c").replace(/ç/g,"c")
-    .replace(/Ğ/g,"g").replace(/ğ/g,"g")
-    .toLowerCase().trim();
-}
-
-// Dropdown listesi: [{dial, iso}] — DIAL_TO_ISO'dan üretilir, +90 en üstte
-const DIAL_LIST = (() => {
-  const arr = Object.entries(DIAL_TO_ISO).map(([dial, iso]) => ({ dial, iso }));
-  arr.sort((a,b) => a.iso === "TR" ? -1 : b.iso === "TR" ? 1 : a.dial.localeCompare(b.dial));
-  return arr;
-})();
-
-// Arama filtresi: dial, iso veya Türkçe ülke adı ile eşleştir
-function filterDialList(query) {
-  const q = normalizeTR(query);
-  if (!q) return DIAL_LIST;
-  const aliasIso = COUNTRY_ALIASES[q]; // tam ülke adı eşleşmesi
-  return DIAL_LIST.filter(({ dial, iso }) => {
-    if (aliasIso && iso === aliasIso) return true;
-    if (dial.replace("+","").includes(q.replace("+",""))) return true;
-    if (normalizeTR(iso).includes(q)) return true;
-    // kısmi ülke adı eşleşmesi
-    for (const [name, code] of Object.entries(COUNTRY_ALIASES)) {
-      if (name.includes(q) && iso === code) return true;
-    }
-    return false;
-  });
-}
-
-
-// Staff (Vercel): VITE_MASTER_ID env variable'ından gelir.
-// Customer (WordPress): env yok → undefined → ama proxy kullanıldığı için MASTER_ID hiç çağrılmaz.
-// Literal ID YOK — hiçbir build'de kaynak koda sızmaz.
-const MASTER_ID = import.meta.env.VITE_MASTER_ID;
-const CYAN = "#00C1DE";
-
-function parseCSV(csv) {
-  const lines = csv.trim().split("\n");
-  const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
-  return lines.slice(1).map(line => {
-    const cols = [];
-    let cur = "", inQ = false;
-    for (const ch of line) {
-      if (ch === '"') inQ = !inQ;
-      else if (ch === "," && !inQ) { cols.push(cur.trim()); cur = ""; }
-      else cur += ch;
-    }
-    cols.push(cur.trim());
-    const row = {};
-    headers.forEach((h, i) => { row[h] = (cols[i] || "").replace(/^"|"$/g, ""); });
-    return row;
-  });
-}
-
-// Staff (Vercel): doğrudan gviz. Customer (WordPress): proxy (Sheet ID gizli).
-// desc: { kind:"master"|"city_description"|"school", brand?, tab? } — customer için
-//       staff için ayrıca sheetId + sheetName kullanılır.
-async function fetchCSVStaff(sheetId, sheetName) {
-  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Sheet okunamadi: " + sheetName);
-  return parseCSV(await res.text());
-}
-
-async function fetchCSVProxy(desc) {
-  const endpoint = window.location.origin + "/wp-json/bilimevi/v1/data";
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(desc),
-  });
-  const data = await res.json().catch(() => null);
-  if (res.status === 429 || (data && data.rate_limited)) {
-    const err = new Error("Çok fazla istek gönderildi. Lütfen birkaç saniye sonra tekrar deneyiniz.");
-    err.rateLimited = true;
-    throw err;
-  }
-  if (!data || !data.success || typeof data.csv !== "string") {
-    throw new Error("Veri yüklenemedi");
-  }
-  return parseCSV(data.csv);
-}
-
-async function fetchNav(isStaff) {
-  // Staff: doğrudan gviz (MASTER_ID kodda). Customer: proxy (ID gizli).
-  const rows = isStaff
-    ? await fetchCSVStaff(MASTER_ID, "master_index")
-    : await fetchCSVProxy({ sheet: "master" });
-  // Okul+şehir açıklamaları (city_description sekmesi); hata olursa boş geç
-  let descriptions = {};
-  try {
-    const descRows = isStaff
-      ? await fetchCSVStaff(MASTER_ID, "city_description")
-      : await fetchCSVProxy({ sheet: "city_description" });
-    descRows.forEach(r => {
-      const brand = (r.school_brand || "").trim();
-      const city = (r.city || "").trim();
-      const desc = (r.description || "").trim();
-      if (brand && city && desc) descriptions[`${brand}__${city}`] = desc;
-    });
-  } catch (e) { console.warn("[BFT] city_description okunamadı:", e); }
-  const countryTR = { "UK":"İngiltere","Ireland":"İrlanda","Malta":"Malta","South Africa":"Güney Afrika","Canada":"Kanada","USA":"ABD","UAE":"BAE" };
-  const languages = new Set();
-  const countries = {};
-  const citiesByLang = {};
-  const brandsByCity = {};
-  const schoolSheets = {};
-  rows.forEach(row => {
-    if (row.parse_status !== "approved") return;
-    const { city, school_brand: brand, drive_link = "" } = row;
-    const langRaw = row.language || "İngilizce";
-    const countryTRName = countryTR[row.country] || row.country;
-    // Staff: sheetId'yi drive_link'ten çıkar (doğrudan gviz için).
-    // Customer: sheetId React'e HİÇ gelmez; sadece brand ismi tutulur (proxy alias çözer).
-    if (brand && !schoolSheets[brand]) {
-      if (isStaff) {
-        const match = drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-        const sheetId = match ? match[1] : null;
-        if (sheetId) schoolSheets[brand] = { sheetId, sheetName: row.sheet_name };
-      } else {
-        schoolSheets[brand] = { brand, sheetName: row.sheet_name };
-      }
-    }
-    const langs = langRaw.split(",").map(l => l.trim()).filter(Boolean);
-    langs.forEach(l => {
-      languages.add(l);
-      if (!countries[l]) countries[l] = new Set();
-      countries[l].add(countryTRName);
-      if (!citiesByLang[l]) citiesByLang[l] = {};
-      if (!citiesByLang[l][countryTRName]) citiesByLang[l][countryTRName] = new Set();
-      citiesByLang[l][countryTRName].add(city);
-      if (!brandsByCity[city]) brandsByCity[city] = new Set();
-      brandsByCity[city].add(brand);
-    });
-  });
-  const sortedLangs = [...languages].sort((a, b) => a === "İngilizce" ? -1 : b === "İngilizce" ? 1 : a.localeCompare(b));
-  return {
-    languages: sortedLangs,
-    countries: Object.fromEntries(Object.entries(countries).map(([k,v]) => [k,[...v]])),
-    citiesByLang: Object.fromEntries(Object.entries(citiesByLang).map(([l,cm]) => [l, Object.fromEntries(Object.entries(cm).map(([c,s]) => [c,[...s].sort()]))])),
-    brandsByCity: Object.fromEntries(Object.entries(brandsByCity).map(([c,s]) => [c,[...s]])),
-    schoolSheets,
-    descriptions,
-  };
-}
-
-async function fetchCityData(sheetId, city, isStaff, brand) {
-  // Staff: sheetId ile doğrudan gviz. Customer: brand ile proxy (sheetId gizli).
-  const key = `${isStaff ? sheetId : brand}_${city}`;
-  if (!window._CITY_CACHE) window._CITY_CACHE = {};
-  if (window._CITY_CACHE[key]) return window._CITY_CACHE[key];
-  const getTab = (tab) => isStaff
-    ? fetchCSVStaff(sheetId, tab)
-    : fetchCSVProxy({ sheet: "school", brand, tab });
-  try {
-    const [courseRows, accRows, feeRows, transferRows, discountRows] = await Promise.all([
-      getTab("courses"),
-      getTab("accommodation"),
-      getTab("fees"),
-      getTab("transfers").catch(() => []),
-      getTab("discounts").catch(() => []),
-    ]);
-    const courseMap = {};
-    courseRows.filter(r => r.city === city).forEach(r => {
-      if (!courseMap[r.course_name]) {
-        courseMap[r.course_name] = {
-          name: r.course_name, turkishName: (r.turkish_name || "").trim(), type: r.program_type || "General",
-          lessons: parseFloat(r.lessons_per_week) || 0, hours: parseFloat(r.hours_per_week) || 0,
-          currency: r.currency, hs_supp: parseFloat(r.high_season_supplement) || 0,
-          hs_start: r.high_season_start || "", hs_end: r.high_season_end || "",
-          hs_cond: r.high_season_condition || "", max_weeks: r.max_weeks ? parseInt(r.max_weeks) : null,
-          morning: !!(r.morning_supplement && parseFloat(r.morning_supplement) > 0),
-          notes: r.notes || "", tiers: [],
-        };
-      }
-      courseMap[r.course_name].tiers.push({ min: parseInt(r.weeks_tier_min) || 1, max: r.weeks_tier_max ? parseInt(r.weeks_tier_max) : null, price: parseFloat(r.price_per_week) || 0 });
-    });
-    const acc = accRows.filter(r => r.city === city).map(r => ({
-      name: r.place_name, type: r.accommodation_type || "Standart", room: r.room_type || "",
-      bathroom: r.bathroom_type || "", board: r.board_type || "",
-      price: parseFloat(r.price_per_week) || 0, hs_price: parseFloat(r.high_season_price) || 0,
-      hs_start: r.high_season_start || "", hs_end: r.high_season_end || "",
-      currency: r.currency, distance: r.distance_to_school || "",
-      min_weeks: r.min_weeks ? parseInt(r.min_weeks) : null, notes: r.notes || "",
-    }));
-    const fees = feeRows.filter(r => r.city === city).map(r => ({
-      name: r.fee_name, amount: parseFloat(r.amount) || 0, currency: r.currency,
-      calc_type: r.calculation_type, tier_min: r.tier_min_weeks ? parseInt(r.tier_min_weeks) : null,
-      tier_max: r.tier_max_weeks ? parseInt(r.tier_max_weeks) : null, notes: r.notes || "",
-      addon_type: r.addon_type || "", eligible_courses: r.eligible_courses || "",
-      date_start: r.date_start || "", date_end: r.date_end || "",
-      min_age: r.min_age ? parseInt(r.min_age) : null, max_age: r.max_age ? parseInt(r.max_age) : null,
-    }));
-    const transfers = (transferRows || []).filter(r => r.city === city).map(r => ({
-      airport: r.airport_name, code: r.airport_code,
-      one_way: parseFloat(r.price_one_way) || 0, two_way: parseFloat(r.price_two_way) || 0,
-      currency: r.currency, notes: r.notes || "",
-    }));
-    const cityCountry = (courseRows.find(r => r.city === city)?.country) || "";
-    const discounts = (discountRows || []).filter(r => {
-      const cityList = (r.city || "").split(",").map(s => s.trim());
-      const cityMatch = !r.city || r.city === "all" || cityList.includes(city);
-      if (!cityMatch) return false;
-      if (r.city === "all" && r.country && r.country !== "all" && cityCountry && r.country !== cityCountry) return false;
-      return true;
-    }).map(r => ({
-      discount_type: (r.discount_type || "").trim(),
-      city: r.city || "", country: r.country || "",
-      reg_date_start: r.reg_date_start || "", reg_date_end: r.reg_date_end || "",
-      arrival_start: r.arrival_start || "", arrival_end: r.arrival_end || "",
-      min_weeks: r.min_weeks ? parseInt(r.min_weeks) : null, max_weeks: r.max_weeks ? parseInt(r.max_weeks) : null,
-      notes: r.notes || "", course_name: r.course_name || "", weeks: r.weeks ? parseInt(r.weeks) : null,
-      package_price: parseFloat(r.package_price) || 0, currency: r.currency || "",
-      package_type: (r.package_type || "").trim(), campaign_name: r.campaign_name || "",
-      includes_tr: r.includes_tr || "", includes_eng: r.includes_eng || "", excludes: r.excludes || "",
-      applies_to: (r.applies_to || "").trim(), target_name: r.target_name || "",
-      discount_value: parseFloat(r.discount_value) || 0, value_type: (r.value_type || "").trim(),
-      eligible_courses: r.eligible_courses || "", excluded_courses: r.excluded_courses || "",
-    }));
-    const result = { courses: Object.values(courseMap), acc, fees, transfers, discounts };
-    window._CITY_CACHE[key] = result;
-    return result;
-  } catch (e) {
-    console.error("fetchCityData error:", e);
-    return { courses: [], acc: [], fees: [], transfers: [], discounts: [] };
-  }
-}
-
-function getPrice(course, weeks) {
-  if (!course?.tiers) return 0;
-  const tier = course.tiers.find(t => weeks >= t.min && (t.max === null || weeks <= t.max));
-  return tier ? tier.price * weeks : 0;
-}
-function isCourseValid(course, weeks) { return course?.tiers?.some(t => weeks >= t.min && (t.max === null || weeks <= t.max)); }
-
-function getHighSeasonSupplement(course, weeks, startDate) {
-  if (!course?.hs_supp || !course?.hs_start || !course?.hs_end) return { amount: 0, isActive: false };
-  const start = new Date(startDate), hsStart = new Date(course.hs_start), hsEnd = new Date(course.hs_end);
-  let isActive = start >= hsStart && start <= hsEnd;
-  if (course.hs_cond === "weeks_less_than_12" && weeks >= 12) isActive = false;
-  if (course.max_weeks && weeks > course.max_weeks) isActive = false;
-  return { amount: isActive ? course.hs_supp * weeks : 0, isActive, supplementPerWeek: course.hs_supp, startDate: course.hs_start, endDate: course.hs_end };
-}
-
-function getAccommodationHighSeasonSupplement(acc, weeks, startDate) {
-  if (!acc?.hs_price || !acc?.hs_start || !acc?.hs_end || acc.hs_price === acc.price) return { amount: 0, isActive: false, supplementPerWeek: 0 };
-  const start = new Date(startDate), hsStart = new Date(acc.hs_start), hsEnd = new Date(acc.hs_end);
-  let isActive = start >= hsStart && start <= hsEnd;
-  if (acc.min_weeks && weeks < acc.min_weeks) isActive = false;
-  const supplementPerWeek = isActive ? (acc.hs_price - acc.price) : 0;
-  return { amount: supplementPerWeek * weeks, isActive, supplementPerWeek, startDate: acc.hs_start, endDate: acc.hs_end, hsPrice: acc.hs_price, basePrice: acc.price };
-}
-
-function getTotalCoursePrice(course, weeks, startDate) {
-  const basePrice = getPrice(course, weeks);
-  const hs = getHighSeasonSupplement(course, weeks, startDate);
-  return { basePrice, hsAmount: hs.amount, totalPrice: basePrice + hs.amount, hsActive: hs.isActive, hsPerWeek: hs.supplementPerWeek, hsStart: hs.startDate, hsEnd: hs.endDate };
-}
-
-function getTotalAccommodationPrice(acc, weeks, startDate) {
-  if (!acc) return { basePrice: 0, hsAmount: 0, totalPrice: 0, hsActive: false };
-  const basePrice = acc.price * weeks;
-  const hs = getAccommodationHighSeasonSupplement(acc, weeks, startDate);
-  return { basePrice, hsAmount: hs.amount, totalPrice: basePrice + hs.amount, hsActive: hs.isActive, hsPerWeek: hs.supplementPerWeek, hsStart: hs.startDate, hsEnd: hs.endDate, hsPrice: hs.hsPrice };
-}
-
-const FEE_NAME_MAP = {
-  "Registration Fee": "Kayıt Ücreti",
-  "Course Registration": "Kayıt Ücreti",
-  "Course Registration Fee": "Kayıt Ücreti",
-  "Administration Fee": "Kayıt Ücreti",
-  "Application Fee": "Kayıt Ücreti",
-  "Enrolment Fee": "Kayıt Ücreti",
-  "Accommodation Booking Fee": "Konaklama Ayarlama Ücreti",
-  "Accommodation Placement": "Konaklama Ayarlama Ücreti",
-  "Accommodation Placement Fee": "Konaklama Ayarlama Ücreti",
-  "Host Family Placement Fee": "Konaklama Ayarlama Ücreti",
-  "Residence Service Fee": "Konaklama Ayarlama Ücreti",
-  "Course Materials": "Materyal / Kitap Ücreti",
-  "Course Materials Fee": "Materyal / Kitap Ücreti",
-  "Materials Fee": "Materyal / Kitap Ücreti",
-  "Text Book": "Materyal / Kitap Ücreti",
-  "Teaching Materials": "Materyal / Kitap Ücreti",
-  "Insurance": "Sigorta Ücreti",
-  "Student Insurance": "Sigorta Ücreti",
-  "Medical & Travel Insurance": "Sigorta Ücreti",
-  "Liability, accident & health insurance": "Sigorta Ücreti",
-  "Medical Insurance (16-69)": "Sigorta Ücreti",
-  "Weekly Accident/Health Insurance": "Sigorta Ücreti",
-  "Courier Documents": "Evrak Kargo / Posta Ücreti",
-  "Courier Service": "Evrak Kargo / Posta Ücreti",
-  "Courier Fee": "Evrak Kargo / Posta Ücreti",
-  "Visa Document Courier Fee": "Evrak Kargo / Posta Ücreti",
-  "I-20 Document Courier Fee": "Evrak Kargo / Posta Ücreti",
-  "Bank Charges": "Banka Havale Ücreti",
-  "Bank Transfer Fee": "Banka Havale Ücreti",
-  "Homestay U18 Supplement": "Reşit Olmayan (18 Altı) Ek Ücreti",
-  "Unaccompanied Minor Fee": "Reşit Olmayan (18 Altı) Ek Ücreti",
-  "Special Diet Supplement": "Özel Diyet Ek Ücreti",
-  "Homestay Special Dietary Requirements": "Özel Diyet Ek Ücreti",
-  "Homestay Special Diet Supplement": "Özel Diyet Ek Ücreti",
-  "Specific Diet Supplement - 7/14 Meals": "Özel Diyet Ek Ücreti",
-  "Homestay Christmas Supplement": "Noel Dönemi Ek Ücreti",
-  "Christmas Supplement": "Noel Dönemi Ek Ücreti",
-  "Homestay End of Year Supplement": "Noel Dönemi Ek Ücreti",
-  "One-to-One Lessons": "Birebir Özel Ders Ücreti",
-  "Private Lessons 1-4 / 5-9 / 10+ hrs": "Birebir Özel Ders Ücreti",
-  "1-2-1 Private Lesson (55 min)": "Birebir Özel Ders Ücreti",
-  "University Placement (8-15 / 16-23 / >23 wks)": "Üniversite Yerleştirme Ücreti",
-  "University Placement Service": "Üniversite Yerleştirme Ücreti",
-  "US College Preparation Course": "Üniversite Yerleştirme Ücreti",
-  "Internship Placement Fee": "Staj Yerleştirme Ücreti",
-  "Internship Programme Placement Fee": "Staj Yerleştirme Ücreti",
-  "Tuition Summer Supplement": "Yaz Dönemi Ek Ücreti",
-  "Homestay Summer Supplement": "Yaz Dönemi Ek Ücreti",
-  "Residence Summer Supplement": "Yaz Dönemi Ek Ücreti",
-  "Tuition Peak Season Supplement": "Yüksek Sezon Ek Ücreti",
-  "Homestay Peak Season Supplement": "Yüksek Sezon Ek Ücreti",
-  "Residence Peak Season Supplement": "Yüksek Sezon Ek Ücreti",
-  "Residence Deposit": "Depozito / Teminat Ücreti",
-  "Student Apartment Deposit": "Depozito / Teminat Ücreti",
-  "Homestay Deposit": "Depozito / Teminat Ücreti",
-  "Examination Deposit": "Depozito / Teminat Ücreti",
-  "Residence Cleaning Fee": "Temizlik Ücreti",
-  "Student Apartment Cleaning Fee": "Temizlik Ücreti",
-  "Change Fee": "Değişiklik / İptal Ücreti",
-  "Assisted Check-in Fee": "Değişiklik / İptal Ücreti",
-  "Residence Room Move Fee": "Değişiklik / İptal Ücreti",
-  "IELTS Exam Fee": "Sınav Ücreti",
-  "Cambridge Exam Fee": "Sınav Ücreti",
-  "180-day Visa Application Fee": "Vize Başvuru Ücreti",
-  "Visa Administration Fee (in-country extension)": "Vize Başvuru Ücreti",
-  "Visa Assistance Process Package": "Vize Başvuru Ücreti",
-  "Certificate of Acceptance to Study": "Vize Başvuru Ücreti",
-  "1-day Safari": "Aktivite / Gezi Ücreti",
-  "3-day Garden Route Safari": "Aktivite / Gezi Ücreti",
-  "4-day Kruger Park Safari": "Aktivite / Gezi Ücreti",
-  "Gastronomy": "Aktivite / Gezi Ücreti",
-  "Bartending": "Aktivite / Gezi Ücreti",
-  "Professional Certificate in English for Business": "Mesleki Sertifika Ücreti",
-  "Professional Certificate in English for Communication and the Arts": "Mesleki Sertifika Ücreti",
-  "Professional Certificate in English for Media and Technology": "Mesleki Sertifika Ücreti",
-  "Career Pathway Application Package": "Kariyer Paketi Ücreti",
-  "Career Pathway Job Search Package": "Kariyer Paketi Ücreti",
-  "K+ Learning Space & Extra Access 12 months": "Online / Dijital Erişim Ücreti",
-  "K+ Learning Space & Extra Access 3 months": "Online / Dijital Erişim Ücreti",
-  "Homestay Close to School Supplement": "Konaklama Yakınlık Ek Ücreti",
-  "Close To School Supplement": "Konaklama Yakınlık Ek Ücreti",
-  "Homestay Private Bathroom Supplement": "Özel Banyo Ek Ücreti",
-  "Student Apartment Private Bathroom Supplement": "Özel Banyo Ek Ücreti",
-  "Luggage Retainer": "Bagaj Bekletme Ücreti",
-  "Luggage Storage Supplement": "Bagaj Bekletme Ücreti",
-  "Eco Tax": "Devlet / Yerel Vergi",
-  "Migration Office Fee": "Devlet / Yerel Vergi",
-  "Home Address Registration": "Devlet / Yerel Vergi",
-  "Canada Custodianship Fee": "Reşit Olmayan Vasi Ücreti",
-  "Custodianship Fee": "Reşit Olmayan Vasi Ücreti",
-  "PEL Protection of Enrolled Learners": "Öğrenci Koruma Ücreti",
-  "Learners Protection Fee": "Öğrenci Koruma Ücreti",
-  "Booking with Confidence Plus": "Yönetim / İşlem Ücreti"
-};
-
-// Ham fee ismini TR standart başlığa çevir (tam eşleşme; bulamazsa ham bırak)
-function normalizeFeeName(rawName) {
-  const key = (rawName || "").trim();
-  return FEE_NAME_MAP[key] || key;
-}
-// Aynı TR-standart isme sahip fee'leri tek satırda topla (tutarları toplar)
-function mergeFeeItems(items) {
-  const merged = {};
-  const order = [];
-  (items || []).forEach(it => {
-    const name = normalizeFeeName(it.name);
-    if (!merged[name]) { merged[name] = { ...it, name }; order.push(name); }
-    else { merged[name].amount += it.amount; merged[name].auto = merged[name].auto && it.auto; }
-  });
-  return order.map(n => merged[n]);
-}
-
-// Kurs GÖSTERİM ismi: Türkçe varsa Türkçe, yoksa İngilizce'ye düş. İç mantık hep name (İngilizce) kullanır.
-// Sheets formül hataları (#N/A, #YOK, #REF! vb.) geçersiz sayılır → İngilizce isim gösterilir.
-function courseLabel(course) {
-  if (!course) return "";
-  const tr = (course.turkishName || "").trim();
-  const invalid = !tr || tr.startsWith("#") || /^n\/?a$/i.test(tr);
-  return invalid ? (course.name || "") : tr;
-}
-
-function calcFees(fees, weeks, age, accType, accWeeks) {
-  const currency = fees?.[0]?.currency || "GBP";
-  const items = [];
-  let total = 0;
-  const feeGroups = {};
-  (fees || []).forEach(f => {
-    const n = (f.name || "").toLowerCase();
-    const isCompulsory = f.addon_type ? f.addon_type === "compulsory"
-      : (n.includes("registration") || n.includes("kayit") || n.includes("placement") ||
-         n.includes("material") || n.includes("materyal") || n.includes("administration") ||
-         n.includes("booking") || n.includes("pel protection") || n.includes("protection of enrolled"));
-    if (!isCompulsory) return;
-    const hasTier = f.tier_min || f.tier_max;
-    if (hasTier) {
-      const inRange = (!f.tier_min || weeks >= f.tier_min) && (!f.tier_max || weeks <= f.tier_max);
-      if (!inRange) return;
-    }
-    feeGroups[f.name] = f;
-  });
-  Object.values(feeGroups).forEach(f => {
-    const amount = f.calc_type === "per_week" ? f.amount * weeks : f.amount;
-    items.push({ name: f.name, amount, currency: f.currency || currency });
-    total += amount;
-  });
-  const isHomestay = (accType || "").toLowerCase().includes("homestay") || (accType || "").toLowerCase().includes("aile");
-  if (age && age <= 17 && isHomestay) {
-    const u18 = (fees || []).find(f => (f.name || "").toLowerCase().includes("u18") || (f.name || "").toLowerCase().includes("under 18"));
-    if (u18 && !items.find(i => i.name === u18.name)) {
-      // U18 gözetim ücreti konaklamaya bağlıdır → konaklama süresi kullanılır
-      const u18Weeks = (accWeeks && accWeeks > 0) ? accWeeks : weeks;
-      const amt = u18.calc_type === "per_week" ? u18.amount * u18Weeks : u18.amount;
-      items.push({ name: u18.name, amount: amt, currency: u18.currency || currency, auto: true });
-      total += amt;
-    }
-  }
-  return { items: mergeFeeItems(items), total, currency };
-}
-
-// ─── İNDİRİM FONKSİYONLARI ───
-function inDateRange(dateStr, startStr, endStr) {
-  if (!startStr && !endStr) return true; if (!dateStr) return true;
-  const d = new Date(dateStr);
-  if (startStr && d < new Date(startStr)) return false;
-  if (endStr && d > new Date(endStr)) return false;
-  return true;
-}
-function courseInList(courseName, listStr) {
-  if (!listStr) return false;
-  return listStr.split(",").map(s => s.trim()).includes(courseName);
-}
-function packageIncludesTransfer(pkg) {
-  const inc = pkg?.includes_tr || pkg?.includes_eng || "";
-  if (!inc) return false;
-  const t = inc.toLowerCase();
-  return t.includes("transfer") || t.includes("airport pickup") || t.includes("havalimanı") || t.includes("havaalanı");
-}
-
-function findFixedPackage(discounts, course, weeks, startDate) {
-  if (!discounts?.length || !course) return null;
-  const today = new Date().toISOString().split("T")[0];
-  return discounts.find(d => d.discount_type === "fixed_package" && d.course_name === course.name && d.weeks === weeks
-    && inDateRange(today, d.reg_date_start, d.reg_date_end) && inDateRange(startDate, d.arrival_start, d.arrival_end)) || null;
-}
-// Secili hafta + tarih icin gecerli TUM paketleri dondurur (Kurs adimindaki "Paket Programlar" sekmesi icin)
-function getAvailablePackages(discounts, weeks, startDate) {
-  if (!discounts?.length) return [];
-  const today = new Date().toISOString().split("T")[0];
-  return discounts.filter(d => d.discount_type === "fixed_package" && d.weeks === weeks
-    && inDateRange(today, d.reg_date_start, d.reg_date_end) && inDateRange(startDate, d.arrival_start, d.arrival_end));
-}
-function computeDiscounts(discounts, course, weeks, startDate, targets) {
-  if (!discounts?.length) return [];
-  const today = new Date().toISOString().split("T")[0];
-  const result = [];
-  discounts.forEach(d => {
-    if (d.discount_type !== "percentage") return;
-    if (!inDateRange(today, d.reg_date_start, d.reg_date_end)) return;
-    if (!inDateRange(startDate, d.arrival_start, d.arrival_end)) return;
-    if (d.min_weeks && weeks < d.min_weeks) return;
-    if (d.max_weeks && weeks > d.max_weeks) return;
-    if (d.eligible_courses && !courseInList(course?.name, d.eligible_courses)) return;
-    if (d.excluded_courses && courseInList(course?.name, d.excluded_courses)) return;
-    let base = 0, label = "";
-    if (d.applies_to === "tuition") { base = targets.tuition || 0; label = "Kurs İndirimi"; }
-    else if (d.applies_to === "accommodation") { base = targets.accommodation || 0; label = "Konaklama İndirimi"; }
-    else if (d.applies_to === "fee") { const fee = (targets.fees || []).find(f => f.name === d.target_name); if (!fee) return; base = fee.amount; label = d.target_name + " İndirimi"; }
-    else return;
-    if (base <= 0) return;
-    let amount = 0;
-    if (d.value_type === "free") amount = base;
-    else if (d.value_type === "percentage") amount = base * (d.discount_value / 100);
-    else if (d.value_type === "fixed") amount = Math.min(d.discount_value, base);
-    else return;
-    if (amount <= 0) return;
-    result.push({ label, applies_to: d.applies_to, target_name: d.target_name || "", value_type: d.value_type, value: d.discount_value, amount });
-  });
-  return result;
-}
-// Bir destinasyon icin indirimleri + nihai toplami hesaplar (tek kaynak)
-function getDestinationTotals(d, fees) {
-  const courseTotal = d.courseTotalPrice || 0;
-  const accTotal = d.accTotalPrice || 0;
-  const feesTotal = fees?.total || 0;
-  const addonsCost = (d.addons || []).reduce((s, a) => s + (a.totalAmount || 0), 0);
-  const transferCost = d.transfer?.one_way || 0;
-  // Paket: oncelikle dogrudan secili paket (cur.selectedPackage), yoksa otomatik eslesme
-  const fixedPackage = d.isOnline ? null : (d.selectedPackage || findFixedPackage(d.cityData?.discounts, d.course, d.weeks, d.startDate));
-  if (fixedPackage) {
-    const withAcc = fixedPackage.package_type === "with_accommodation";
-    // with_accommodation: konaklama pakete dahil, eklenmez. no_accommodation: secili konaklama eklenir.
-    const accForPackage = withAcc ? 0 : accTotal;
-    return { isPackage: true, packageType: fixedPackage.package_type, packageName: fixedPackage.notes || fixedPackage.campaign_name || "Sabit Paket",
-      packagePrice: fixedPackage.package_price, packageIncludes: fixedPackage.includes_tr || "", packageExcludes: fixedPackage.excludes || "",
-      appliedDiscounts: [], discountsTotal: 0,
-      grandTotal: fixedPackage.package_price + accForPackage + addonsCost + transferCost };
-  }
-  const targets = { tuition: courseTotal, accommodation: accTotal, fees: fees?.items || [] };
-  const appliedDiscounts = d.isOnline ? [] : computeDiscounts(d.cityData?.discounts, d.course, d.weeks, d.startDate, targets);
-  const discountsTotal = appliedDiscounts.reduce((s, x) => s + x.amount, 0);
-  return { isPackage: false, appliedDiscounts, discountsTotal,
-    grandTotal: courseTotal + accTotal + feesTotal + addonsCost + transferCost - discountsTotal };
-}
-
-const fmt = (n, cur) => `${cur || ""} ${Number(n || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`;
-const emptyDest = (sd = "2026-07-06", w = 4) => ({
-  lang: "", country: "", city: "", brand: "", course: null, weeks: w, accWeeks: w, accWeeksTouched: false, acc: null, startDate: sd,
-  isOnline: false, cityData: null, cityLoading: false, addons: [], transfer: null,
-  selectedPackage: null, noAccommodation: false,
-  courseBasePrice: 0, courseHsAmount: 0, courseTotalPrice: 0, courseHsActive: false,
-  accBasePrice: 0, accHsAmount: 0, accTotalPrice: 0, accHsActive: false,
-});
-
-const EC_LIVE = [
-  { name:"EC Live Premium (5 gün/hafta)", hours:7.5, tiers:[{min:1,max:11,price:115},{min:12,max:23,price:100},{min:24,max:null,price:85}], currency:"EUR" },
-  { name:"EC Live Standard (2 gün/hafta)", hours:3, tiers:[{min:1,max:11,price:55},{min:12,max:23,price:45},{min:24,max:null,price:35}], currency:"EUR" },
-  { name:"EC Live English for Work", hours:3, tiers:[{min:1,max:11,price:80},{min:12,max:23,price:70},{min:24,max:null,price:60}], currency:"EUR" },
-];
-
-const MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
-const fmtDate = (d) => d ? `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : "—";
-const formatDateShort = (dateStr) => { if (!dateStr) return ""; const d = new Date(dateStr); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
-
-export default function FiyatTeklifi() {
-  const isStaff = APP_MODE === "staff";
-  const navigate = isStaff ? useNavigate() : () => {};
-  const [user, setUser] = useState(null);
-  const [step, setStep] = useState(0);
-  const [student, setStudent] = useState({ name:"", age:"", gender:"" });
-  const [destinations, setDestinations] = useState([]);
-  const [cur, setCur] = useState(emptyDest());
-  // Hafta alanının ham metni. null → cur.weeks gösterilir. Kullanıcı alanı tamamen
-  // silebilsin diye ayrı tutulur (aksi halde boş değer anında 1'e sıçrıyordu).
-  const [weeksInput, setWeeksInput] = useState(null);
-  const [accWeeksInput, setAccWeeksInput] = useState(null);
-  const [nav, setNav] = useState({ languages:[], countries:{}, citiesByLang:{}, brandsByCity:{}, schoolSheets:{} });
-  const [navError, setNavError] = useState("");
-  const [accType, setAccType] = useState("");
-  const [leadModal, setLeadModal] = useState(false);
-  const [phoneValid, setPhoneValid] = useState(null); // null=bilinmiyor/boş, true/false=validasyon
-  const [phoneExample, setPhoneExample] = useState(""); // seçili ülke örnek numarası (placeholder)
-  const [leadForm, setLeadForm] = useState({ name:"", phone:"", email:"", dialCode:"+90", consentKvkk:false, consentEmail:false, consentAdvisor:false });
-  // Modal açılınca libphonenumber'ı yükle + numara/ülke değişince valide et.
-  // NOT: leadForm'dan SONRA tanımlı olmalı (TDZ'den kaçınmak için).
-  useEffect(() => {
-    if (leadModal && !isStaff) loadPhoneLib().then(() => {
-      setPhoneValid(checkPhoneValid(leadForm.phone, leadForm.dialCode));
-      const ex = getPhoneExample(leadForm.dialCode); if (ex) setPhoneExample(ex);
-    });
-  }, [leadModal, isStaff]);
-  useEffect(() => {
-    if (!leadModal || isStaff) return;
-    const ex = getPhoneExample(leadForm.dialCode); setPhoneExample(ex || "");
-    if (!leadForm.phone) { setPhoneValid(null); return; }
-    setPhoneValid(checkPhoneValid(leadForm.phone, leadForm.dialCode));
-  }, [leadForm.phone, leadForm.dialCode, leadModal, isStaff]);
-  const [countryOpen, setCountryOpen] = useState(false);
-  const [countrySearch, setCountrySearch] = useState("");
-
-  const [leadLoading, setLeadLoading] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [preselectDone, setPreselectDone] = useState(false); // URL okul+şehir bir kez işlendi mi
-  const [urlWarning, setUrlWarning] = useState(""); // eşleşmezse üst banner uyarısı
-
-  useEffect(() => {
-    if (isStaff) { const session = getSession(); if (!session) return navigate("/"); setUser(session); }
-    fetchNav(isStaff).then(setNav).catch(err => {
-      console.error("[BFT] Nav yüklenemedi:", err);
-      if (!isStaff) setNavError(err.rateLimited ? err.message : "Veri yüklenemedi, bir süre sonra tekrar deneyiniz.");
-    });
-  }, []);
-
-  // Customer modunda dil varsayilan İngilizce (Almanca/Fransızca gizli); ulke FIXED_COUNTRY ile sabit
-  useEffect(() => {
-    if (isStaff) return;
-    if (!nav.languages?.length) return;
-    if (cur.lang || cur.isOnline) return;
-    setCur(p => ({ ...p, lang: "İngilizce", country: FIXED_COUNTRY || "" }));
-  }, [nav.languages, isStaff]);
-
-  // URL'den gelen okul+şehir'i nav yüklenince eşleştir (ingilteredil.com karşılaştırma → teklif geçişi)
-  useEffect(() => {
-    if (isStaff || preselectDone) return;
-    if (!nav.brandsByCity || !Object.keys(nav.brandsByCity).length) return; // nav henüz yok
-    const params = new URLSearchParams(window.location.search);
-    const okul = (params.get("okul") || "").trim();
-    const sehir = (params.get("sehir") || "").trim();
-    if (!okul && !sehir) { setPreselectDone(true); return; } // parametre yok, normal akış
-    // master_index'te bu şehir + okul var mı? (brandsByCity: { "London": ["Kaplan", ...] })
-    let matchedCity = null, matchedBrand = null;
-    Object.entries(nav.brandsByCity).forEach(([cityKey, brands]) => {
-      if (cityKey.toLowerCase() === sehir.toLowerCase()) {
-        const brandList = Array.isArray(brands) ? brands : Array.from(brands);
-        const b = brandList.find(x => x.toLowerCase() === okul.toLowerCase());
-        if (b) { matchedCity = cityKey; matchedBrand = b; }
-      }
-    });
-    if (matchedCity && matchedBrand) {
-      // Eşleşti: dil/ülke/şehir/okul set. Genel Bilgi'den sonra Destinasyon atlanıp Kurs'a geçilecek.
-      setCur(p => ({ ...p, lang: "İngilizce", country: FIXED_COUNTRY || "İngiltere", city: matchedCity, brand: matchedBrand }));
-    } else {
-      setUrlWarning("Şehir ve okulu tekrar seçin.");
-    }
-    setPreselectDone(true);
-  }, [nav.brandsByCity, isStaff, preselectDone]);
-
-  useEffect(() => {
-    if (!cur.city || !cur.brand || cur.isOnline || cur.cityData) return;
-    // Staff: sheetId gerekir. Customer: brand yeterli (proxy ID'yi çözer).
-    const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
-    if (isStaff && !sheetId) return;
-    if (!isStaff && !nav.schoolSheets?.[cur.brand]) return;
-    setCur(p => ({ ...p, cityLoading: true }));
-    fetchCityData(sheetId, cur.city, isStaff, cur.brand)
-      .then(data => setCur(p => ({ ...p, cityData: data, cityLoading: false, transfer: null })))
-      .catch(err => {
-        console.error("[BFT] Şehir verisi yüklenemedi:", err);
-        setCur(p => ({ ...p, cityLoading: false }));
-        if (!isStaff) setNavError(err.rateLimited ? err.message : "Veri yüklenemedi, bir süre sonra tekrar deneyiniz.");
-      });
-  }, [cur.city, cur.brand, nav.schoolSheets, cur.isOnline, cur.cityData]);
-
-  const courses = cur.cityData?.courses || [];
-  const accs = cur.cityData?.acc || [];
-  const feesData = cur.isOnline
-    ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-    : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks);
-  const coursePriceData = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
-  const accPriceData = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.accWeeks || cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
-  const courseTotal = coursePriceData.totalPrice;
-  const accTotal = accPriceData.totalPrice;
-  const addonsCost = (cur.addons||[]).reduce((s,a) => s+(a.totalAmount||0), 0);
-  const transferCost = cur.transfer?.one_way || 0;
-  const currentTotal = courseTotal + accTotal + (feesData.total || 0) + addonsCost + transferCost;
-
-  // with_accommodation paketi secildiyse Konaklama adimi cikar (pakete dahil)
-  const skipAccommodation = cur.selectedPackage?.package_type === "with_accommodation" || cur.isOnline;
-  // "Ek Hizmetler" adimi: pakette gizli (paket her sey dahil), online'da gizli.
-  // Staff'ta zorunlu ucret/opsiyonel gosterilir; customer'da opsiyonel gizli oldugu icin genelde bos -> yine de zorunlu ucret varsa gosterilebilir ama customer'da bu adim gizlenir.
-  const skipAddons = !!cur.selectedPackage || cur.isOnline || !isStaff;
-  // "Transfer" adimi: transfer verisi varsa VE paket transfer icermiyorsa gosterilir
-  const hasTransfers = (cur.cityData?.transfers?.length > 0) && !packageIncludesTransfer(cur.selectedPackage) && !cur.isOnline;
-  const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Transfer","Özet"].filter(s => {
-    if (s === "Konaklama" && skipAccommodation) return false;
-    if (s === "Ek Hizmetler" && skipAddons) return false;
-    if (s === "Transfer" && !hasTransfers) return false;
-    return true;
-  });
-  const stepName = STEPS[step];
-  const lastStepIdx = STEPS.length - 1;          // Özet'in index'i
-  const summaryIdx = STEPS.indexOf("Özet");
-  const addonsIdx = STEPS.indexOf("Ek Hizmetler");
-
-  const canNextMap = {
-    "Genel Bilgi": !!(student.name && student.gender && student.age),
-    "Destinasyon": (cur.isOnline && cur.course) || !!(cur.brand && cur.city),
-    "Kurs": (!!cur.selectedPackage || (!!cur.course && isCourseValid(cur.course, cur.weeks))) && !cur.cityLoading,
-    // Konaklama: secili oda VEYA "konaklama istemiyorum" VEYA online VEYA paket(with_acc)
-    "Konaklama": !!cur.acc || cur.noAccommodation || cur.isOnline,
-    "Ek Hizmetler": true,
-    "Transfer": true,
-    "Özet": true,
-  };
-  const canNext = canNextMap[stepName];
-
-  const handleDateChange = (val) => {
-    if (!val) return;
-    const d = new Date(val);
-    if (d.getDay() !== 1) d.setDate(d.getDate() + (d.getDay() === 0 ? 1 : 8 - d.getDay()));
-    setCur(p => ({ ...p, startDate: d.toISOString().split("T")[0] }));
-  };
-
-  const next = () => {
-    // Özet'ten hemen onceki adim her zaman ozete gecisi tetikler (Ek Hizmetler atlanmis olabilir)
-    const isLastBeforeSummary = step === STEPS.indexOf("Özet") - 1;
-    if (isLastBeforeSummary) {
-      const coursePrice = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
-      const accPrice = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.accWeeks || cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
-      const isDup = destinations.some(d => d.city === cur.city && d.course?.name === cur.course?.name && d.acc?.name === cur.acc?.name && d.selectedPackage?.package_price === cur.selectedPackage?.package_price);
-      if (!isDup) {
-        const cityDesc = nav.descriptions?.[`${cur.brand}__${cur.city}`] || "";
-        setDestinations(p => [...p, { ...cur,
-          cityDescription: cityDesc,
-          courseBasePrice: coursePrice.basePrice, courseHsAmount: coursePrice.hsAmount,
-          courseTotalPrice: coursePrice.totalPrice, courseHsActive: coursePrice.hsActive,
-          courseHsPerWeek: coursePrice.hsPerWeek, courseHsStart: coursePrice.hsStart, courseHsEnd: coursePrice.hsEnd,
-          accBasePrice: accPrice.basePrice, accHsAmount: accPrice.hsAmount,
-          accTotalPrice: accPrice.totalPrice, accHsActive: accPrice.hsActive,
-          accHsPerWeek: accPrice.hsPerWeek, accHsStart: accPrice.hsStart, accHsEnd: accPrice.hsEnd,
-          selectedPackage: cur.selectedPackage || null, noAccommodation: cur.noAccommodation || false,
-        }]);
-      }
-      setStep(summaryIdx);
-    } else {
-      // URL'den okul+şehir preselect edildiyse: Genel Bilgi(0) sonrası Destinasyon(1) atlanır, Kurs(2)'a geçilir
-      if (!isStaff && stepName === "Genel Bilgi" && cur.city && cur.brand && !cur.isOnline) {
-        const kursIdx = STEPS.indexOf("Kurs");
-        setStep(kursIdx >= 0 ? kursIdx : s => s + 1);
-      } else {
-        setStep(s => s + 1);
-      }
-    }
-    setTimeout(() => {
-      const root = document.getElementById("bft-root");
-      if (root) {
-        const top = root.getBoundingClientRect().top + window.pageYOffset - 20;
-        window.scrollTo({ top, behavior: "smooth" });
-      } else window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 100);
-  };
-
-  const addNew = () => { if (destinations.length >= 3) return; setCur(emptyDest(cur.startDate, cur.weeks)); setStep(1); };
-  const reset = () => { setDestinations([]); setCur(emptyDest()); setStudent({ name:"", age:"", gender:"" }); setStep(0); };
-
-  const loadScript = (src) => new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Script yüklenemedi: " + src));
-    document.head.appendChild(s);
-  });
-
-  const generatePDF = async () => {
-    console.log("%c[BFT] generatePDF çağrıldı — MOTOR: jsPDF native (" + BFT_BUILD_VERSION + ")", "background:#16a34a;color:#fff;padding:2px 8px;border-radius:4px;");
-    setPdfLoading(true);
-    // Render için kısa gecikme — spinner görünsün
-    await new Promise(r => setTimeout(r, 50));
-    try {
-      // jsPDF yükle - birden fazla CDN dene
-      if (!window.jspdf) {
-        const cdns = [
-          "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
-          "https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js",
-        ];
-        let loaded = false;
-        for (const url of cdns) {
-          try { await loadScript(url); if (window.jspdf) { loaded = true; break; } }
-          catch (e) { console.warn("[BFT] CDN başarısız:", url); }
-        }
-        if (!loaded) throw new Error("jsPDF hiçbir CDN'den yüklenemedi");
-      }
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-
-      // Türkçe karakter için DejaVuSans (normal + bold) fontunu yükle ve göm (CORS uyumlu CDN)
-      if (!window.__bft_font_loaded) {
-        const fontSet = [
-          { key: "__bft_font_b64", urls: [
-            "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
-            "https://unpkg.com/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
-          ]},
-          { key: "__bft_font_bold_b64", urls: [
-            "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf",
-            "https://unpkg.com/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf",
-          ]},
-        ];
-        for (const f of fontSet) {
-          for (const furl of f.urls) {
-            try {
-              const resp = await fetch(furl);
-              if (!resp.ok) continue;
-              const buf = await resp.arrayBuffer();
-              let binary = "";
-              const bytes = new Uint8Array(buf);
-              for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-              window[f.key] = btoa(binary);
-              console.log("[BFT] Font yüklendi:", furl);
-              break;
-            } catch (e) { console.warn("[BFT] Font CDN başarısız:", furl); }
-          }
-        }
-        window.__bft_font_loaded = true;
-      }
-      if (window.__bft_font_b64) {
-        try {
-          doc.addFileToVFS("DejaVuSans.ttf", window.__bft_font_b64);
-          doc.addFont("DejaVuSans.ttf", "DejaVuSans", "normal");
-        } catch(e) { console.warn("[BFT] Font eklenemedi:", e); }
-      }
-      if (window.__bft_font_bold_b64) {
-        try {
-          doc.addFileToVFS("DejaVuSans-Bold.ttf", window.__bft_font_bold_b64);
-          doc.addFont("DejaVuSans-Bold.ttf", "DejaVuSans", "bold");
-        } catch(e) { console.warn("[BFT] Bold font eklenemedi:", e); }
-      }
-
-      const FONT = window.__bft_font_b64 ? "DejaVuSans" : "helvetica";
-
-      // Logo'yu PNG data-uri'ye çevir + en-boy oranını döndür (jsPDF SVG/oran desteği zayıf)
-      const loadLogo = (url, cacheKey) => new Promise((resolve) => {
-        if (!url) return resolve(null);
-        if (window[cacheKey]) return resolve(window[cacheKey]);
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          const w = img.naturalWidth || 320, h = img.naturalHeight || 110;
-          const canvas = document.createElement("canvas");
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, w, h);
-          try {
-            const data = canvas.toDataURL("image/png");
-            const result = { data, ratio: w / h };
-            window[cacheKey] = result;
-            resolve(result);
-          } catch(e){ resolve(null); }
-        };
-        img.onerror = () => resolve(null);
-        img.src = url;
-      });
-
-      const bilimeviLogo = await loadLogo(BILIMEVI_LOGO, "__bft_bilimevi_logo");
-      const siteLogo = (!isStaff) ? await loadLogo(SITE_LOGO, "__bft_site_logo") : null;
-
-      const CYAN_RGB = [0, 193, 222];
-      const PAGE_W = 210, MARGIN = 18;
-      const CW = PAGE_W - MARGIN * 2;
-      // Her sayfa altına: önemli not (bold, büyük harf) + site adresi
-      const drawFooter = () => {
-        doc.setFont(FONT, "bold"); doc.setFontSize(10.5); doc.setTextColor(220, 100, 100);
-        const noteTxt = "ÖNEMLİ NOT: ÖN BİLGİLENDİRME AMAÇLI BU TEKLİF, KAYIT OLACAĞINIZ TARİHTEKİ OKULLARIN DÖNEMSEL GÜNCELLEMELERİNE GÖRE DEĞİŞKENLİK GÖSTEREBİLİR; GÜNCEL TUTAR VE İNDİRİMLER İÇİN DANIŞMANINIZDAN TEYİT ALMANIZI RİCA EDERİZ.";
-        const noteLines = doc.splitTextToSize(noteTxt, CW);
-        doc.text(noteLines, PAGE_W / 2, 270, { align: "center" });
-        doc.setFont(FONT, "normal"); doc.setFontSize(8); doc.setTextColor(51);
-        doc.text("www.bilimevi.com", PAGE_W - MARGIN, 289, { align: "right" });
-      };
-
-      destinations.forEach((d, idx) => {
-        if (idx > 0) doc.addPage();
-        const f = d.isOnline
-          ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-          : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
-        const cur = d.course?.currency || f.currency || "GBP";
-        const curSym = { GBP:"GBP", EUR:"EUR", USD:"USD", CAD:"CAD" }[cur] || cur;
-        const startD = d.startDate ? new Date(d.startDate) : new Date();
-        const endD = addWeeksToDate(startD, d.weeks);
-        const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
-        // Konaklama bitişi kendi süresine göre (kurs süresinden farklı olabilir)
-        const accEndBase = addWeeksToDate(startD, d.accWeeks || d.weeks);
-        const accEndD = new Date(accEndBase); accEndD.setDate(accEndBase.getDate() + 2);
-
-        let y = 20;
-        const money = (n) => Number(n||0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-        // Header
-        doc.setFont(FONT, "normal");
-        const LOGO_H = 11; // mm
-        // Sol: site logosu (sadece customer modda)
-        if (siteLogo) {
-          try {
-            const w = LOGO_H * siteLogo.ratio;
-            doc.addImage(siteLogo.data, "PNG", MARGIN, y - 2, w, LOGO_H);
-          } catch(e){ console.warn("[BFT] site logo eklenemedi", e); }
-        }
-        // Danışman bilgisi sadece staff modda (müşteriye gösterilmez)
-        if (isStaff) {
-          doc.setFontSize(7); doc.setTextColor(150);
-          doc.text("Bilimevi Eğitim Danışmanınız", MARGIN, y);
-          doc.setFontSize(11); doc.setTextColor(17);
-          doc.text(user?.name || "—", MARGIN, y + 4);
-          doc.setFontSize(8); doc.setTextColor(85);
-          doc.text(user?.email || "", MARGIN, y + 8);
-        }
-        // Sağ: Bilimevi logosu (her zaman)
-        if (bilimeviLogo) {
-          try {
-            const w = LOGO_H * bilimeviLogo.ratio;
-            doc.addImage(bilimeviLogo.data, "PNG", PAGE_W - MARGIN - w, y - 2, w, LOGO_H);
-          } catch(e){ console.warn("[BFT] bilimevi logo eklenemedi", e); }
-        }
-        // Logolardan sonra boşluk, ince gri çizgi, sonra şehir başlığı
-        y += LOGO_H + 5;
-        doc.setDrawColor(200); doc.setLineWidth(0.2);
-        doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-        y += 18;
-
-        // Şehir başlığı — "Okul, Şehir" (marka 7 karakterden uzunsa şehir alt satıra)
-        doc.setFontSize(40); doc.setTextColor(...CYAN_RGB);
-        if (!d.isOnline && d.brand) {
-          if (d.brand.length > 7) {
-            // İki satır: "Okul," üstte, "Şehir" altta
-            doc.text(`${d.brand},`, MARGIN, y);
-            y += 14;
-            doc.text(d.city || "", MARGIN, y);
-          } else {
-            doc.text(`${d.brand}, ${d.city}`, MARGIN, y);
-          }
-        } else {
-          doc.text(d.city || "", MARGIN, y);
-        }
-        y += 9;
-
-        // Okul/şehir açıklaması (city_description) — varsa, küçük puntoyla
-        if (d.cityDescription) {
-          doc.setFontSize(9); doc.setTextColor(90);
-          const lines = doc.splitTextToSize(d.cityDescription, PAGE_W - MARGIN * 2);
-          doc.text(lines, MARGIN, y);
-          y += lines.length * 4.5 + 4;
-        }
-
-        doc.setFontSize(16); doc.setTextColor(17);
-        doc.text(`${fmtDate(startD)} — ${fmtDate(endD)}`, MARGIN, y);
-        y += 8;
-        doc.setFontSize(10); doc.setTextColor(17);
-        doc.text("Teklifinize neler dahil?", MARGIN, y);
-        y += 5;
-        doc.setTextColor(...CYAN_RGB);
-        doc.text(`Hafta Sayısı: ${d.weeks}`, MARGIN, y);
-        y += 2;
-        doc.setDrawColor(17); doc.setLineWidth(0.6);
-        doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-        y += 6;
-
-        // Satır yazıcı
-        const row = (label, desc, amount, opts = {}) => {
-          const { bold, color, sub, indent } = opts;
-          doc.setFontSize(label ? 10 : 9);
-          doc.setTextColor(...(color || [17,17,17]));
-          if (label) { doc.setFont(FONT,"normal"); doc.text(label, MARGIN, y); }
-          if (desc) {
-            const dx = MARGIN + 32;
-            doc.setFontSize(10); doc.text(desc, dx, y);
-          }
-          if (amount != null) {
-            doc.setFontSize(10);
-            doc.text(String(amount), PAGE_W - MARGIN, y, { align: "right" });
-          }
-          y += 6;
-          if (sub) {
-            doc.setFontSize(8); doc.setTextColor(120);
-            doc.text(sub, MARGIN + 32, y - 2);
-            y += 2;
-          }
-        };
-
-        // Kurs / Paket
-        doc.setFontSize(10); doc.setTextColor(17);
-        if (d.selectedPackage) {
-          doc.text("Paket", MARGIN, y);
-          doc.text(d.course ? courseLabel(d.course) : (d.selectedPackage.course_name || ""), MARGIN + 32, y);
-          doc.text(money(d.selectedPackage.package_price), PAGE_W - MARGIN, y, { align:"right" });
-          y += 5;
-          doc.setFontSize(8); doc.setTextColor(85);
-          doc.text(`Başlangıç: ${fmtDate(startD)}  |  Bitiş: ${fmtDate(endD)}`, MARGIN + 32, y);
-          y += 4;
-          doc.setTextColor(16,150,80);
-          doc.text(d.selectedPackage.package_type === "with_accommodation" ? "Konaklama dahil paket" : "Konaklama hariç paket", MARGIN + 32, y);
-          y += 4;
-          if (d.selectedPackage.includes_tr) {
-            doc.setTextColor(120); doc.setFontSize(7.5);
-            const incLines = doc.splitTextToSize("Dahil: " + d.selectedPackage.includes_tr, PAGE_W - MARGIN - (MARGIN + 32));
-            incLines.forEach(ln => { doc.text(ln, MARGIN + 32, y); y += 3.5; });
-          }
-          doc.setDrawColor(221); doc.setLineWidth(0.2);
-          doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
-        } else {
-        doc.text("Kurs", MARGIN, y);
-        doc.text(`${d.brand} — ${courseLabel(d.course)}`, MARGIN + 32, y);
-        doc.text(money(d.courseBasePrice), PAGE_W - MARGIN, y, { align:"right" });
-        y += 5;
-        doc.setFontSize(8); doc.setTextColor(85);
-        doc.text(`Başlangıç: ${fmtDate(startD)}  |  Bitiş: ${fmtDate(endD)}`, MARGIN + 32, y);
-        y += 4;
-        if (d.course?.lessons > 0) {
-          doc.setTextColor(120);
-          doc.text(`${d.course.lessons} ders/hafta · ${d.course.hours} saat`, MARGIN + 32, y);
-          y += 4;
-        }
-        doc.setDrawColor(221); doc.setLineWidth(0.2);
-        doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
-
-        if (d.courseHsAmount > 0) {
-          doc.setFont(FONT, "bold");
-          doc.setFontSize(9); doc.setTextColor(146,64,14);
-          const hsLabel = d.courseHsPerWeek
-            ? `High Season (+${money(d.courseHsPerWeek)}/hafta, ${formatDateShort(d.courseHsStart)}-${formatDateShort(d.courseHsEnd)})`
-            : `High Season (${formatDateShort(d.courseHsStart)}-${formatDateShort(d.courseHsEnd)})`;
-          doc.text(hsLabel, MARGIN + 32, y);
-          doc.text(`+${money(d.courseHsAmount)}`, PAGE_W - MARGIN, y, { align:"right" });
-          doc.setFont(FONT, "normal");
-          y += 5;
-          doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
-        }
-        }
-
-        const checkPage = () => { if (y > 260) { doc.addPage(); y = 20; } };
-
-        // Konaklama (with_accommodation paketinde gizli)
-        checkPage();
-        if (d.acc && !d.isOnline && d.selectedPackage?.package_type !== "with_accommodation") {
-          doc.setFontSize(10); doc.setTextColor(17);
-          doc.text("Konaklama", MARGIN, y);
-          doc.text(`${d.acc.name} (${d.acc.board})`, MARGIN + 32, y);
-          doc.text(money(d.accBasePrice), PAGE_W - MARGIN, y, { align:"right" });
-          y += 5;
-          doc.setFontSize(8); doc.setTextColor(85);
-          doc.text(`Konaklama Süresi: ${d.accWeeks || d.weeks} hafta`, MARGIN + 32, y);
-          y += 4;
-          doc.text(`Giriş: ${fmtDate(accStartD)}  |  Çıkış: ${fmtDate(accEndD)}`, MARGIN + 32, y);
-          y += 4;
-          doc.setTextColor(120);
-          doc.text(`${d.acc.room} · ${d.acc.bathroom} · Okula ${d.acc.distance}`, MARGIN + 32, y);
-          y += 4;
-          doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
-
-          if (d.accHsAmount > 0) {
-            doc.setFont(FONT, "bold");
-            doc.setFontSize(9); doc.setTextColor(146,64,14);
-            const accHsLabel = d.accHsPerWeek
-              ? `High Season (+${money(d.accHsPerWeek)}/hafta, ${formatDateShort(d.accHsStart)}-${formatDateShort(d.accHsEnd)})`
-              : `High Season (${formatDateShort(d.accHsStart)}-${formatDateShort(d.accHsEnd)})`;
-            doc.text(accHsLabel, MARGIN + 32, y);
-            doc.text(`+${money(d.accHsAmount)}`, PAGE_W - MARGIN, y, { align:"right" });
-            doc.setFont(FONT, "normal");
-            y += 5;
-            doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
-          }
-        }
-
-        // Diğer ücretler (pakette gizli — paket her şey dahil)
-        checkPage();
-        if (!d.selectedPackage && f.items?.length > 0) {
-          f.items.forEach((fi, i) => {
-            doc.setFontSize(9); doc.setTextColor(17);
-            if (i === 0) doc.text("Diğer", MARGIN, y);
-            doc.text(fi.name, MARGIN + 32, y);
-            doc.text(money(fi.amount), PAGE_W - MARGIN, y, { align:"right" });
-            y += 5;
-          });
-        }
-
-        // Ek hizmetler
-        if ((d.addons||[]).length > 0) {
-          d.addons.forEach((a, i) => {
-            doc.setFontSize(9); doc.setTextColor(17);
-            if (i === 0) doc.text("Ek Hizmetler", MARGIN, y);
-            doc.text(a.name + (a.notes ? ` — ${a.notes}` : ""), MARGIN + 32, y);
-            doc.text(money(a.totalAmount), PAGE_W - MARGIN, y, { align:"right" });
-            y += 5;
-          });
-        }
-
-        // Transfer
-        if (d.transfer) {
-          doc.setFontSize(9); doc.setTextColor(17);
-          doc.text("Transfer", MARGIN, y);
-          doc.text(`${d.transfer.airport}${d.transfer.code?.trim() ? ` (${d.transfer.code.trim()})` : ""}`, MARGIN + 32, y);
-          doc.text(`${d.transfer.currency} ${money(d.transfer.one_way)}`, PAGE_W - MARGIN, y, { align:"right" });
-          y += 5;
-        }
-
-        // İndirimler — açık yeşil ton (HS satır mantığıyla uyumlu)
-        const _dt = getDestinationTotals(d, f);
-        if (!_dt.isPackage && _dt.appliedDiscounts.length > 0) {
-          _dt.appliedDiscounts.forEach((disc, i) => {
-            checkPage();
-            doc.setFont(FONT, "bold");
-            doc.setFontSize(10); doc.setTextColor(22, 163, 74);
-            if (i === 0) doc.text("İndirimler", MARGIN, y);
-            const dLabel = `${disc.label} (${disc.value_type === "percentage" ? "%" + disc.value : disc.value_type === "free" ? "Ücretsiz" : disc.value + " Sabit"})`;
-            doc.text(dLabel, MARGIN + 32, y);
-            doc.text(`-${money(disc.amount)}`, PAGE_W - MARGIN, y, { align:"right" });
-            y += 5;
-          });
-          doc.setFont(FONT, "normal");
-          doc.setTextColor(17);
-        }
-
-        // Toplam
-        checkPage();
-        y += 2;
-        doc.setDrawColor(17); doc.setLineWidth(0.8);
-        doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-        y += 6;
-        const grandTotal = _dt.grandTotal;
-        // Toplam tutar — siyah
-        doc.setTextColor(17, 17, 17);
-        const labelTxt = `TOPLAM TUTAR ${cur}`;
-        const amountTxt = `${curSym} ${money(grandTotal)}`;
-        doc.setFontSize(12);
-        doc.text(labelTxt, MARGIN, y);
-        doc.setFontSize(16);
-        doc.text(amountTxt, PAGE_W - MARGIN, y, { align:"right" });
-        y += 12;
-
-        // CTA — sadece staff modda
-        if (isStaff) {
-          const waPhone = (user?.phone || "905419189177").replace(/\D/g, "");
-          const waUrl = `https://wa.me/${waPhone}`;
-          const btnX = PAGE_W/2 - 45, btnY = y, btnW = 90, btnH = 10;
-          doc.setFillColor(...CYAN_RGB);
-          doc.roundedRect(btnX, btnY, btnW, btnH, 5, 5, "F");
-          doc.setFontSize(10); doc.setTextColor(255);
-          doc.text("Eğitim Danışmanınıza Şimdi Ulaşın", PAGE_W/2, y + 6.5, { align:"center" });
-          doc.link(btnX, btnY, btnW, btnH, { url: waUrl });
-          y += 18;
-        }
-
-        // Footer
-        drawFooter();
-      });
-
-      // --- Karşılaştırma Tablosu (sadece 2-3 destinasyon) ---
-      if (destinations.length >= 2) {
-        doc.addPage();
-        let cy = 16;
-        doc.setFont(FONT, "normal");
-
-        // Header: logo + danışman (teklif sayfalarıyla aynı)
-        const C_LOGO_H = 11;
-        if (siteLogo) {
-          try {
-            const w = C_LOGO_H * siteLogo.ratio;
-            doc.addImage(siteLogo.data, "PNG", MARGIN, cy - 2, w, C_LOGO_H);
-          } catch(e){ console.warn("[BFT] tablo site logo", e); }
-        }
-        if (isStaff) {
-          doc.setFontSize(7); doc.setTextColor(150);
-          doc.text("Bilimevi Eğitim Danışmanınız", MARGIN, cy);
-          doc.setFontSize(11); doc.setTextColor(17);
-          doc.text(user?.name || "—", MARGIN, cy + 4);
-          doc.setFontSize(8); doc.setTextColor(85);
-          doc.text(user?.email || "", MARGIN, cy + 8);
-        }
-        if (bilimeviLogo) {
-          try {
-            const w = C_LOGO_H * bilimeviLogo.ratio;
-            doc.addImage(bilimeviLogo.data, "PNG", PAGE_W - MARGIN - w, cy - 2, w, C_LOGO_H);
-          } catch(e){ console.warn("[BFT] tablo bilimevi logo", e); }
-        }
-        cy += C_LOGO_H + 5;
-        doc.setDrawColor(200); doc.setLineWidth(0.2);
-        doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
-        cy += 8;
-        doc.setTextColor(17);
-
-        const n = destinations.length;
-        const labelW = 42;                         // sol kalem sütunu
-        const colW = (PAGE_W - MARGIN * 2 - labelW) / n;
-        const colX = (i) => MARGIN + labelW + i * colW;
-
-        // Her destinasyonun kalemlerini hesapla
-        const cols = destinations.map(d => {
-          const f = d.isOnline
-            ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-            : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
-          const dt = getDestinationTotals(d, f);
-          const cur = d.course?.currency || f.currency || "GBP";
-          return { d, f, dt, cur };
-        });
-
-        // Başlık satırı: okul adları (her kelime alt alta, büyük+turkuaz, dikey ortalı)
-        doc.setFont(FONT, "bold");
-        doc.setFontSize(14); doc.setTextColor(...CYAN_RGB);
-        const LH = 6.5; // satır yüksekliği
-        // Önce her okulun kelimelerini ve maxWords'ü hesapla
-        const headWords = cols.map((c, i) => String(c.d.brand || c.d.city || `Okul ${i+1}`).split(/\s+/).filter(Boolean));
-        const maxWords = Math.max(1, ...headWords.map(w => w.length));
-        headWords.forEach((words, i) => {
-          // Bu okulu dikey ortala: (maxWords - kendi kelime sayısı)/2 kadar aşağıdan başla
-          const offset = (maxWords - words.length) / 2;
-          words.forEach((w, wi) => {
-            doc.text(w, colX(i) + colW/2, cy + (offset + wi) * LH, { align:"center", maxWidth: colW - 2 });
-          });
-        });
-        doc.setTextColor(17);
-        cy += maxWords * LH + 2;
-        cols.forEach((c, i) => {
-          doc.setFont(FONT, "bold"); doc.setFontSize(10); doc.setTextColor(120);
-          doc.text(`${c.d.city} · ${c.d.weeks} hafta`, colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
-        });
-        cy += 5;
-        // Okul başlıkları altı — kalın siyah çizgi (kalemler başlamadan)
-        doc.setDrawColor(17); doc.setLineWidth(0.6);
-        doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
-        cy += 6;
-
-        // Satır çizici: sol etiket + her okul için değer
-        const money2 = (n) => Number(n||0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const checkPageC = () => { if (cy > 270) { doc.addPage(); cy = 24; } };
-        const row = (label, valueFn, opts = {}) => {
-          checkPageC();
-          const baseColor = opts.color || [60, 60, 60];
-          // Sol kalem etiketi — her zaman bold
-          doc.setFont(FONT, "bold");
-          doc.setFontSize(opts.big ? 11 : opts.bold ? 9 : 8.5);
-          doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
-          doc.text(label, MARGIN, cy);
-          // Değerler — opts.bold ise bold, değilse normal
-          doc.setFont(FONT, opts.bold ? "bold" : "normal");
-          cols.forEach((c, i) => {
-            const v = valueFn(c);
-            if (v !== null && v !== undefined && v !== "") {
-              doc.text(String(v), colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
-            } else {
-              doc.setTextColor(200); doc.text("—", colX(i) + colW/2, cy, { align:"center" });
-              doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
-            }
-          });
-          cy += 6;
-        };
-
-        // Kurs
-        row("Kurs", c => c.dt.isPackage
-          ? `${c.cur} ${money2(c.d.selectedPackage.package_price)}`
-          : `${c.cur} ${money2(c.d.courseTotalPrice)}`);
-        // Konaklama
-        row("Konaklama", c => {
-          if (c.dt.isPackage && c.d.selectedPackage?.package_type === "with_accommodation") return "Dahil";
-          if (!c.d.acc) return "";
-          const aw = c.d.accWeeks || c.d.weeks;
-          const suffix = aw !== c.d.weeks ? ` (${aw} hf)` : "";
-          return `${c.cur} ${money2(c.d.accTotalPrice)}${suffix}`;
-        });
-        // Diğer ücretler (kalem kalem)
-        const allFeeNames = [...new Set(cols.flatMap(c => (c.f.items||[]).map(it => it.name)))];
-        allFeeNames.forEach(fn => {
-          row(fn, c => {
-            const it = (c.f.items||[]).find(x => x.name === fn);
-            return it ? `${c.f.currency||c.cur} ${money2(it.amount)}` : "";
-          });
-        });
-        // Transfer
-        if (cols.some(c => c.d.transfer)) {
-          row("Transfer", c => c.d.transfer ? `${c.d.transfer.currency} ${money2(c.d.transfer.one_way)}` : "");
-        }
-        // İndirim
-        if (cols.some(c => !c.dt.isPackage && c.dt.discountsTotal > 0)) {
-          row("İndirim", c => {
-            if (c.dt.isPackage || !c.dt.discountsTotal) return "";
-            return `- ${c.cur} ${money2(c.dt.discountsTotal)}`;
-          }, { color: [22, 163, 74], bold: true });
-        }
-
-        // Genel Toplam
-        cy += 1;
-        doc.setDrawColor(17); doc.setLineWidth(0.6);
-        doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
-        cy += 6;
-        row("GENEL TOPLAM", c => `${c.cur} ${money2(c.dt.grandTotal)}`, { bold: true, big: true, color: [17,17,17] });
-
-        // Farklı para birimi uyarısı
-        const currencies = [...new Set(cols.map(c => c.cur))];
-        if (currencies.length > 1) {
-          cy += 4;
-          doc.setFont(FONT, "normal"); doc.setFontSize(7); doc.setTextColor(120);
-          doc.text("* Okullar farklı para birimlerinde fiyatlandırılmıştır; tutarlar doğrudan toplanamaz.", MARGIN, cy);
-        }
-
-        // Footer
-        drawFooter();
-      }
-
-      const filename = `Bilimevi_Teklif_${(leadForm.name || student.name || "Teklif").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
-      doc.save(filename);
-      console.log("[BFT] PDF kaydedildi:", filename);
-    } catch (err) {
-      console.error("[BFT] PDF HATASI:", err);
-      const msg = err?.message || err?.toString?.() || "Bilinmeyen hata";
-      alert("PDF oluşturulamadı: " + msg);
-    } finally {
-      setPdfLoading(false);
-    }
-  };
-
-  const handleLeadSubmit = async () => {
-    if (!leadForm.name || !leadForm.phone || !leadForm.email) return;
-    const cleanPhone = (leadForm.phone || "").replace(/\D/g, "");
-    // Öncelik: libphonenumber (CRM ile aynı). Yüklü değilse uzunluk kontrolüne düş.
-    const libResult = checkPhoneValid(leadForm.phone, leadForm.dialCode);
-    if (libResult === false) {
-      alert("Geçerli bir telefon numarası giriniz (örn: 5XX XXX XX XX).");
-      return;
-    }
-    if (libResult === null) {
-      // Lib yüklenmemiş/ISO bilinmiyor → yedek uzunluk kontrolü
-      if (leadForm.dialCode === "+90") {
-        if (cleanPhone.length !== 10) { alert("Telefon numarasını 10 hane giriniz (başında 0 olmadan)."); return; }
-      } else {
-        if (cleanPhone.length < 6) { alert("Telefon numarasını eksik veya yanlış girdiniz."); return; }
-      }
-    }
-    setLeadLoading(true);
-    try {
-      const endpoint = window.BFT_CONFIG?.assetsUrl
-        ? window.location.origin + "/wp-json/bilimevi/v1/lead"
-        : null;
-      if (endpoint) {
-        const isoCode = DIAL_TO_ISO[leadForm.dialCode] || "";
-        const leadRes = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: leadForm.name,
-            email: leadForm.email,
-            dialCode: leadForm.dialCode || "+90",
-            phone: cleanPhone,
-            code: isoCode,
-            consentAdvisor: !!leadForm.consentAdvisor,
-            subSource: SUB_SOURCE,
-            destinations: destinations.map(d => {
-              const _f = d.isOnline ? { items:[], total:65 } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
-              const _dt = getDestinationTotals(d, _f);
-              return { city: d.city, brand: d.brand, weeks: d.weeks,
-                course: d.course?.name, total: _dt.grandTotal, currency: d.course?.currency || _f.currency || "GBP" };
-            }),
-            timestamp: new Date().toISOString(),
-          }),
-        });
-        const leadJson = await leadRes.json().catch(() => null);
-        console.log("[BFT] Lead sonucu:", leadJson);
-      }
-    } catch (e) { console.error("Lead gönderilemedi:", e); }
-    setLeadLoading(false);
-    setLeadModal(false);
-    generatePDF();
-  };
-
-  const logoSrc = LOGO_URL || (typeof window !== "undefined" && window.__bilimevi_logo__);
-
-  return (
-    <>
-    {urlWarning && !isStaff && (
-      <div style={{ position:"sticky", top:0, zIndex:99999, background:"#fef3c7", borderBottom:"1px solid #fbbf24", padding:"10px 16px", display:"flex", alignItems:"center", justifyContent:"center", gap:12, fontSize:14, color:"#92400e" }}>
-        <span>{urlWarning}</span>
-        <button onClick={() => setUrlWarning("")} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#92400e", lineHeight:1, padding:"0 4px" }}>×</button>
-      </div>
-    )}
-    {navError && !isStaff && (
-      <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.96)", zIndex:99998, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center" }}>
-        <p style={{ fontSize:16, fontWeight:600, color:"#0f172a", marginBottom:8 }}>{navError}</p>
-        <button onClick={() => { setNavError(""); window.location.reload(); }}
-          style={{ marginTop:12, padding:"10px 24px", background:CYAN, color:"#fff", border:"none", borderRadius:10, fontWeight:600, cursor:"pointer", fontSize:14 }}>
-          Yeniden Dene
-        </button>
-      </div>
-    )}
-    {pdfLoading && (
-      <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.85)", zIndex:99999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", backdropFilter:"blur(2px)" }}>
-        <div style={{ width:48, height:48, border:`4px solid #e2e8f0`, borderTopColor:CYAN, borderRadius:"50%", animation:"bftSpin 0.8s linear infinite" }} />
-        <p style={{ marginTop:18, fontSize:15, fontWeight:600, color:"#0f172a", fontFamily:"'Sora',sans-serif" }}>Teklif Dosyanız Hazırlanıyor...</p>
-        <style>{`@keyframes bftSpin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    )}
-    {!isStaff && leadModal && (
-      <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-        <div style={{ background:"#fff", borderRadius:20, padding:32, maxWidth:420, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
-            <h3 style={{ fontSize:18, fontWeight:700, marginBottom:8, color:"#0f172a" }}>Teklifinizi İndirin</h3>
-            <p style={{ fontSize:13, color:"#64748b", marginBottom:20 }}>Bilgilerinizi girin, PDF otomatik indirilecektir.</p>
-            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              <input placeholder="Ad Soyad *" style={{...S.fti, background: student.name ? "#f8fafc" : "#fff"}} value={leadForm.name} onChange={e => setLeadForm(p => ({...p, name:e.target.value.replace(/[^a-zA-ZçÇğĞıİöÖşŞüÜ\s'-]/g, "")}))} />
-              <div style={{ display:"flex", gap:8, position:"relative" }}>
-                <div style={{ position:"relative", flexShrink:0 }}>
-                  <button type="button" className="bft-dial-btn" onClick={() => setCountryOpen(o => !o)}
-                    style={{ ...S.fti, width:78, display:"flex", alignItems:"center", justifyContent:"center", gap:4, cursor:"pointer", background:"#fff", userSelect:"none" }}>
-                    {leadForm.dialCode} <span style={{ fontSize:10, color:"#94a3b8" }}>▾</span>
-                  </button>
-                  {countryOpen && (
-                    <div style={{ position:"absolute", top:"100%", left:0, marginTop:4, width:220, background:"#fff", border:"1px solid #e2e8f0", borderRadius:10, boxShadow:"0 10px 30px rgba(0,0,0,0.12)", zIndex:100 }}>
-                      <input autoFocus placeholder="Ülke ara (TR, 90, Türkiye...)" value={countrySearch}
-                        onChange={e => setCountrySearch(e.target.value)}
-                        style={{ ...S.fti, width:"100%", borderRadius:"10px 10px 0 0", border:"none", borderBottom:"1px solid #e2e8f0" }} />
-                      <div style={{ maxHeight:240, overflowY:"auto" }}>
-                        {filterDialList(countrySearch).map(({ dial, iso }) => (
-                          <div key={dial + iso} onClick={() => { setLeadForm(p => ({ ...p, dialCode: dial })); setCountryOpen(false); setCountrySearch(""); }}
-                            style={{ padding:"10px 14px", cursor:"pointer", fontSize:14, display:"flex", justifyContent:"space-between", background: leadForm.dialCode === dial ? "#f0fdff" : "#fff", color: leadForm.dialCode === dial ? CYAN : "#0f172a" }}
-                            onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"}
-                            onMouseLeave={e => e.currentTarget.style.background = leadForm.dialCode === dial ? "#f0fdff" : "#fff"}>
-                            <span>{dial}</span><span style={{ color:"#94a3b8" }}>{iso}</span>
-                          </div>
-                        ))}
-                        {filterDialList(countrySearch).length === 0 && (
-                          <div style={{ padding:"12px 14px", fontSize:13, color:"#94a3b8", textAlign:"center" }}>Bulunamadı</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <input className="bft-phone" placeholder={phoneExample ? `${phoneExample} *` : "5XX XXX XX XX *"} style={S.fti} type="text" inputMode="numeric" autoComplete="off" maxLength={leadForm.dialCode === "+90" ? 10 : 15} value={leadForm.phone} onChange={e => { const max = leadForm.dialCode === "+90" ? 10 : 15; setLeadForm(p => ({...p, phone:e.target.value.replace(/\D/g,"").slice(0,max)})); }} />
-              </div>
-              {!isStaff && phoneValid === false && leadForm.phone && (
-                <p style={{ margin:"2px 2px 0", fontSize:12, color:"#dc2626" }}>Geçerli bir telefon numarası giriniz{phoneExample ? ` (örn: ${phoneExample})` : ""}.</p>
-              )}
-              {!isStaff && phoneValid !== false && phoneExample && (
-                <p style={{ margin:"2px 2px 0", fontSize:11, color:"#94a3b8" }}>Örnek: {phoneExample}</p>
-              )}
-              <input placeholder="E-posta *" style={S.fti} type="email" value={leadForm.email} onChange={e => setLeadForm(p => ({...p, email:e.target.value}))} />
-            </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:10, marginTop:16 }}>
-              <label style={{ display:"flex", alignItems:"flex-start", gap:8, fontSize:12, color:"#475569", cursor:"pointer", lineHeight:1.4 }}>
-                <input type="checkbox" checked={leadForm.consentKvkk} onChange={e => setLeadForm(p => ({...p, consentKvkk:e.target.checked}))} style={{ width:16, height:16, marginTop:1, flexShrink:0, accentColor:CYAN }} />
-                <span>{KVKK_URL ? <a href={KVKK_URL} target="_blank" rel="noopener noreferrer" style={{ color:CYAN, textDecoration:"underline" }}>KVKK Aydınlatma Metni</a> : "KVKK Aydınlatma Metni"}'ni okudum ve kabul ediyorum. *</span>
-              </label>
-              <label style={{ display:"flex", alignItems:"flex-start", gap:8, fontSize:12, color:"#475569", cursor:"pointer", lineHeight:1.4 }}>
-                <input type="checkbox" checked={leadForm.consentEmail} onChange={e => setLeadForm(p => ({...p, consentEmail:e.target.checked}))} style={{ width:16, height:16, marginTop:1, flexShrink:0, accentColor:CYAN }} />
-                <span>Bilgilendirme e-postaları almak istiyorum. *</span>
-              </label>
-              <label style={{ display:"flex", alignItems:"flex-start", gap:8, fontSize:12, color:"#475569", cursor:"pointer", lineHeight:1.4 }}>
-                <input type="checkbox" checked={leadForm.consentAdvisor} onChange={e => setLeadForm(p => ({...p, consentAdvisor:e.target.checked}))} style={{ width:16, height:16, marginTop:1, flexShrink:0, accentColor:CYAN }} />
-                <span>Uzman Eğitim Danışmanının bana ulaşmasını istiyorum.</span>
-              </label>
-            </div>
-            <button onClick={handleLeadSubmit} disabled={!leadForm.name || !leadForm.phone || !leadForm.email || !leadForm.consentKvkk || !leadForm.consentEmail || leadLoading || phoneValid === false}
-              style={{ ...S.btnNext, width:"100%", marginTop:16, padding:"13px 0", opacity: (!leadForm.name||!leadForm.phone||!leadForm.email||!leadForm.consentKvkk||!leadForm.consentEmail||leadLoading||phoneValid===false) ? 0.5 : 1 }}>
-              {leadLoading ? "Gönderiliyor..." : "📄 PDF İndir"}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bir Kelime Bir İşlem</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config={theme:{extend:{colors:{'summer-blue':'#4fc3f7','summer-sand':'#fff9c4','summer-sun':'#ffa726','summer-sea':'#0288d1','summer-coral':'#ff7043','summer-ocean':'#00bcd4'},fontFamily:{sans:['Inter','sans-serif']}}}}</script>
+    <style>
+        *{-webkit-tap-highlight-color:transparent;}
+        html,body{touch-action:manipulation;-ms-touch-action:manipulation;}
+        body{font-family:'Inter',sans-serif;background-color:#e0f7fa;background-image:linear-gradient(135deg,#e0f7fa 0%,#b2ebf2 50%,#80deea 100%);min-height:100vh;}
+        .tile{transition:all 0.15s ease;}.tile:active:not(.cursor-not-allowed){transform:translateY(3px)scale(0.95);}
+        
+        @keyframes tileShineSweep{0%{background-position:-150% 0;}100%{background-position:250% 0;}}
+        .tile-shine{background-image:linear-gradient(120deg,transparent 40%,rgba(255,255,255,0.85)50%,transparent 60%);background-size:200% 100%;animation:tileShineSweep 0.5s ease-out;}
+        @keyframes helpBubbleFade{0%{opacity:0;transform:translateY(4px);}15%{opacity:1;transform:translateY(0);}85%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-4px);}}
+        .help-bubble-anim{animation:helpBubbleFade 5s ease-in-out forwards;}
+        .player-name-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.9);border:1px solid #e0e0e0;border-radius:9999px;padding:4px 12px;font-size:13px;font-weight:600;color:#0288d1;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
+        .player-name-chip button{background:none;border:none;cursor:pointer;font-size:13px;opacity:0.6;transition:opacity 0.2s;padding:0;}
+        .player-name-chip button:hover{opacity:1;}
+        @keyframes nameChipPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.45);}50%{box-shadow:0 0 0 7px rgba(245,158,11,0);}}
+        .name-highlight-pulse{background:linear-gradient(90deg,#fef3c7,#fde68a)!important;border:2px solid #f59e0b!important;animation:nameChipPulse 1.6s ease-in-out infinite;}
+        .img-btn{display:block;width:100%;max-width:280px;margin:0 auto 0.75rem;background:none;border:none;padding:0;cursor:pointer;transition:transform 0.15s ease,filter 0.15s ease;line-height:0;}
+        .img-btn img{width:100%;height:auto;display:block;pointer-events:none;}
+        .img-btn:hover:not(:disabled){transform:translateY(-3px) scale(1.03);}
+        .img-btn:active:not(:disabled){transform:translateY(1px) scale(0.98);}
+        .img-btn:disabled{filter:grayscale(0.6) opacity(0.5);cursor:not-allowed;}
+        /* Boş şablon + kod-metin buton sistemi */
+        .wbtn{position:relative;width:100%;max-width:280px;aspect-ratio:2.5/1;margin:0 auto 0.75rem;background:url('assets/ui/btn-template.png') center/100% 100% no-repeat;border:none;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;transition:transform 0.15s ease,filter 0.15s ease;}
+        .wbtn:hover:not(:disabled){transform:translateY(-3px) scale(1.03);}
+        .wbtn:active:not(:disabled){transform:translateY(1px) scale(0.98);}
+        .wbtn:disabled{filter:grayscale(0.55) opacity(0.55);cursor:not-allowed;}
+        .wbtn span{position:relative;z-index:2;font-weight:800;font-size:clamp(18px,5.5vw,26px);letter-spacing:.5px;line-height:1;padding:0 9%;text-align:center;white-space:nowrap;transform:translateY(-5%);text-shadow:0 2px 0 rgba(80,50,10,.28);}
+        .wbtn.t-orange span{color:#d9822b;}
+        .wbtn.t-blue span{color:#0277bd;}
+        .wbtn.t-teal span{color:#0f8b80;}
+        .wbtn.t-purple span{color:#8b3fb8;}
+        .wbtn.t-red span{color:#c0392b;}
+        /* WORDLE */
+        .wd-row{display:grid;gap:1px;width:100%;max-width:360px;margin:0 auto;}
+        .wd-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:clamp(15px,5vw,26px);border-radius:3px;border:2px solid #e2e8f0;background:#fff;color:#334155;text-transform:uppercase;transition:transform .12s ease;min-width:0;}
+        .wd-cell.filled{border-color:#94a3b8;transform:scale(1.04);}
+        .wd-cell.dead{color:#cbd5e1;border-color:#e2e8f0;background:#f8fafc;}
+        .wd-cell.ghost{color:#86efac;border-color:#e2e8f0;background:#fff;transform:none;}
+        .wd-cell.g{background:#22c55e;border-color:#16a34a;color:#fff;}
+        .wd-cell.y{background:#eab308;border-color:#ca8a04;color:#fff;}
+        .wd-cell.x{background:#94a3b8;border-color:#64748b;color:#fff;}
+        .wd-cell.reveal{animation:wd-flip .4s ease forwards;}
+        @keyframes wd-flip{0%{transform:scaleY(1);}50%{transform:scaleY(0);}100%{transform:scaleY(1);}}
+        .wd-cell.g.glow{border-color:#fbbf24;box-shadow:0 0 12px 3px rgba(251,191,36,.7);transition:box-shadow 1s ease-out,border-color 1s ease-out;}
+        .wd-cell.preview{background:#f0fdf4;border-color:#bbf7d0;color:#86efac;}
+        .wd-cell.g.glow-fade{border-color:#16a34a;box-shadow:none;transition:box-shadow 1s ease-out,border-color 1s ease-out;}
+        .wd-reveal-popup{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:55;animation:wd-pop-in .3s ease;}
+        @keyframes wd-pop-in{from{opacity:0;transform:scale(.9);}to{opacity:1;transform:scale(1);}}
+        .wd-reveal-card{background:#fff;border-radius:24px;padding:32px 28px;text-align:center;max-width:320px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);border:3px solid #0ea5e9;}
+        .wd-reveal-word{font-size:2.5rem;font-weight:900;letter-spacing:.15em;color:#0ea5e9;margin-bottom:8px;}
+        .wd-reveal-meaning{font-size:.9rem;color:#64748b;line-height:1.5;min-height:20px;}
+        .wd-key{padding:8px 0;border-radius:3px;background:#e2e8f0;color:#334155;font-weight:800;font-size:clamp(10px,2.8vw,13px);border:none;cursor:pointer;transition:filter .12s;min-width:0;overflow:hidden;}
+        .wd-key:hover{filter:brightness(.93);}
+        .wd-key.g{background:#22c55e;color:#fff;}
+        .wd-key.y{background:#eab308;color:#fff;}
+        .wd-key.x{background:#94a3b8;color:#fff;}
+        .wd-key.wide{grid-column:span 2;font-size:clamp(9px,2.6vw,12px);}
+        .wd-badge{font-size:.5em;font-weight:900;vertical-align:super;margin-left:1px;opacity:.95;}
+        .wd-mini{font-size:11px;line-height:1.35;letter-spacing:1px;}
+                .presence-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e;animation:pulse-dot 2s ease-in-out infinite;display:inline-block;}
+        @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.5;}}
+        .wd-rx-picker{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.25);padding:10px 12px;display:flex;gap:6px;flex-wrap:wrap;max-width:280px;z-index:60;}
+        /* Hover titremesini (sub-pixel jitter) engelle: GPU katmanı + net geçiş */
+        button{backface-visibility:hidden;-webkit-backface-visibility:hidden;}
+        .hover\:-translate-y-1{transform:translateZ(0);transition:transform 0.18s ease,box-shadow 0.18s ease!important;}
+        .hover\:-translate-y-1:hover{transform:translateY(-4px) translateZ(0);}
+        @keyframes btnSpin{to{transform:rotate(360deg);}}
+        .btn-spinner{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,0.35);border-top-color:#fff;border-radius:50%;animation:btnSpin 0.7s linear infinite;vertical-align:middle;}
+        .font-retro{font-family:'Orbitron',sans-serif;}
+        .retro-highscore-box{background:linear-gradient(180deg,#1e293b 0%,#0f172a 100%);border:3px solid #334155;border-radius:1rem;padding:1rem;box-shadow:inset 0 0 20px rgba(0,0,0,0.4);}
+        .retro-row-1{color:#fbbf24;}.retro-row-2{color:#cbd5e1;}.retro-row-3{color:#d97706;}.retro-row-other{color:#94a3b8;}
+        ::-webkit-scrollbar{width:8px;}::-webkit-scrollbar-track{background:rgba(255,255,255,0.4);border-radius:10px;}::-webkit-scrollbar-thumb{background:#4fc3f7;border-radius:10px;}
+    </style>
+</head>
+<body class="text-gray-800 flex flex-col items-center justify-center p-4">
+
+<div id="game-mode-select-screen" class="hidden relative max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white" style="min-height:600px">
+    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-56 mx-auto mb-2 object-contain" />
+    <div class="absolute top-3 right-3"><span class="text-xs text-gray-400 font-semibold"><span class="menu-name-display"></span> <button onclick="openRenameModal()" title="Adı değiştir" class="hover:text-gray-600">✏️</button></span></div>
+    <button onclick="switchToScreen('bkbi-menu-screen')" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Bir Kelime Bir İşlem</button>
+    <button onclick="switchToScreen('wordle-welcome-screen')" class="w-full py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-6">Wordle</button>
+    <div class="absolute bottom-6 left-8 right-8">
+        <div class="flex justify-center gap-6 mb-2">
+            <button onclick="toggleRulesPanel()" id="btn-rules-toggle" title="Nasıl Oynanır" class="flex flex-col items-center gap-1 group">
+                <span class="w-16 h-16 flex items-center justify-center group-hover:scale-105 transition-all"><img src="assets/ui/guidebook.png" alt="Nasıl Oynanır" class="w-full h-full object-contain"/></span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nasıl Oynanır</span>
             </button>
-            <button onClick={() => setLeadModal(false)} style={{ width:"100%", marginTop:10, background:"none", border:"none", cursor:"pointer", color:"#94a3b8", fontSize:13 }}>İptal</button>
+            <button onclick="switchToScreen('scoreboard-screen')" title="Skor Tablosu" class="flex flex-col items-center gap-1 group">
+                <span class="w-16 h-16 flex items-center justify-center group-hover:scale-105 transition-all"><img src="assets/ui/trophy_wordle.png" alt="Skor Tablosu" class="w-full h-full object-contain"/></span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Skor Tablosu</span>
+            </button>
         </div>
-      </div>
-    )}
-    <div style={S.root}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
-        * { box-sizing:border-box; margin:0; padding:0; }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes bftSpin { to { transform: rotate(360deg); } }
-        input:focus { outline:none; border-color:${CYAN} !important; }
-        #bft-root input[type="text"], #bft-root input[type="number"], #bft-root input[type="date"], #bft-root input[type="tel"], #bft-root input[type="email"], #bft-root input:not([type]) {
-          background:#fff !important; color:#0f172a !important; border:1.5px solid #e2e8f0 !important;
-          border-radius:10px !important; padding:10px 14px !important; font-size:14px !important;
-          font-family:inherit !important; box-shadow:none !important; width:100% !important;
-          box-sizing:border-box !important; height:44px !important; line-height:normal !important;
-          -webkit-appearance:none !important; appearance:none !important;
-        }
-        #bft-root input[type="checkbox"] {
-          width:16px !important; height:16px !important; min-width:16px !important; flex-shrink:0 !important;
-          padding:0 !important; margin:0 !important; border-radius:3px !important;
-          -webkit-appearance:auto !important; appearance:auto !important; accent-color:${CYAN} !important;
-        }
-        #bft-root input.bft-phone { flex:1 1 auto !important; width:auto !important; min-width:0 !important; }
-        #bft-root button { font-family:inherit !important; }
-        #bft-root button.bft-dial-btn { color:#0f172a !important; -webkit-text-fill-color:#0f172a !important; text-shadow:none !important; }
-        @media (max-width: 768px) {
-          #bft-root .bft-body { grid-template-columns:1fr !important; }
-          #bft-root .bft-side { display:none !important; }
-          #bft-root .bft-r2 { grid-template-columns:1fr !important; }
-          #bft-root .bft-steps-desktop { display:none !important; }
-          #bft-root .bft-steps-mobile { display:block !important; }
-          #bft-root .bft-pdf-btn-mobile { display:flex !important; }
-        }
-        @media (min-width: 769px) {
-          #bft-root .bft-pdf-btn-mobile { display:none !important; }
-          #bft-root .bft-steps-mobile { display:none !important; }
-        }
-      `}</style>
-
-      <header style={S.hdr}>
-        <div style={S.cnt}>
-          {isStaff ? <button onClick={() => navigate("/dashboard")} style={S.backBtn}>← Dashboard</button> : <span />}
-          <span style={S.htitle}>Fiyat Teklifi</span>
-          <div style={{ width:100 }} />
-        </div>
-      </header>
-
-      <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0" }}>
-        {/* Masaüstü adım göstergesi */}
-        <div style={{ maxWidth: isStaff ? 1100 : 800, margin:"0 auto", padding:"12px 16px", display:"flex", alignItems:"center" }} className="bft-steps-desktop">
-          {STEPS.map((s, i) => (
-            <div key={i} style={{ display:"flex", alignItems:"center", flex: i < STEPS.length-1 ? 1 : 0 }}>
-              <div style={{ width:26, height:26, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, flexShrink:0,
-                background: i < step ? "#22c55e" : i === step ? CYAN : "#e2e8f0",
-                color: i <= step ? "#fff" : "#94a3b8" }}>{i+1}</div>
-              {i < STEPS.length-1 && <div style={{ flex:1, height:2, background: i<step?"#22c55e":"#e2e8f0", margin:"0 8px" }} />}
-            </div>
-          ))}
-        </div>
-        {/* Mobil adım göstergesi: "Adım X/6 · Başlık" + progress bar */}
-        <div style={{ padding:"12px 16px", display:"none" }} className="bft-steps-mobile">
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-            <span style={{ fontSize:13, fontWeight:600, color:CYAN }}>{STEPS[step]}</span>
-            <span style={{ fontSize:12, color:"#94a3b8" }}>Adım {step+1}/{STEPS.length}</span>
-          </div>
-          <div style={{ height:4, background:"#e2e8f0", borderRadius:2, overflow:"hidden" }}>
-            <div style={{ height:"100%", background:CYAN, borderRadius:2, width:`${((step+1)/STEPS.length)*100}%`, transition:"width 0.3s" }} />
-          </div>
-        </div>
-      </div>
-
-      <div style={isStaff ? S.body : { maxWidth:800, margin:"20px auto", padding:"0 20px", display:"block" }} className="bft-body">
-        <main style={S.main}>
-          {stepName === "Genel Bilgi" && (
-            <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>Öğrenci Bilgileri</h2>
-              <div style={S.r2} className="bft-r2">
-                <div style={S.fld}><label style={S.lbl}>Ad Soyad</label><input style={S.fti} value={student.name} onChange={e => setStudent(p => ({...p, name:e.target.value.replace(/[^a-zA-ZçÇğĞıİöÖşŞüÜ\s'-]/g, "")}))} /></div>
-                <div style={S.fld}><label style={S.lbl}>Yaş</label><input style={S.fti} type="number" value={student.age} onChange={e => setStudent(p => ({...p, age:e.target.value}))} /></div>
-              </div>
-              <div style={S.fld}>
-                <label style={S.lbl}>Cinsiyet</label>
-                <div style={{ display:"flex", gap:12, marginTop:6 }}>
-                  {["Erkek","Kadın"].map(g => (<div key={g} style={{ ...S.cinsiyetBtn, ...(student.gender===g ? S.cinsiyetBtnActive : {}) }} onClick={() => setStudent(p => ({...p, gender:g}))}>{g}</div>))}
-                </div>
-              </div>
-              <div style={{ display:"flex", justifyContent:"flex-end", marginTop:24 }}>
-                <button onClick={next} disabled={!canNext} style={{ ...S.btnNext, opacity: !canNext ? 0.5 : 1, cursor: !canNext ? "not-allowed" : "pointer" }}>İleri →</button>
-              </div>
-            </div>
-          )}
-
-          {stepName === "Destinasyon" && (
-            <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>Destinasyon Seçimi</h2>
-              <p style={S.slbl}>DİL</p>
-              <div style={S.g3}>
-                {nav.languages.filter(l => isStaff || l === "İngilizce").map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
-                <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
-              </div>
-              {(isStaff || !FIXED_COUNTRY) && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
-              {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
-              {!cur.isOnline && cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
-              {cur.isOnline && <>
-                <p style={S.slbl}>PAKET SEÇİMİ</p>
-                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                  {EC_LIVE.map((c,i) => (<div key={i} style={cur.course?.name===c.name ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, course:c}))}><strong>{c.name}</strong><span style={{ marginLeft:8, color:"#64748b", fontSize:12 }}>{c.hours} saat/hafta · €{c.tiers[0].price}/haftadan</span></div>))}
-                </div>
-                {cur.course && <div style={{ marginTop:10, padding:"8px 12px", background:"#f0fdff", border:`1px solid ${CYAN}`, borderRadius:8, fontSize:12, color:CYAN }}>✓ Online kurs seçildi — konaklama adımı atlanacak</div>}
-              </>}
-            </div>
-          )}
-
-          {stepName === "Kurs" && (
-            <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>{cur.isOnline ? "Kurs Detayı — EC Live" : `Kurs Seçimi — ${cur.brand} ${cur.city}`}{cur.cityLoading && <span style={{ display:"inline-flex", alignItems:"center", gap:8, marginLeft:12, verticalAlign:"middle" }}><span style={{ display:"inline-block", width:16, height:16, border:`2.5px solid ${CYAN}`, borderTopColor:"transparent", borderRadius:"50%", animation:"bftSpin 0.7s linear infinite" }} /><span style={{ fontSize:14, color:CYAN, fontWeight:600 }}>Programlar Yükleniyor...</span></span>}</h2>
-              <div style={S.r2} className="bft-r2">
-                <div style={S.fld}><label style={S.lbl}>Başlangıç Tarihi (Pazartesi)</label><input type="date" style={S.fti} value={cur.startDate} min={new Date().toISOString().split("T")[0]} onChange={e => handleDateChange(e.target.value)} /></div>
-                <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" min={1} max={52} value={weeksInput !== null ? weeksInput : cur.weeks} onChange={e => {
-                  const raw = e.target.value;
-                  setWeeksInput(raw);                        // boş bırakılabilsin
-                  const n = parseInt(raw, 10);
-                  if (raw !== "" && !isNaN(n) && n >= 1 && n !== cur.weeks) {
-                    const w = Math.min(n, 52);
-                    setCur(p => ({...p, weeks: w,
-                      accWeeks: p.accWeeksTouched ? Math.min(p.accWeeks || w, w) : w,
-                      course:null, selectedPackage:null, courseTab:null, acc:null, noAccommodation:false}));
-                  }
-                }} onBlur={() => setWeeksInput(null)} />
-                </div>
-              </div>
-              {!cur.isOnline && (() => {
-                const packages = getAvailablePackages(cur.cityData?.discounts, cur.weeks, cur.startDate);
-                const hasPackages = packages.length > 0;
-                // Aktif sekme: paket varsa ve henuz secim yoksa varsayilan "package", aksi "standard"
-                const courseTab = cur.courseTab || (hasPackages ? "package" : "standard");
-                return (<>
-                  {hasPackages && (
-                    <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-                      <div onClick={() => setCur(p => ({...p, courseTab:"package"}))} style={{ flex:1, textAlign:"center", padding:"12px", borderRadius:12, cursor:"pointer", fontWeight:600, fontSize:13, border:`1.5px solid ${courseTab==="package" ? CYAN : "#e2e8f0"}`, background: courseTab==="package" ? "#f0fdff" : "#fff", color: courseTab==="package" ? CYAN : "#64748b" }}>🎁 Paket Programlar</div>
-                      <div onClick={() => setCur(p => ({...p, courseTab:"standard"}))} style={{ flex:1, textAlign:"center", padding:"12px", borderRadius:12, cursor:"pointer", fontWeight:600, fontSize:13, border:`1.5px solid ${courseTab==="standard" ? CYAN : "#e2e8f0"}`, background: courseTab==="standard" ? "#f0fdff" : "#fff", color: courseTab==="standard" ? CYAN : "#64748b" }}>Kendi Programını Oluştur</div>
-                    </div>
-                  )}
-                  {hasPackages && courseTab === "package" && (
-                    <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                      {packages.map((pkg,i) => {
-                        const matchCourse = courses.find(c => c.name === pkg.course_name);
-                        const sel = cur.selectedPackage?.course_name === pkg.course_name && cur.selectedPackage?.weeks === pkg.weeks && cur.selectedPackage?.package_price === pkg.package_price;
-                        const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[pkg.currency] || pkg.currency;
-                        return (<div key={i} style={{ padding:"16px 18px", borderRadius:12, cursor:"pointer", border:`1.5px solid ${sel ? CYAN : "#e2e8f0"}`, background: sel ? "#f0fdff" : "#fff" }}
-                          onClick={() => setCur(p => ({...p, selectedPackage: pkg, course: matchCourse || p.course, noAccommodation: false, acc: null, transfer: packageIncludesTransfer(pkg) ? null : p.transfer }))}>
-                          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                            <div style={{ flex:1 }}>
-                              <div style={{ fontWeight:700, fontSize:14, color: sel ? CYAN : "#0f172a" }}>{matchCourse ? courseLabel(matchCourse) : pkg.course_name}</div>
-                              <div style={{ fontSize:11, color:"#10b981", fontWeight:600, marginTop:3 }}>{pkg.package_type === "with_accommodation" ? "✓ Konaklama Dahil Paket" : "Konaklama Hariç Paket"}</div>
-                              {pkg.includes_tr && <div style={{ fontSize:11, color:"#64748b", marginTop:5, lineHeight:1.5 }}>Dahil: {pkg.includes_tr}</div>}
-                            </div>
-                            <div style={{ textAlign:"right", flexShrink:0, marginLeft:12 }}>
-                              <div style={{ fontWeight:700, fontSize:16, color: sel ? CYAN : "#0f172a" }}>{curSym}{Number(pkg.package_price).toLocaleString("tr-TR")}</div>
-                              <div style={{ fontSize:11, color:"#94a3b8" }}>{pkg.weeks} hafta</div>
-                            </div>
-                          </div>
-                        </div>);
-                      })}
-                    </div>
-                  )}
-                  {(!hasPackages || courseTab === "standard") && (
-                    <div style={S.g3}>
-                      {courses.length === 0 && !cur.cityLoading && <p style={{ color:"#94a3b8", fontSize:13 }}>Bu şehir için kurs verisi bulunamadı.</p>}
-                      {courses.map((c,i) => {
-                        const valid = isCourseValid(c, cur.weeks), sel = !cur.selectedPackage && cur.course?.name === c.name;
-                        return (<div key={i} style={sel ? S.selActive : valid ? S.sel : S.selDisabled} onClick={() => valid && setCur(p => ({...p, course:c, selectedPackage:null}))}>
-                          <div style={{ fontWeight:600 }}>{courseLabel(c)}</div>
-                          <div style={{ fontSize:11, color: sel?"inherit":"#0d9488", marginTop:3, fontWeight:500 }}>{c.lessons} ders · {c.hours} saat/hafta</div>
-                          {c.max_weeks && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>Maks. {c.max_weeks} hafta</div>}
-                          {!valid && <div style={{ fontSize:11, color:"#ef4444", marginTop:2 }}>Bu hafta için geçersiz</div>}
-                        </div>);
-                      })}
-                    </div>
-                  )}
-                </>);
-              })()}
-              {cur.isOnline && cur.course && (<div style={{ padding:"14px 16px", background:"#f0fdff", border:`1.5px solid ${CYAN}`, borderRadius:12 }}><strong>{courseLabel(cur.course)}</strong> — {cur.course.hours} saat/hafta<br/><span style={{ fontSize:12, color:"#64748b" }}>{cur.weeks} hafta · €{getPrice(cur.course, cur.weeks).toLocaleString("tr-TR")}</span></div>)}
-            </div>
-          )}
-
-          {stepName === "Konaklama" && (
-            <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>Konaklama — {cur.brand} {cur.city}{cur.cityLoading && <span style={{ fontSize:11, color:"#94a3b8", fontWeight:400, marginLeft:8 }}>yükleniyor...</span>}</h2>
-              {cur.selectedPackage?.package_type === "no_accommodation" && (
-                <div style={{ marginBottom:16, padding:"12px 14px", background:"#f0fdff", border:`1px solid ${CYAN}`, borderRadius:10, fontSize:12, color:"#0f172a" }}>
-                  🎁 <strong>Paket konaklamasız.</strong> İstersen aşağıdan konaklama ekle, istemezsen en alttan "Konaklama Talep Etmiyorum"u seç.
-                </div>
-              )}
-              {accs.length === 0 && !cur.cityLoading && <p style={{ color:"#94a3b8", fontSize:13 }}>Konaklama verisi bulunamadı.</p>}
-              {accs.length > 0 && (() => {
-                const types = [...new Set(accs.map(a => a.type))];
-                return (<>
-                  <div style={S.g3}>
-                    {types.map(t => (<div key={t} style={accType===t ? S.selActive : S.sel} onClick={() => { setAccType(t); setCur(p => ({...p, acc:null, noAccommodation:false, accWeeks: p.accWeeksTouched ? Math.min(p.accWeeks || p.weeks, p.weeks) : p.weeks})); }}>{t}</div>))}
-                    {/* Konaklama Talep Etmiyorum — tip butonlarinin saginda, gorsel ozellikleri pastel sari */}
-                    <div onClick={() => { setAccType(""); setCur(p => ({...p, acc:null, noAccommodation:true})); }}
-                      style={{ padding:12, borderRadius:12, cursor:"pointer", textAlign:"center", fontWeight:600, fontSize:13,
-                        border:`1.5px solid ${cur.noAccommodation ? "#94a3b8" : "#e2e8f0"}`, background: cur.noAccommodation ? "#f1f5f9" : "#f8fafc", color: cur.noAccommodation ? "#475569" : "#94a3b8" }}>
-                      {cur.noAccommodation ? "✓ Konaklama Talep Etmiyorum" : "Konaklama Talep Etmiyorum"}
-                    </div>
-                  </div>
-                  {accType && (
-                    <div style={{ marginTop:16 }}>
-                      <div style={{ ...S.fld, maxWidth:220, marginBottom:0 }}>
-                        <label style={S.lbl}>Konaklama Süresi (Hafta)</label>
-                        <input style={S.fti} type="number" min={1} max={cur.weeks}
-                          value={accWeeksInput !== null ? accWeeksInput : (cur.accWeeks || cur.weeks)}
-                          onChange={e => {
-                            const raw = e.target.value;
-                            const n = parseInt(raw, 10);
-                            if (raw !== "" && !isNaN(n) && n >= 1) {
-                              const v = Math.min(n, cur.weeks);   // vize kuralı: kurs süresini aşamaz
-                              setAccWeeksInput(String(v));        // aşan değer ekranda da kısılır
-                              setCur(p => ({...p, accWeeks: v, accWeeksTouched: true}));
-                            } else {
-                              setAccWeeksInput(raw);              // boş bırakılabilsin
-                            }
-                          }}
-                          onBlur={() => setAccWeeksInput(null)} />
-                      </div>
-                      {cur.accWeeks && cur.accWeeks !== cur.weeks && (
-                        <div style={{ marginTop:10, padding:"10px 12px", background:"#fef3c7", border:"1px solid #fbbf24", borderRadius:8, fontSize:12, color:"#92400e", fontWeight:600 }}>
-                          ⚠️ Kurs süresi ile konaklama süresi farklı! (Kurs: {cur.weeks} hafta · Konaklama: {cur.accWeeks} hafta)
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {accType && (
-                    <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:10 }}>
-                      {accs.filter(a => a.type === accType).map((a,i) => {
-                        const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board && cur.acc?.bathroom===a.bathroom && cur.acc?.price===a.price;
-                        const hsActive = getAccommodationHighSeasonSupplement(a, cur.accWeeks || cur.weeks, cur.startDate).isActive;
-                        return (<div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a, noAccommodation:false}))}>
-                          <div>
-                            <div style={{ fontWeight:600 }}>{a.name}</div>
-                            <div style={{ fontSize:12, color: sel?"inherit":"#0d9488", marginTop:2, fontWeight:500 }}>{a.room} · {a.board} · {a.distance}</div>
-                            {hsActive && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>⚠️ Yüksek sezon fiyatı geçerli</div>}
-                            {a.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{a.notes}</div>}
-                          </div>
-                          <div style={{ textAlign:"right", flexShrink:0 }}>
-                            <div style={{ fontWeight:700, color: hsActive ? "#f59e0b" : "inherit" }}>{a.currency} {hsActive ? a.hs_price : a.price}/h</div>
-                            <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>{cur.accWeeks || cur.weeks}h: {a.currency} {((hsActive ? a.hs_price : a.price) * (cur.accWeeks || cur.weeks)).toLocaleString("tr-TR")}</div>
-                          </div>
-                        </div>);
-                      })}
-                    </div>
-                  )}
-                </>);
-              })()}
-            </div>
-          )}
-
-          {stepName === "Ek Hizmetler" && (
-            <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>Ek Hizmetler — {cur.brand} {cur.city}</h2>
-              {(() => {
-                const allFees = cur.cityData?.fees || [];
-                const age = parseInt(student.age) || 0;
-                const startD = cur.startDate ? new Date(cur.startDate) : null;
-                const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks).items;
-                const optional = allFees.filter(f => {
-                  if (!["optional_service","supplement","upgrade","course_addon","post_departure"].includes(f.addon_type)) return false;
-                  if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
-                  if (f.min_age && age < f.min_age) return false;
-                  if (f.max_age && age > f.max_age) return false;
-                  if (f.date_start && startD && new Date(f.date_start) > startD) return false;
-                  if (f.date_end && startD && new Date(f.date_end) < startD) return false;
-                  return true;
-                });
-                // Paket secildiyse zorunlu ucret + opsiyonel gizli (paket her sey dahil) — sadece Transfer gosterilir
-                if (cur.selectedPackage) return <p style={{ color:"#64748b", fontSize:13 }}>🎁 Paket programında kurs ücretleri dahildir. Aşağıdan dilerseniz transfer ekleyebilirsiniz.</p>;
-                if (compulsory.length === 0 && (isStaff ? optional.length === 0 : true)) return <p style={{ color:"#94a3b8", fontSize:13 }}>Bu kurs ve tarih için eklenebilecek add-on bulunmuyor.</p>;
-                return (<>
-                  {compulsory.length > 0 && (
-                    <div style={{ marginBottom:20 }}>
-                      <p style={S.slbl}>Zorunlu Ücretler</p>
-                      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                        {compulsory.map((f,i) => (<div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", background:"#f8fafc", borderRadius:10, border:"1px solid #e2e8f0", fontSize:13 }}><span style={{ fontWeight:600 }}>{f.name}</span><span style={{ fontWeight:600, color:"#64748b" }}>{f.currency} {Number(f.amount).toLocaleString("tr-TR")}</span></div>))}
-                      </div>
-                    </div>
-                  )}
-                  {isStaff && optional.length > 0 && (
-                    <div>
-                      <p style={S.slbl}>İsteğe Bağlı Eklemeler</p>
-                      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                        {optional.map((f,i) => {
-                          const sel = cur.addons?.some(a => a.name === f.name);
-                          const amt = f.calc_type === "per_week" ? f.amount * cur.weeks : f.amount;
-                          return (<div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${sel ? CYAN : "#e2e8f0"}`, background: sel ? "#f0fdff" : "#fff", cursor:"pointer" }}
-                            onClick={() => setCur(p => ({ ...p, addons: sel ? (p.addons||[]).filter(a => a.name !== f.name) : [...(p.addons||[]), { ...f, totalAmount: amt }] }))}>
-                            <div>
-                              <div style={{ fontWeight:600, fontSize:13, color: sel ? CYAN : "#0f172a" }}>{f.name}</div>
-                              {f.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{f.notes}</div>}
-                              {f.addon_type === "supplement" && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>Ek ücret</div>}
-                            </div>
-                            <div style={{ textAlign:"right", flexShrink:0 }}>
-                              <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{f.currency} {Number(amt).toLocaleString("tr-TR")}</div>
-                              {f.calc_type === "per_week" && <div style={{ fontSize:11, color:"#94a3b8" }}>{f.amount}/h × {cur.weeks}h</div>}
-                            </div>
-                          </div>);
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </>);
-              })()}
-            </div>
-          )}
-
-          {stepName === "Transfer" && (
-            <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>Transfer — {cur.brand} {cur.city}</h2>
-              {cur.cityData?.transfers?.length > 0 && (
-                <div>
-                  <p style={S.slbl}>Havalimanı Transferi</p>
-                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                    {cur.cityData.transfers.map((t, ti) => {
-                      const sel = cur.transfer?.airport === t.airport && cur.transfer?.code === t.code;
-                      return (<div key={ti} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${sel ? CYAN : "#e2e8f0"}`, background: sel ? "#f0fdff" : "#fff", cursor:"pointer" }} onClick={() => setCur(p => ({ ...p, transfer: sel ? null : t }))}>
-                        <div>
-                          <div style={{ fontWeight:600, fontSize:13, color: sel ? CYAN : "#0f172a" }}>{t.airport}{t.code?.trim() ? ` (${t.code.trim()})` : ""}</div>
-                          {t.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{t.notes}</div>}
-                        </div>
-                        <div style={{ textAlign:"right", flexShrink:0 }}>
-                          <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{t.currency} {Number(t.one_way).toLocaleString("tr-TR")}</div>
-                          <div style={{ fontSize:11, color:"#94a3b8" }}>Tek yön</div>
-                        </div>
-                      </div>);
-                    })}
-                  </div>
-                  <div onClick={() => setCur(p => ({ ...p, transfer: null }))}
-                    style={{ marginTop:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", textAlign:"center", fontWeight:600, fontSize:13,
-                      border:`1.5px solid ${!cur.transfer ? "#94a3b8" : "#e2e8f0"}`, background: !cur.transfer ? "#f1f5f9" : "#f8fafc", color: !cur.transfer ? "#475569" : "#94a3b8" }}>
-                    {!cur.transfer ? "✓ Transfer İstemiyorum" : "Transfer İstemiyorum"}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {stepName === "Özet" && (
-            <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>Teklif Özeti</h2>
-              {destinations.length === 0 && <p style={{ color:"#94a3b8" }}>Henüz destinasyon eklenmedi.</p>}
-              {destinations.map((d,i) => {
-                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
-                const cur2 = d.course?.currency || f.currency;
-                const sD = d.startDate ? new Date(d.startDate) : null;
-                const eD = sD ? addWeeksToDate(sD, d.weeks) : null;
-                const accSD = sD ? (() => { const x = new Date(sD); x.setDate(sD.getDate() - 1); return x; })() : null;
-                const accED = eD ? (() => { const x = new Date(eD); x.setDate(eD.getDate() + 2); return x; })() : null;
-                return (
-                  <div key={i} style={S.summaryCard}>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}><strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong><span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span></div>
-                    <div style={{ marginBottom:10 }}>
-                      <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>{d.selectedPackage ? "Paket Program" : "Kurs"}</div>
-                      {d.selectedPackage ? (<>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.course ? courseLabel(d.course) : d.selectedPackage.course_name}</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.selectedPackage.package_price, cur2)}</span>}</div>
-                        <div style={{ fontSize:11, color:"#10b981", fontWeight:600, marginTop:3 }}>{d.selectedPackage.package_type === "with_accommodation" ? "✓ Konaklama Dahil" : "Konaklama Hariç"}</div>
-                        {d.selectedPackage.includes_tr && <div style={{ fontSize:11, color:"#64748b", marginTop:4, lineHeight:1.5 }}>Dahil: {d.selectedPackage.includes_tr}</div>}
-                      </>) : (<>
-                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{courseLabel(d.course)}</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span>}</div>
-                      {d.courseHsAmount > 0 && (<>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.courseHsStart)} – {formatDateShort(d.courseHsEnd)})</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.courseHsAmount, cur2)}</span>}</div>
-
-                      </>)}
-                      </>)}
-                      {sD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>📅 {fmtDate(sD)} — {fmtDate(eD)}</div>}
-                    </div>
-                    {d.acc && !d.isOnline && d.selectedPackage?.package_type !== "with_accommodation" && (
-                      <div style={{ marginBottom:10 }}>
-                        <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board} ({d.accWeeks || d.weeks} hafta)</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span>}</div>
-                        {d.accHsAmount > 0 && (<>
-                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span>}</div>
-
-                        </>)}
-                        {accSD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>📅 {fmtDate(accSD)} — {fmtDate(accED)}</div>}
-                      </div>
-                    )}
-                    {!d.selectedPackage && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}><span style={{ color:"#64748b" }}>Kayıt + Materyal</span>{isStaff && <span style={{ fontWeight:600 }}>{fmt(f.total, cur2)}</span>}</div>}
-                    {(d.addons||[]).map((a,ai) => (<div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>{a.name}</span>{isStaff && <span>{fmt(a.totalAmount, cur2)}</span>}</div>))}
-                    {d.transfer && (<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport})</span>{isStaff && <span>{fmt(d.transfer.one_way, d.transfer.currency)}</span>}</div>)}
-                    {(() => { const _dt = getDestinationTotals(d, f); return (<>
-                    {!_dt.isPackage && _dt.appliedDiscounts.map((disc, di) => (
-                      <div key={di} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#16a34a", fontWeight:500 }}>
-                        <span>{disc.label} ({disc.value_type === "percentage" ? `%${disc.value}` : disc.value_type === "free" ? "Ücretsiz" : `${disc.value} Sabit`})</span>
-                        {isStaff && <span>- {fmt(disc.amount, cur2)}</span>}
-                      </div>
-                    ))}
-                    {isStaff
-                      ? <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}><span>Toplam</span><span style={{ color:CYAN }}>{fmt(_dt.grandTotal, cur2)}</span></div>
-                      : <div style={{ borderTop:`1.5px solid #e2e8f0`, paddingTop:10, marginTop:4, fontSize:12, color:"#64748b", textAlign:"center" }}>Fiyat detayları PDF teklifinizde yer alacaktır.</div>
-                    }
-                    </>); })()}
-
-                  </div>
-                );
-              })}
-              {destinations.length < 3
-                ? <button onClick={addNew} style={S.addBtn}>+ Yeni Destinasyon Ekle</button>
-                : <button onClick={reset} style={{ ...S.addBtn, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN }}>+ Yeni Teklif Oluştur</button>
-              }
-            </div>
-          )}
-
-          <div style={S.navBox}>
-            {stepName !== "Genel Bilgi" && stepName !== "Özet" && <button onClick={() => { setStep(s => s-1); setTimeout(() => { const r = document.getElementById("bft-root"); if (r) { const t = r.getBoundingClientRect().top + window.pageYOffset - 20; window.scrollTo({ top:t, behavior:"smooth" }); } else window.scrollTo({ top:0, behavior:"smooth" }); }, 100); }} style={S.btnBack}>← Geri</button>}
-            {stepName !== "Özet" && stepName !== "Genel Bilgi" && (<button style={{ ...S.btnNext, opacity: !canNext ? 0.5 : 1, cursor: !canNext ? "not-allowed" : "pointer" }} disabled={!canNext} onClick={next}>{step === STEPS.indexOf("Özet") - 1 ? "Özete Geç →" : "İleri →"}</button>)}
-            {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft:"auto" }} className={isStaff ? "bft-pdf-btn-mobile" : ""}>📄 PDF Oluştur</button>)}
-          </div>
-        </main>
-
-        {isStaff && <aside style={S.side} className="bft-side">
-          <h3 style={S.sideTtl}>Anlık Özet</h3>
-          <div style={S.liveBox}>
-            {cur.lang && <div style={{ marginBottom:4 }}>📍 {cur.lang}{cur.country ? ` / ${cur.country}` : ""}{cur.city ? ` / ${cur.city}` : ""}</div>}
-            {cur.course && <div style={{ marginBottom:4 }}>📚 {courseLabel(cur.course)} ({cur.weeks}h)</div>}
-            {cur.acc && <div style={{ marginBottom:4 }}>🏠 {cur.acc.name}</div>}
-            {courseTotal > 0 && isCourseValid(cur.course, cur.weeks) && (
-              <div style={S.liveTotal}>
-                Anlık: {fmt(currentTotal, cur.course?.currency || feesData.currency)}
-                {(coursePriceData.hsAmount > 0 || accPriceData.hsAmount > 0) && (
-                  <span style={{ fontSize:10, color:"#f59e0b", display:"block" }}>
-                    {coursePriceData.hsAmount > 0 && `(+${fmt(coursePriceData.hsAmount, cur.course?.currency)} kurs HS)`}
-                    {accPriceData.hsAmount > 0 && `(+${fmt(accPriceData.hsAmount, cur.acc?.currency)} konaklama HS)`}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-          {destinations.length > 0 && destinations.map((d,i) => (<div key={i} style={{ fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" }}><strong>{d.city}</strong> · {d.weeks}h · {courseLabel(d.course)?.slice(0,20)}</div>))}
-          {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={S.pdfBtn}>📄 PDF Oluştur</button>)}
-        </aside>}
-      </div>
+        <div class="flex items-center justify-center gap-3"><p class="text-xs text-gray-300">v10.7</p><div class="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer hover:text-gray-500 transition-colors" onclick="showOnlinePlayersPopup()"><span class="presence-dot"></span><span class="presence-count">0</span> çevrimiçi</div></div>
     </div>
-
-    <PdfTemplate destinations={destinations} student={student} user={user} logoSrc={logoSrc} />
-    </>
-  );
-}
-
-function addWeeksToDate(date, weeks) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + weeks * 7);
-  return d;
-}
-
-function PdfTemplate({ destinations, student, user, logoSrc }) {
-  if (!destinations?.length) return null;
-  const phone = user?.phone || "905419189177";
-  return (
-    <div id="pdf-area" style={{ display:"none", fontFamily:"Arial, Helvetica, sans-serif", background:"#fff" }}>
-      {destinations.map((d, idx) => {
-        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
-        const cur = d.course?.currency || f.currency || "GBP";
-        const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur] || cur;
-        const startD = d.startDate ? new Date(d.startDate) : new Date();
-        const endD = addWeeksToDate(startD, d.weeks);
-        const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
-        // Konaklama bitişi kendi süresine göre (kurs süresinden farklı olabilir)
-        const accEndBase = addWeeksToDate(startD, d.accWeeks || d.weeks);
-        const accEndD = new Date(accEndBase); accEndD.setDate(accEndBase.getDate() + 2);
-        const notes = [];
-        if (d.course?.morning) notes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
-        if (d.course?.notes && !d.courseHsActive) notes.push(d.course.notes);
-        if (d.acc?.notes && !d.accHsActive) notes.push(d.acc.notes);
-        if (!d.transfer && d.cityData?.transfers?.length > 0) { const t = d.cityData.transfers[0]; notes.push(`Transfer bilgisi: ${t.airport}${t.code?.trim() ? ` (${t.code.trim()})` : ""} — ${cur} ${Number(t.one_way).toLocaleString("tr-TR")} tek yön${t.notes ? " · " + t.notes : ""}`); }
-
-        return (
-          <div key={idx} className="pdf-block" style={{ width:"210mm", padding:"8mm 18mm 8mm", boxSizing:"border-box", background:"#fff", display:"block", pageBreakBefore: idx > 0 ? "always" : "auto", pageBreakAfter: "auto" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", paddingBottom:"3mm", borderBottom:"0.4px solid #aaa", marginBottom:"5mm" }}>
-              <div>
-                <div style={{ fontSize:"7pt", color:"#999", marginBottom:"1mm" }}>Bilimevi Eğitim Danışmanınız</div>
-                <div style={{ fontSize:"11pt", fontWeight:"bold", color:"#111" }}>{user?.name || "—"}</div>
-                <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}>{user?.email || ""}</div>
-              </div>
-              <img src={logoSrc} alt="Bilimevi" style={{ height:"10mm" }} />
+    <div id="rules-panel" class="hidden fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4" style="backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)" onclick="if(event.target===this)toggleRulesPanel()"><div class="bg-white rounded-3xl shadow-2xl max-w-sm w-[90%] max-h-[80vh] overflow-y-auto p-7" style="border:3px solid #0ea5e9">
+        <button onclick="toggleRulesPanel()" class="float-right w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 text-lg font-bold -mt-2 -mr-2">✕</button>
+        <h3 class="text-2xl font-black text-center mb-5" style="color:#0ea5e9">Nasıl Oynanır?</h3>
+        <div class="text-sm text-gray-600 leading-relaxed space-y-5">
+            <div>
+                <p class="font-bold text-gray-700 mb-2 text-base">🔤 Wordle</p>
+                <p class="mb-3">Gizli kelimeyi en az tahminde bul. Her tahminden sonra harfler renklenir:</p>
+                <div class="flex justify-center gap-2 my-4">
+                    <div class="w-12 h-12 flex items-center justify-center rounded-xl font-black text-white text-xl bg-[#22c55e] shadow">K</div>
+                    <div class="w-12 h-12 flex items-center justify-center rounded-xl font-black text-white text-xl bg-[#eab308] shadow">A</div>
+                    <div class="w-12 h-12 flex items-center justify-center rounded-xl font-black text-white text-xl bg-[#94a3b8] shadow">L</div>
+                    <div class="w-12 h-12 flex items-center justify-center rounded-xl font-black text-white text-xl bg-[#94a3b8] shadow">E</div>
+                    <div class="w-12 h-12 flex items-center justify-center rounded-xl font-black text-white text-xl bg-[#22c55e] shadow">M</div>
+                </div>
+                <div class="flex justify-center gap-5 text-xs font-bold mb-1">
+                    <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-md bg-[#22c55e] inline-block shadow-sm"></span> Doğru yerde</span>
+                    <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-md bg-[#eab308] inline-block shadow-sm"></span> Yanlış yerde</span>
+                    <span class="flex items-center gap-1.5"><span class="w-4 h-4 rounded-md bg-[#94a3b8] inline-block shadow-sm"></span> Yok</span>
+                </div>
             </div>
-            <div style={{ fontSize:"54pt", fontWeight:"900", color:CYAN, lineHeight:1, marginBottom:"2mm", letterSpacing:"-1px" }}>{d.city}</div>
-            <div style={{ fontSize:"20pt", fontWeight:"bold", color:"#111", marginBottom:"5mm", lineHeight:1.2 }}>{fmtDate(startD)}<br/>— {fmtDate(endD)}</div>
-            <div style={{ display:"flex", justifyContent:"space-between", fontSize:"10pt", marginBottom:"0" }}><span>Teklifinize neler dahil?</span><span style={{ color:"#aaa" }}>{curSym}</span></div>
-            <div style={{ fontSize:"10pt", fontWeight:"bold", color:CYAN, marginBottom:"1mm" }}>Hafta Sayısı: {d.weeks}</div>
-            <div style={{ borderTop:"2px solid #111" }} />
-
-            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:"9pt" }}>
-              <tbody>
-                <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
-                  <td style={{ padding:"2.5mm 2mm 2.5mm 0", fontWeight:"bold", verticalAlign:"top", width:"20%", color:"#111" }}>Kurs</td>
-                  <td style={{ padding:"2.5mm 2mm", verticalAlign:"top", width:"58%" }}>
-                    <div style={{ fontWeight:"bold", fontSize:"10pt" }}>{d.brand} — {d.course?.name}</div>
-                    <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}><strong>Başlangıç:</strong> {fmtDate(startD)} &nbsp;|&nbsp; <strong>Bitiş:</strong> {fmtDate(endD)}</div>
-                    {d.course?.lessons > 0 && <div style={{ fontSize:"8pt", color:"#777", marginTop:"1mm" }}>{d.course.lessons} ders/hafta · {d.course.hours} saat</div>}
-                  </td>
-                  <td style={{ padding:"2.5mm 0 2.5mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.courseBasePrice).toLocaleString("tr-TR")},00</td>
-                </tr>
-                {d.courseHsAmount > 0 && (<>
-                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid", background:"#fef9ec" }}>
-                    <td style={{ padding:"2mm 2mm 2mm 0", verticalAlign:"top", color:"#92400e" }}></td>
-                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#92400e" }}>High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.courseHsStart)} – {formatDateShort(d.courseHsEnd)})</span><div style={{ fontSize:"7pt", color:"#b45309", marginTop:"1mm" }}>+{d.course?.hs_supp} {cur}/hafta</div></td>
-                    <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", color:"#92400e", fontWeight:"500" }}>+{Number(d.courseHsAmount).toLocaleString("tr-TR")},00</td>
-                  </tr>
-                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
-                    <td style={{ padding:"2mm 2mm 2mm 0", fontWeight:"bold", verticalAlign:"top" }}>Kurs Toplamı</td>
-                    <td style={{ padding:"2mm 2mm", verticalAlign:"top" }}></td>
-                    <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.courseTotalPrice).toLocaleString("tr-TR")},00</td>
-                  </tr>
-                </>)}
-                {d.acc && !d.isOnline && (
-                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
-                    <td style={{ padding:"2.5mm 2mm 2.5mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Konaklama</td>
-                    <td style={{ padding:"2.5mm 2mm", verticalAlign:"top" }}>
-                      <div style={{ fontWeight:"bold", fontSize:"10pt" }}>{d.acc.name} <span style={{ fontWeight:"normal", fontSize:"9pt" }}>({d.acc.board})</span></div>
-                      <div style={{ fontSize:"8pt", color:"#555", marginTop:"1mm" }}><strong>Giriş:</strong> {fmtDate(accStartD)} &nbsp;|&nbsp; <strong>Çıkış:</strong> {fmtDate(accEndD)}</div>
-                      <div style={{ fontSize:"8pt", color:"#777", marginTop:"1mm" }}>{d.acc.room} · {d.acc.bathroom} · Okula {d.acc.distance}</div>
-                    </td>
-                    <td style={{ padding:"2.5mm 0 2.5mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.accBasePrice).toLocaleString("tr-TR")},00</td>
-                  </tr>
-                )}
-                {d.acc && !d.isOnline && d.accHsAmount > 0 && (<>
-                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid", background:"#fef9ec" }}>
-                    <td style={{ padding:"2mm 2mm 2mm 0", verticalAlign:"top", color:"#92400e" }}></td>
-                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#92400e" }}>High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span><div style={{ fontSize:"7pt", color:"#b45309", marginTop:"1mm" }}>+{(d.accHsPrice - d.acc.price)} {cur}/hafta</div></td>
-                    <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", color:"#92400e", fontWeight:"500" }}>+{Number(d.accHsAmount).toLocaleString("tr-TR")},00</td>
-                  </tr>
-                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
-                    <td style={{ padding:"2mm 2mm 2mm 0", fontWeight:"bold", verticalAlign:"top" }}>Konaklama Toplamı</td>
-                    <td style={{ padding:"2mm 2mm", verticalAlign:"top" }}></td>
-                    <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontWeight:"bold", fontSize:"10pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(d.accTotalPrice).toLocaleString("tr-TR")},00</td>
-                  </tr>
-                </>)}
-
-                {/* DİĞER — border yok, sıkı padding */}
-                {f.items?.length > 0 && f.items.map((fi, fii) => (
-                  <tr key={fii} style={{ pageBreakInside:"avoid" }}>
-                    <td style={{ padding:"1mm 2mm 1mm 0", fontWeight: fii===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: fii===0 ? "inherit" : "9pt" }}>{fii === 0 ? "Diğer" : ""}</td>
-                    <td style={{ padding:"1mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{fi.name}</td>
-                    <td style={{ padding:"1mm 0 1mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(fi.amount).toLocaleString("tr-TR")},00</td>
-                  </tr>
-                ))}
-
-                {/* EK HİZMETLER — border yok, sıkı padding */}
-                {(d.addons||[]).length > 0 && (d.addons||[]).map((a, ai) => (
-                  <tr key={ai} style={{ pageBreakInside:"avoid" }}>
-                    <td style={{ padding:"1mm 2mm 1mm 0", fontWeight: ai===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: ai===0 ? "inherit" : "9pt" }}>{ai === 0 ? "Ek Hizmetler" : ""}</td>
-                    <td style={{ padding:"1mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{a.name}{a.notes ? ` — ${a.notes}` : ""}</td>
-                    <td style={{ padding:"1mm 0 1mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(a.totalAmount||0).toLocaleString("tr-TR")},00</td>
-                  </tr>
-                ))}
-
-                {d.transfer && (
-                  <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
-                    <td style={{ padding:"2mm 2mm 2mm 0", fontWeight:"bold", verticalAlign:"top", color:"#111" }}>Transfer</td>
-                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{d.transfer.airport}{d.transfer.code?.trim() ? ` (${d.transfer.code.trim()})` : ""}{d.transfer.notes ? ` — ${d.transfer.notes}` : ""}</td>
-                    <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{d.transfer.currency} {Number(d.transfer.one_way).toLocaleString("tr-TR")},00</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
-            <div style={{ borderTop:"2.5px solid #111", marginTop:"2mm", padding:"2mm 0", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span style={{ fontWeight:"bold", fontSize:"12pt", textTransform:"uppercase" }}>Toplam Tutar {cur}</span>
-              <span style={{ fontWeight:"bold", fontSize:"18pt" }}>{curSym} {Number(d.courseTotalPrice + d.accTotalPrice + f.total + (d.addons?.reduce((s,a) => s + a.totalAmount, 0) || 0) + (d.transfer?.one_way || 0)).toLocaleString("tr-TR")},00</span>
+            <hr class="border-gray-100">
+            <div>
+                <p class="font-bold text-gray-700 mb-1 text-base">📖 Kelime</p>
+                <p>Verilen harflerle en uzun kelimeleri yaz. Her harf 1 puan.</p>
             </div>
-
-            {notes.length > 0 && (<div style={{ marginTop:"3mm", background:"#f9f9f9", padding:"3mm 4mm", borderRadius:"3mm", fontSize:"7.5pt", color:"#555", border:"0.5px solid #eee" }}><div style={{ fontWeight:"bold", marginBottom:"2mm", textTransform:"uppercase", fontSize:"7pt", color:"#888" }}>Önemli Notlar</div>{notes.map((n,i) => <div key={i} style={{ marginBottom:"1mm" }}>— {n}</div>)}</div>)}
-
-            <div style={{ textAlign:"center", marginTop:"4mm" }}>
-              <a href={`https://wa.me/${phone}`} style={{ display:"inline-block", background:CYAN, color:"#fff", padding:"3mm 10mm", borderRadius:"8mm", fontSize:"10pt", fontWeight:"bold", textDecoration:"none" }}>Eğitim Danışmanınıza Şimdi Ulaşın</a>
+            <div>
+                <p class="font-bold text-gray-700 mb-1 text-base">🔢 İşlem</p>
+                <p>6 sayıyla hedefe en yakın sonucu bul. Tam isabet 10 puan!</p>
             </div>
-
-            <div style={{ marginTop:"8mm", paddingTop:"4mm", borderTop:"0.5px solid #eee", display:"flex", justifyContent:"flex-end", alignItems:"center" }}>
-              <div style={{ fontSize:"8pt", color:"#333" }}>www.bilimevi.com</div>
+            <div>
+                <p class="font-bold text-gray-700 mb-1 text-base">🎲 Karma</p>
+                <p>Kelime + İşlem turları art arda. Toplam skor yarışı!</p>
             </div>
-          </div>
-        );
-      })}
+            <div>
+                <p class="font-bold text-gray-700 mb-1 text-base">🤝 Çok Oyunculu</p>
+                <p>Arkadaşlarınla aynı anda yarış! Wordle'da ilk bulan en çok puanı alır.</p>
+            </div>
+        </div>
+    </div></div>
+</div>
+
+<div id="bkbi-menu-screen" class="hidden relative max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white" style="min-height:600px">
+    <div class="absolute top-4 left-4 text-xs text-gray-400 font-semibold z-10"><span class="menu-name-display"></span> <button onclick="openRenameModal()" title="Adı değiştir" class="hover:text-gray-600">✏️</button></div>
+    <button onclick="showModeSwitchPopup()" title="Oyun Modu" class="absolute top-4 right-4 w-11 h-11 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-xl transition-all hover:rotate-45 duration-300 z-10">⚙️</button>
+    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-[294px] mx-auto mb-6 object-contain" />
+    <button onclick="switchToScreen('kelime-welcome-screen')" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Kelime</button>
+    <button onclick="switchToScreen('sayi-welcome-screen')" class="w-full py-3 bg-gradient-to-r from-summer-sea to-summer-ocean text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">İşlem</button>
+    <button onclick="startSoloKarma(this)" class="w-full py-3 bg-gradient-to-r from-summer-ocean to-summer-blue text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Karma</button>
+    <button onclick="switchToScreen('adventure-map-screen')" class="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">🗺️ Macera</button>
+    <div class="absolute bottom-6 left-8 right-8">
+        <div class="flex justify-center gap-6 mb-2">
+            <button onclick="toggleRulesPanel()" title="Nasıl Oynanır" class="flex flex-col items-center gap-1 group">
+                <span class="w-16 h-16 flex items-center justify-center group-hover:scale-105 transition-all"><img src="assets/ui/guidebook.png" alt="Nasıl Oynanır" class="w-full h-full object-contain"/></span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nasıl Oynanır</span>
+            </button>
+            <button onclick="switchToScreen('scoreboard-screen')" title="Skor Tablosu" class="flex flex-col items-center gap-1 group">
+                <span class="w-16 h-16 flex items-center justify-center group-hover:scale-105 transition-all"><img src="assets/ui/trophy_wordle.png" alt="Skor Tablosu" class="w-full h-full object-contain"/></span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Skor Tablosu</span>
+            </button>
+        </div>
+        <div class="flex items-center justify-center gap-3"><p class="text-xs text-gray-300">v10.7</p><div class="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer hover:text-gray-500 transition-colors" onclick="showOnlinePlayersPopup()"><span class="presence-dot"></span><span class="presence-count">0</span> çevrimiçi</div></div>
     </div>
-  );
-}
+</div>
 
-const S = {
-  root: { minHeight:"100vh", background:"#f8fafc", fontFamily:"'Sora',sans-serif" },
-  hdr: { background:"#fff", borderBottom:"1px solid #e2e8f0", position:"sticky", top:0, zIndex:10 },
-  cnt: { maxWidth:1100, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" },
-  htitle: { fontSize:15, fontWeight:600, color:"#0f172a" },
-  backBtn: { background:"none", border:"1px solid #e2e8f0", padding:"8px 16px", borderRadius:10, cursor:"pointer", fontSize:13 },
-  body: { maxWidth:1100, margin:"20px auto", padding:"0 20px", display:"grid", gridTemplateColumns:"1fr 280px", gap:20 },
-  main: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:"28px 32px" },
-  ttl: { fontSize:17, fontWeight:700, marginBottom:20, color:"#0f172a" },
-  slbl: { fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", margin:"16px 0 8px" },
-  r2: { display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 },
-  fld: { display:"flex", flexDirection:"column", gap:6, marginBottom:12 },
-  lbl: { fontSize:12, color:"#64748b" },
-  fti: { padding:"10px 14px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, fontFamily:"inherit", height:44, boxSizing:"border-box" },
-  g3: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:10 },
-  sel: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, background:"#fff" },
-  selActive: { padding:12, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
-  selDisabled: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"not-allowed", fontSize:13, background:"#f8fafc", opacity:0.5, color:"#94a3b8" },
-  selOnline: { padding:12, border:"1.5px solid #3b82f6", color:"#3b82f6", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13 },
-  selOnlineActive: { padding:12, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
-  acc: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:14, border:"1.5px solid #e2e8f0", borderRadius:12, cursor:"pointer", fontSize:13, background:"#fff" },
-  accActive: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:14, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, cursor:"pointer", fontSize:13 },
-  navBox: { marginTop:36, display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:20, borderTop:"1px solid #f1f5f9" },
-  btnBack: { background:"none", border:"none", cursor:"pointer", color:"#64748b", fontSize:14 },
-  btnNext: { background:CYAN, color:"#fff", border:"none", padding:"11px 32px", borderRadius:10, fontWeight:600, cursor:"pointer", fontSize:14 },
-  side: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:20, position:"sticky", top:80, height:"fit-content" },
-  sideTtl: { fontSize:13, fontWeight:700, borderBottom:"1px solid #eee", paddingBottom:10, marginBottom:14 },
-  liveBox: { background:"#f0fdff", padding:12, borderRadius:10, fontSize:12, marginBottom:14, border:`1px solid ${CYAN}` },
-  liveTotal: { marginTop:8, fontWeight:700, fontSize:14, color:CYAN },
-  summaryCard: { border:"1.5px solid #e2e8f0", borderRadius:14, padding:"16px 20px", marginBottom:12 },
-  addBtn: { background:"none", border:`1.5px dashed ${CYAN}`, color:CYAN, width:"100%", padding:"10px 0", borderRadius:10, cursor:"pointer", fontSize:13, marginTop:10 },
-  pdfBtn: { width:"100%", marginTop:16, padding:"12px 0", background:CYAN, color:"#fff", border:"none", borderRadius:10, fontWeight:700, cursor:"pointer", fontSize:14 },
-  cinsiyetBtn: { flex:1, textAlign:"center", padding:"12px", border:"1.5px solid #e2e8f0", borderRadius:"12px", cursor:"pointer", fontSize:"14px", fontWeight:"500", background:"#fff", transition:"all 0.2s" },
-  cinsiyetBtnActive: { borderColor:CYAN, background:"#f0fdff", color:CYAN, fontWeight:"600" },
-};
+<div id="wordle-welcome-screen" class="relative max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white" style="min-height:600px">
+    <div class="absolute top-4 left-4 text-xs text-gray-400 font-semibold z-10"><span class="menu-name-display"></span> <button onclick="openRenameModal()" title="Adı değiştir" class="hover:text-gray-600">✏️</button></div>
+    <button onclick="showModeSwitchPopup()" title="Oyun Modu" class="absolute top-4 right-4 w-11 h-11 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-full text-xl transition-all hover:rotate-45 duration-300 z-10">⚙️</button>
+    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-[294px] mx-auto mb-6 object-contain" />
+    <button onclick="switchToScreen('wordle-difficulty-screen')" class="w-full py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Egzersiz</button>
+    <button onclick="startDailyWordle(this)" class="w-full py-3 bg-gradient-to-r from-indigo-400 to-indigo-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">📅 Günün Kelimesi</button>
+    <button onclick="openWordleLobby()" class="w-full py-3 bg-white text-emerald-600 font-bold text-lg rounded-2xl shadow border-2 border-emerald-200 hover:bg-emerald-50 transition-all">Arkadaşlarınla Oyna</button>
+    <div class="absolute bottom-6 left-8 right-8">
+        <div class="flex justify-center gap-6 mb-2">
+            <button onclick="toggleRulesPanel()" title="Nasıl Oynanır" class="flex flex-col items-center gap-1 group">
+                <span class="w-16 h-16 flex items-center justify-center group-hover:scale-105 transition-all"><img src="assets/ui/guidebook.png" alt="Nasıl Oynanır" class="w-full h-full object-contain"/></span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nasıl Oynanır</span>
+            </button>
+            <button onclick="switchToScreen('scoreboard-screen')" title="Skor Tablosu" class="flex flex-col items-center gap-1 group">
+                <span class="w-16 h-16 flex items-center justify-center group-hover:scale-105 transition-all"><img src="assets/ui/trophy_wordle.png" alt="Skor Tablosu" class="w-full h-full object-contain"/></span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Skor Tablosu</span>
+            </button>
+        </div>
+        <div class="flex items-center justify-center gap-3"><p class="text-xs text-gray-300">v10.7</p><div class="flex items-center gap-1.5 text-xs text-gray-300 cursor-pointer hover:text-gray-500 transition-colors" onclick="showOnlinePlayersPopup()"><span class="presence-dot"></span><span class="presence-count">0</span> çevrimiçi</div></div>
+    </div>
+</div>
+
+<div id="wordle-difficulty-screen" class="hidden relative max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white" style="min-height:600px">
+    <div class="absolute top-3 right-3"><span class="text-xs text-gray-400 font-semibold"><span class="presence-count-name"></span></span></div>
+    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-[294px] mx-auto mb-6 object-contain" />
+    
+    <button onclick="startSoloWordle(this,4)" class="w-full py-3 bg-gradient-to-r from-green-300 to-green-500 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-2">Kolay (4 Harf)</button>
+    <button onclick="startSoloWordle(this,5)" class="w-full py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-2">Normal (5 Harf)</button>
+    <button onclick="startSoloWordle(this,6)" class="w-full py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-2">Zor (6 Harf)</button>
+    <button onclick="startSoloWordle(this,7)" class="w-full py-3 bg-gradient-to-r from-red-400 to-red-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-4">İmkansız (7 Harf)</button>
+    <button onclick="switchToScreen('wordle-welcome-screen')" class="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
+</div>
+
+<div id="kelime-welcome-screen" class="hidden relative max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white" style="min-height:600px">
+    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-[294px] mx-auto mb-6 object-contain" />
+    <button onclick="startSoloKelime(this)" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Tek Kişilik Oyun</button>
+    <button onclick="showMpLobbyScreen('kelime')" class="w-full py-3 bg-white text-summer-sea font-bold text-lg rounded-2xl shadow border-2 border-blue-200 hover:bg-blue-50 transition-all mb-3">Arkadaşlarınla Oyna</button>
+    <button onclick="openAdventureMap()" class="w-full py-3 bg-gradient-to-r from-purple-400 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Macera</button>
+    <button onclick="switchToScreen('bkbi-menu-screen')" class="w-full mt-4 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
+
+</div>
+
+<div id="sayi-welcome-screen" class="hidden relative max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white" style="min-height:600px">
+    <img src="assets/bkbi.png" alt="Bir Kelime Bir İşlem" class="w-auto max-h-[294px] mx-auto mb-6 object-contain" />
+    <button onclick="startSoloSayi(this)" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Tek Kişilik Oyun</button>
+    <button onclick="showMpLobbyScreen('sayi')" class="w-full py-3 bg-white text-summer-sea font-bold text-lg rounded-2xl shadow border-2 border-blue-200 hover:bg-blue-50 transition-all">Arkadaşlarınla Oyna</button>
+    <button onclick="switchToScreen('bkbi-menu-screen')" class="w-full mt-4 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
+
+</div>
+
+<div id="wordle-game-screen" class="hidden max-w-md w-full overflow-x-hidden bg-white/90 backdrop-blur-sm p-3 rounded-3xl shadow-2xl border-4 border-white">
+    <div class="flex justify-between items-center mb-2 text-sm">
+        <span class="font-bold text-summer-sea">Tur <span id="wd-round">1</span>/<span id="wd-max-round">3</span></span>
+        <span class="font-black text-lg" id="wd-time-left">2:00</span>
+        <span class="font-bold text-summer-coral">Puan: <span id="wd-score">0</span></span>
+    </div>
+    <div id="wd-board" class="flex flex-col mb-2" style="gap:1px"></div>
+    <p id="wd-status" class="hidden text-center text-sm font-bold mb-2"></p>
+    <div id="wd-keyboard" class="flex flex-col mb-2" style="gap:1px"></div>
+    <div id="wd-opponents" class="hidden bg-blue-50 rounded-xl p-3 text-left"><p class="text-xs font-bold text-summer-sea uppercase tracking-wider mb-2">Rakipler</p><div id="wd-opponents-list" class="flex flex-col gap-2"></div></div>
+    <div class="flex justify-between items-center mt-1">
+        <button onclick="useWordleJoker()" id="wd-joker-btn" title="Bir harf aç" class="relative w-11 h-11 flex items-center justify-center bg-gradient-to-br from-purple-400 to-purple-600 text-white rounded-full shadow-md hover:shadow-lg hover:scale-105 transition-all text-xl">🔍<span id="wd-joker-count" class="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center bg-white text-purple-600 text-xs font-black rounded-full shadow border border-purple-200">3</span></button>
+        <div class="flex gap-2">
+        <button onclick="hostFinishGameNow()" data-finish="mp-finish" class="finish-btn hidden px-4 py-2 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
+        <button onclick="guestLeaveGame()" data-finish="mp-leave" class="finish-btn hidden px-4 py-2 bg-white text-gray-400 font-semibold text-xs rounded-full shadow-md border border-gray-200 hover:bg-gray-100 hover:text-gray-600 transition-colors">🚪 Oyundan Ayrıl</button>
+        <button onclick="soloWordleFinish()" data-finish="wd-solo-finish" class="finish-btn hidden px-4 py-2 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
+    </div></div>
+</div>
+
+<div id="wordle-game-over-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-sun relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-summer-sun to-summer-coral"></div>
+    <h2 class="text-4xl font-extrabold text-gray-800 mb-2 mt-4">Oyun Bitti!</h2>
+    <p class="text-gray-500 mb-4">Kelime yarışı tamamlandı.</p>
+    <div class="flex justify-center mb-4"><span class="player-name-chip gameover-name-chip">🎮 <span class="gameover-name-text"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div>
+    <p class="hidden gameover-name-hint text-xs text-amber-600 font-semibold mb-4">Devam etmeden önce adını değiştirip kaydet ✏️</p>
+    <div class="bg-orange-50 rounded-2xl p-6 mb-6"><p class="text-sm font-bold text-orange-400 uppercase tracking-widest mb-1">Toplam Skor</p><p id="wd-final-score" class="text-6xl font-black text-summer-coral">0</p></div>
+    <div id="wd-mp-results" class="hidden bg-blue-50 rounded-2xl p-4 mb-6 text-left"><p class="text-sm font-bold text-summer-sea uppercase tracking-widest mb-2 text-center">🏆 Bu Oyunun Sonuçları</p><div id="wd-mp-results-list" class="flex flex-col gap-1"></div></div>
+    <div id="wd-last-word" class="hidden bg-orange-50 rounded-2xl p-4 mb-6"><p class="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1">Son Turun Kelimesi</p><p id="wd-last-word-text" class="text-3xl font-black text-summer-coral tracking-widest">-----</p></div>
+    <div id="wd-solo-btns" class="hidden flex flex-col gap-3 mb-4">
+        <button onclick="startSoloWordle(null,game.wordle.wordLen||5)" class="w-full py-3 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">🔄 Tekrar Oyna</button>
+        <button onclick="switchToScreen('wordle-welcome-screen')" class="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Wordle Menüsü</button>
+    </div>
+    <button onclick="tryReturnToMenuFromGameOver()" id="wd-mp-menu-btn" class="gameover-menu-btn w-full py-3 bg-summer-sea text-white font-bold text-lg rounded-2xl shadow-lg hover:bg-blue-700 transition-all">Ana Menüye Dön</button>
+</div>
+
+<div id="adventure-map-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-6 rounded-3xl shadow-2xl text-center border-4 border-white max-h-[90vh] overflow-y-auto">
+    <h1 class="text-3xl font-extrabold text-summer-sea mb-1">Macera</h1>
+    <p class="text-gray-500 mb-3 text-sm">Bölümleri sırayla geç, yıldızları topla!</p>
+    <div class="bg-blue-50 rounded-xl p-3 mb-4 text-left text-xs text-gray-600 leading-relaxed"><span class="font-bold text-summer-sea">Nasıl puan alınır?</span> Her harf 1 puan (5 harfli kelime = 5 puan). Uzun kelimeler daha çok puan! Her bölümün bir hedefi var — hedefi geçince ⭐, fazlasıyla aşınca ⭐⭐ veya ⭐⭐⭐ kazanırsın.</div>
+    <div id="adventure-level-grid" class="grid grid-cols-4 gap-3 mb-4"></div>
+    <button onclick="switchToScreen('kelime-welcome-screen')" class="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
+</div>
+
+<div id="adventure-level-intro-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-ocean relative overflow-hidden">
+    <div class="text-6xl mb-2">🚩</div>
+    <h2 class="text-3xl font-extrabold text-summer-sea mb-1">Bölüm <span id="adv-intro-num">1</span></h2>
+    <div class="bg-blue-50 rounded-2xl p-5 my-5"><p class="text-xs font-bold text-summer-sea uppercase tracking-widest mb-2">🎯 Hedef</p><p id="adv-intro-goal" class="text-xl font-bold text-gray-700">-</p></div>
+    <div class="flex items-center justify-center gap-4 text-sm text-gray-500 mb-6"><span>⏱️ <span id="adv-intro-time">120</span> sn</span><span id="adv-intro-nojoker" class="hidden">🚫 Joker yok</span></div>
+    <button onclick="startAdventureLevel()" class="w-full py-3 bg-gradient-to-r from-summer-ocean to-summer-blue text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-2">Başla 🚀</button>
+    <button onclick="switchToScreen('adventure-map-screen')" class="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Haritaya Dön</button>
+</div>
+
+<div id="adventure-level-complete-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-sun relative overflow-hidden">
+    <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-summer-sun to-summer-coral"></div>
+    <h2 id="adv-complete-title" class="text-4xl font-extrabold text-gray-800 mb-2 mt-4">Bölüm Tamam!</h2>
+    <div id="adv-complete-stars" class="text-5xl mb-4 tracking-widest">⭐⭐⭐</div>
+    <p id="adv-complete-msg" class="text-gray-500 mb-4">-</p>
+    <div class="bg-orange-50 rounded-2xl p-5 mb-6"><p class="text-xs font-bold text-orange-400 uppercase tracking-widest mb-1">Skorun</p><p id="adv-complete-score" class="text-5xl font-black text-summer-coral">0</p></div>
+    <button id="adv-next-btn" onclick="adventureNextLevel()" class="w-full py-3 bg-gradient-to-r from-summer-ocean to-summer-blue text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-2">Sonraki Bölüm ➜</button>
+    <button onclick="adventureRetryLevel()" class="w-full py-3 mb-2 bg-white text-summer-sea font-bold rounded-xl border-2 border-blue-200 hover:bg-blue-50 transition-colors">🔄 Tekrar Dene</button>
+    <button onclick="switchToScreen('adventure-map-screen')" class="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">🗺️ Haritaya Dön</button>
+</div>
+
+<div id="scoreboard-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-6 rounded-3xl shadow-2xl text-center border-4 border-white">
+    <div class="flex justify-center mb-2"><svg width="56" height="56" viewBox="0 0 64 64" fill="none"><path d="M20 8h24v14a12 12 0 01-24 0V8z" fill="#fbbf24" stroke="#d97706" stroke-width="2"/><path d="M44 12h6a5 5 0 01-6 8" stroke="#d97706" stroke-width="2.5" fill="none"/><path d="M20 12h-6a5 5 0 006 8" stroke="#d97706" stroke-width="2.5" fill="none"/><path d="M28 34h8v8h-8z" fill="#f59e0b"/><rect x="22" y="42" width="20" height="5" rx="2" fill="#d97706"/><rect x="18" y="47" width="28" height="6" rx="2" fill="#b45309"/><circle cx="32" cy="18" r="5" fill="#fef08a"/></svg></div>
+    <h2 class="text-3xl font-extrabold text-summer-sea mb-4">Skor Tablosu</h2>
+    <div class="flex bg-gray-100 rounded-xl p-1 mb-4">
+        <button onclick="switchScoreTab('bkbi')" id="score-tab-bkbi" class="score-tab-btn flex-1 py-2 rounded-lg font-bold text-sm transition-all bg-summer-sea text-white">Bir Kelime Bir İşlem</button>
+        <button onclick="switchScoreTab('wordle')" id="score-tab-wordle" class="score-tab-btn flex-1 py-2 rounded-lg font-bold text-sm transition-all text-gray-500">🔤 Wordle</button>
+    </div>
+    <div class="retro-highscore-box"><div class="grid grid-cols-12 font-retro text-xs text-slate-400 tracking-wider mb-3 px-2"><span class="col-span-2 text-left">POS</span><span class="col-span-5 text-left">NAME</span><span class="col-span-5 text-left">SCORE</span></div><div id="retro-top10-list" class="flex flex-col gap-1"><p class="text-slate-500 text-sm">Yükleniyor...</p></div></div>
+    <button onclick="switchToScreen('wordle-welcome-screen')" class="w-full mt-4 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
+</div>
+
+<div id="round-select-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
+    <h2 class="text-3xl font-extrabold text-summer-sea mb-2">Kaç Tur Oynayalım?</h2><p class="text-gray-500 mb-4">Tur sayısı ve süresini seç</p>
+    <div class="grid grid-cols-3 gap-2 mb-4"><button onclick="selectSoloRoundCount(3)" data-solo-round="3" class="solo-round-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">3</button><button onclick="selectSoloRoundCount(5)" data-solo-round="5" class="solo-round-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">5</button><button onclick="selectSoloRoundCount(7)" data-solo-round="7" class="solo-round-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">7</button></div>
+    <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Tur Süresi (dk)</p>
+    <div class="grid grid-cols-3 gap-2 mb-6"><button onclick="selectSoloDuration(1)" data-solo-duration="1" class="solo-duration-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">1</button><button onclick="selectSoloDuration(2)" data-solo-duration="2" class="solo-duration-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">2</button><button onclick="selectSoloDuration(3)" data-solo-duration="3" class="solo-duration-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">3</button></div>
+    <button onclick="startGame()" id="btn-solo-start" disabled class="wbtn t-orange mb-3"><span>OYUNU BAŞLAT</span></button>
+    <button onclick="switchToScreen('kelime-welcome-screen')" class="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
+</div>
+
+<div id="sayi-round-select-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
+    <h2 class="text-3xl font-extrabold text-summer-sea mb-2">İşlem</h2><p class="text-gray-500 mb-6">Kaç tur oynayalım?</p>
+    <div class="grid grid-cols-3 gap-2 mb-6"><button onclick="selectSayiRoundCount(3)" data-sayi-round="3" class="sayi-round-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">3</button><button onclick="selectSayiRoundCount(5)" data-sayi-round="5" class="sayi-round-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">5</button><button onclick="selectSayiRoundCount(7)" data-sayi-round="7" class="sayi-round-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">7</button></div>
+    <button onclick="startSayiGame()" id="btn-sayi-start" disabled class="w-full py-3 bg-gray-300 text-white font-bold text-lg rounded-2xl shadow-lg transition-all mb-3 cursor-not-allowed">Oyunu Başlat 🚀</button>
+    <button onclick="switchToScreen('sayi-welcome-screen')" class="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
+</div>
+
+<div id="karma-round-select-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
+    <h2 class="text-3xl font-extrabold text-summer-sea mb-2">🎲 Bir Kelime Bir İşlem</h2><p class="text-gray-500 mb-6">Toplam kaç tur?</p>
+    <div class="grid grid-cols-3 gap-2 mb-6"><button onclick="selectKarmaRoundCount(3)" data-karma-round="3" class="karma-round-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">3</button><button onclick="selectKarmaRoundCount(5)" data-karma-round="5" class="karma-round-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">5</button><button onclick="selectKarmaRoundCount(7)" data-karma-round="7" class="karma-round-btn py-3 bg-blue-50 text-summer-sea font-black text-lg rounded-2xl border-2 border-blue-200 transition-colors">7</button></div>
+    <button onclick="startKarmaGame()" id="btn-karma-start" disabled class="w-full py-3 bg-gray-300 text-white font-bold text-lg rounded-2xl shadow-lg transition-all mb-3 cursor-not-allowed">Oyunu Başlat 🚀</button>
+    <button onclick="switchToScreen('wordle-welcome-screen')" class="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
+</div>
+
+<div id="sayi-game-screen" class="hidden w-full max-w-2xl flex flex-col h-full max-h-[90vh]">
+    <div class="relative flex justify-end mb-1">
+        <div id="sayi-help-bubble" class="hidden absolute right-0 -top-8 bg-summer-sea text-white text-xs px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">✏️ Adınızı değiştirebilirsiniz</div>
+        <span class="player-name-chip">🎮 <span id="sayi-player-name-display"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span>
+    </div>
+    <div class="flex justify-between items-center bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-md mb-2 border-2 border-white"><div class="text-center"><p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Tur</p><p class="text-2xl font-black text-summer-sea"><span id="sayi-current-round">1</span>/<span id="sayi-max-round">3</span></p></div><div class="text-center bg-blue-100 px-6 py-2 rounded-xl"><p class="text-xs font-bold text-blue-500 uppercase tracking-wider">Süre</p><p id="sayi-time-left" class="text-3xl font-black text-summer-ocean">1:30</p></div><div class="text-center"><p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Puan</p><p id="sayi-score" class="text-3xl font-black text-summer-coral">0</p></div></div>
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-4 mb-4 text-center border-2 border-white"><p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Hedef Sayı</p><p id="sayi-target" class="text-5xl font-black text-summer-sea">000</p><p class="text-sm text-gray-500 mt-2">En Yakın: <span id="sayi-best-result" class="font-bold text-summer-coral">-</span></p><p id="sayi-diff-help" class="hidden text-xs mt-1 font-semibold text-summer-ocean"></p></div>
+    <button onclick="finishSayiRoundEarly()" id="btn-sayi-exact-finish" class="hidden w-full py-3 mb-4 bg-gradient-to-r from-green-400 to-green-600 text-white font-bold rounded-xl shadow-lg animate-pulse">🎯 Tam İsabet! Turu Bitir</button>
+    <div id="sayi-mp-exact-banner" class="hidden w-full py-3 mb-4 bg-green-50 border-2 border-green-300 text-green-600 font-bold rounded-xl text-center text-sm"></div>
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-4 mb-4 flex flex-col items-center justify-center min-h-[70px] border-2 border-white"><p id="sayi-expression-display" class="text-2xl font-bold text-summer-sea">Bir sayı seç...</p></div>
+    <div id="sayi-numbers-rack" class="flex flex-wrap justify-center gap-x-2 gap-y-3 md:gap-3 mb-4"></div>
+    <div class="grid grid-cols-4 gap-2 mb-4"><button onclick="selectSayiOperator('+')" class="sayi-op-btn py-3 bg-white text-summer-sea font-black text-2xl rounded-xl shadow border-2 border-blue-200 hover:bg-blue-50">+</button><button onclick="selectSayiOperator('−')" class="sayi-op-btn py-3 bg-white text-summer-sea font-black text-2xl rounded-xl shadow border-2 border-blue-200 hover:bg-blue-50">−</button><button onclick="selectSayiOperator('×')" class="sayi-op-btn py-3 bg-white text-summer-sea font-black text-2xl rounded-xl shadow border-2 border-blue-200 hover:bg-blue-50">×</button><button onclick="selectSayiOperator('÷')" class="sayi-op-btn py-3 bg-white text-summer-sea font-black text-2xl rounded-xl shadow border-2 border-blue-200 hover:bg-blue-50">÷</button></div>
+    <div class="grid grid-cols-2 gap-2"><button onclick="undoSayiOperation()" class="py-2 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors text-sm">↩️ Geri Al</button><button onclick="resetSayiNumbers()" class="py-2 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors text-sm">🔄 Baştan Kombinle</button></div>
+    <div class="flex justify-end mt-2 gap-2">
+        <button onclick="sayiFinishGameNow()" data-finish="sayi" class="finish-btn hidden px-4 py-2 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
+        <button onclick="karmaFinishGameNow()" data-finish="karma" class="finish-btn hidden px-4 py-2 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
+        <button onclick="hostFinishGameNow()" data-finish="mp-finish" class="finish-btn hidden px-4 py-2 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
+        <button onclick="guestLeaveGame()" data-finish="mp-leave" class="finish-btn hidden px-4 py-2 bg-white text-gray-400 font-semibold text-xs rounded-full shadow-md border border-gray-200 hover:bg-gray-100 hover:text-gray-600 transition-colors">🚪 Oyundan Ayrıl</button>
+    </div>
+</div>
+
+<div id="wordle-round-over-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-4 border-summer-sun max-h-[90vh] overflow-y-auto"><div class="text-5xl mb-2">🔤</div><h3 class="text-3xl font-extrabold text-summer-sea mb-1"><span id="wd-ro-title">Tur Bitti!</span></h3><p class="text-gray-500 mb-3">Kelime: <span id="wd-ro-secret" class="font-black text-2xl text-summer-coral tracking-widest">-----</span></p><div id="wd-ro-ranks" class="bg-blue-50 rounded-xl p-3 mb-4 text-left flex flex-col gap-1"></div><p class="text-gray-500 mb-1">Kazandığın Puan: <span id="wd-ro-points" class="font-bold text-summer-coral">0</span></p><p class="text-gray-500 mb-6">Toplam Skorun: <span id="wd-ro-total" class="font-black text-2xl text-summer-coral">0</span></p><button onclick="hostStartNextRound()" id="btn-wd-next-round" class="hidden w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Sonraki Tur ➜</button><button onclick="hostFinishGameNow()" id="btn-wd-ro-finish" class="hidden w-full mt-2 py-2 bg-red-50 text-red-500 font-bold rounded-xl border-2 border-red-200 hover:bg-red-100 transition-colors text-sm">🏁 Oyunu Burada Bitir</button><p id="wd-ro-guest-text" class="hidden text-gray-500 animate-pulse">Host'un kararını bekliyorsun...</p></div></div>
+
+<div id="sayi-round-over-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-4 border-summer-sun max-h-[90vh] overflow-y-auto"><div class="text-5xl mb-2">🔢</div><h3 class="text-3xl font-extrabold text-summer-sea mb-1"><span id="sayi-round-over-title">Tur Bitti!</span></h3><p class="text-gray-500">Hedef: <span id="sayi-round-over-target" class="font-bold">000</span></p><div id="sayi-computer-solution"></div><p class="text-gray-500 mb-4">Kazandığın Puan: <span id="sayi-round-over-points" class="font-bold text-summer-coral">0</span></p><p class="text-gray-500 mb-6">Toplam Skorun: <span id="sayi-round-over-total" class="font-black text-2xl text-summer-coral">0</span></p><button onclick="sayiGoToNextRound()" id="btn-sayi-next-round" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Sonraki Tur ➜</button><button onclick="hostFinishGameNow()" id="btn-sayi-round-over-finish" class="hidden w-full mt-2 py-2 bg-red-50 text-red-500 font-bold rounded-xl border-2 border-red-200 hover:bg-red-100 transition-colors text-sm">🏁 Oyunu Burada Bitir</button><p id="sayi-round-over-guest-text" class="hidden text-gray-500 animate-pulse">Host'un kararını bekliyorsun...</p></div></div>
+<div id="sayi-game-over-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-sun relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-summer-sun to-summer-coral"></div><h2 class="text-4xl font-extrabold text-gray-800 mb-2 mt-4">Oyun Bitti!</h2><p class="text-gray-500 mb-4">İşlem modunu tamamladın!</p><div class="flex justify-center mb-4"><span class="player-name-chip gameover-name-chip">🎮 <span class="gameover-name-text"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div><p class="hidden gameover-name-hint text-xs text-amber-600 font-semibold mb-4">Devam etmeden önce adını değiştirip kaydet ✏️</p><div class="bg-orange-50 rounded-2xl p-6 mb-6"><p class="text-sm font-bold text-orange-400 uppercase tracking-widest mb-1">Toplam Skor</p><p id="sayi-final-score" class="text-6xl font-black text-summer-coral">0</p></div><div id="sayi-mp-results" class="hidden bg-blue-50 rounded-2xl p-4 mb-6 text-left"><p class="text-sm font-bold text-summer-sea uppercase tracking-widest mb-2 text-center">🏆 Bu Oyunun Sonuçları</p><div id="sayi-mp-results-list" class="flex flex-col gap-1"></div></div><div id="sayi-mp-last-solution" class="hidden bg-blue-50 rounded-2xl p-4 mb-6 text-left"></div><button onclick="tryReturnToMenuFromGameOver()" class="gameover-menu-btn w-full py-3 bg-summer-sea text-white font-bold text-lg rounded-2xl shadow-lg hover:bg-blue-700 transition-all">Ana Menüye Dön</button></div>
+
+<div id="karma-round-over-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-4 border-summer-sun"><div class="text-5xl mb-2">🎲</div><h3 class="text-3xl font-extrabold text-summer-sea mb-1"><span id="karma-round-over-title">Tur Bitti!</span></h3><p class="text-gray-500 mb-2">Bu Turdan Kazandığın: <span id="karma-round-over-points" class="font-bold text-summer-coral">+0</span></p><p class="text-gray-500 mb-6">Toplam Skorun: <span id="karma-round-over-total" class="font-black text-2xl text-summer-coral">0</span></p><button onclick="karmaGoToNextRound()" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Sonraki Tur ➜</button></div></div>
+<div id="karma-game-over-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-sun relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-summer-sun to-summer-coral"></div><h2 class="text-4xl font-extrabold text-gray-800 mb-2 mt-4">Oyun Bitti!</h2><p class="text-gray-500 mb-4">Bir Kelime Bir İşlem'de harika iş çıkardın.</p><div class="flex justify-center mb-4"><span class="player-name-chip gameover-name-chip">🎮 <span class="gameover-name-text"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div><p class="hidden gameover-name-hint text-xs text-amber-600 font-semibold mb-4">Devam etmeden önce adını değiştirip kaydet ✏️</p><div class="bg-orange-50 rounded-2xl p-6 mb-6"><p class="text-sm font-bold text-orange-400 uppercase tracking-widest mb-1">Toplam Skor</p><p id="karma-final-score" class="text-6xl font-black text-summer-coral">0</p></div><button onclick="tryReturnToMenuFromGameOver()" class="gameover-menu-btn w-full py-3 bg-summer-sea text-white font-bold text-lg rounded-2xl shadow-lg hover:bg-blue-700 transition-all">Ana Menüye Dön</button></div>
+
+<div id="mp-lobby-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
+    <h2 class="text-3xl font-extrabold text-summer-sea mb-6">Arkadaşlarınla Oyna</h2>
+    <button onclick="openMpHost(this)" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-6">➕ Oyun Kur</button>
+    <p class="text-left text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Aktif Oyunlar</p>
+    <div id="mp-active-list" class="flex flex-col gap-2 mb-6 max-h-60 overflow-y-auto"><p class="text-gray-400 text-sm">Yükleniyor...</p></div>
+    <button onclick="leaveMpLobbyScreen()" class="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">← Geri</button>
+</div>
+
+<div id="mp-waiting-screen" class="hidden max-w-md w-full bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl text-center border-4 border-white">
+    <div class="flex justify-center mb-4"><span class="player-name-chip">🎮 <span id="mp-waiting-name"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div>
+    <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Oyun Kodu</p>
+    <p id="mp-game-code" class="text-4xl font-black text-summer-sea mb-6 tracking-widest"></p>
+    <p class="text-left text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Oyuncular</p>
+    <div id="mp-player-list" class="flex flex-col gap-1 mb-6 text-left"></div>
+    <div id="mp-host-controls" class="hidden">
+        <p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Kaç Tur?</p>
+        <div class="grid grid-cols-3 gap-2 mb-4"><button onclick="selectMpRoundCount(3)" data-round="3" class="mp-round-btn py-3 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">3</button><button onclick="selectMpRoundCount(5)" data-round="5" class="mp-round-btn py-3 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">5</button><button onclick="selectMpRoundCount(7)" data-round="7" class="mp-round-btn py-3 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">7</button></div>
+        <div id="mp-duration-section"><p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Tur Süresi (dk)</p>
+        <div class="grid grid-cols-3 gap-2 mb-4"><button onclick="selectMpDuration(1)" data-duration="1" class="mp-duration-btn py-3 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">1dk</button><button onclick="selectMpDuration(1.5)" data-duration="1.5" class="mp-duration-btn py-3 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">1.5dk</button><button onclick="selectMpDuration(2)" data-duration="2" class="mp-duration-btn py-3 bg-blue-50 text-summer-sea font-black rounded-xl border-2 border-blue-200">2dk</button></div></div>
+        <button onclick="startMultiplayerGame()" id="btn-mp-start" disabled class="w-full py-3 bg-gray-300 text-white font-bold text-lg rounded-2xl shadow-lg transition-all mb-3 cursor-not-allowed">Oyunu Başlat 🚀</button>
+    </div>
+    <p id="mp-guest-waiting-text" class="hidden text-gray-500 mb-3 animate-pulse">Host'un oyunu başlatmasını bekliyorsun...</p>
+    <button onclick="leaveMultiplayerLobby()" class="w-full py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors">Lobiden Ayrıl</button>
+</div>
+
+<div id="game-screen" class="hidden w-full max-w-2xl flex flex-col h-full max-h-[90vh]">
+    <div class="relative flex justify-end mb-1">
+        <div id="kelime-help-bubble" class="hidden absolute right-0 -top-8 bg-summer-sea text-white text-xs px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap">✏️ Adınızı değiştirebilirsiniz</div>
+        <span class="player-name-chip">🎮 <span id="player-name-display"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span>
+    </div>
+    <div class="flex justify-between items-center bg-white/90 backdrop-blur-md p-4 rounded-2xl shadow-md mb-2 border-2 border-white"><div class="text-center"><p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Tur</p><p class="text-2xl font-black text-summer-sea"><span id="current-round">1</span>/<span id="max-round-display">10</span></p></div><div class="text-center bg-blue-100 px-6 py-2 rounded-xl"><p class="text-xs font-bold text-blue-500 uppercase tracking-wider">Süre</p><p id="time-left" class="text-3xl font-black text-summer-ocean">3:00</p></div><div class="text-center"><p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Puan</p><p id="score" class="text-3xl font-black text-summer-coral">0</p></div></div>
+    
+    <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-md p-4 mb-4 flex flex-col items-center justify-center min-h-[100px] border-2 border-white relative" onclick="focusMobileKeyboard()"><div id="active-word-display" class="flex gap-2 min-h-[3rem] items-center justify-center flex-wrap"><p class="text-gray-400 font-medium">Harflere tıklayın veya klavyeyi kullanın...</p></div><input id="mobile-keyboard-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" class="absolute inset-0 w-full h-full opacity-0 cursor-text" style="font-size:16px;" /><button onclick="event.stopPropagation(); clearActiveWord()" class="absolute right-4 top-1/2 transform -translate-y-1/2 w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 hover:bg-red-200 hover:text-red-600 transition-colors z-10">✕</button></div>
+    <div id="letters-rack" class="flex flex-wrap justify-center gap-2 md:gap-3 mb-6 min-h-[5rem]"></div>
+    <div class="flex gap-4 mb-6"><button onclick="shuffleLettersAndPlay()" id="btn-shuffle" class="flex-1 py-3 bg-white text-summer-sea font-bold rounded-xl shadow border-2 border-blue-200 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"><span>🔄</span> Karıştır</button><button onclick="submitWord()" id="btn-submit" class="flex-2 w-2/3 py-3 bg-summer-sea text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-lg"><span>✅</span> Kelimeyi Onayla</button></div>
+    <div class="bg-white/90 backdrop-blur-sm flex-1 rounded-2xl shadow-md p-4 overflow-hidden flex flex-col border-2 border-white"><h3 class="font-bold text-gray-700 mb-3 border-b pb-2 flex justify-between"><span>Bulunan Kelimeler</span><span class="text-sm font-normal text-summer-sea"><span id="word-count">0</span> Kelime</span></h3><div id="found-words-list" class="flex-1 overflow-y-auto flex flex-wrap gap-2 content-start"></div></div>
+    <div class="flex justify-end mt-2 gap-2">
+        <button onclick="finishAdventureLevelEarly()" data-finish="adventure" class="finish-btn hidden px-4 py-2 bg-gradient-to-r from-green-400 to-green-600 text-white font-bold text-sm rounded-full shadow-md hover:shadow-lg transition-all animate-pulse">🎯 Hedef Tamam! Bölümü Bitir</button>
+        <button onclick="soloFinishGameNow()" data-finish="solo" class="finish-btn hidden px-4 py-2 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
+        <button onclick="karmaFinishGameNow()" data-finish="karma" class="finish-btn hidden px-4 py-2 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
+        <button onclick="hostFinishGameNow()" data-finish="mp-finish" class="finish-btn hidden px-4 py-2 bg-red-50 text-red-400 font-semibold text-xs rounded-full shadow-md border border-red-200 hover:bg-red-100 hover:text-red-600 transition-colors">🏁 Oyunu Bitir</button>
+        <button onclick="guestLeaveGame()" data-finish="mp-leave" class="finish-btn hidden px-4 py-2 bg-white text-gray-400 font-semibold text-xs rounded-full shadow-md border border-gray-200 hover:bg-gray-100 hover:text-gray-600 transition-colors">🚪 Oyundan Ayrıl</button>
+    </div>
+</div>
+
+<div id="sayi-joker-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-6 rounded-3xl shadow-2xl max-w-sm w-full"><div class="text-center mb-4"><h3 class="text-2xl font-bold text-summer-sun">⭐ Joker Sayıyı Seç</h3><p class="text-sm text-gray-500 mt-1">1-9 arası istediğin sayı</p></div><div class="grid grid-cols-3 gap-2">
+<button onclick="assignSayiJoker(1)" class="py-4 bg-blue-50 text-summer-sea font-black text-2xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">1</button>
+<button onclick="assignSayiJoker(2)" class="py-4 bg-blue-50 text-summer-sea font-black text-2xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">2</button>
+<button onclick="assignSayiJoker(3)" class="py-4 bg-blue-50 text-summer-sea font-black text-2xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">3</button>
+<button onclick="assignSayiJoker(4)" class="py-4 bg-blue-50 text-summer-sea font-black text-2xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">4</button>
+<button onclick="assignSayiJoker(5)" class="py-4 bg-blue-50 text-summer-sea font-black text-2xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">5</button>
+<button onclick="assignSayiJoker(6)" class="py-4 bg-blue-50 text-summer-sea font-black text-2xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">6</button>
+<button onclick="assignSayiJoker(7)" class="py-4 bg-blue-50 text-summer-sea font-black text-2xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">7</button>
+<button onclick="assignSayiJoker(8)" class="py-4 bg-blue-50 text-summer-sea font-black text-2xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">8</button>
+<button onclick="assignSayiJoker(9)" class="py-4 bg-blue-50 text-summer-sea font-black text-2xl rounded-xl border-2 border-blue-200 hover:bg-summer-sea hover:text-white transition-colors">9</button>
+</div><button onclick="closeSayiJokerModal()" class="w-full mt-4 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300">İptal</button></div></div>
+<div id="rename-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-6 rounded-3xl shadow-2xl max-w-sm w-full"><div class="text-center mb-4"><h3 class="text-2xl font-bold text-summer-sea">✏️ Adını Değiştir</h3><p class="text-sm text-gray-500 mt-1">Yeni skorların bu isimle kaydedilir</p></div><input id="rename-input" type="text" maxlength="20" placeholder="Yeni ismin..." class="w-full px-4 py-3 border-2 border-blue-200 rounded-xl text-center font-bold text-summer-sea focus:outline-none focus:border-summer-sea mb-4" style="font-size:16px;" /><div class="flex gap-2"><button onclick="closeRenameModal()" class="flex-1 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300">İptal</button><button onclick="saveNewName()" id="rename-save-btn" class="flex-1 py-2 bg-summer-sea text-white rounded-xl font-bold hover:bg-blue-700">Kaydet</button></div></div></div>
+<div id="joker-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-6 rounded-3xl shadow-2xl max-w-sm w-full"><div class="text-center mb-4"><h3 class="text-2xl font-bold text-summer-sun">Joker Harfi Seç</h3></div><div id="joker-keyboard" class="flex flex-wrap justify-center gap-2"></div><button onclick="closeJokerModal()" class="w-full mt-4 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-300">İptal</button></div></div>
+<div id="mp-countdown-overlay" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center z-50"><p class="text-white text-xl font-bold mb-2">Hazır ol!</p><span id="mp-countdown-number" class="text-white text-9xl font-black">5</span></div>
+
+<div id="round-over-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border-4 border-summer-sun max-h-[90vh] overflow-y-auto"><div class="text-5xl mb-2">⏱️</div><h3 class="text-3xl font-extrabold text-summer-sea mb-1"><span id="round-over-title">Tur Bitti!</span></h3><p class="text-gray-500 mb-4">Toplam Skorun</p><p id="round-over-score" class="text-5xl font-black text-summer-coral mb-6">0</p><div id="round-over-bonus-banner" class="hidden bg-amber-50 border-2 border-amber-300 text-amber-700 text-sm font-bold rounded-xl p-3 mb-4"></div><div id="round-over-leaderboard" class="flex flex-col gap-1 mb-6 text-left"></div><div id="round-over-top-words" class="hidden text-left mb-4"><p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">📚 Bu Harflerle En İyiler</p><div id="round-over-top-words-list" class="flex flex-wrap gap-2"></div></div><div id="round-over-missed-words" class="hidden text-left mb-4"><p class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Kaçırdığın Kelimeler</p><div id="round-over-missed-words-list" class="flex flex-wrap gap-2"></div></div><button onclick="goToNextRound()" id="btn-next-round" class="w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Sonraki Tur ➜</button><button onclick="hostFinishGameNow()" id="btn-round-over-finish" class="hidden w-full mt-2 py-2 bg-red-50 text-red-500 font-bold rounded-xl border-2 border-red-200 hover:bg-red-100 transition-colors text-sm">🏁 Oyunu Burada Bitir</button><p id="round-over-guest-text" class="hidden text-gray-500 animate-pulse">Host'un kararını bekliyorsun...</p></div></div>
+<div id="game-over-screen" class="hidden max-w-md w-full bg-white/95 backdrop-blur-md p-8 rounded-3xl shadow-2xl text-center border-4 border-summer-sun relative overflow-hidden"><div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-summer-sun to-summer-coral"></div><h2 class="text-4xl font-extrabold text-gray-800 mb-2 mt-4">Oyun Bitti!</h2><p class="text-gray-500 mb-4">Harika bir yaz performansı sergiledin.</p><div class="flex justify-center mb-4"><span class="player-name-chip gameover-name-chip">🎮 <span class="gameover-name-text"></span> <button onclick="openRenameModal()" title="Adı değiştir">✏️</button></span></div><p class="hidden gameover-name-hint text-xs text-amber-600 font-semibold mb-4">Devam etmeden önce adını değiştirip kaydet ✏️</p><div class="bg-orange-50 rounded-2xl p-6 mb-6"><p class="text-sm font-bold text-orange-400 uppercase tracking-widest mb-1">Toplam Skor</p><p id="final-score" class="text-6xl font-black text-summer-coral">0</p></div><div id="game-over-bonus-banner" class="hidden bg-amber-50 border-2 border-amber-300 text-amber-700 text-sm font-bold rounded-xl p-3 mb-4"></div><div class="bg-blue-50 rounded-2xl p-4 mb-6 text-left"><p class="text-sm font-bold text-summer-sea uppercase tracking-widest mb-2 text-center" id="leaderboard-title">Skor Tablosu</p><div id="leaderboard-list" class="flex flex-col gap-1"><p class="text-gray-400 text-sm text-center">Yükleniyor...</p></div></div><button onclick="tryReturnToMenuFromGameOver()" class="gameover-menu-btn w-full py-3 bg-summer-sea text-white font-bold text-lg rounded-2xl shadow-lg hover:bg-blue-700 transition-all">Ana Menüye Dön</button></div>
+<div id="toast-container" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+<script>
+const AudioContext=window.AudioContext||window.webkitAudioContext;const audioCtx=new AudioContext();
+const sounds={playTone(f,t,d,v=0.1){if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=t;o.frequency.setValueAtTime(f,audioCtx.currentTime);g.gain.setValueAtTime(v,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+d);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+d);},playChord(f,t,d,v=0.07){f.forEach(x=>this.playTone(x,t,d,v));},playClick:()=>sounds.playChord([659.25,987.77],'sine',0.08,0.05),playError:()=>sounds.playChord([233.08,277.18],'sine',0.25,0.06),playSuccess:()=>{sounds.playChord([523.25,659.25],'sine',0.15,0.07);setTimeout(()=>sounds.playChord([523.25,659.25,783.99],'sine',0.45,0.06),120);},playStart:()=>{sounds.playChord([392,493.88],'sine',0.18,0.06);setTimeout(()=>sounds.playChord([523.25,659.25,783.99],'sine',0.4,0.07),160);},playRoll:()=>sounds.playTone(880,'sine',0.04,0.02)};
+function showToast(m,t='error'){const c=document.getElementById('toast-container');const el=document.createElement('div');el.className=`${t==='error'?'bg-red-500':'bg-green-500'} text-white px-6 py-3 rounded-full shadow-lg font-bold text-sm transform transition-all duration-300 translate-y-[-20px] opacity-0`;el.textContent=m;c.appendChild(el);setTimeout(()=>{el.classList.remove('translate-y-[-20px]','opacity-0');el.classList.add('translate-y-0','opacity-100');},10);setTimeout(()=>{el.classList.remove('translate-y-0','opacity-100');el.classList.add('translate-y-[-20px]','opacity-0');setTimeout(()=>el.remove(),300);},2000);}
+
+const WEB_APP_URL='https://script.google.com/macros/s/AKfycbzQivxeUgVu5MKBJBR_-RjCrrKPiHIk2mIkgPPP2NfJc7ArJ13-XIHE5kmsCOL00KTO/exec';
+const VOWELS=['A','E','I','İ','O','Ö','U','Ü'],CONSONANTS=['B','C','Ç','D','F','G','Ğ','H','J','K','L','M','N','P','R','S','Ş','T','V','Y','Z'];
+const ALPHABET=[...VOWELS,...CONSONANTS].sort((a,b)=>a.localeCompare(b,'tr'));
+const LETTER_SCRAMBLE_STEP_MS=500,SAYI_SMALL=[1,2,3,4,5,6,7,8,9],SAYI_LARGE=[10,25,50,75,100];
+const dictionary=new Set(["YAZ","SU","KUM","GÜNEŞ","DENİZ","PLAJ","TATİL","SICAK","ADA","KAMP"]);
+let turkishWordSet=null,turkishWordSetCore=null;
+async function loadDict(){try{const r=await fetch('assets/kelimeler.txt');const t=await r.text();const s=new Set();t.split('\n').forEach(l=>{const w=l.trim();if(w)s.add(w);});turkishWordSet=s;}catch(e){try{const r2=await fetch('https://raw.githubusercontent.com/CanNuhlar/Turkce-Kelime-Listesi/master/turkce_kelime_listesi.txt');const t2=await r2.text();const s2=new Set();t2.split('\n').forEach(l=>{const w=l.trim();if(!w||/[\s/'\-0-9]/.test(w)||w.length<3)return;s2.add(w.toLocaleUpperCase('tr-TR'));});turkishWordSet=s2;}catch(e2){}}try{const rc=await fetch('assets/kelimeler_temel.txt');const tc=await rc.text();const sc=new Set();tc.split('\n').forEach(l=>{const w=l.trim();if(w)sc.add(w);});turkishWordSetCore=sc;}catch(ec){}}
+loadDict().then(()=>{try{buildWordlePools();}catch(e){}});
+setTimeout(()=>{try{prefetchScoreboard();}catch(e){}},800);
+
+let game={isPlaying:false,score:0,currentRound:1,maxRounds:10,playerName:'',hasCustomName:false,previousLetters:null,selectedRoundCount:null,selectedDurationMinutes:null,karma:{active:false,currentRound:1,maxRounds:3,score:0},roundLetters:[],activeWord:[],foundWords:[],timeRemaining:180,pendingJokerTile:null,adventure:{active:false,level:null,jokerUsed:false},wordle:{secret:'',guesses:[],current:[],cursor:0,_animRow:-1,solved:false,score:0,timeRemaining:120,isPlaying:false,_lastScoredRound:null,_reported:false},sayi:{numbers:[],target:0,currentRound:1,maxRounds:3,score:0,bestResultThisRound:null,selectedTileId:null,selectedOperator:null,timeRemaining:90,isPlaying:false,history:[]},mp:{gameId:null,isHost:false,gameType:'kelime',selectedRoundCount:null,selectedDurationMinutes:null,previousLetters:null,lastSyncedRound:null,lastBonusAppliedRound:null,currentPlayerCount:1}};
+let timerInterval=null,mpTimerInterval=null,sayiTimerInterval=null,computerSolutionAnimationInterval=null,roundOverUnlockInterval=null;
+let playerNameReady=false,playerNamePromise=null;
+
+// # karakteri Firebase'de geçersiz olduğu için - kullan
+async function initPlayerName(){const saved=localStorage.getItem('bkbi_playerName');if(saved){game.playerName=saved;game.hasCustomName=true;playerNameReady=true;updateAllPlayerNameDisplays();return;}try{const r=await fetch(`${WEB_APP_URL}?mode=oyuncu`);const d=await r.json();const rr=await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'registerPlayer'})});const rd=await rr.json();if(!game.hasCustomName)game.playerName=rd.playerName.replace(/#/g,'-');playerNameReady=true;}catch(e){if(!game.hasCustomName)game.playerName='Oyuncu-'+(Math.floor(Math.random()*9000)+1000);playerNameReady=true;}}
+playerNamePromise=initPlayerName();playerNamePromise.then(()=>updateAllPlayerNameDisplays());
+async function getOrCreatePlayerName(){if(playerNameReady&&game.playerName)return game.playerName;if(playerNamePromise)await playerNamePromise;if(!game.playerName)game.playerName='Oyuncu-'+(Math.floor(Math.random()*9000)+1000);return game.playerName;}
+function updatePlayerNameDisplay(id){const el=document.getElementById(id);if(el&&game.playerName)el.textContent=game.playerName;}
+function updateAllPlayerNameDisplays(){if(window.__updatePresenceName)window.__updatePresenceName();updatePlayerNameDisplay('player-name-display');updatePlayerNameDisplay('sayi-player-name-display');const wn=document.getElementById('mp-waiting-name');if(wn&&game.playerName)wn.textContent=game.playerName;document.querySelectorAll('.menu-name-display').forEach(el=>{if(game.playerName)el.textContent=game.playerName;});document.querySelectorAll('.gameover-name-text').forEach(el=>{if(game.playerName)el.textContent=game.playerName;});}
+function updateNameGateUI(){const locked=!game.hasCustomName;document.querySelectorAll('.gameover-menu-btn').forEach(b=>{b.disabled=locked;b.classList.toggle('opacity-50',locked);b.classList.toggle('cursor-not-allowed',locked);});document.querySelectorAll('.gameover-name-chip').forEach(c=>c.classList.toggle('name-highlight-pulse',locked));document.querySelectorAll('.gameover-name-hint').forEach(h=>h.classList.toggle('hidden',!locked));}
+function resetMpState(){detachMpListeners();clearInterval(mpTimerInterval);clearInterval(sayiTimerInterval);clearInterval(timerInterval);if(game.mp.gameId&&game.mp.isHost){try{window.fb.onDisconnect(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`)).cancel();window.fb.onDisconnect(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`)).cancel();}catch(e){}}game.mp.gameId=null;game.mp.isHost=false;game.mp.gameType='kelime';game.mp.lastSyncedRound=null;game.mp.lastBonusAppliedRound=null;game.mp.previousLetters=null;game.mp.currentPlayerCount=1;game.adventure.active=false;game.wordle.isPlaying=false;game.wordle._roundEndRequested=false;}
+function tryReturnToMenuFromGameOver(){if(!game.hasCustomName){showToast('Ana menüye dönmeden önce adını değiştirip kaydetmelisin! ✏️');openRenameModal();return;}resetMpState();switchToScreen('wordle-welcome-screen');}
+function openRenameModal(){const inp=document.getElementById('rename-input');inp.value=game.playerName||'';document.getElementById('rename-modal').classList.remove('hidden');setTimeout(()=>inp.focus(),100);}
+function closeRenameModal(){document.getElementById('rename-modal').classList.add('hidden');}
+async function saveNewName(){const inp=document.getElementById('rename-input');const newName=inp.value.trim().replace(/#/g,'-');if(!newName){showToast('İsim boş olamaz!');return;}if(newName===game.playerName){game.hasCustomName=true;updateNameGateUI();closeRenameModal();return;}const oldName=game.playerName;const inLobby=!!game.mp.gameId;game.playerName=newName;game.hasCustomName=true;localStorage.setItem('bkbi_playerName',newName);updateAllPlayerNameDisplays();updateNameGateUI();closeRenameModal();if(inLobby){try{await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/players`),{[oldName]:null,[newName]:true});}catch(e){}}showToast('İsmin güncellendi! 🎮','success');}
+let helpBubbleShown=false;
+function showRenameHelpBubbleOnce(bubbleId){if(helpBubbleShown)return;helpBubbleShown=true;const b=document.getElementById(bubbleId);if(!b)return;b.classList.remove('hidden');b.classList.add('help-bubble-anim');setTimeout(()=>{b.classList.add('hidden');b.classList.remove('help-bubble-anim');},5000);}
+
+const ALL_SCREENS=['game-mode-select-screen','bkbi-menu-screen','wordle-welcome-screen','wordle-difficulty-screen','kelime-welcome-screen','sayi-welcome-screen','scoreboard-screen','sayi-game-screen','sayi-game-over-screen','karma-game-over-screen','game-screen','game-over-screen','wordle-game-screen','wordle-game-over-screen','mp-lobby-screen','mp-waiting-screen','adventure-map-screen','adventure-level-intro-screen','adventure-level-complete-screen'];
+
+// ===== WORDLE MODU =====
+const WORDLE_LEN=5,WORDLE_MAX_GUESSES=6,WORDLE_ROUND_MS=120000;
+function getWL(){return(game.wordle&&game.wordle.wordLen)||WORDLE_LEN;}
+const WORDLE_COMMON=['ABONE','ACELE','ACEMİ','ADRES','AFGAN','AFYON','AHLAK','AHŞAP','AJANS','AKŞAM','ALARM','ALBAY','ALTIN','ALÇAK','AMBAR','ANKET','ANLAM','APTAL','ARABA','ARACI','ARAMA','ARENA','ARMUT','ASKER','ASLAN','ATLAS','AVANS','AYDIN','AYRAN','BACAK','BADEM','BAGAJ','BAHAR','BAHÇE','BAKIM','BAKIR','BALIK','BALTA','BANDO','BANKA','BARAJ','BASIN','BASKI','BASİT','BATIK','BAYAN','BAYAT','BAĞIR','BAŞAK','BAŞKA','BEBEK','BEDEL','BELGE','BENEK','BESİN','BEYAZ','BEYİN','BOMBA','BORSA','BOYUN','BOYUT','BOZUK','BOĞAZ','BUCAK','BUHAR','BUKET','BULGU','BULMA','BULUT','BURMA','BURUN','BUZLU','BUĞRA','BÖCEK','BÖLGE','BÖLÜM','BÖREK','BÜTÜN','BÜYÜK','BİBER','BİDON','BİLEK','BİLET','BİLGİ','BİNEK','BİRAZ','BİTKİ','BİTİŞ','CADDE','CAMLI','CANLI','CASUS','CEKET','CEMAL','CEVAP','CEVİZ','CIVIK','COŞKU','CÜMLE','CİHAZ','CİVAR','DAHİL','DALAK','DALGA','DALIŞ','DAMAR','DAMAT','DAMLA','DAVET','DAVUL','DAYAK','DAĞCI','DAİRE','DELİK','DEMET','DEMİR','DENGE','DENİZ','DERGİ','DERİN','DETAY','DEVAM','DEVİR','DEĞER','DOLAM','DOLAP','DOLGU','DOSYA','DOĞAL','DOĞRU','DOĞUM','DURAK','DURUM','DUVAR','DUYAR','DUYGU','DÖNEM','DÖNER','DÖNME','DÖNÜM','DÖŞEK','DÜDÜK','DÜNYA','DÜRÜM','DÜZEN','DÜĞME','DÜĞÜN','DÜŞÜK','DİKEN','DİKEY','DİKİŞ','DİLEK','DİLİM','DİREK','DİYAR','DİZEL','EJDER','EKLEM','EKMEK','EKRAN','EKSİK','ELMAS','EMSAL','ENDAM','ENGEL','ERGEN','ERKEK','ERKEN','ESNAF','ETKİN','EVRAK','EYLEM','FAKİR','FALEZ','FALSO','FAYDA','FENER','FENOL','FEVRİ','FIRIN','FORMA','FORSA','FORUM','FRENK','FULAR','FÜTUR','FİDAN','FİGÜR','FİKİR','FİLİZ','FİNAL','FİRMA','FİTİL','FİYAT','GALİP','GARAJ','GARİP','GEDİK','GELEN','GELİN','GELİR','GENİŞ','GEREK','GEÇEN','GEÇİT','GEÇİŞ','GOCUK','GURUP','GURUR','GÖLGE','GÖNÜL','GÖREV','GÖRÜŞ','GÖVDE','GÖÇME','GÖÇÜK','GÖĞÜS','GÜDÜK','GÜDÜM','GÜLER','GÜLME','GÜMÜŞ','GÜNAH','GÜNEŞ','GÜVEN','GÜVEÇ','GÜZEL','GÜÇLÜ','GİDEN','GİDER','GİRDİ','GİRİŞ','GİTAR','GİYSİ','HABER','HAFTA','HAFİF','HAKLI','HAKİM','HALAT','HALAY','HALKA','HAMAM','HAMLE','HAMUR','HANIM','HAREM','HASIR','HASTA','HATIR','HAVAS','HAVUZ','HAYAL','HAYAT','HAYIR','HAZIR','HEDEF','HEKİM','HELAL','HESAP','HEYBE','HIRKA','HIZLI','HOŞÇA','HURDA','HUZUR','HİDRA','HİLAL','HİSSE','ILICA','IRMAK','ISLAK','JAPON','KABAK','KABAN','KABLO','KABUK','KADEH','KADIN','KADRO','KAFES','KAHVE','KALEM','KALIN','KALIP','KANAL','KANAT','KANCA','KANIT','KANUN','KAPAK','KAPAN','KARAR','KARGA','KARIŞ','KARMA','KARNE','KASAP','KASIM','KAVAK','KAVGA','KAVUN','KAYAK','KAYIK','KAYIT','KAYMA','KAZAK','KAÇAK','KAÇIŞ','KAĞIT','KEBAP','KEFAL','KELEK','KEMAN','KEMER','KENAR','KENDİ','KESER','KESİM','KESİN','KIDEM','KISIM','KIYMA','KIZAK','KOLAY','KOLON','KOMUT','KOMŞU','KONAK','KONUK','KONUM','KONUT','KOPYA','KORKU','KOYUN','KOÇAK','KOÇAN','KOŞUL','KUBAT','KULAK','KULÜP','KUMAŞ','KUMLU','KUPON','KURAK','KURAL','KURUL','KURUM','KUYUM','KUZEY','KUŞAK','KUŞKU','KÖFTE','KÖMÜR','KÖPEK','KÖPRÜ','KÖRPE','KÜREK','KÜTÜK','KÜÇÜK','KİBAR','KİLİM','KİLİT','KİMSE','KİMYA','KİRAZ','KİRPİ','KİTAP','KİTLE','LAMBA','LANET','LATİN','LAZIM','LEGAL','LEVHA','LEĞEN','LODOS','LOKMA','LOKUM','LONCA','LÜZUM','LİDER','LİFLİ','LİMAN','LİMON','LİSAN','LİSTE','MADEN','MAKAM','MAKAS','MAKET','MAKUL','MALUM','MANGO','MANTO','MARKA','MARUL','MASAL','MASKE','MASUM','MAÇKA','MECAL','MEDYA','MEKAN','MELEK','MELEZ','MEMUR','MERAK','MESAJ','MESUT','METAL','MEYVE','MEZAR','MEŞRU','MISIR','MODEM','MORAL','MOTOR','MUHAL','MUTLU','MÜDÜR','MÜHÜR','MÜJDE','MÜZİK','MİDYE','MİLLİ','MİMAR','MİRAS','NABIZ','NAKİT','NAMAZ','NAMLU','NASIL','NASIR','NAZAR','NEDEN','NEFES','NEHİR','NESİL','NOKTA','NUTUK','NÖBET','NÜFUS','NİKAH','NİKEL','NİSAN','NİYET','NİŞAN','OKUMA','OLASI','OLGUN','OLMAZ','OMLET','OPERA','ORGAN','ORMAN','ORTAK','ORTAM','OYNAK','PAKET','PALET','PALTO','PAMPA','PAMUK','PANEL','PANİK','PAPAZ','PARKE','PARÇA','PASTA','PATİK','PAZAR','PAÇAL','PEDAL','PELİN','PEMBE','PERDE','PEŞİN','PINAR','PLAKA','PLAZA','POLİS','POSTA','PRENS','PİLAV','PİLOT','RADAR','RADON','RADYO','RAHAT','RAKAM','RAKET','RAKİP','RAMAK','RAPOR','REKOR','RESİM','REÇEL','ROBOT','ROKET','ROMAN','RUMUZ','RÖTAR','SABAH','SABIK','SABIR','SAHNE','SAHRA','SAHİL','SAKAL','SAKIN','SAKİN','SALON','SALÇA','SAMAN','SANAT','SARAY','SARGI','SATIR','SATIŞ','SAVAŞ','SAYFA','SAYGI','SAYIM','SAZLI','SAÇAK','SAÇMA','SAĞIR','SEBZE','SEFER','SEHER','SEKİZ','SELAM','SEMER','SEPET','SERGİ','SERİN','SEVGİ','SEZON','SEÇKİ','SEÇİM','SICAK','SIFIR','SINAV','SINIF','SOKAK','SOKMA','SOLAK','SOMUN','SOMUT','SONRA','SONUÇ','SORUN','SOYLU','SOĞAN','SOĞUK','SUBAY','SUCUK','SULAK','SUNUM','SUNUŞ','SURAT','SÖĞÜT','SÜRAT','SÜREÇ','SÜRÜM','SÜTLÜ','SİHİR','SİLAH','SİLGİ','SİMİT','SİNEK','SİNİR','SİPER','SİRKE','SİVRİ','SİYAH','TABAK','TABAN','TABLA','TABLO','TABUR','TAHTA','TAKAS','TAKIM','TAKMA','TALAN','TALEP','TAMAM','TAMİR','TANIK','TANIM','TANIŞ','TARAF','TARAK','TARLA','TARİH','TATLI','TATİL','TAVAN','TAVLA','TAVUK','TAŞIT','TEKEL','TEKNE','TEKİR','TELAŞ','TEMAS','TEMEL','TEMPO','TEMİZ','TENHA','TENİS','TEORİ','TEPSİ','TERAS','TERFİ','TERZİ','TERİM','TESİS','TETİK','TIRAŞ','TOHUM','TOKAT','TONAJ','TOPUK','TOPUZ','TOPÇU','TORBA','TORUN','TUZAK','TUZLU','TÜFEK','TÜNEL','TÜRBE','TÜRKÜ','TÜTÜN','TİPİK','ULEMA','UMMAN','UNSUR','UYARI','UYGUN','UYSAL','UZMAN','UÇMAK','UĞRAŞ','VAHŞİ','VAKIF','VAKİT','VALİZ','VAPUR','VARIŞ','VATAN','VEKİL','VERGİ','VERİM','VURUŞ','VİRAJ','VİTES','VİZÖR','YABAN','YAKIN','YAKIT','YAKUT','YALAN','YALIN','YAMAÇ','YAMUK','YANAK','YANAL','YANIK','YANIT','YAPAY','YARAR','YARIK','YARIM','YARIN','YARIŞ','YASAK','YASAL','YATAK','YATAY','YAYIN','YAZAR','YAZIK','YAĞCI','YAŞAM','YAŞLI','YEDEK','YELEK','YEMEK','YEMİN','YENGE','YEREL','YERLİ','YETKİ','YETİM','YEŞİL','YILAN','YOKSA','YOKUŞ','YOLCU','YONCA','YORUM','YOSUN','YOĞUN','YUMAK','YUNUS','YÜZEY','YÜZME','YÜZÜK','ZAFER','ZAMAN','ZARAR','ZARİF','ZAYIF','ZEHİR','ZEMİN','ZIRVA','ZORBA','ZORLU','ZÜPPE','ZİFİR','ZİHİN','ZİRVE','ÇADIR','ÇAKAL','ÇAKIL','ÇAKMA','ÇALIŞ','ÇAMUR','ÇANTA','ÇAPAK','ÇAPUT','ÇARŞI','ÇATAL','ÇEKİÇ','ÇELİK','ÇETİN','ÇEVRE','ÇEŞME','ÇIKMA','ÇIRAK','ÇOBAN','ÇOCUK','ÇORAP','ÇORBA','ÇOĞUL','ÇUKUR','ÇÖMEZ','ÇÖZÜM','ÇİFTE','ÇİLEK','ÇİMEN','ÇİZGİ','ÇİZME','ÇİÇEK','ÖDEME','ÖDÜNÇ','ÖKSÜZ','ÖLÇEK','ÖLÇÜM','ÖNCÜL','ÖNLEM','ÖRDEK','ÖRGÜT','ÖRNEK','ÖZGÜR','ÖZLEM','ÖĞLEN','ÜNLÜK','ÜSLUP','ÜSTAT','ÜZGÜN','İBRET','İFADE','İHBAR','İHMAL','İKLİM','İKRAM','İLAVE','İLERİ','İLHAM','İLKİN','İMDAT','İMKAN','İNANÇ','İNCİR','İNFAZ','İNSAN','İNŞAT','İPLİK','İPTAL','İSTEK','İSTİF','İSYAN','İZLEM','İÇERİ','İÇLİK','İŞLEM','ŞAFAK','ŞAHİN','ŞAHİT','ŞAPKA','ŞARAP','ŞARKI','ŞAŞMA','ŞEBEK','ŞEHİR','ŞEKER','ŞERİF','ŞERİT','ŞOFÖR','ŞUBAT','ŞURUP','ŞÖLEN','ŞÜKÜR','ŞİFRE','ŞİMDİ','ŞİŞKO'];
+const WORDLE_4=['ADAM','ADIM','AKIL','ALAN','ALEV','ALTI','ANNE','ARPA','ATEŞ','AVCI','AVUÇ','AYAK','AYNA','AYVA','AĞAÇ','AŞÇI','BABA','BACA','BALO','BANK','BEBE','BOYA','BÜRO','BİNA','CIVA','CUMA','DANS','DAVA','DEDE','DELİ','DERE','DERT','DERİ','DOKU','DOLU','DOST','DOĞA','DÖRT','DİZİ','EBAT','EKİM','ELMA','ELÇİ','EMEK','EMİR','ERİK','ESER','ESKİ','ETEK','EVLİ','EZAN','EŞEK','FARE','FENA','FİLM','GECE','GEMİ','GRAM','GRİP','HALA','HALI','HALK','HANE','HARÇ','HAVA','HECE','IŞIK','KADI','KAFA','KALE','KAMU','KAPI','KARA','KARI','KART','KASA','KAYA','KAZI','KEDİ','KENT','KOCA','KOKU','KOLA','KONU','KOVA','KOZA','KOŞU','KULE','KUPA','KUTU','KÖLE','KÜME','KÜPE','KÜRE','KİLO','KİRA','LALE','LAMA','LEKE','LİRA','LİSE','MASA','MAVİ','MAYA','MENÜ','MEZE','MODA','MOLA','MİDE','NANE','NOTA','ODAK','OFİS','OLAY','OLUK','OTEL','OTUZ','OYMA','OYUN','PARA','PARK','PATİ','PAŞA','PERİ','POST','PRİM','PUAN','PURO','PİDE','PİKE','PİPO','RAKI','ROTA','SARI','SAYI','SENE','SERİ','SOBA','SODA','SOFA','SOPA','SORU','SOYA','SÜRE','SİMA','SİNE','SİTE','TAKI','TANE','TAVA','TAZE','TEKE','TEMA','TEPE','TERE','TERS','TOKA','TREN','TUNÇ','TURP','TÜRK','UFUK','UMUT','USTA','UYKU','UZAK','UZAY','UZUN','UÇAK','UÇUŞ','VAKA','VANA','VAZO','VEDA','VİZE','YAKA','YAPI','YARA','YASA','YAYA','YAZI','YEME','YURT','YUVA','YÖRE','ZAPT','ZEKA','ZEVK','ZONA','ZİFT','ÇALI','ÇARE','ÇATI','ÇENE','ÇİFT','ÇİLE','ÖDÜL','ÖFKE','ÖLÇÜ','ÖMÜR','ÖZEL','ÖZEN','ÖZÜR','ÜLKE','ÜMİT','ÜNLÜ','ÜRÜN','İADE','İKİZ','İLAN','İLAÇ','İLGİ','İLKE','İLİK','İMAM','İMZA','İNEK','İPEK','İSİM','İĞNE','ŞAKA','ŞATO','ŞİFA'];
+const WORDLE_6_EASY=['BAKKAL','BALKON','BARDAK','BAYRAK','BOYNUZ','BROŞÜR','BULMAK','BİLGİN','CÜZDAN','DAKİKA','DEFTER','DOKTOR','ELBİSE','FINDIK','FISTIK','FUTBOL','GAZETE','GÖZLÜK','HAYVAN','HEDİYE','HORTUM','KANEPE','KAPLAN','KARPUZ','KOLTUK','KİBRİT','MANTAR','MENDİL','MEYDAN','MUTFAK','MİKROP','OTOBÜS','PANCAR','PEYNİR','RESSAM','SALATA','SANDAL','SİGARA','TAVŞAN','TERLİK','TIRNAK','TRAFİK','VİTRİN','YASTIK','YELKEN','YOĞURT','ZEYTİN','ZİNCİR','ÇARŞAF'];
+const WORDLE_6_ORTA=['AMATÖR','BENZİN','DERECE','DÜZLÜK','DİKKAT','DİZGİN','EFSANE','EMANET','ETKİLİ','EĞİLİM','EĞİTİM','GERÇEK','GEZGİN','GÖSTER','GÖÇMEN','GÜNDEM','HAZİNE','HIRVAT','HİKAYE','KALDIR','KALECİ','KANSER','KAPTAN','KARBON','KARTOP','KASABA','KAVRAM','KONSER','KORDON','KUMPAS','KURTUL','KİMLİK','KİŞİLİ','MERHEM','MERKEZ','MEZHEP','MODERN','MİLLET','MİNARE','NUMUNE','ODAKLI','ORDULU','RÜZGAR','SANİYE','SEÇKİN','STÜDYO','SÜRGÜN','SÜTLÜK','TABELA','TABLET','TAHMİN','TAKVİM','TEBRİK','TEDAVİ','TEKLİF','TESLİM','TOPLUM','UĞRAŞI','VELİLİ','VİRGÜL','YARDIM','YARGIÇ','YÜKSEK','ZAMBAK','ZANAAT','İÇECEK','ŞÖHRET'];
+const WORDLE_6_NADIR=[];
+const WORDLE_6=[...WORDLE_6_EASY,...WORDLE_6_ORTA];
+const WORDLE_7_EASY=['ARKADAŞ','BULMACA','DOMATES','FASULYE','IHLAMUR','KELEBEK','KUMBARA','KİTAPÇI','LOKANTA','MAKARNA','MİSAFİR','OYUNCAK','PATATES','PENCERE','SÜPÜRGE','TELEFON','TENCERE','TİYATRO','UÇURTMA','YUMURTA','ÇAMAŞIR','ÖĞRENCİ','ŞEMSİYE'];
+const WORDLE_7_ORTA=['ANTİDOT','BAHÇELİ','DAVETLİ','DENEYİM','EĞİTMEN','FİLOZOF','GELECEK','HARMONİ','KARTOPU','KISALIK','KOMŞULA','KÖMÜRLÜ','OKUYUCU','PROGRAM','RESİMLİ','SEDİRLİ','SEVGİLİ','SOLUCAN','SÜRATLİ','SİGORTA','TABURCU','TANIDIK','TARAKÇI','TEDARİK','UYARICI','UYGARCA','VERİMLİ','VİLAYET','YETENEK','ÇIKARCI','ÖĞRENİM','ÖĞRETME','İLTİHAP'];
+const WORDLE_7_NADIR=[];
+const WORDLE_7=[...WORDLE_7_EASY,...WORDLE_7_ORTA];
+let wordleSecretPool=null,wordleGuessPool=null;
+function getWordlePool(len){return{4:typeof WORDLE_4!=='undefined'?WORDLE_4:[],5:WORDLE_COMMON,6:typeof WORDLE_6!=='undefined'?WORDLE_6:[],7:typeof WORDLE_7!=='undefined'?WORDLE_7:[]}[len]||WORDLE_COMMON;}
+function buildWordlePools(len){const wl=len||WORDLE_LEN;const okChars=w=>w.length===wl&&[...w].every(c=>ALPHABET.includes(c));wordleSecretPool=getWordlePool(wl).slice();const gp=new Set(getWordlePool(wl));if(turkishWordSet)[...turkishWordSet].filter(okChars).forEach(w=>gp.add(w));else if(turkishWordSetCore)[...turkishWordSetCore].filter(okChars).forEach(w=>gp.add(w));wordleGuessPool=gp;}
+function getTieredPool(){const g=game.wordle;const wl=getWL();if(!g.soloMode||(wl!==6&&wl!==7))return wordleSecretPool;const round=g.soloRound||1;let tier;if(round<=3)tier='EASY';else tier='ORTA';const pools={6:{EASY:typeof WORDLE_6_EASY!=='undefined'?WORDLE_6_EASY:[],ORTA:typeof WORDLE_6_ORTA!=='undefined'?WORDLE_6_ORTA:[],NADIR:typeof WORDLE_6_NADIR!=='undefined'?WORDLE_6_NADIR:[]},7:{EASY:typeof WORDLE_7_EASY!=='undefined'?WORDLE_7_EASY:[],ORTA:typeof WORDLE_7_ORTA!=='undefined'?WORDLE_7_ORTA:[],NADIR:typeof WORDLE_7_NADIR!=='undefined'?WORDLE_7_NADIR:[]}};const tierPool=pools[wl][tier];return(tierPool&&tierPool.length)?tierPool:wordleSecretPool;}
+function pickWordleSecret(exclude){const pool=getTieredPool();if(!pool||!pool.length)return null;const used=game.wordle._usedWords||(game.wordle._usedWords=new Set());if(exclude)used.add(exclude);for(let i=0;i<100;i++){const w=pool[Math.floor(Math.random()*pool.length)];if(!used.has(w)){used.add(w);return w;}}used.clear();return wordleSecretPool[Math.floor(Math.random()*wordleSecretPool.length)];}
+function isValidWordleGuess(w){if(w.length!==getWL())return false;if(wordleGuessPool&&wordleGuessPool.has(w))return true;if(wordleSecretPool&&wordleSecretPool.includes(w))return true;return false;}
+// 'g'=yeşil (doğru yerde), 'y'=sarı (var, yanlış yerde), 'x'=gri (yok)
+function evaluateWordleGuess(secret,guess){const n=secret.length,res=new Array(n).fill('x');const s=[...secret],g=[...guess],used=new Array(n).fill(false);for(let i=0;i<n;i++)if(g[i]===s[i]){res[i]='g';used[i]=true;}for(let i=0;i<n;i++){if(res[i]==='g')continue;for(let j=0;j<n;j++){if(used[j])continue;if(g[i]===s[j]){res[i]='y';used[j]=true;break;}}}return res.join('');}
+function wordleRankPoints(rank){const t=[0,30,20,15,10,5];return t[rank]||0;}
+const WORDLE_MARK={g:'🟩',y:'🟨',x:'⬜'};
+// ---- WORDLE JOKER (büyüteç) ----
+const WORDLE_JOKER_DAILY=3,WORDLE_JOKER_PENALTY=15;
+function wordleTodayStr(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function jokerRemaining(mode){const g=game.wordle;if(!g)return WORDLE_JOKER_DAILY;return WORDLE_JOKER_DAILY-(g.jokerUsedCount||0);}
+function consumeJoker(mode){const g=game.wordle;g.jokerUsedCount=(g.jokerUsedCount||0)+1;}
+function wordleJokerKey(){return game.mp.gameId?'mp':String(getWL());}
+function updateJokerButton(){const btn=document.getElementById('wd-joker-btn');const badge=document.getElementById('wd-joker-count');if(!btn)return;const rem=jokerRemaining(wordleJokerKey());if(badge)badge.textContent=rem;const g=game.wordle;const canUse=rem>0&&g&&g.isPlaying&&!g.solved;btn.disabled=!canUse;btn.style.opacity=canUse?'1':'.4';btn.style.cursor=canUse?'pointer':'default';}
+function useWordleJoker(){const g=game.wordle;if(!g||!g.isPlaying||g.solved)return;const key=wordleJokerKey();if(jokerRemaining(key)<=0){showToast('Bugünlük joker hakkın bitti!');return;}const wl=getWL();const revealed=new Set();g.guesses.forEach(gu=>{const ev=evaluateWordleGuess(g.secret,gu);for(let i=0;i<wl;i++)if(ev[i]==='g')revealed.add(i);});[...g.current].forEach((c,i)=>{if(c===g.secret[i])revealed.add(i);});if(g._jokerPositions)g._jokerPositions.forEach(p=>revealed.add(p));const hidden=[];for(let i=0;i<wl;i++)if(!revealed.has(i))hidden.push(i);if(hidden.length===0){showToast('Açılacak harf kalmadı!');return;}const pos=hidden[Math.floor(Math.random()*hidden.length)];g.current[pos]=g.secret[pos];if(!g._jokerPositions)g._jokerPositions=new Set();g._jokerRevealed={};g._jokerPositions.add(pos);if(!g._jokerRevealed)g._jokerRevealed={};g._jokerRevealed[pos]=g.secret[pos];consumeJoker(key);g.jokerUsed=(g.jokerUsed||0)+1;sounds.playSuccess();renderWordleBoard();updateJokerButton();showToast(`🔍 ${pos+1}. harf açıldı! (-${WORDLE_JOKER_PENALTY} puan)`,'success');}
+
+// ===== ADVENTURE MODU =====
+const ADVENTURE_LEVELS=[
+{id:1,mod:'kelime',sure:120,hedef:{minScore:30},aciklama:'30 puan topla',yildiz:{iki:{minScore:50},uc:{minScore:80}}},
+{id:2,mod:'kelime',sure:120,hedef:{minScore:40},aciklama:'40 puan topla',yildiz:{iki:{minScore:70},uc:{minScore:110}}},
+{id:3,mod:'kelime',sure:120,hedef:{minWords:5},aciklama:'5 kelime bul',yildiz:{iki:{minWords:8},uc:{minWords:12}}},
+{id:4,mod:'kelime',sure:120,hedef:{minScore:60},aciklama:'60 puan topla',yildiz:{iki:{minScore:100},uc:{minScore:140}}},
+{id:5,mod:'kelime',sure:120,hedef:{minWordsOfLength:{uzunluk:4,adet:1}},aciklama:'4+ harfli 1 kelime bul',yildiz:{iki:{minWordsOfLength:{uzunluk:4,adet:2}},uc:{minWordsOfLength:{uzunluk:4,adet:3}}}},
+{id:6,mod:'kelime',sure:120,hedef:{minScore:80},aciklama:'80 puan topla',yildiz:{iki:{minScore:130},uc:{minScore:180}}},
+{id:7,mod:'kelime',sure:120,hedef:{minWords:6,minScore:80},aciklama:'6 kelime bul ve 80 puan al',yildiz:{iki:{minWords:9,minScore:130},uc:{minWords:12,minScore:180}}},
+{id:8,mod:'kelime',sure:120,hedef:{minWordsOfLength:{uzunluk:5,adet:2}},aciklama:'5+ harfli 2 kelime bul',yildiz:{iki:{minWordsOfLength:{uzunluk:5,adet:3}},uc:{minWordsOfLength:{uzunluk:5,adet:4}}}},
+{id:9,mod:'kelime',sure:90,hedef:{minScore:100},aciklama:'90 saniyede 100 puan topla',yildiz:{iki:{minScore:150},uc:{minScore:200}}},
+{id:10,mod:'kelime',sure:120,hedef:{noJoker:true,minScore:60},aciklama:'Joker kullanmadan 60 puan al',yildiz:{iki:{noJoker:true,minScore:100},uc:{noJoker:true,minScore:140}}},
+{id:11,mod:'kelime',sure:90,hedef:{minWords:8},aciklama:'90 saniyede 8 kelime bul',yildiz:{iki:{minWords:12},uc:{minWords:16}}},
+{id:12,mod:'kelime',sure:120,hedef:{minWordsOfLength:{uzunluk:5,adet:3}},aciklama:'5+ harfli 3 kelime bul',yildiz:{iki:{minWordsOfLength:{uzunluk:5,adet:4}},uc:{minWordsOfLength:{uzunluk:5,adet:5}}}},
+{id:13,mod:'kelime',sure:90,hedef:{noJoker:true,minScore:80},aciklama:'Joker yok, 90 saniyede 80 puan',yildiz:{iki:{noJoker:true,minScore:130},uc:{noJoker:true,minScore:180}}},
+{id:14,mod:'kelime',sure:120,hedef:{minScore:130},aciklama:'130 puan topla',yildiz:{iki:{minScore:200},uc:{minScore:280}}},
+{id:15,mod:'kelime',sure:120,hedef:{minWordsOfLength:{uzunluk:6,adet:2}},aciklama:'6+ harfli 2 kelime bul',yildiz:{iki:{minWordsOfLength:{uzunluk:6,adet:3}},uc:{minWordsOfLength:{uzunluk:6,adet:4}}}}
+];
+function getAdventureLevel(id){return ADVENTURE_LEVELS.find(l=>l.id===id)||null;}
+// Bir koşul kümesini oyun sonucuna göre kontrol et
+function checkAdventureConditions(cond,result){if(!cond)return false;if(cond.minScore!==undefined&&result.score<cond.minScore)return false;if(cond.minWords!==undefined&&result.words.length<cond.minWords)return false;if(cond.noJoker&&result.jokerUsed)return false;if(cond.minWordsOfLength){const n=result.words.filter(w=>w.length>=cond.minWordsOfLength.uzunluk).length;if(n<cond.minWordsOfLength.adet)return false;}return true;}
+// Kaç yıldız? 0=başarısız, 1/2/3
+function calcAdventureStars(level,result){if(!checkAdventureConditions(level.hedef,result))return 0;let stars=1;if(level.yildiz&&level.yildiz.iki&&checkAdventureConditions(level.yildiz.iki,result))stars=2;if(level.yildiz&&level.yildiz.uc&&checkAdventureConditions(level.yildiz.uc,result))stars=3;return stars;}
+// localStorage kalıcılık
+const ADV_STORAGE_KEY='bkbi_adventure_v1';
+function loadAdventureProgress(){try{const raw=localStorage.getItem(ADV_STORAGE_KEY);if(raw)return JSON.parse(raw);}catch(e){}return{stars:{},unlockedMax:1};}
+function saveAdventureProgress(p){try{localStorage.setItem(ADV_STORAGE_KEY,JSON.stringify(p));}catch(e){}}
+function recordAdventureResult(levelId,stars){const p=loadAdventureProgress();if(stars>0){if(!p.stars[levelId]||stars>p.stars[levelId])p.stars[levelId]=stars;const next=levelId+1;if(next>p.unlockedMax&&getAdventureLevel(next))p.unlockedMax=next;}saveAdventureProgress(p);return p;}
+function openAdventureMap(){resetMpState();renderAdventureMap();switchToScreen('adventure-map-screen');}
+function renderAdventureMap(){const p=loadAdventureProgress();const grid=document.getElementById('adventure-level-grid');grid.innerHTML='';ADVENTURE_LEVELS.forEach(lv=>{const stars=p.stars[lv.id]||0;const unlocked=lv.id<=p.unlockedMax;const cell=document.createElement('button');if(unlocked){cell.className='aspect-square rounded-xl font-black text-lg flex flex-col items-center justify-center shadow border-2 transition-all '+(stars>0?'bg-gradient-to-br from-summer-ocean to-summer-blue text-white border-summer-ocean':'bg-white text-summer-sea border-blue-200 hover:bg-blue-50');cell.innerHTML=`<span>${lv.id}</span><span class="text-[10px] leading-none mt-0.5">${stars>0?'⭐'.repeat(stars):'&nbsp;'}</span>`;cell.onclick=()=>openAdventureLevelIntro(lv.id);}else{cell.className='aspect-square rounded-xl flex items-center justify-center bg-gray-100 text-gray-300 border-2 border-gray-200 cursor-not-allowed';cell.innerHTML='🔒';cell.disabled=true;}grid.appendChild(cell);});}
+function openAdventureLevelIntro(levelId){const lv=getAdventureLevel(levelId);if(!lv)return;game.adventure.level=lv;document.getElementById('adv-intro-num').textContent=lv.id;document.getElementById('adv-intro-goal').textContent=lv.aciklama;document.getElementById('adv-intro-time').textContent=lv.sure;document.getElementById('adv-intro-nojoker').classList.toggle('hidden',!lv.hedef.noJoker);switchToScreen('adventure-level-intro-screen');}
+function startAdventureLevel(){const lv=game.adventure.level;if(!lv)return;if(audioCtx.state==='suspended')audioCtx.resume();game.adventure.active=true;game.adventure.jokerUsed=false;game.score=0;game.currentRound=1;game.maxRounds=1;game.foundWords=[];game.previousLetters=null;game.selectedDurationMinutes=lv.sure/60;hideAllScreens();document.getElementById('game-screen').classList.remove('hidden');hideAllFinishBtns();updatePlayerNameDisplay('player-name-display');updateUI();startRound();}
+function endAdventureLevel(){const lv=game.adventure.level;game.adventure.active=false;const result={score:game.score,words:game.foundWords.slice(),jokerUsed:game.adventure.jokerUsed};const stars=calcAdventureStars(lv,result);recordAdventureResult(lv.id,stars);hideAllScreens();document.getElementById('adventure-level-complete-screen').classList.remove('hidden');const starsEl=document.getElementById('adv-complete-stars');const titleEl=document.getElementById('adv-complete-title');const msgEl=document.getElementById('adv-complete-msg');const nextBtn=document.getElementById('adv-next-btn');if(stars>0){starsEl.textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);titleEl.textContent='Bölüm Tamam!';msgEl.textContent=stars===3?'Mükemmel! 3 yıldız topladın! 🎉':stars===2?'Harika! Bir yıldız daha var.':'Geçtin! Daha fazla yıldız için tekrar dene.';const hasNext=getAdventureLevel(lv.id+1);nextBtn.classList.toggle('hidden',!hasNext);sounds.playSuccess();setTimeout(()=>sounds.playSuccess(),400);}else{starsEl.textContent='☆☆☆';titleEl.textContent='Başaramadın';msgEl.textContent=`Hedef: ${lv.aciklama}. Tekrar dene!`;nextBtn.classList.add('hidden');sounds.playError();}document.getElementById('adv-complete-score').textContent=game.score;}
+function adventureNextLevel(){const lv=game.adventure.level;const next=getAdventureLevel(lv.id+1);if(next)openAdventureLevelIntro(next.id);else{renderAdventureMap();switchToScreen('adventure-map-screen');}}
+function adventureRetryLevel(){openAdventureLevelIntro(game.adventure.level.id);}
+
+const ALL_MODALS=['sayi-round-over-modal','karma-round-over-modal','round-over-modal','wordle-round-over-modal','joker-modal','mp-countdown-overlay','rename-modal','sayi-joker-modal'];
+
+function hideAllScreens(){ALL_SCREENS.forEach(id=>document.getElementById(id).classList.add('hidden'));}
+function hideAllModals(){ALL_MODALS.forEach(id=>document.getElementById(id).classList.add('hidden'));}
+function hideAllFinishBtns(){document.querySelectorAll('.finish-btn').forEach(b=>b.classList.add('hidden'));}
+function setBtnLoading(btn,on){if(!btn)return;if(on){btn.dataset.orig=btn.innerHTML;btn.innerHTML='<span class="btn-spinner"></span>';btn.disabled=true;}else{if(btn.dataset.orig)btn.innerHTML=btn.dataset.orig;btn.disabled=false;}}
+function showFinishBtn(kind){document.querySelectorAll(`.finish-btn[data-finish="${kind}"]`).forEach(b=>b.classList.remove('hidden'));}
+function hideFinishBtn(kind){document.querySelectorAll(`.finish-btn[data-finish="${kind}"]`).forEach(b=>b.classList.add('hidden'));}
+function switchToScreen(screenId){hideAllScreens();hideAllModals();hideAllFinishBtns();clearInterval(sayiTimerInterval);clearInterval(timerInterval);clearInterval(computerSolutionAnimationInterval);document.getElementById(screenId).classList.remove('hidden');if(screenId==='scoreboard-screen')switchScoreTab(currentScoreTab||'wordle');}
+
+const RULES_LINES=['📖 KELİME: Her tur 3 Sesli, 4 Sessiz ve 1 Joker harf düşer. Harfleri kullanarak en uzun kelimeleri yaz. Harf başına 1 puan!','🔢 İŞLEM: 6 sayı verilir, hedefe en yakın sonucu dört işlemle bul! Tam isabet 10 puan, fark kadar puan düşer.','🎲 KARMA: Kelime + İşlem turları art arda oynanır. Her ikisinde de skorun toplanır!','🔤 WORDLE: 5 harfli gizli kelimeyi tahmin et! 🟩 Yeşil = doğru yerde, 🟨 Sarı = var ama yanlış yerde, ⬜ Gri = yok. 5 tahmin hakkın var.','🔤 WORDLE İPUCU: Bir harf kelimede 2+ kez geçiyorsa üst simge ile gösterilir (ör. İ²). Yeşil harfler sonraki satıra taşınır.','🤝 ÇOKOYUNCULU: Arkadaşlarınla aynı anda yarış! Wordle\'de 1. bulan 30, 2. bulan 20, 3. bulan 10 puan alır. Beraberlikte hızlı çözen önde!'];
+let rulesPanelOpen=false,rulesAnimationStarted=false;
+function showModeSwitchPopup(){const ov=document.createElement('div');ov.className='fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4';ov.style.backdropFilter='blur(6px)';ov.style.webkitBackdropFilter='blur(6px)';ov.onclick=(e)=>{if(e.target===ov)ov.remove();};ov.innerHTML=`<div class="bg-white rounded-3xl shadow-2xl max-w-sm w-[90%] p-7" style="border:3px solid #0ea5e9"><button onclick="this.closest('.fixed').remove()" class="float-right w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 text-lg font-bold -mt-2 -mr-2">✕</button><h3 class="text-xl font-black text-center mb-5" style="color:#0ea5e9">Oyun Modu</h3><div id="mode-switch-body"><button onclick="closeModePopupAnd(()=>switchToScreen('bkbi-menu-screen'))" class="w-full py-4 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all mb-3">Bir Kelime Bir İşlem</button><button onclick="closeModePopupAnd(()=>switchToScreen('wordle-welcome-screen'))" class="w-full py-4 bg-gradient-to-r from-green-400 to-emerald-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">Wordle</button></div></div>`;document.body.appendChild(ov);}
+function closeModePopupAnd(fn){document.querySelectorAll('.fixed.inset-0').forEach(el=>{if(el.querySelector('#mode-switch-body'))el.remove();});try{fn();}catch(e){}}
+function showOnlinePlayersPopup(){const names=(window.__presenceNames||[]).slice(0,10);const ov=document.createElement('div');ov.className='fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4';ov.style.backdropFilter='blur(6px)';ov.style.webkitBackdropFilter='blur(6px)';ov.onclick=(e)=>{if(e.target===ov)ov.remove();};const list=names.length?names.map((n,i)=>`<div class="flex items-center gap-2 py-2 px-3 rounded-xl ${i%2===0?'bg-blue-50':''}"><span class="w-2 h-2 rounded-full bg-green-400 shadow"></span><span class="font-semibold text-gray-700 text-sm">${n}</span></div>`).join(''):'<p class="text-sm text-gray-400 text-center py-4">Şu an kimse yok</p>';ov.innerHTML=`<div class="bg-white rounded-3xl shadow-2xl max-w-sm w-[90%] max-h-[70vh] overflow-y-auto p-6" style="border:3px solid #0ea5e9"><button onclick="this.closest('.fixed').remove()" class="float-right w-9 h-9 flex items-center justify-center bg-gray-100 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-600 text-lg font-bold -mt-1 -mr-1">✕</button><h3 class="text-xl font-black text-center mb-4" style="color:#0ea5e9">🟢 Çevrimiçi Oyuncular</h3><div class="space-y-1">${list}</div></div>`;document.body.appendChild(ov);}
+function toggleRulesPanel(){const p=document.getElementById('rules-panel');rulesPanelOpen=!rulesPanelOpen;p.classList.toggle('hidden',!rulesPanelOpen);}
+async function typeRulesLines(){const c=document.getElementById('rules-typewriter-content');c.innerHTML='';for(const line of RULES_LINES){const le=document.createElement('p');le.className='mb-2';const ts=document.createElement('span');const cs=document.createElement('span');cs.className='rules-cursor';cs.textContent='|';le.appendChild(document.createTextNode('• '));le.appendChild(ts);le.appendChild(cs);c.appendChild(le);for(let i=0;i<line.length;i++){ts.textContent+=line[i];await new Promise(r=>setTimeout(r,18));}await new Promise(r=>setTimeout(r,1000));cs.remove();}}
+
+let currentScoreTab='kelime';
+function switchScoreTab(tab){currentScoreTab=tab;document.querySelectorAll('.score-tab-btn').forEach(b=>{b.classList.remove('bg-summer-sea','text-white');b.classList.add('text-gray-500');});const el=document.getElementById(`score-tab-${tab}`);if(el){el.classList.add('bg-summer-sea','text-white');el.classList.remove('text-gray-500');}loadScoreTabContent(tab);}
+function parseScoreEntries(d){if(!Array.isArray(d))return[];return d.filter(item=>{const n=String(item.name||'').trim();if(!n||n==='POS'||n==='NAME'||n==='SCORE')return false;const s=Number(item.score);return!isNaN(s)&&s>0;}).map(item=>({name:String(item.name).trim(),score:Number(item.score)}));}
+let _scoreCache={bkbi:null,wordle:null};
+async function fetchScoreEntries(tab){let entries=[];if(tab==='bkbi'){const [r1,r2,r3]=await Promise.all([fetch(`${WEB_APP_URL}?mode=solo`).then(r=>r.json()).catch(()=>[]),fetch(`${WEB_APP_URL}?mode=sayi`).then(r=>r.json()).catch(()=>[]),fetch(`${WEB_APP_URL}?mode=karma`).then(r=>r.json()).catch(()=>[])]);const all=[...parseScoreEntries(r1),...parseScoreEntries(r2),...parseScoreEntries(r3)];const best={};all.forEach(e=>{if(!best[e.name]||e.score>best[e.name])best[e.name]=e.score;});entries=Object.entries(best).map(([name,score])=>({name,score})).sort((a,b)=>b.score-a.score).slice(0,10).map((e,i)=>({...e,pos:i+1}));}else{const r=await fetch(`${WEB_APP_URL}?mode=wordle`);const d=await r.json();entries=parseScoreEntries(d).sort((a,b)=>b.score-a.score).slice(0,10).map((e,i)=>({...e,pos:i+1}));}return entries;}
+function renderScoreEntries(entries){const listEl=document.getElementById('retro-top10-list');if(!listEl)return;if(entries.length===0){listEl.innerHTML='<p class="text-slate-500 text-sm">Henüz skor yok</p>';return;}function gm(pos){return pos===1?'👑':pos===2?'🥈':pos===3?'🥉':'';}function gr(pos){return pos<=3?`retro-row-${pos}`:'retro-row-other';}listEl.innerHTML=entries.map(e=>`<div class="grid grid-cols-12 items-center font-retro text-sm ${gr(e.pos)} py-1"><span class="col-span-2 text-left">${gm(e.pos)} ${e.pos}</span><span class="col-span-5 text-left truncate">${e.name}</span><span class="col-span-5 text-left">${e.score}</span></div>`).join('');}
+async function prefetchScoreboard(){try{const [bkbi,wordle]=await Promise.all([fetchScoreEntries('bkbi'),fetchScoreEntries('wordle')]);_scoreCache.bkbi=bkbi;_scoreCache.wordle=wordle;}catch(e){}}
+async function loadScoreTabContent(tab){const listEl=document.getElementById('retro-top10-list');if(_scoreCache[tab]){renderScoreEntries(_scoreCache[tab]);return;}listEl.innerHTML='<p class="text-slate-500 text-sm">Yükleniyor...</p>';try{const entries=await fetchScoreEntries(tab);_scoreCache[tab]=entries;renderScoreEntries(entries);}catch(err){listEl.innerHTML='<p class="text-slate-500 text-sm">Yüklenemedi</p>';}}
+
+async function startSoloKelime(btn){setBtnLoading(btn,true);resetMpState();await getOrCreatePlayerName();setBtnLoading(btn,false);game.selectedRoundCount=7;game.selectedDurationMinutes=1.5;startGame();}
+async function startSoloSayi(btn){setBtnLoading(btn,true);resetMpState();await getOrCreatePlayerName();setBtnLoading(btn,false);game.selectedRoundCount=7;startSayiGame();}
+async function startSoloKarma(btn){setBtnLoading(btn,true);resetMpState();await getOrCreatePlayerName();setBtnLoading(btn,false);game.selectedRoundCount=7;startKarmaGame();}
+
+function selectSoloRoundCount(c){game.selectedRoundCount=c;document.querySelectorAll('.solo-round-btn').forEach(b=>{const s=String(b.dataset.soloRound)===String(c);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateSoloStartButtonState();}
+function selectSoloDuration(m){game.selectedDurationMinutes=m;document.querySelectorAll('.solo-duration-btn').forEach(b=>{const s=Number(b.dataset.soloDuration)===Number(m);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateSoloStartButtonState();}
+function updateSoloStartButtonState(){const b=document.getElementById('btn-solo-start');const r=game.selectedRoundCount!==null&&game.selectedDurationMinutes;b.disabled=!r;}
+
+function startGame(){if(game.selectedRoundCount===null||!game.selectedDurationMinutes)return;if(audioCtx.state==='suspended')audioCtx.resume();game.score=0;game.currentRound=1;game.maxRounds=game.selectedRoundCount;game.foundWords=[];game.previousLetters=null;hideAllScreens();document.getElementById('game-screen').classList.remove('hidden');showFinishBtn('solo');updatePlayerNameDisplay('player-name-display');showRenameHelpBubbleOnce('kelime-help-bubble');updateUI();startRound();}
+function startRound(){game.activeWord=[];game.foundWords=[];game.timeRemaining=game.selectedDurationMinutes*60;game.isPlaying=false;document.getElementById('found-words-list').innerHTML='';document.getElementById('word-count').textContent='0';updateUI();generateLetters();const td=document.getElementById('time-left');clearInterval(timerInterval);td.textContent='Hazırlanıyor...';document.getElementById('letters-rack').innerHTML='';runLocalCountdown(5,()=>{td.textContent='Dağıtılıyor...';td.classList.add('text-sm','md:text-lg','animate-pulse');sounds.playStart();renderLettersRack(true,()=>{game.isPlaying=true;td.classList.remove('text-sm','md:text-lg','animate-pulse');startTimer();});});}
+function countCommonLetters(sA,sB){const bC={};sB.forEach(l=>bC[l]=(bC[l]||0)+1);let c=0;sA.forEach(l=>{if(bC[l]>0){c++;bC[l]--;}});return c;}
+function shuffleKeepingJokerLast(letters){const j=letters.find(t=>t.isJoker);const r=letters.filter(t=>!t.isJoker).sort(()=>Math.random()-0.5);return j?[...r,j]:r;}
+function generateRoundLetterSet(prev){let v,c,com,att=0;do{v=[...VOWELS].sort(()=>Math.random()-0.5).slice(0,3);c=[...CONSONANTS].sort(()=>Math.random()-0.5).slice(0,4);com=[...v,...c];att++;}while(prev&&countCommonLetters(com,prev)>2&&att<200);return shuffleKeepingJokerLast([...v.map((l,i)=>({id:`v_${i}`,letter:l,isJoker:false})),...c.map((l,i)=>({id:`c_${i}`,letter:l,isJoker:false})),{id:'joker_1',letter:'★',isJoker:true}]);}
+function generateLetters(){game.roundLetters=generateRoundLetterSet(game.previousLetters).map(t=>({...t,isUsed:false}));game.previousLetters=game.roundLetters.filter(t=>!t.isJoker).map(t=>t.letter);}
+function renderLettersRack(animate=false,onComplete=null){const rack=document.getElementById('letters-rack');rack.innerHTML='';const bS=document.getElementById('btn-shuffle'),bSu=document.getElementById('btn-submit');if(animate){bS.disabled=true;bSu.disabled=true;bS.classList.add('opacity-50','cursor-not-allowed');bSu.classList.add('opacity-50','cursor-not-allowed');}game.roundLetters.forEach((tile,idx)=>{const el=document.createElement('div');el.innerHTML='<span class="text-2xl md:text-3xl font-black drop-shadow-sm"></span>';if(animate){el.className='tile w-12 h-14 md:w-16 md:h-18 rounded-xl shadow-inner flex items-center justify-center font-bold text-xl md:text-2xl select-none bg-gray-300 text-gray-500 cursor-not-allowed';setTimeout(()=>animateScrambleLetter(el,tile,LETTER_SCRAMBLE_STEP_MS),idx*LETTER_SCRAMBLE_STEP_MS);}else{setFinalTileAppearance(el,tile);}el.addEventListener('click',()=>{if(game.isPlaying&&!tile.isUsed)selectLetter(tile);});rack.appendChild(el);});if(animate)setTimeout(()=>{bS.disabled=false;bSu.disabled=false;bS.classList.remove('opacity-50','cursor-not-allowed');bSu.classList.remove('opacity-50','cursor-not-allowed');if(onComplete)onComplete();},game.roundLetters.length*LETTER_SCRAMBLE_STEP_MS);}
+function animateScrambleLetter(el,tile,dur){const sp=el.querySelector('span');const ch="ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ!?*@#";let t=0;const iv=setInterval(()=>{sp.textContent=ch[Math.floor(Math.random()*ch.length)];if(t%3===0)sounds.playRoll();t++;},50);setTimeout(()=>{clearInterval(iv);setFinalTileAppearance(el,tile);sounds.playClick();},dur);}
+function setFinalTileAppearance(el,tile){const sp=el.querySelector('span');sp.textContent=tile.letter;el.className='tile w-12 h-14 md:w-16 md:h-18 rounded-xl shadow-[0_4px_0_0_rgba(0,0,0,0.1)] flex items-center justify-center font-bold text-xl md:text-2xl transition-all select-none border-2 border-transparent';if(tile.isUsed)el.classList.add('bg-gray-200','text-gray-400','opacity-50','cursor-not-allowed','border-gray-300');else{el.classList.add('cursor-pointer');if(tile.isJoker){el.classList.add('bg-gradient-to-b','from-summer-sun','to-orange-500','text-white','hover:from-orange-400','hover:to-orange-600','border-orange-600');sp.classList.add('text-3xl');}else el.classList.add('bg-white','text-summer-sea','hover:bg-blue-50','border-blue-200');}}
+function shuffleLettersAndPlay(){if(!game.isPlaying)return;if(game.activeWord.length>0){game.activeWord.forEach(item=>{const t=game.roundLetters.find(t=>t.id===item.originId);if(t){t.isUsed=false;if(t.isJoker)t.letter='★';}});game.activeWord=[];updateActiveWordDisplay();}sounds.playRoll();game.roundLetters=shuffleKeepingJokerLast(game.roundLetters);renderLettersRack(false);}
+function startTimer(){clearInterval(timerInterval);const td=document.getElementById('time-left');function update(){const m=Math.floor(game.timeRemaining/60),s=game.timeRemaining%60;td.textContent=`${m}:${s.toString().padStart(2,'0')}`;td.classList.toggle('text-red-500',game.timeRemaining<=10);if(game.timeRemaining<=0){clearInterval(timerInterval);endRound();}else game.timeRemaining--;}update();timerInterval=setInterval(update,1000);}
+function selectLetter(tile){if(tile.isJoker)openJokerModal(tile);else{game.activeWord.push({...tile,originId:tile.id});tile.isUsed=true;sounds.playClick();updateActiveWordDisplay();renderLettersRack(false);}}
+function updateActiveWordDisplay(){const d=document.getElementById('active-word-display');d.innerHTML='';if(game.activeWord.length===0){d.innerHTML='<p class="text-gray-400 font-medium">Harflere tıklayın veya klavyeyi kullanın...</p>';return;}game.activeWord.forEach((item,i)=>{const el=document.createElement('div');el.className=`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center font-bold text-xl text-white cursor-pointer transform transition-transform hover:scale-110 shadow-md ${item.isJoker?'bg-summer-sun':'bg-summer-sea'}`;el.textContent=item.letter;el.onclick=()=>removeLetterFromWord(i);d.appendChild(el);});}
+function removeLetterFromWord(idx){if(!game.isPlaying)return;const item=game.activeWord[idx];game.activeWord.splice(idx,1);const t=game.roundLetters.find(t=>t.id===item.originId);if(t){t.isUsed=false;if(t.isJoker)t.letter='★';}sounds.playClick();updateActiveWordDisplay();renderLettersRack(false);}
+function clearActiveWord(){if(!game.isPlaying||game.activeWord.length===0)return;game.activeWord.forEach(item=>{const t=game.roundLetters.find(t=>t.id===item.originId);if(t){t.isUsed=false;if(t.isJoker)t.letter='★';}});game.activeWord=[];sounds.playError();updateActiveWordDisplay();renderLettersRack(false);}
+function submitWord(){if(!game.isPlaying)return;if(game.activeWord.length<3){showToast("Kelime en az 3 harfli olmalı!");sounds.playError();return;}const ws=game.activeWord.map(w=>w.letter).join('');if(game.foundWords.includes(ws)){showToast("Bu kelimeyi zaten buldun!");sounds.playError();clearActiveWord();return;}const wordOk=(turkishWordSetCore&&turkishWordSetCore.has(ws))||dictionary.has(ws);if(!wordOk){showToast(turkishWordSet&&turkishWordSet.has(ws)?"Bu kelime çok nadir, kabul edilmiyor!":"Bu bir kelime değil!");sounds.playError();return;}const pts=game.activeWord.filter(item=>!item.isJoker).length;game.score+=pts;game.foundWords.push(ws);showToast(`+${pts} Puan!`,'success');sounds.playSuccess();addWordToList(ws,pts);updateUI();if(game.mp.gameId)window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/scores/${game.playerName}`),{total:game.score,foundWords:game.foundWords}).catch(()=>{});game.activeWord.forEach(item=>{const t=game.roundLetters.find(t=>t.id===item.originId);if(t){t.isUsed=false;if(t.isJoker)t.letter='★';}});game.activeWord=[];updateActiveWordDisplay();shuffleAndShineLetters();if(game.adventure.active)checkAdventureGoalReached();}
+function checkAdventureGoalReached(){const lv=game.adventure.level;if(!lv)return;const result={score:game.score,words:game.foundWords.slice(),jokerUsed:game.adventure.jokerUsed};if(checkAdventureConditions(lv.hedef,result))showFinishBtn('adventure');}
+function finishAdventureLevelEarly(){if(!game.adventure.active)return;clearInterval(timerInterval);game.isPlaying=false;hideFinishBtn('adventure');endAdventureLevel();}
+function shuffleAndShineLetters(){game.roundLetters=shuffleKeepingJokerLast(game.roundLetters);renderLettersRack(false);sounds.playRoll();document.querySelectorAll('#letters-rack .tile').forEach(el=>{el.classList.add('tile-shine');setTimeout(()=>el.classList.remove('tile-shine'),500);});}
+function addWordToList(w,p){const list=document.getElementById('found-words-list');const el=document.createElement('div');el.className="bg-blue-50 border border-blue-100 text-summer-sea px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm";el.innerHTML=`<span>${w}</span><span class="bg-summer-sun text-white text-xs px-2 py-0.5 rounded-full">+${p}</span>`;list.prepend(el);document.getElementById('word-count').textContent=game.foundWords.length;}
+function endRound(){game.isPlaying=false;sounds.playStart();if(game.karma.active){karmaHandleRoundEnd(game.score);return;}if(game.mp.gameId){if(game.mp.isHost)hostEndRound();return;}if(game.currentRound<game.maxRounds){document.getElementById('round-over-title').textContent=`${game.currentRound}. Tur Bitti!`;document.getElementById('round-over-score').textContent=game.score;document.getElementById('round-over-missed-words').classList.add('hidden');renderTopWords();document.getElementById('round-over-modal').classList.remove('hidden');}else endGame();}
+function goToNextRound(){document.getElementById('round-over-modal').classList.add('hidden');game.currentRound++;startRound();}
+function soloFinishGameNow(){clearInterval(timerInterval);endGame();}
+function karmaFinishGameNow(){clearInterval(timerInterval);clearInterval(sayiTimerInterval);game.karma.active=false;endKarmaGame();}
+function endGame(){if(game.adventure.active){endAdventureLevel();return;}hideAllScreens();document.getElementById('game-over-screen').classList.remove('hidden');document.getElementById('final-score').textContent=game.score;hideAllFinishBtns();updateAllPlayerNameDisplays();updateNameGateUI();sounds.playSuccess();setTimeout(()=>sounds.playSuccess(),500);submitScoreAndShowLeaderboard();}
+function categoryLabel(rc){return rc===Infinity?'Sonsuz':rc;}
+async function submitScoreAndShowLeaderboard(){const cat=categoryLabel(game.maxRounds);const listEl=document.getElementById('leaderboard-list');document.getElementById('leaderboard-title').textContent=`🏆 Skor Tablosu — ${cat} Tur`;try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'solo',playerName:game.playerName,score:game.score,category:cat})});const r=await fetch(`${WEB_APP_URL}?mode=solo`);const pl=await r.json();const ranked=pl.map(p=>({name:p.name,score:p.scores?p.scores[String(cat)]:p.score})).filter(p=>p.score!==null&&p.score!==undefined&&p.score!=='').sort((a,b)=>b.score-a.score).slice(0,8);if(ranked.length===0){listEl.innerHTML='<p class="text-gray-400 text-sm text-center">Henüz skor yok</p>';return;}listEl.innerHTML=ranked.map((p,i)=>`<div class="flex justify-between items-center px-3 py-2 rounded-lg ${p.name===game.playerName?'bg-summer-sun text-white font-bold':'bg-white text-gray-700'}"><span>${i+1}. ${p.name}</span><span>${p.score}</span></div>`).join('');}catch(err){listEl.innerHTML='<p class="text-gray-400 text-sm text-center">Skor tablosuna ulaşılamadı</p>';}}
+function updateUI(){document.getElementById('score').textContent=game.score;document.getElementById('current-round').textContent=game.currentRound;document.getElementById('max-round-display').textContent=game.maxRounds===Infinity?'∞':game.maxRounds;}
+
+function buildJokerKeyboard(){const c=document.getElementById('joker-keyboard');c.innerHTML='';ALPHABET.forEach(l=>{const b=document.createElement('button');b.className="w-10 h-10 bg-gray-100 rounded-lg font-bold text-gray-700 hover:bg-summer-sun hover:text-white transition-colors border border-gray-200 shadow-sm";b.textContent=l;b.onclick=()=>selectJokerLetter(l);c.appendChild(b);});}
+function openJokerModal(tile){game.pendingJokerTile=tile;game.jokerModalOpenedAt=Date.now();document.getElementById('joker-modal').classList.remove('hidden');}
+function closeJokerModal(){document.getElementById('joker-modal').classList.add('hidden');game.pendingJokerTile=null;}
+function selectJokerLetter(letter,fromKeyboard){if(!fromKeyboard&&game.jokerModalOpenedAt&&Date.now()-game.jokerModalOpenedAt<350)return;if(game.pendingJokerTile){const t=game.pendingJokerTile;t.letter=letter;t.isUsed=true;game.adventure.jokerUsed=true;game.activeWord.push({...t,originId:t.id});sounds.playClick();closeJokerModal();updateActiveWordDisplay();renderLettersRack(false);}}
+
+function generateSayiRound(){const lc=[1,1,1,2,2][Math.floor(Math.random()*5)];const ln=[...SAYI_LARGE].sort(()=>Math.random()-0.5).slice(0,lc);const sn=[];for(let i=0;i<6-lc;i++)sn.push(SAYI_SMALL[Math.floor(Math.random()*SAYI_SMALL.length)]);return{numbers:[...ln,...sn].sort(()=>Math.random()-0.5),target:Math.floor(Math.random()*900)+100};}
+function selectSayiRoundCount(c){game.selectedRoundCount=c;document.querySelectorAll('.sayi-round-btn').forEach(b=>{const s=String(b.dataset.sayiRound)===String(c);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateSayiStartButtonState();}
+function updateSayiStartButtonState(){const b=document.getElementById('btn-sayi-start');const r=game.selectedRoundCount!==null;b.disabled=!r;b.classList.toggle('bg-gray-300',!r);b.classList.toggle('cursor-not-allowed',!r);b.classList.toggle('bg-gradient-to-r',r);b.classList.toggle('from-summer-sun',r);b.classList.toggle('to-summer-coral',r);b.classList.toggle('hover:shadow-xl',r);}
+function startSayiGame(){if(game.selectedRoundCount===null)return;game.sayi={numbers:[],target:0,currentRound:1,maxRounds:game.selectedRoundCount,score:0,bestResultThisRound:null,selectedTileId:null,selectedOperator:null,timeRemaining:90,isPlaying:false,history:[]};hideAllScreens();document.getElementById('sayi-game-screen').classList.remove('hidden');document.getElementById('sayi-max-round').textContent=game.sayi.maxRounds;showFinishBtn('sayi');updatePlayerNameDisplay('sayi-player-name-display');showRenameHelpBubbleOnce('sayi-help-bubble');updateSayiUI();startSayiRound();}
+function startSayiRound(){const{numbers,target}=generateSayiRound();game.sayi.numbers=numbers.map((v,i)=>({id:`n_${i}`,value:v,used:false,isJoker:false}));game.sayi.numbers.push({id:'sjoker_1',value:null,used:false,isJoker:true});game.sayi.target=target;game.sayi.bestResultThisRound=null;game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;game.sayi.timeRemaining=90;game.sayi.isPlaying=false;game.sayi.history=[];document.getElementById('sayi-target').textContent=target;document.getElementById('sayi-best-result').textContent='-';resetSayiOperatorButtonStyles();updateSayiExpressionDisplay();updateSayiUI();considerSayiBestResult();const td=document.getElementById('sayi-time-left');clearInterval(sayiTimerInterval);td.textContent='Hazırlanıyor...';document.getElementById('sayi-numbers-rack').innerHTML='';runLocalCountdown(5,()=>{td.textContent='Dağıtılıyor...';td.classList.add('text-sm','animate-pulse');sounds.playStart();renderSayiNumbersRack(true,()=>{game.sayi.isPlaying=true;td.classList.remove('text-sm','animate-pulse');startSayiTimer();});});}
+function startSayiTimer(){clearInterval(sayiTimerInterval);const td=document.getElementById('sayi-time-left');function tick(){const m=Math.floor(game.sayi.timeRemaining/60),s=game.sayi.timeRemaining%60;td.textContent=`${m}:${s.toString().padStart(2,'0')}`;td.classList.toggle('text-red-500',game.sayi.timeRemaining<=10);if(game.sayi.timeRemaining<=0){clearInterval(sayiTimerInterval);endSayiRound();}else game.sayi.timeRemaining--;}tick();sayiTimerInterval=setInterval(tick,1000);}
+function renderSayiNumbersRack(animate=false,onComplete=null){const rack=document.getElementById('sayi-numbers-rack');rack.innerHTML='';const nonJoker=game.sayi.numbers.filter(t=>!t.used&&!t.isJoker).sort((a,b)=>a.value-b.value);const joker=game.sayi.numbers.find(t=>t.isJoker&&!t.used);const vis=joker?[...nonJoker,joker]:nonJoker;vis.forEach((tile,idx)=>{const el=document.createElement('div');if(animate){el.className='w-14 h-14 md:w-16 md:h-16 rounded-xl shadow flex items-center justify-center font-black text-xl select-none border-2 bg-gray-300 text-gray-500 cursor-not-allowed';el.textContent='?';setTimeout(()=>animateScrambleNumber(el,tile,LETTER_SCRAMBLE_STEP_MS),idx*LETTER_SCRAMBLE_STEP_MS);}else{const sel=game.sayi.selectedTileId===tile.id;if(tile.isJoker&&tile.value===null){el.className='w-14 h-14 md:w-16 md:h-16 rounded-xl shadow flex items-center justify-center font-black text-2xl cursor-pointer transition-all border-2 bg-gradient-to-br from-amber-300 to-amber-500 text-white border-amber-400 hover:scale-105';el.textContent='★';}else if(tile.isJoker){el.className=`w-14 h-14 md:w-16 md:h-16 rounded-xl shadow flex items-center justify-center font-black text-xl cursor-pointer transition-all border-2 ${sel?'bg-summer-sea text-white border-summer-sea scale-110':'bg-amber-50 text-amber-600 border-amber-400 hover:bg-amber-100'}`;el.textContent=tile.value;}else{el.className=`w-14 h-14 md:w-16 md:h-16 rounded-xl shadow flex items-center justify-center font-black text-xl cursor-pointer transition-all border-2 ${sel?'bg-summer-sea text-white border-summer-sea scale-110':'bg-white text-summer-sea border-blue-200 hover:bg-blue-50'}`;el.textContent=tile.value;}el.onclick=()=>selectSayiTile(tile.id);}rack.appendChild(el);});if(animate)setTimeout(()=>{if(onComplete)onComplete();},vis.length*LETTER_SCRAMBLE_STEP_MS);}
+function animateScrambleNumber(el,tile,dur){let t=0;const iv=setInterval(()=>{el.textContent=Math.floor(Math.random()*100);if(t%3===0)sounds.playRoll();t++;},50);setTimeout(()=>{clearInterval(iv);if(tile.isJoker){el.textContent='★';el.className='w-14 h-14 md:w-16 md:h-16 rounded-xl shadow flex items-center justify-center font-black text-2xl cursor-pointer transition-all border-2 bg-gradient-to-br from-amber-300 to-amber-500 text-white border-amber-400 hover:scale-105';}else{el.textContent=tile.value;el.className='w-14 h-14 md:w-16 md:h-16 rounded-xl shadow flex items-center justify-center font-black text-xl cursor-pointer transition-all border-2 bg-white text-summer-sea border-blue-200 hover:bg-blue-50';}el.onclick=()=>selectSayiTile(tile.id);sounds.playClick();},dur);}
+function selectSayiOperator(op){if(!game.sayi.isPlaying)return;if(game.sayi.selectedTileId===null){showToast('Önce bir sayı seç!');return;}game.sayi.selectedOperator=op;updateSayiExpressionDisplay();document.querySelectorAll('.sayi-op-btn').forEach(b=>{const bt=b.textContent.trim();const match=(op==='+'&&bt==='+')||(op==='−'&&bt==='−')||(op==='×'&&bt==='×')||(op==='÷'&&bt==='÷');b.classList.toggle('bg-summer-sea',match);b.classList.toggle('text-white',match);});}
+function resetSayiOperatorButtonStyles(){document.querySelectorAll('.sayi-op-btn').forEach(b=>b.classList.remove('bg-summer-sea','text-white'));}
+function selectSayiTile(tileId){if(!game.sayi.isPlaying)return;const tile=game.sayi.numbers.find(t=>t.id===tileId);if(!tile||tile.used)return;if(tile.isJoker&&tile.value===null){game.sayiJokerModalOpenedAt=Date.now();document.getElementById('sayi-joker-modal').classList.remove('hidden');return;}if(game.sayi.selectedTileId===null||game.sayi.selectedTileId===tileId){game.sayi.selectedTileId=(game.sayi.selectedTileId===tileId)?null:tileId;game.sayi.selectedOperator=null;resetSayiOperatorButtonStyles();updateSayiExpressionDisplay();renderSayiNumbersRack();return;}if(game.sayi.selectedOperator===null){game.sayi.selectedTileId=tileId;updateSayiExpressionDisplay();renderSayiNumbersRack();return;}const first=game.sayi.numbers.find(t=>t.id===game.sayi.selectedTileId);const result=computeSayiOperation(first.value,game.sayi.selectedOperator,tile.value);if(result===null){showToast('Geçersiz işlem!');sounds.playError();game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;resetSayiOperatorButtonStyles();updateSayiExpressionDisplay();renderSayiNumbersRack();return;}first.used=true;tile.used=true;const rid=`r_${Date.now()}_${Math.floor(Math.random()*1000)}`;game.sayi.numbers.push({id:rid,value:result,used:false,isJoker:false});game.sayi.history.push({type:'combine',firstId:first.id,secondId:tile.id,resultId:rid});game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;resetSayiOperatorButtonStyles();sounds.playClick();updateSayiExpressionDisplay();renderSayiNumbersRack();considerSayiBestResult();}
+function computeSayiOperation(a,op,b){if(op==='+')return a+b;if(op==='−'||op==='-'){if(a<b)return null;return a-b;}if(op==='×'||op==='*')return a*b;if(op==='÷'||op==='/'){if(b===0||a%b!==0)return null;return a/b;}return null;}
+function updateSayiExpressionDisplay(){const el=document.getElementById('sayi-expression-display');if(game.sayi.selectedTileId===null){el.textContent='Bir sayı seç...';return;}const t=game.sayi.numbers.find(t=>t.id===game.sayi.selectedTileId);el.textContent=game.sayi.selectedOperator===null?`${t.value} [işlem seç]`:`${t.value} ${game.sayi.selectedOperator} ?`;}
+function assignSayiJoker(n){if(game.sayiJokerModalOpenedAt&&Date.now()-game.sayiJokerModalOpenedAt<350)return;const j=game.sayi.numbers.find(t=>t.isJoker);if(j&&!j.used){j.value=n;game.sayi.history.push({type:'joker',tileId:j.id});sounds.playClick();showToast(`Joker: ${n} ⭐`,'success');}document.getElementById('sayi-joker-modal').classList.add('hidden');renderSayiNumbersRack();considerSayiBestResult();}
+function closeSayiJokerModal(){document.getElementById('sayi-joker-modal').classList.add('hidden');}
+function considerSayiBestResult(){game.sayi.numbers.forEach(t=>{if(t.value===null)return;const bd=game.sayi.bestResultThisRound===null?Infinity:Math.abs(game.sayi.target-game.sayi.bestResultThisRound);const d=Math.abs(game.sayi.target-t.value);if(d<bd)game.sayi.bestResultThisRound=t.value;});document.getElementById('sayi-best-result').textContent=game.sayi.bestResultThisRound!==null?game.sayi.bestResultThisRound:'-';const help=document.getElementById('sayi-diff-help');const best=game.sayi.bestResultThisRound;if(best===null){help.classList.add('hidden');}else{const diff=game.sayi.target-best;if(diff===0){help.className='text-xs mt-1 font-semibold text-green-500';help.textContent='🎯 Tam isabet!';}else{help.className='text-xs mt-1 font-semibold text-summer-ocean';help.textContent=`Fark: ${Math.abs(diff)}`;}help.classList.remove('hidden');}updateExactFinishUI();}
+function updateExactFinishUI(){const isExact=game.sayi.bestResultThisRound===game.sayi.target;const exactBtn=document.getElementById('btn-sayi-exact-finish');if(!game.mp.gameId){exactBtn.classList.toggle('hidden',!isExact);exactBtn.textContent='🎯 Tam İsabet! Turu Bitir';exactBtn.onclick=finishSayiRoundEarly;return;}
+// MULTIPLAYER: tam isabet bulununca Firebase'e yaz (bir kez)
+if(isExact&&!game.sayi._exactReported){game.sayi._exactReported=true;window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/exactHits`),{[game.playerName]:true}).catch(()=>{});}
+}
+function finishSayiRoundEarly(){if(!game.sayi.isPlaying)return;document.getElementById('btn-sayi-exact-finish').classList.add('hidden');endSayiRound();}
+function resetSayiNumbers(){game.sayi.numbers=game.sayi.numbers.filter(t=>!t.id.startsWith('r_'));game.sayi.numbers.forEach(t=>{t.used=false;if(t.isJoker)t.value=null;});game.sayi.history=[];game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;resetSayiOperatorButtonStyles();updateSayiExpressionDisplay();renderSayiNumbersRack();showToast('Sayılar sıfırlandı!','success');}
+function undoSayiOperation(){if(!game.sayi.isPlaying)return;if(game.sayi.history.length===0){showToast('Geri alınacak işlem yok');return;}const last=game.sayi.history.pop();if(last.type==='joker'){const j=game.sayi.numbers.find(t=>t.id===last.tileId);if(j)j.value=null;}else{const f=game.sayi.numbers.find(t=>t.id===last.firstId);const s=game.sayi.numbers.find(t=>t.id===last.secondId);if(f)f.used=false;if(s)s.used=false;game.sayi.numbers=game.sayi.numbers.filter(t=>t.id!==last.resultId);}game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;resetSayiOperatorButtonStyles();sounds.playClick();updateSayiExpressionDisplay();renderSayiNumbersRack();}
+function calculateSayiPoints(target,best){if(best===null)return 0;const d=Math.abs(target-best);if(d===0)return 50;if(d===1)return 40;if(d<=20)return Math.round(20*(20-d)/18);return 0;}
+function sayiFinishGameNow(){clearInterval(sayiTimerInterval);clearInterval(computerSolutionAnimationInterval);game.sayi.isPlaying=false;const pts=calculateSayiPoints(game.sayi.target,game.sayi.bestResultThisRound);game.sayi.score+=pts;hideFinishBtn('sayi');endSayiGame();}
+
+function findBestSolution(numbers,target){let best=null;const initial=numbers.map((v,i)=>({value:v,id:`s_${i}`}));function scoreSolution(steps,diff){let score=diff*1000+steps.length*100;for(const st of steps){if(st.op==='×')score+=8;else if(st.op==='÷')score+=6;else score+=1;if(st.result%100===0)score-=4;else if(st.result%10===0)score-=2;if(st.result>target*3)score+=5;}return score;}function consider(steps,result){const diff=Math.abs(target-result);const score=scoreSolution(steps,diff);if(best===null||score<best.score)best={result,diff,steps:steps.map(s=>s.desc),score,stepCount:steps.length};}function solve(tiles,steps,depth){tiles.forEach(t=>consider(steps,t.value));if(best&&best.diff===0&&steps.length>=best.stepCount)return;if(depth>=4)return;for(let i=0;i<tiles.length;i++){for(let j=i+1;j<tiles.length;j++){const a=tiles[i],b=tiles[j];const rem=tiles.filter((_,idx)=>idx!==i&&idx!==j);const hi=Math.max(a.value,b.value),lo=Math.min(a.value,b.value);const cand=[{result:a.value+b.value,op:'+',desc:`${a.value} + ${b.value} = ${a.value+b.value}`},{result:hi-lo,op:'−',desc:`${hi} − ${lo} = ${hi-lo}`,ok:hi!==lo},{result:a.value*b.value,op:'×',desc:`${a.value} × ${b.value} = ${a.value*b.value}`,ok:a.value!==1&&b.value!==1},{result:lo!==0&&hi%lo===0?hi/lo:null,op:'÷',desc:`${hi} ÷ ${lo} = ${hi/lo}`,ok:lo!==0&&lo!==1&&hi%lo===0}];for(const c of cand){if(c.ok===false||c.result===null||c.result<0||!Number.isInteger(c.result))continue;solve([...rem,{value:c.result,id:'c'}],[...steps,c],depth+1);}}}}solve(initial,[],0);return{result:best.result,diff:best.diff,steps:best.steps};}
+function showComputerSolutionInModal(target,numbers){const solution=findBestSolution(numbers,target);const oldDiv=document.getElementById('sayi-computer-solution');if(oldDiv)oldDiv.remove();const pointsRow=document.querySelector('#sayi-round-over-modal .text-gray-500.mb-4');if(!pointsRow)return;const solutionDiv=document.createElement('div');solutionDiv.id='sayi-computer-solution';solutionDiv.className='bg-blue-50 rounded-xl p-3 mb-3 text-left';solutionDiv.innerHTML='<p class="text-xs font-bold text-summer-sea uppercase tracking-wider mb-2">💡 Bilgisayarın Çözümü</p><div id="sayi-solution-steps" class="text-sm text-gray-700 space-y-1"></div><p id="sayi-solution-final" class="text-sm font-bold text-summer-sea mt-2"></p>';pointsRow.before(solutionDiv);const stepsDiv=document.getElementById('sayi-solution-steps'),finalP=document.getElementById('sayi-solution-final');if(!solution||!solution.steps||solution.steps.length===0){finalP.textContent='Çözüm bulunamadı 🤷';return;}clearInterval(computerSolutionAnimationInterval);let stepIndex=0;computerSolutionAnimationInterval=setInterval(()=>{if(stepIndex<solution.steps.length){const stepEl=document.createElement('div');stepEl.className='bg-white px-2 py-1 rounded text-sm font-mono';stepEl.textContent=solution.steps[stepIndex];stepsDiv.appendChild(stepEl);sounds.playClick();stepIndex++;}else{clearInterval(computerSolutionAnimationInterval);if(solution.diff===0){finalP.className='text-sm font-bold text-green-500 mt-2';finalP.textContent=`🎯 Tam Sonuç: ${solution.result}`;}else{finalP.className='text-sm font-bold text-summer-sea mt-2';finalP.textContent=`Sonuç: ${solution.result} (Hedeften ${solution.diff} uzak)`;}}},600);}
+function endSayiRound(){clearInterval(sayiTimerInterval);game.sayi.isPlaying=false;const base=calculateSayiPoints(game.sayi.target,game.sayi.bestResultThisRound);const isExact=game.sayi.bestResultThisRound===game.sayi.target;const timeBonus=isExact?Math.max(0,game.sayi.timeRemaining):0;const pts=base+timeBonus;if(game.karma.active){clearInterval(computerSolutionAnimationInterval);karmaHandleRoundEnd(pts);return;}game.sayi.score+=pts;updateSayiUI();const _nb=document.getElementById('btn-sayi-next-round');_nb.classList.remove('hidden');_nb.onclick=sayiGoToNextRound;document.getElementById('btn-sayi-round-over-finish').classList.add('hidden');document.getElementById('sayi-round-over-guest-text').classList.add('hidden');document.getElementById('sayi-round-over-title').textContent=`${game.sayi.currentRound}. Tur Bitti!`;document.getElementById('sayi-round-over-target').textContent=game.sayi.target;document.getElementById('sayi-round-over-points').textContent=isExact&&timeBonus>0?`+${base} +${timeBonus} ⏱️ = +${pts}`:`+${pts}`;document.getElementById('sayi-round-over-total').textContent=game.sayi.score;const originalNumbers=game.sayi.numbers.filter(t=>!t.id.startsWith('r_')&&!t.isJoker).map(t=>t.value);showComputerSolutionInModal(game.sayi.target,originalNumbers);document.getElementById('sayi-round-over-modal').classList.remove('hidden');}
+function sayiGoToNextRound(){clearInterval(computerSolutionAnimationInterval);document.getElementById('sayi-round-over-modal').classList.add('hidden');if(game.sayi.currentRound>=game.sayi.maxRounds)endSayiGame();else{game.sayi.currentRound++;startSayiRound();}}
+function updateSayiUI(){document.getElementById('sayi-current-round').textContent=game.sayi.currentRound;document.getElementById('sayi-score').textContent=game.sayi.score;}
+async function endSayiGame(){hideAllScreens();document.getElementById('sayi-game-over-screen').classList.remove('hidden');document.getElementById('sayi-final-score').textContent=game.sayi.score;document.getElementById('sayi-mp-results').classList.add('hidden');hideFinishBtn('sayi');updateAllPlayerNameDisplays();updateNameGateUI();sounds.playSuccess();try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'sayi',playerName:game.playerName,score:game.sayi.score,category:game.sayi.maxRounds})});}catch(e){}}
+
+function selectKarmaRoundCount(c){game.selectedRoundCount=c;document.querySelectorAll('.karma-round-btn').forEach(b=>{const s=String(b.dataset.karmaRound)===String(c);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateKarmaStartButtonState();}
+function updateKarmaStartButtonState(){const b=document.getElementById('btn-karma-start');const r=game.selectedRoundCount!==null;b.disabled=!r;b.classList.toggle('bg-gray-300',!r);b.classList.toggle('cursor-not-allowed',!r);b.classList.toggle('bg-gradient-to-r',r);b.classList.toggle('from-summer-sun',r);b.classList.toggle('to-summer-coral',r);b.classList.toggle('hover:shadow-xl',r);}
+function startKarmaGame(){if(game.selectedRoundCount===null)return;game.karma={active:true,currentRound:1,maxRounds:game.selectedRoundCount,score:0};hideAllScreens();document.getElementById('game-screen').classList.remove('hidden');showFinishBtn('karma');updatePlayerNameDisplay('player-name-display');updatePlayerNameDisplay('sayi-player-name-display');showRenameHelpBubbleOnce('kelime-help-bubble');startKarmaRound();}
+function startKarmaRound(){const rt=game.karma.currentRound%2===1?'kelime':'sayi';if(rt==='kelime'){game.selectedDurationMinutes=1;game.previousLetters=null;game.score=0;document.getElementById('game-screen').classList.remove('hidden');document.getElementById('sayi-game-screen').classList.add('hidden');showFinishBtn('karma');startRound();}else{document.getElementById('game-screen').classList.add('hidden');document.getElementById('sayi-game-screen').classList.remove('hidden');showFinishBtn('karma');startSayiRound();}document.getElementById('current-round').textContent=game.karma.currentRound;document.getElementById('max-round-display').textContent=game.karma.maxRounds;document.getElementById('sayi-current-round').textContent=game.karma.currentRound;document.getElementById('sayi-max-round').textContent=game.karma.maxRounds;}
+function karmaHandleRoundEnd(p){clearInterval(timerInterval);clearInterval(sayiTimerInterval);clearInterval(computerSolutionAnimationInterval);game.karma.score+=p;const rl=game.karma.currentRound%2===1?'Kelime':'Sayı';document.getElementById('karma-round-over-title').textContent=`${game.karma.currentRound}. Tur Bitti! (${rl})`;document.getElementById('karma-round-over-points').textContent=`+${p}`;document.getElementById('karma-round-over-total').textContent=game.karma.score;document.getElementById('karma-round-over-modal').classList.remove('hidden');}
+function karmaGoToNextRound(){document.getElementById('karma-round-over-modal').classList.add('hidden');if(game.karma.currentRound>=game.karma.maxRounds){endKarmaGame();return;}game.karma.currentRound++;startKarmaRound();}
+async function endKarmaGame(){game.karma.active=false;hideAllScreens();document.getElementById('karma-game-over-screen').classList.remove('hidden');document.getElementById('karma-final-score').textContent=game.karma.score;hideFinishBtn('karma');updateAllPlayerNameDisplays();updateNameGateUI();sounds.playSuccess();try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'karma',playerName:game.playerName,score:game.karma.score,category:game.karma.maxRounds})});}catch(e){}}
+
+// ==================== MULTIPLAYER ====================
+let mpActiveListenerRef=null,mpWaitingListenerRef=null;
+function detachMpListeners(){if(mpActiveListenerRef){window.fb.off(mpActiveListenerRef);mpActiveListenerRef=null;}if(mpWaitingListenerRef){window.fb.off(mpWaitingListenerRef);mpWaitingListenerRef=null;}}
+function generateGameId(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let id='';for(let i=0;i<5;i++)id+=c[Math.floor(Math.random()*c.length)];return id;}
+function showMpLobbyScreen(gameType){game.mp.gameType=gameType;switchToScreen('mp-lobby-screen');const listEl=document.getElementById('mp-active-list');listEl.innerHTML='<p class="text-gray-400 text-sm">Yükleniyor...</p>';detachMpListeners();mpActiveListenerRef=window.fb.ref(window.fb.db,'lobbies-index');window.fb.onValue(mpActiveListenerRef,(snap)=>{const data=snap.val()||{};const now=Date.now();const waiting=[];Object.entries(data).forEach(([id,l])=>{if(!l||l.status!=='waiting')return;if(l.gameType&&l.gameType!==gameType)return;const isStale=!l.createdAt||(now-l.createdAt)>3*60*1000;if(isStale){window.fb.remove(window.fb.ref(window.fb.db,`lobbies/${id}`)).catch(()=>{});window.fb.remove(window.fb.ref(window.fb.db,`lobbies-index/${id}`)).catch(()=>{});return;}waiting.push([id,l]);});console.log('Aktif lobiler:',waiting.length,waiting.map(w=>w[0]));if(waiting.length===0){listEl.innerHTML='<p class="text-gray-400 text-sm">Şu an aktif oyun yok. İlk oyunu sen kur!</p>';return;}listEl.innerHTML=waiting.map(([id,l])=>`<div class="flex justify-between items-center bg-blue-50 border border-blue-100 rounded-xl px-4 py-3"><div class="text-left"><p class="font-bold text-summer-sea">${l.host}'in Oyunu</p><p class="text-xs text-gray-500">${l.playerCount||1} oyuncu · ${l.gameType==='sayi'?'🔢 Sayı':l.gameType==='wordle'?'🔤 Kelime Yarışı':'📖 Kelime'} · Kod: ${id}</p></div><button onclick="joinMpGame('${id}',this)" class="px-4 py-2 bg-summer-sea text-white font-bold rounded-lg text-sm hover:bg-blue-700">Katıl</button></div>`).join('');});}
+function openWordleLobby(){resetMpState();if(!wordleSecretPool)try{buildWordlePools();}catch(e){}showMpLobbyScreen('wordle');}
+function leaveMpLobbyScreen(){detachMpListeners();if(game.mp.gameType==='sayi')switchToScreen('sayi-welcome-screen');else if(game.mp.gameType==='wordle')switchToScreen('wordle-welcome-screen');else switchToScreen('kelime-welcome-screen');}
+async function openMpHost(btn){setBtnLoading(btn,true);try{await getOrCreatePlayerName();await createLobby(game.playerName);switchToScreen('mp-waiting-screen');updateAllPlayerNameDisplays();document.getElementById('mp-player-list').innerHTML=`<div class="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg"><span>👑</span><span class="font-bold text-summer-sea">${game.playerName}</span><span class="text-xs text-gray-400">(sen)</span></div>`;document.getElementById('mp-host-controls').classList.remove('hidden');document.getElementById('mp-duration-section').classList.toggle('hidden',game.mp.gameType!=='kelime');document.getElementById('mp-guest-waiting-text').classList.add('hidden');}catch(e){showToast('Bağlantı hatası, tekrar dene!');}setBtnLoading(btn,false);}
+async function joinMpGame(gameId,btn){setBtnLoading(btn,true);try{await getOrCreatePlayerName();await joinLobby(gameId,game.playerName);switchToScreen('mp-waiting-screen');updateAllPlayerNameDisplays();document.getElementById('mp-player-list').innerHTML=`<div class="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg"><span>🙂</span><span class="font-bold text-summer-sea">${game.playerName}</span><span class="text-xs text-gray-400">(sen)</span></div>`;document.getElementById('mp-host-controls').classList.add('hidden');document.getElementById('mp-guest-waiting-text').classList.remove('hidden');}catch(e){showToast('Katılamadın, tekrar dene!');}setBtnLoading(btn,false);}
+async function createLobby(name){const gid=generateGameId();const now=Date.now();await window.fb.set(window.fb.ref(window.fb.db,`lobbies-index/${gid}`),{host:name,status:'waiting',gameType:game.mp.gameType,playerCount:1,createdAt:now});await window.fb.set(window.fb.ref(window.fb.db,`lobbies/${gid}`),{host:name,status:'waiting',gameType:game.mp.gameType,roundCount:null,players:{[name]:true},createdAt:window.fb.serverTimestamp()});window.fb.onDisconnect(window.fb.ref(window.fb.db,`lobbies/${gid}`)).remove();window.fb.onDisconnect(window.fb.ref(window.fb.db,`lobbies-index/${gid}`)).remove();game.mp.gameId=gid;game.mp.isHost=true;game.score=0;game.foundWords=[];game.sayi={score:0,_lastScoredRound:null};game.wordle={secret:'',guesses:[],current:[],cursor:0,_animRow:-1,solved:false,score:0,timeRemaining:120,isPlaying:false,_lastScoredRound:null,_roundEndRequested:false,_totalSolveMs:0,_usedWords:new Set()};game.mp.lastSyncedRound=null;game.mp.lastBonusAppliedRound=null;subscribeToWaitingRoom(gid);}
+async function joinLobby(gid,name){const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${gid}/players`));const ex=snap.val()||{};let fn=name;if(ex[fn]){let c=2;while(ex[`${name} (${c})`])c++;fn=`${name} (${c})`;}await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${gid}/players`),{[fn]:true});window.fb.onDisconnect(window.fb.ref(window.fb.db,`lobbies/${gid}/players/${fn}`)).remove();await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${gid}`),{playerCount:Object.keys(ex).length+1});game.playerName=fn;game.mp.gameId=gid;game.mp.isHost=false;game.score=0;game.foundWords=[];game.sayi={score:0,_lastScoredRound:null};game.wordle={secret:'',guesses:[],current:[],cursor:0,_animRow:-1,solved:false,score:0,timeRemaining:120,isPlaying:false,_lastScoredRound:null,_roundEndRequested:false,_totalSolveMs:0,_usedWords:new Set()};game.mp.lastSyncedRound=null;subscribeToWaitingRoom(gid);}
+function subscribeToWaitingRoom(gid){if(mpWaitingListenerRef){window.fb.off(mpWaitingListenerRef);mpWaitingListenerRef=null;}document.getElementById('mp-game-code').textContent=gid;mpWaitingListenerRef=window.fb.ref(window.fb.db,`lobbies/${gid}`);window.fb.onValue(mpWaitingListenerRef,(snap)=>{const data=snap.val();if(!data){showToast('Bu oyun artık mevcut değil.');leaveMultiplayerLobby();return;}handleLobbyUpdate(data);});}
+function handleSayiExactHits(data){const banner=document.getElementById('sayi-mp-exact-banner');const hits=data.exactHits?Object.keys(data.exactHits).length:0;const total=data.players?Object.keys(data.players).length:game.mp.currentPlayerCount;const iHit=data.exactHits&&data.exactHits[game.playerName];if(hits===0){banner.classList.add('hidden');return;}banner.classList.remove('hidden');const allHit=hits>=total&&total>0;if(allHit){if(game.mp.isHost){banner.className='w-full py-3 mb-4 bg-gradient-to-r from-green-400 to-green-600 text-white font-bold rounded-xl text-center cursor-pointer';banner.textContent='🎯 Herkes tam isabet buldu! Sonraki Tur ➜';banner.onclick=()=>{banner.classList.add('hidden');hostAdvanceSayiRound();};}else{banner.className='w-full py-3 mb-4 bg-green-50 border-2 border-green-300 text-green-600 font-bold rounded-xl text-center text-sm';banner.textContent='🎯 Herkes buldu! Host sonraki tura geçiyor...';banner.onclick=null;}}else{banner.className='w-full py-3 mb-4 bg-green-50 border-2 border-green-300 text-green-600 font-bold rounded-xl text-center text-sm';banner.textContent=iHit?`🎯 Tam isabet buldun! (${hits}/${total}) Diğerleri bekleniyor...`:`🎯 ${hits}/${total} oyuncu tam isabet buldu`;banner.onclick=null;}}
+async function hostAdvanceSayiRound(){const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`));const d=snap.val();if(!d)return;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{exactHits:null});const isLast=(d.roundCount!=='Sonsuz')&&(d.currentRound>=d.roundCount);if(isLast){await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'finished'});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'finished'});}else{hostStartNextRound();}}
+// ---- SOLO WORDLE ----
+// ---- GÜNÜN KELİMESİ ----
+function dailyWordleSeed(dateStr){let h=0;for(let i=0;i<dateStr.length;i++){h=(h*31+dateStr.charCodeAt(i))>>>0;}return h;}
+function getDailyWord(){const pool=WORDLE_COMMON;const today=wordleTodayStr();const seed=dailyWordleSeed(today);const idx=seed%pool.length;return pool[idx];}
+function loadDailyState(){let s;try{s=JSON.parse(localStorage.getItem('bkbi_daily_v1')||'{}');}catch(e){s={};}const today=wordleTodayStr();if(s.date!==today){s={date:today,guesses:[],solved:false,jokerUsedCount:0};}return s;}
+function saveDailyState(){const g=game.wordle;const s={date:wordleTodayStr(),guesses:g.guesses,solved:g.solved,jokerUsedCount:g.jokerUsedCount||0};localStorage.setItem('bkbi_daily_v1',JSON.stringify(s));}
+function startDailyWordle(btn){if(btn)setBtnLoading(btn,true);if(!wordleSecretPool||wordleSecretPool.length===0||wordleSecretPool[0].length!==5)try{buildWordlePools(5);}catch(e){}const secret=getDailyWord();const saved=loadDailyState();const finished=saved.solved||saved.guesses.length>=WORDLE_MAX_GUESSES;game.mp.gameId=null;game.wordle={secret,guesses:saved.guesses||[],current:[],cursor:0,_animRow:finished?-2:-1,solved:saved.solved||false,score:0,isPlaying:!finished,timeRemaining:0,_lastScoredRound:null,_roundEndRequested:false,_totalSolveMs:0,jokerUsedCount:saved.jokerUsedCount||0,_usedWords:new Set([secret]),soloMode:true,dailyMode:true,soloRound:1,soloMaxRounds:1,soloRoundStart:0,wordLen:5};hideAllScreens();document.getElementById('wordle-game-screen').classList.remove('hidden');document.getElementById('wd-round').textContent='📅';document.getElementById('wd-max-round').textContent='Günlük';document.getElementById('wd-time-left').textContent=finished?'✓':'∞';document.getElementById('wd-score').textContent='0';document.getElementById('wd-status').classList.add('hidden');document.getElementById('wd-opponents').classList.add('hidden');document.querySelectorAll('#wordle-game-screen .finish-btn').forEach(b=>b.classList.add('hidden'));showFinishBtn('wd-solo-finish');resetWordleCurrent();renderWordleBoard();renderWordleKeyboard();updateJokerButton();if(btn)setBtnLoading(btn,false);if(finished){showToast(saved.solved?'Bugünün kelimesini zaten buldun! 🎉':'Bugünkü hakların bitti, yarın tekrar dene!','success');}}
+function startSoloWordle(btn,wordLen){const wl=wordLen||5;if(btn)setBtnLoading(btn,true);if(!wordleSecretPool||wordleSecretPool.length===0||wordleSecretPool[0].length!==wl)try{buildWordlePools(wl);}catch(e){}const secret=pickWordleSecret(null);if(!secret){showToast('Kelime listesi yüklenemedi!');if(btn)setBtnLoading(btn,false);return;}game.mp.gameId=null;game.wordle={secret,guesses:[],current:[],cursor:0,_animRow:-1,solved:false,score:0,isPlaying:false,timeRemaining:90,_lastScoredRound:null,_roundEndRequested:false,_totalSolveMs:0,jokerUsedCount:0,_usedWords:new Set([secret]),soloMode:true,soloRound:1,soloMaxRounds:7,soloRoundStart:0,wordLen:wl};hideAllScreens();document.getElementById('wordle-game-screen').classList.remove('hidden');document.getElementById('wd-round').textContent='1';document.getElementById('wd-max-round').textContent='7';document.getElementById('wd-score').textContent='0';document.getElementById('wd-status').classList.add('hidden');document.getElementById('wd-opponents').classList.add('hidden');document.querySelectorAll('#wordle-game-screen .finish-btn').forEach(b=>b.classList.add('hidden'));showFinishBtn('wd-solo-finish');resetWordleCurrent();renderWordleBoard();renderWordleKeyboard();if(btn)setBtnLoading(btn,false);runLocalCountdown(5,()=>{game.wordle.isPlaying=true;game.wordle.soloRoundStart=Date.now();startSoloWordleTimer();renderWordleBoard();showFinishBtn('wd-solo-finish');updateJokerButton();});}
+async function fetchWordMeaning(word){try{const r=await fetch(`https://sozluk.gov.tr/gts?ara=${encodeURIComponent(word.toLowerCase())}`);const d=await r.json();if(Array.isArray(d)&&d[0]&&d[0].anlamlarListe&&d[0].anlamlarListe[0])return d[0].anlamlarListe[0].anlam.replace(/<[^>]*>/g,'');return null;}catch(e){return null;}}
+let _wordleRevealCallback=null;
+function wordleRevealContinue(){const ov=document.querySelector('.wd-reveal-popup');if(ov)ov.remove();if(_wordleRevealCallback){const cb=_wordleRevealCallback;_wordleRevealCallback=null;cb();}}
+function showWordleRevealPopup(word,solved,pts,onClose){_wordleRevealCallback=onClose;const ov=document.createElement('div');ov.className='wd-reveal-popup';const icon=solved?'🎉':'😔';const sub=solved?`Doğru! +${pts} puan`:'Süre doldu';ov.innerHTML=`<div class="wd-reveal-card"><div class="text-4xl mb-2">${icon}</div><p class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">${sub}</p><p class="wd-reveal-word">${word}</p><p class="wd-reveal-meaning" id="wd-reveal-meaning">...</p><button onclick="wordleRevealContinue()" class="mt-5 px-8 py-3 bg-gradient-to-r from-sky-400 to-sky-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all">Devam →</button></div>`;document.body.appendChild(ov);const isRare=!(turkishWordSetCore&&turkishWordSetCore.has(word));if(isRare){fetchWordMeaning(word).then(m=>{const el=document.getElementById('wd-reveal-meaning');if(el)el.textContent=m||'';});}else{const el=document.getElementById('wd-reveal-meaning');if(el)el.textContent='';}}
+function soloWordleFinish(){clearInterval(soloWordleTimerInterval);game.wordle.isPlaying=false;if(game.wordle.dailyMode){switchToScreen('wordle-welcome-screen');}else{endSoloWordle();}}
+let soloWordleTimerInterval=null;
+function startSoloWordleTimer(){clearInterval(soloWordleTimerInterval);soloWordleTimerInterval=setInterval(()=>{const g=game.wordle;if(!g.soloMode||!g.isPlaying){clearInterval(soloWordleTimerInterval);return;}const el=Date.now()-g.soloRoundStart;const rem=Math.max(0,Math.ceil((WORDLE_ROUND_MS-el)/1000));document.getElementById('wd-time-left').textContent=`${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`;if(rem<=0){clearInterval(soloWordleTimerInterval);g.isPlaying=false;endSoloWordleRound();}},250);}
+function endSoloWordleRound(){clearInterval(soloWordleTimerInterval);const g=game.wordle;g.isPlaying=false;const solved=g.solved;let pts=solved?(WORDLE_MAX_GUESSES+1-g.guesses.length)*20:0;const jokerPenalty=(g.jokerUsed||0)*WORDLE_JOKER_PENALTY;pts=Math.max(0,pts-jokerPenalty);g.score+=pts;g.jokerUsed=0;const solveMs=solved?(Date.now()-g.soloRoundStart):90000;g._totalSolveMs=(g._totalSolveMs||0)+solveMs;document.getElementById('wd-score').textContent=g.score;const secret=g.secret;if(g.soloRound>=g.soloMaxRounds){showWordleRevealPopup(secret,solved,pts,()=>{endSoloWordle();});return;}showWordleRevealPopup(secret,solved,pts,()=>{g.soloRound++;const newSecret=pickWordleSecret(g.secret);g.secret=newSecret;g.guesses=[];g.solved=false;g._animRow=-1;g._jokerPositions=new Set();g._jokerRevealed={};g.soloRoundStart=0;document.getElementById('wd-round').textContent=g.soloRound;document.getElementById('wd-status').classList.add('hidden');resetWordleCurrent();renderWordleBoard();renderWordleKeyboard();runLocalCountdown(5,()=>{g.isPlaying=true;g.soloRoundStart=Date.now();startSoloWordleTimer();renderWordleBoard();showFinishBtn('wd-solo-finish');updateJokerButton();});});}
+function endDailyWordle(){const g=game.wordle;g.isPlaying=false;saveDailyState();const solved=g.solved;const pts=solved?(WORDLE_MAX_GUESSES+1-g.guesses.length)*20:0;showWordleRevealPopup(g.secret,solved,pts,()=>{switchToScreen('wordle-welcome-screen');});}
+function endSoloWordle(){clearInterval(soloWordleTimerInterval);const g=game.wordle;const pts=g.solved?(WORDLE_MAX_GUESSES+1-g.guesses.length)*20:0;g.score=pts;hideAllScreens();document.getElementById('wordle-game-over-screen').classList.remove('hidden');document.getElementById('wd-solo-btns').classList.add('hidden');document.getElementById('wd-mp-menu-btn').classList.remove('hidden');updateAllPlayerNameDisplays();updateNameGateUI();document.getElementById('wd-final-score').textContent=pts;document.getElementById('wd-mp-results').classList.add('hidden');const lw=document.getElementById('wd-last-word');document.getElementById('wd-last-word-text').textContent=g.secret;lw.classList.remove('hidden');const ob=document.getElementById('wd-solo-btns');if(ob)ob.classList.remove('hidden');const mb=document.getElementById('wd-mp-menu-btn');if(mb)mb.classList.add('hidden');sounds.playSuccess();try{fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'wordle',playerName:game.playerName,score:pts,category:'solo'})});}catch(e){}}
+// ---- WORDLE render & giriş ----
+function renderWordleBoard(){const b=document.getElementById('wd-board');const rows=[];const g=game.wordle;const known=wordleLetterStates();const cnt={};if(g.secret)[...g.secret].forEach(c=>cnt[c]=(cnt[c]||0)+1);for(let i=0;i<WORDLE_MAX_GUESSES;i++){const guess=g.guesses[i];const isCur=i===g.guesses.length&&!g.solved&&g.isPlaying;const _wl=getWL();let cells='';if(guess){const ev=evaluateWordleGuess(g.secret,guess);const greens={};[...guess].forEach((c,k)=>{if(ev[k]==='g')greens[c]=(greens[c]||0)+1;});const isLast=g._animRow!==-2&&i===g.guesses.length-1&&g._animRow!==i;for(let j=0;j<_wl;j++){const m=ev[j],ch=guess[j],n=cnt[ch]||0;const allPlaced=(greens[ch]||0)>=n;const badge=(m!=='x'&&n>1&&!allPlaced)?`<sup class="wd-badge">${n}</sup>`:'';if(isLast){cells+=`<div class="wd-cell reveal" style="animation-delay:${j*120}ms" data-m="${m}">${ch}${badge}</div>`;}else{cells+=`<div class="wd-cell ${m}">${ch}${badge}</div>`;}}if(isLast){g._animRow=i;setTimeout(()=>{const brd=document.getElementById('wd-board');if(!brd)return;const row=brd.children[i];if(!row)return;[...row.children].forEach((c,ci)=>{setTimeout(()=>{const mc=c.dataset.m;if(mc)c.classList.add(mc);},ci*120+200);});},0);}}else{const jrev=g._jokerRevealed||{};const preview=wordleGreens();for(let j=0;j<_wl;j++){if(isCur){const ch=g.current[j]||'';const isJokerGreen=jrev[j]&&ch===jrev[j];const ghost=!isJokerGreen&&j>=g.cursor&&ch?' ghost':'';const dead=ch&&!ghost&&!isJokerGreen&&known[ch]==='x'?' dead':'';const jokerCls=isJokerGreen?' g':'';if(!ch&&preview[j]){cells+=`<div class="wd-cell preview">${preview[j]}</div>`;}else{cells+=`<div class="wd-cell ${ch?'filled':''}${dead}${ghost}${jokerCls}">${ch}</div>`;}}else cells+='<div class="wd-cell"></div>';}}rows.push(`<div class="wd-row" style="grid-template-columns:repeat(${_wl},minmax(0,1fr))">${cells}</div>`);}b.innerHTML=rows.join('');const cur=b.children[Math.min(g.guesses.length,WORDLE_MAX_GUESSES-1)];if(cur&&cur.scrollIntoView)cur.scrollIntoView({block:'nearest'});}
+function wordleLetterStates(){const st={};const g=game.wordle;const rank={x:0,y:1,g:2};g.guesses.forEach(gu=>{const ev=evaluateWordleGuess(g.secret,gu);[...gu].forEach((ch,i)=>{const m=ev[i];if(!st[ch]||rank[m]>rank[st[ch]])st[ch]=m;});});if(g._jokerRevealed)Object.values(g._jokerRevealed).forEach(ch=>{if(ch)st[ch]='g';});return st;}
+function renderWordleKeyboard(){const kb=document.getElementById('wd-keyboard');const st=wordleLetterStates();const cnt={};const g=game.wordle;if(g.secret)[...g.secret].forEach(c=>cnt[c]=(cnt[c]||0)+1);const greensAll=wordleGreens();const rows=[['Q','W','E','R','T','Y','U','I','O','P','Ğ','Ü'],['A','S','D','F','G','H','J','K','L','Ş','İ'],['Z','X','C','V','B','N','M','Ö','Ç','⌫']];const DISABLED_KEYS=new Set(['Q','W','X']);let html='';rows.forEach(r=>{const cols=r.map(ch=>{if(ch==='⌫')return 1.5;return 1;});const tpl=cols.map(c=>c===1?'1fr':`${c}fr`).join(' ');html+=`<div class="grid" style="grid-template-columns:${tpl};gap:1px">`+r.map(ch=>{if(ch==='⌫')return '<button class="wd-key" onclick="wordleBackspace()" style="font-size:clamp(13px,3.5vw,16px);background:#fed7aa;color:#ea580c;font-weight:900">⌫</button>';if(DISABLED_KEYS.has(ch))return `<button class="wd-key" disabled style="opacity:.25;cursor:default">${ch}</button>`;const n=cnt[ch]||0;const placed=greensAll.filter(x=>x===ch).length;const bd=(st[ch]&&st[ch]!=='x'&&n>1&&placed<n)?`<sup class="wd-badge">${n}</sup>`:'';const VOWELS=new Set(['A','E','I','İ','O','Ö','U','Ü']);const vowelStyle=(!st[ch]&&VOWELS.has(ch))?' style="background:#ede9fe;color:#7c3aed"':'';return `<button class="wd-key ${st[ch]||''}"${vowelStyle} onclick="wordleKey('${ch}')">${ch}${bd}</button>`;}).join('')+'</div>';});html+='<div class="mt-1"><button class="wd-key w-full py-2.5" onclick="wordleClearRow()" style="background:#f87171;color:#fff;font-weight:900;font-size:clamp(11px,3vw,14px)">TEMİZLE</button></div>';kb.innerHTML=html;}
+function wordleGreens(){const g=game.wordle;const wl=getWL();const arr=new Array(wl).fill('');if(!g.secret)return arr;g.guesses.forEach(gu=>{const ev=evaluateWordleGuess(g.secret,gu);for(let i=0;i<wl;i++)if(ev[i]==='g')arr[i]=gu[i];});return arr;}
+function resetWordleCurrent(){game.wordle.current=new Array(getWL()).fill('');game.wordle.cursor=0;}
+function wordleKey(ch){const g=game.wordle;if(!g.isPlaying||g.solved)return;const wl=getWL();if(g.cursor>=wl)return;g.current[g.cursor]=ch;if(g._jokerPositions)g._jokerPositions.delete(g.cursor);g.cursor++;renderWordleBoard();sounds.playClick();if(g.cursor>=wl)setTimeout(()=>{const gg=game.wordle;if(gg.current.every(c=>c!==''))wordleSubmit();},250);}
+function wordleClearRow(){const g=game.wordle;if(!g.isPlaying||g.solved)return;resetWordleCurrent();renderWordleBoard();sounds.playClick();}
+function wordleBackspace(){const g=game.wordle;if(!g.isPlaying||g.solved)return;if(g.cursor<=0)return;g.cursor--;g.current[g.cursor]='';if(g._jokerPositions)g._jokerPositions.delete(g.cursor);renderWordleBoard();}
+function wordleSubmit(){const g=game.wordle;if(!g.isPlaying||g.solved)return;const w=(g.current||[]).join('');if(w.length!==getWL()){showToast(`${getWL()} harfli bir kelime yaz!`);return;}if(!isValidWordleGuess(w)){showToast('Bu kelime listede yok!');sounds.playError();return;}g.guesses.push(w);const solved=w===g.secret;if(solved){g.solved=true;g.isPlaying=false;sounds.playSuccess();}else{sounds.playClick();if(g.guesses.length>=WORDLE_MAX_GUESSES){g.isPlaying=false;if(!g.soloMode)showWordleStatus('Bilemedin! Kelime: '+g.secret+' — diğerleri bekleniyor...','text-summer-coral');}}
+resetWordleCurrent();renderWordleBoard();renderWordleKeyboard();updateJokerButton();
+const _glowDelay=getWL()*120+400;setTimeout(()=>{const _brd=document.getElementById('wd-board');if(!_brd)return;const _lr=_brd.children[game.wordle.guesses.length-1];if(!_lr)return;_lr.querySelectorAll('.wd-cell.g').forEach(c=>{c.classList.add('glow');setTimeout(()=>{c.classList.remove('glow');c.classList.add('glow-fade');},1000);});},_glowDelay);
+if(g.soloMode){if(g.dailyMode)saveDailyState();if(g.solved||g.guesses.length>=WORDLE_MAX_GUESSES)setTimeout(()=>g.dailyMode?endDailyWordle():endSoloWordleRound(),600);return;}
+if(game.mp.gameId){const upd={guesses:g.guesses};if(solved){upd.solved=true;upd.solvedAt=window.fb.serverNow();}window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/wordleData/${game.playerName}`),upd).catch(()=>{});}}
+function showWordleStatus(txt,cls){const el=document.getElementById('wd-status');el.className=`text-center text-sm font-bold mb-2 ${cls||''}`;el.textContent=txt;el.classList.remove('hidden');}
+function wordleSolversRanked(data){const wd=data.wordleData||{};return Object.entries(wd).filter(([n,v])=>v&&v.solved).map(([n,v])=>({name:n,solvedAt:v.solvedAt||0})).sort((a,b)=>a.solvedAt-b.solvedAt);}
+function wordlePlayerDone(v){return !!v&&(v.solved||((v.guesses||[]).length>=WORDLE_MAX_GUESSES));}
+function renderWordleOpponents(data){const box=document.getElementById('wd-opponents');const list=document.getElementById('wd-opponents-list');const wd=data.wordleData||{};const ranked=wordleSolversRanked(data);const others=Object.entries(wd).filter(([n])=>n!==game.playerName);if(ranked.length===0||others.length===0){box.classList.add('hidden');return;}box.classList.remove('hidden');list.innerHTML=others.map(([n,v])=>{const gs=v.guesses||[];const pat=gs.map(gu=>[...evaluateWordleGuess(data.secretWord,gu)].map(m=>WORDLE_MARK[m]).join('')).slice(-3).join('<br>');const r=ranked.findIndex(x=>x.name===n)+1;const badge=v&&v.solved?`<span class="text-green-500 font-bold text-xs">✓ ${r}. buldu</span>`:wordlePlayerDone(v)?`<span class="text-gray-400 text-xs">✗ bilemedi</span>`:`<span class="text-gray-400 text-xs">${gs.length} tahmin</span>`;return `<div class="bg-white rounded-lg px-2 py-1.5"><div class="flex justify-between items-center"><span class="font-bold text-summer-sea text-sm">${n}</span>${badge}</div><div class="wd-mini text-gray-600">${pat||'—'}</div></div>`;}).join('');}
+function enterOrSyncMultiplayerWordleRound(data){hideAllScreens();document.getElementById('wordle-game-screen').classList.remove('hidden');if(game.mp.isHost){showFinishBtn('mp-finish');hideFinishBtn('mp-leave');}else{hideFinishBtn('mp-finish');showFinishBtn('mp-leave');}
+if(game.mp.lastSyncedRound!==data.currentRound){game.mp.lastSyncedRound=data.currentRound;const g=game.wordle;g.secret=data.secretWord;g.guesses=[];g.solved=false;g.isPlaying=false;g._roundEndRequested=false;g._jokerPositions=new Set();g._jokerRevealed={};g.score=g.score||0;if(!g._usedWords)g._usedWords=new Set();g._usedWords.add(data.secretWord);document.getElementById('wd-status').classList.add('hidden');document.getElementById('wd-round').textContent=data.currentRound;document.getElementById('wd-max-round').textContent=data.roundCount;document.getElementById('wd-score').textContent=g.score;resetWordleCurrent();renderWordleBoard();renderWordleKeyboard();runMultiplayerCountdown(data.countdownEndsAt,()=>{game.wordle.isPlaying=true;renderWordleBoard();updateJokerButton();startMultiplayerTimer(data.roundEndsAt,'wd-time-left');});}
+renderWordleOpponents(data);
+const g=game.wordle;if(g.solved){const r=wordleSolversRanked(data).findIndex(x=>x.name===game.playerName)+1;if(r>0)showWordleStatus(`🎉 ${r}. buldun! (+${wordleRankPoints(r)} puan) Diğerleri bekleniyor...`,'text-green-500');}
+// Host: 3 kişi bulunca VEYA herkes bulunca turu bitir
+if(game.mp.isHost&&!game.wordle._roundEndRequested){const solvers=wordleSolversRanked(data).length;const names=data.players?Object.keys(data.players):[];const total=names.length||game.mp.currentPlayerCount;const wd=data.wordleData||{};const done=names.filter(n=>wordlePlayerDone(wd[n])).length;const allDone=total>0&&done>=total;const limit=Math.min(3,total);if((solvers>=limit&&solvers>0)||allDone){game.wordle._roundEndRequested=true;clearInterval(mpTimerInterval);setTimeout(()=>hostEndRound(),600);}}}
+function showMultiplayerWordleRoundOverModal(data){clearInterval(mpTimerInterval);game.wordle.isPlaying=false;const ranked=wordleSolversRanked(data);const myRank=ranked.findIndex(x=>x.name===game.playerName)+1;const basePts=wordleRankPoints(myRank);let bonusPts=0;if(myRank>=1&&myRank<=5&&game.wordle.solved){const usedGuesses=game.wordle.guesses.length;const remaining=Math.max(0,WORDLE_MAX_GUESSES-usedGuesses);bonusPts=remaining*remaining;}const pts=basePts+bonusPts;if(game.wordle._lastScoredRound!==data.currentRound){game.wordle._lastScoredRound=data.currentRound;const jokerPen=(game.wordle.jokerUsed||0)*WORDLE_JOKER_PENALTY;const netPts=Math.max(0,pts-jokerPen);game.wordle.score=(game.wordle.score||0)+netPts;game.wordle.jokerUsed=0;const roundStart=(data.roundEndsAt||0)-WORDLE_ROUND_MS;const myData=(data.wordleData||{})[game.playerName];const mySolveMs=(myData&&myData.solved&&myData.solvedAt)?(myData.solvedAt-roundStart):WORDLE_ROUND_MS;game.wordle._totalSolveMs=(game.wordle._totalSolveMs||0)+Math.max(0,Math.min(mySolveMs,WORDLE_ROUND_MS));if(game.mp.gameId)window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/scores/${game.playerName}`),{total:game.wordle.score,solveMs:game.wordle._totalSolveMs,roundPts:netPts,roundNo:data.currentRound}).catch(()=>{});}
+document.getElementById('wd-ro-title').textContent=`${data.currentRound}. Tur Bitti!`;document.getElementById('wd-ro-secret').textContent=data.secretWord;document.getElementById('wd-ro-points').textContent=bonusPts>0?`+${pts} (${basePts}+${bonusPts} bonus)`:`+${pts}`;document.getElementById('wd-ro-total').textContent=game.wordle.score;const rb=document.getElementById('wd-ro-ranks');const reactions=data.wordleReactions||{};const curRound=data.currentRound;rb.innerHTML=`<div class="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-blue-100 pb-1 mb-1"><span>Oyuncu</span><span class="flex items-center gap-3"><span>Tur</span><span>Toplam</span></span></div>`+(ranked.length?ranked.map((p,i)=>{const medal=['🥇','🥈','🥉'][i]||'　';const isSelf=p.name===game.playerName;const cls=isSelf?'font-black text-summer-sea':'text-gray-600';const rxKey=`${curRound}_${game.playerName}_${p.name}`;const allRx=Object.entries(reactions).filter(([k])=>k.startsWith(`${curRound}_`)&&k.endsWith(`_${p.name}`)&&!k.includes(`_${p.name}_${p.name}`)).map(([k,v])=>{const parts=k.split('_');const sender=parts.slice(1,-1).join('_');return {emoji:v,sender};});const rxDisplay=allRx.length?`<span class="ml-1">${allRx.map(r=>`<span class="cursor-pointer" onclick="showToast('${r.emoji} ${r.sender}\\'den','success')">${r.emoji}</span>`).join('')}</span>`:'';const rxBtn=(!isSelf&&i<3)?`<button onclick="openWordleReactionPicker(this,'${p.name}')" class="ml-1 text-xs opacity-50 hover:opacity-100 transition-opacity" title="Tepki gönder">💬</button>`:'';const sc=(data.scores||{})[p.name]||{};const roundPts=(sc.roundNo===data.currentRound&&typeof sc.roundPts==='number')?sc.roundPts:0;const totalPts=typeof sc.total==='number'?sc.total:0;return `<div class="flex justify-between items-center text-sm relative ${cls}"><span>${medal} ${i+1}. ${p.name}${rxDisplay}${rxBtn}</span><span class="flex items-center gap-2"><span class="text-green-600 font-bold">+${roundPts}</span><span class="font-black text-summer-sea">${totalPts}</span></span></div>`;}).join(''):'<p class="text-sm text-gray-400 text-center">Kimse bulamadı!</p>');
+const nb=document.getElementById('btn-wd-next-round'),fb2=document.getElementById('btn-wd-ro-finish'),gt=document.getElementById('wd-ro-guest-text');const isLast=(data.roundCount!=='Sonsuz')&&(data.currentRound>=data.roundCount);if(game.mp.isHost){nb.classList.toggle('hidden',isLast);fb2.classList.remove('hidden');fb2.textContent=isLast?'🏁 Oyunu Bitir ve Sonuçları Gör':'🏁 Oyunu Burada Bitir';fb2.className=isLast?'w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all':'w-full mt-2 py-2 bg-red-50 text-red-500 font-bold rounded-xl border-2 border-red-200 hover:bg-red-100 transition-colors text-sm';gt.classList.add('hidden');}else{nb.classList.add('hidden');fb2.classList.add('hidden');gt.classList.remove('hidden');gt.textContent=isLast?'Host sonuçları açıyor...':"Host'un kararını bekliyorsun...";}
+document.getElementById('wordle-round-over-modal').classList.remove('hidden');}
+const WORDLE_REACTIONS=['👏','🔥','🧿','❤️','😱','🤯','💪','🎯','😂','🫡','⭐','💎'];
+function openWordleReactionPicker(btn,targetName){document.querySelectorAll('.wd-rx-picker').forEach(e=>e.remove());const p=document.createElement('div');p.className='wd-rx-picker';p.innerHTML=WORDLE_REACTIONS.map(e=>`<button onclick="sendWordleReaction('${e}','${targetName}')" class="text-2xl hover:scale-125 transition-transform p-1">${e}</button>`).join('');btn.parentElement.appendChild(p);setTimeout(()=>{const close=e=>{if(!p.contains(e.target)){p.remove();document.removeEventListener('click',close);}};document.addEventListener('click',close);},10);}
+async function sendWordleReaction(emoji,targetName){document.querySelectorAll('.wd-rx-picker').forEach(e=>e.remove());if(!game.mp.gameId)return;const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`));const data=snap.val();if(!data)return;const key=`${data.currentRound}_${game.playerName}_${targetName}`;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/wordleReactions`),{[key]:emoji});}
+function handleLobbyUpdate(data){if(data.status==='waiting'){document.getElementById('mp-waiting-screen').classList.remove('hidden');document.getElementById('game-screen').classList.add('hidden');document.getElementById('sayi-game-screen').classList.add('hidden');renderWaitingRoom(data);}else if(data.status==='playing'){hideAllModals();document.getElementById('round-over-modal').classList.add('hidden');document.getElementById('sayi-round-over-modal').classList.add('hidden');if(data.gameType==='wordle'){enterOrSyncMultiplayerWordleRound(data);}else if(data.gameType==='sayi'){enterOrSyncMultiplayerSayiRound(data);handleSayiExactHits(data);}else enterOrSyncMultiplayerRound(data);}else if(data.status==='roundover'){if(data.gameType==='wordle')showMultiplayerWordleRoundOverModal(data);else if(data.gameType==='sayi')showMultiplayerSayiRoundOverModal(data);else showMultiplayerRoundOverModal(data);}else if(data.status==='finished'){clearInterval(mpTimerInterval);showMultiplayerGameOver(data);}}
+function renderWaitingRoom(data){const listEl=document.getElementById('mp-player-list');const players=Object.keys(data.players||{});game.mp.currentPlayerCount=players.length;listEl.innerHTML=players.map(p=>`<div class="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg"><span>${p===data.host?'👑':'🙂'}</span><span class="font-bold text-summer-sea">${p}</span>${p===game.playerName?'<span class="text-xs text-gray-400">(sen)</span>':''}</div>`).join('');updateMpStartButtonState();}
+function selectMpRoundCount(c){game.mp.selectedRoundCount=c;document.querySelectorAll('.mp-round-btn').forEach(b=>{const s=String(b.dataset.round)===String(c);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateMpStartButtonState();}
+function selectMpDuration(m){game.mp.selectedDurationMinutes=m;document.querySelectorAll('.mp-duration-btn').forEach(b=>{const s=Number(b.dataset.duration)===Number(m);b.classList.toggle('bg-summer-sea',s);b.classList.toggle('text-white',s);b.classList.toggle('bg-blue-50',!s);b.classList.toggle('text-summer-sea',!s);});updateMpStartButtonState();}
+function updateMpStartButtonState() {
+    const b = document.getElementById('btn-mp-start');
+    const hep = game.mp.currentPlayerCount >= 2;
+    const ready = game.mp.selectedRoundCount && (game.mp.gameType!=='kelime' || game.mp.selectedDurationMinutes) && hep;
+    b.disabled = !ready;
+    
+    if (!ready) {
+        b.className = 'w-full py-3 bg-gray-200 text-gray-700 font-bold text-lg rounded-2xl shadow-lg transition-all mb-3 cursor-not-allowed';
+    } else {
+        b.className = 'w-full py-3 bg-gradient-to-r from-summer-sun to-summer-coral text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all';
+    }
+    
+    b.textContent = hep ? 'Oyunu Başlat 🚀' : 'Arkadaşının katılmasını bekle...';
+}
+    
+async function startMultiplayerGame(){if(!game.mp.selectedRoundCount||(game.mp.gameType==='kelime'&&!game.mp.selectedDurationMinutes)||!game.mp.gameId||game.mp.currentPlayerCount<2)return;const _sb=document.getElementById('btn-mp-start');setBtnLoading(_sb,true);try{if(game.mp.gameType==='wordle'){const secret=pickWordleSecret(null);if(!secret){showToast('Kelime listesi yüklenemedi, tekrar dene!');setBtnLoading(_sb,false);return;}const kept=game.wordle._usedWords||new Set();game.wordle={secret:'',guesses:[],current:[],cursor:0,_animRow:-1,solved:false,score:0,timeRemaining:120,isPlaying:false,_lastScoredRound:null,_roundEndRequested:false,_totalSolveMs:0,jokerUsedCount:0,_usedWords:kept};const cdEnd=window.fb.serverNow()+5000;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',gameType:'wordle',roundCount:game.mp.selectedRoundCount,currentRound:1,secretWord:secret,wordleData:null,countdownEndsAt:cdEnd,roundEndsAt:cdEnd+WORDLE_ROUND_MS});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'playing',gameType:'wordle'});setBtnLoading(_sb,false);return;}if(game.mp.gameType==='sayi'){await startMultiplayerSayiGame();setBtnLoading(_sb,false);return;}game.mp.previousLetters=null;const letters=generateRoundLetterSet(null);game.mp.previousLetters=letters.filter(t=>!t.isJoker).map(t=>t.letter);const cdEnd=window.fb.serverNow()+5000;const animMs=letters.length*LETTER_SCRAMBLE_STEP_MS;const roundEnd=cdEnd+animMs+(game.mp.selectedDurationMinutes*60000);await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',gameType:'kelime',roundCount:game.mp.selectedRoundCount,roundDurationMinutes:game.mp.selectedDurationMinutes,currentRound:1,letters:letters,countdownEndsAt:cdEnd,roundEndsAt:roundEnd});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'playing',gameType:'kelime'});}catch(e){showToast('Başlatılamadı, tekrar dene!');}setBtnLoading(_sb,false);}
+async function startMultiplayerSayiGame(){const{numbers,target}=generateSayiRound();const cdEnd=window.fb.serverNow()+5000;const animMs=numbers.length*LETTER_SCRAMBLE_STEP_MS;const roundEnd=cdEnd+animMs+90000;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',gameType:'sayi',roundCount:game.mp.selectedRoundCount,currentRound:1,sayiNumbers:numbers,sayiTarget:target,countdownEndsAt:cdEnd,roundEndsAt:roundEnd});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'playing',gameType:'sayi'});}
+function enterOrSyncMultiplayerRound(data){hideAllScreens();document.getElementById('game-screen').classList.remove('hidden');if(game.mp.isHost){showFinishBtn('mp-finish');hideFinishBtn('mp-leave');}else{hideFinishBtn('mp-finish');showFinishBtn('mp-leave');}updatePlayerNameDisplay('player-name-display');if(game.mp.lastSyncedRound===data.currentRound)return;game.mp.lastSyncedRound=data.currentRound;game.currentRound=data.currentRound;game.maxRounds=data.roundCount;game.roundLetters=data.letters.map(t=>({...t,isUsed:false}));game.activeWord=[];game.foundWords=[];game.isPlaying=false;document.getElementById('found-words-list').innerHTML='';document.getElementById('word-count').textContent='0';document.getElementById('letters-rack').innerHTML='';updateUI();updateActiveWordDisplay();runMultiplayerCountdown(data.countdownEndsAt,()=>{renderLettersRack(true,()=>{game.isPlaying=true;startMultiplayerTimer(data.roundEndsAt,'time-left');});});}
+function enterOrSyncMultiplayerSayiRound(data){hideAllScreens();document.getElementById('sayi-game-screen').classList.remove('hidden');if(game.mp.isHost){showFinishBtn('mp-finish');hideFinishBtn('mp-leave');}else{hideFinishBtn('mp-finish');showFinishBtn('mp-leave');}updatePlayerNameDisplay('sayi-player-name-display');if(game.mp.lastSyncedRound===data.currentRound)return;game.mp.lastSyncedRound=data.currentRound;game.sayi.numbers=data.sayiNumbers.map((v,i)=>({id:`n_${i}`,value:v,used:false,isJoker:false}));game.sayi.numbers.push({id:'sjoker_1',value:null,used:false,isJoker:true});game.sayi.target=data.sayiTarget;game.sayi.currentRound=data.currentRound;game.sayi.maxRounds=data.roundCount;game.sayi.bestResultThisRound=null;game.sayi.selectedTileId=null;game.sayi.selectedOperator=null;game.sayi.timeRemaining=90;game.sayi.isPlaying=false;game.sayi.history=[];game.sayi._exactReported=false;document.getElementById('sayi-mp-exact-banner').classList.add('hidden');document.getElementById('btn-sayi-exact-finish').classList.add('hidden');game.sayi.score=game.sayi.score||0;document.getElementById('sayi-target').textContent=data.sayiTarget;document.getElementById('sayi-best-result').textContent='-';document.getElementById('sayi-current-round').textContent=data.currentRound;document.getElementById('sayi-max-round').textContent=data.roundCount;resetSayiOperatorButtonStyles();updateSayiExpressionDisplay();updateSayiUI();considerSayiBestResult();document.getElementById('sayi-numbers-rack').innerHTML='';runMultiplayerCountdown(data.countdownEndsAt,()=>{renderSayiNumbersRack(true,()=>{game.sayi.isPlaying=true;startMultiplayerTimer(data.roundEndsAt,'sayi-time-left');});});}
+function runLocalCountdown(sec,onComplete){const ov=document.getElementById('mp-countdown-overlay');const ne=document.getElementById('mp-countdown-number');let rem=sec;ne.textContent=rem;ov.classList.remove('hidden');const iv=setInterval(()=>{rem--;if(rem<=0){clearInterval(iv);ov.classList.add('hidden');onComplete();}else{ne.textContent=rem;sounds.playClick();}},1000);}
+function runMultiplayerCountdown(cdEnd,onComplete){if(!cdEnd||cdEnd-window.fb.serverNow()<=0){onComplete();return;}const ov=document.getElementById('mp-countdown-overlay');const ne=document.getElementById('mp-countdown-number');ne.textContent='5';ov.classList.remove('hidden');const iv=setInterval(()=>{const rem=Math.ceil((cdEnd-window.fb.serverNow())/1000);if(rem<=0){clearInterval(iv);ov.classList.add('hidden');onComplete();}else{ne.textContent=rem;sounds.playClick();}},1000);}
+function startMultiplayerTimer(roundEndsAt,timerElId){clearInterval(mpTimerInterval);const td=document.getElementById(timerElId||'time-left');let ended=false;function tick(){const msLeft=roundEndsAt-window.fb.serverNow();const rem=Math.max(0,Math.ceil(msLeft/1000));game.sayi.timeRemaining=rem;const m=Math.floor(rem/60),s=rem%60;td.textContent=`${m}:${s.toString().padStart(2,'0')}`;td.classList.toggle('text-red-500',rem<=10);if(msLeft<=0&&!ended){ended=true;clearInterval(mpTimerInterval);game.isPlaying=false;game.sayi.isPlaying=false;const eb=document.getElementById('sayi-mp-exact-banner');if(eb)eb.classList.add('hidden');const ef=document.getElementById('btn-sayi-exact-finish');if(ef)ef.classList.add('hidden');if(game.mp.isHost)hostEndRound();}}tick();mpTimerInterval=setInterval(tick,250);}
+function computeLongestWordBonus(sc){let ml=0,ca=[];Object.entries(sc||{}).forEach(([n,s])=>{const ws=s.foundWords||[];if(ws.length===0)return;let lo='';ws.forEach(w=>{if(w.length>lo.length)lo=w;});if(lo.length>ml){ml=lo.length;ca=[{name:n,word:lo,total:s.total||0}];}else if(lo.length===ml&&ml>0){ca.push({name:n,word:lo,total:s.total||0});}});if(ml===0||ca.length===0)return null;if(ca.length===1)return{winners:[{name:ca[0].name,word:ca[0].word}],length:ml};const mt=Math.min(...ca.map(c=>c.total));return{winners:ca.filter(c=>c.total===mt).map(c=>({name:c.name,word:c.word})),length:ml};}
+function processLongestWordBonus(data){const bd=data.longestWordBonus;if(!bd||bd.round!==data.currentRound)return null;const aw=bd.winners.some(w=>w.name===game.playerName);if(aw&&game.mp.lastBonusAppliedRound!==data.currentRound){game.mp.lastBonusAppliedRound=data.currentRound;game.score+=5;updateUI();window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/scores/${game.playerName}`),{total:game.score,foundWords:game.foundWords}).catch(()=>{});}return bd;}
+function renderBonusBanner(bd,elId){const b=document.getElementById(elId);if(!bd){b.classList.add('hidden');b.innerHTML='';return;}b.classList.remove('hidden');b.innerHTML=`🏆 Turun En Uzun Kelimesi: ${bd.winners.map(w=>`${w.name} ("${w.word}")`).join(' ve ')} — <strong>+5 puan</strong>`;}
+async function hostEndRound(){const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`));const data=snap.val();if(!data)return;const isLast=(data.roundCount!=='Sonsuz')&&(data.currentRound>=data.roundCount);const bonus=(data.gameType==='sayi'||data.gameType==='wordle')?null:computeLongestWordBonus(data.scores);const bu={longestWordBonus:bonus?{round:data.currentRound,...bonus}:null};if(data.gameType==='wordle'){await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'roundover'});return;}if(isLast){await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'finished',...bu});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'finished'});}else{await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'roundover',...bu});}}
+function computeMissedWords(data){const mw=new Set(game.foundWords);const ms=new Set();Object.entries(data.scores||{}).forEach(([n,s])=>{if(n===game.playerName)return;(s.foundWords||[]).forEach(w=>{if(!mw.has(w))ms.add(w);});});return Array.from(ms);}
+function searchWordsInSet(set,base,jokerCount,maxLen){if(!set||set.size===0)return[];const found=[];for(const w of set){if(w.length>maxLen||w.length<3)continue;let miss=0;const c={};let ok=true;for(const ch of w){c[ch]=(c[ch]||0)+1;if(c[ch]>(base[ch]||0)){miss++;if(miss>jokerCount){ok=false;break;}}}if(ok)found.push(w);}found.sort((a,b)=>b.length-a.length||a.localeCompare(b,'tr'));return found;}
+function findTopWordsFromLetters(){const letters=game.roundLetters.filter(t=>!t.isJoker).map(t=>t.letter);const jokerCount=game.roundLetters.filter(t=>t.isJoker).length;if(letters.length===0)return[];const base={};letters.forEach(l=>base[l]=(base[l]||0)+1);const maxLen=letters.length+jokerCount;const coreResults=searchWordsInSet(turkishWordSetCore,base,jokerCount,maxLen).slice(0,10);if(coreResults.length>=10)return coreResults;const already=new Set(coreResults);const extra=searchWordsInSet(turkishWordSet,base,jokerCount,maxLen).filter(w=>!already.has(w));return[...coreResults,...extra].slice(0,10);}
+function renderTopWords(){const sec=document.getElementById('round-over-top-words');const list=document.getElementById('round-over-top-words-list');const words=findTopWordsFromLetters();if(words.length===0){sec.classList.add('hidden');list.innerHTML='';return;}const mine=new Set(game.foundWords);sec.classList.remove('hidden');list.innerHTML=words.map(w=>mine.has(w)?`<span class="bg-green-50 text-green-600 border border-green-200 px-2 py-1 rounded-lg text-sm font-bold">✓ ${w}</span>`:`<span class="bg-blue-50 text-summer-sea border border-blue-200 px-2 py-1 rounded-lg text-sm font-bold">${w}</span>`).join('');}
+function lockNextRoundButton(btn,sec){clearInterval(roundOverUnlockInterval);let rem=sec;btn.disabled=true;btn.classList.add('opacity-50','cursor-not-allowed');btn.classList.remove('hover:shadow-xl','hover:-translate-y-1');btn.textContent=`Kelimeler gösteriliyor... (${rem})`;roundOverUnlockInterval=setInterval(()=>{rem--;if(rem<=0){clearInterval(roundOverUnlockInterval);btn.disabled=false;btn.classList.remove('opacity-50','cursor-not-allowed');btn.classList.add('hover:shadow-xl','hover:-translate-y-1');btn.textContent='Sonraki Tur ➜';}else btn.textContent=`Kelimeler gösteriliyor... (${rem})`;},1000);}
+function showMultiplayerRoundOverModal(data){document.getElementById('round-over-title').textContent=`${data.currentRound}. Tur Bitti!`;document.getElementById('round-over-score').textContent=game.score;const bd=processLongestWordBonus(data);renderBonusBanner(bd,'round-over-bonus-banner');const ranked=Object.entries(data.scores||{}).map(([n,s])=>({name:n,total:s.total||0})).sort((a,b)=>b.total-a.total);document.getElementById('round-over-leaderboard').innerHTML=ranked.map((p,i)=>`<div class="flex justify-between px-3 py-1.5 rounded-lg text-sm ${p.name===game.playerName?'bg-summer-sun text-white font-bold':'bg-blue-50 text-gray-700'}"><span>${i+1}. ${p.name}</span><span>${p.total}</span></div>`).join('');const missed=computeMissedWords(data);const ms=document.getElementById('round-over-missed-words');const ml=document.getElementById('round-over-missed-words-list');if(missed.length>0){ms.classList.remove('hidden');ml.innerHTML=missed.map(w=>`<span class="bg-red-50 text-red-500 border border-red-200 px-2 py-1 rounded-lg text-sm font-bold">${w}</span>`).join('');}else{ms.classList.add('hidden');ml.innerHTML='';}renderTopWords();const nb=document.getElementById('btn-next-round');const fb=document.getElementById('btn-round-over-finish');const gt=document.getElementById('round-over-guest-text');if(game.mp.isHost){nb.classList.remove('hidden');nb.onclick=hostStartNextRound;fb.classList.remove('hidden');gt.classList.add('hidden');lockNextRoundButton(nb,5);}else{clearInterval(roundOverUnlockInterval);nb.classList.add('hidden');fb.classList.add('hidden');gt.classList.remove('hidden');}document.getElementById('round-over-modal').classList.remove('hidden');}
+function showMultiplayerSayiRoundOverModal(data){const alreadyScored=game.sayi._lastScoredRound===data.currentRound;const base=calculateSayiPoints(data.sayiTarget,game.sayi.bestResultThisRound);const isExact=game.sayi.bestResultThisRound===data.sayiTarget;const timeBonus=isExact?Math.max(0,game.sayi.timeRemaining||0):0;const pts=base+timeBonus;if(!alreadyScored){game.sayi._lastScoredRound=data.currentRound;game.sayi.score=(game.sayi.score||0)+pts;if(game.mp.gameId)window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}/scores/${game.playerName}`),{total:game.sayi.score}).catch(()=>{});}document.getElementById('sayi-round-over-title').textContent=`${data.currentRound}. Tur Bitti!`;document.getElementById('sayi-round-over-target').textContent=data.sayiTarget;document.getElementById('sayi-round-over-points').textContent=isExact&&timeBonus>0?`+${base} +${timeBonus} ⏱️ = +${pts}`:`+${pts}`;document.getElementById('sayi-round-over-total').textContent=game.sayi.score;const orig=game.sayi.numbers.filter(t=>!t.id.startsWith('r_')&&!t.isJoker).map(t=>t.value);showComputerSolutionInModal(data.sayiTarget,orig);const nb=document.getElementById('btn-sayi-next-round');const fb=document.getElementById('btn-sayi-round-over-finish');const gt=document.getElementById('sayi-round-over-guest-text');if(game.mp.isHost){nb.classList.remove('hidden');nb.onclick=hostStartNextRound;fb.classList.remove('hidden');gt.classList.add('hidden');}else{nb.classList.add('hidden');fb.classList.add('hidden');gt.classList.remove('hidden');}document.getElementById('sayi-round-over-modal').classList.remove('hidden');}
+async function hostStartNextRound(){const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`));const data=snap.val();if(data.gameType==='wordle'){const secret=pickWordleSecret(data.secretWord);const cdEnd=window.fb.serverNow()+5000;game.wordle._roundEndRequested=false;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',currentRound:data.currentRound+1,secretWord:secret,wordleData:null,countdownEndsAt:cdEnd,roundEndsAt:cdEnd+WORDLE_ROUND_MS});return;}if(data.gameType==='sayi'){const{numbers,target}=generateSayiRound();const cdEnd=window.fb.serverNow()+5000;const animMs=numbers.length*LETTER_SCRAMBLE_STEP_MS;const roundEnd=cdEnd+animMs+90000;await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',currentRound:data.currentRound+1,sayiNumbers:numbers,sayiTarget:target,exactHits:null,countdownEndsAt:cdEnd,roundEndsAt:roundEnd});return;}const dm=data.roundDurationMinutes||3;const letters=generateRoundLetterSet(game.mp.previousLetters);game.mp.previousLetters=letters.filter(t=>!t.isJoker).map(t=>t.letter);const cdEnd=window.fb.serverNow()+5000;const animMs=letters.length*LETTER_SCRAMBLE_STEP_MS;const roundEnd=cdEnd+animMs+(dm*60000);await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'playing',currentRound:data.currentRound+1,letters:letters,countdownEndsAt:cdEnd,roundEndsAt:roundEnd});}
+async function hostFinishGameNow(){const snap=await window.fb.get(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`));const data=snap.val();const bonus=(data&&data.gameType!=='sayi'&&data.gameType!=='wordle')?computeLongestWordBonus(data.scores):null;const bu={longestWordBonus:bonus?{round:data.currentRound,...bonus}:null};await window.fb.update(window.fb.ref(window.fb.db,`lobbies/${game.mp.gameId}`),{status:'finished',...bu});await window.fb.update(window.fb.ref(window.fb.db,`lobbies-index/${game.mp.gameId}`),{status:'finished'});}
+async function guestLeaveGame(){if(!game.mp.gameId||game.mp.isHost)return;const gid=game.mp.gameId;resetMpState();try{await window.fb.remove(window.fb.ref(window.fb.db,`lobbies/${gid}/players/${game.playerName}`));}catch(e){}switchToScreen('wordle-welcome-screen');showToast('Oyundan ayrıldın','success');}
+async function showMultiplayerGameOver(data){hideAllScreens();['wordle-round-over-modal','sayi-round-over-modal','karma-round-over-modal','round-over-modal','mp-countdown-overlay'].forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('hidden');});updateAllPlayerNameDisplays();updateNameGateUI();if(data.gameType==='wordle'){document.getElementById('wordle-game-over-screen').classList.remove('hidden');document.getElementById('wd-final-score').textContent=game.wordle.score||0;sounds.playSuccess();const wr=Object.entries(data.scores||{}).map(([n,s])=>({name:n,total:s.total||0,solveMs:s.solveMs||0})).sort((a,b)=>b.total-a.total||(a.solveMs-b.solveMs));const hasTie=wr.some((p,i)=>i>0&&p.total===wr[i-1].total);const wbox=document.getElementById('wd-mp-results'),wlist=document.getElementById('wd-mp-results-list');if(wr.length>0){wbox.classList.remove('hidden');wlist.innerHTML=wr.map((p,i)=>{const tied=hasTie&&wr.filter(x=>x.total===p.total).length>1;const timeStr=tied&&p.solveMs?` <span class="text-xs text-gray-400">(${(p.solveMs/1000).toFixed(1)}sn)</span>`:'';return `<div class="flex justify-between items-center px-3 py-2 rounded-lg ${p.name===game.playerName?'bg-summer-sun text-white font-bold':'bg-white text-gray-700'}"><span>${i+1}. ${p.name}${timeStr}</span><span>${p.total}</span></div>`;}).join('');}else wbox.classList.add('hidden');const lw=document.getElementById('wd-last-word');if(data.secretWord){document.getElementById('wd-last-word-text').textContent=data.secretWord;lw.classList.remove('hidden');}else lw.classList.add('hidden');try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'wordle',playerName:game.playerName,score:game.wordle.score||0,category:data.roundCount})});}catch(e){}return;}
+if(data.gameType==='sayi'){document.getElementById('sayi-game-over-screen').classList.remove('hidden');document.getElementById('sayi-final-score').textContent=game.sayi.score||0;const sr=Object.entries(data.scores||{}).map(([n,s])=>({name:n,total:s.total||0})).sort((a,b)=>b.total-a.total);const box=document.getElementById('sayi-mp-results');const lst=document.getElementById('sayi-mp-results-list');if(sr.length>0){box.classList.remove('hidden');lst.innerHTML=sr.map((p,i)=>`<div class="flex justify-between items-center px-3 py-2 rounded-lg ${p.name===game.playerName?'bg-summer-sun text-white font-bold':'bg-white text-gray-700'}"><span>${i+1}. ${p.name}</span><span>${p.total}</span></div>`).join('');}else{box.classList.add('hidden');}const solBox=document.getElementById('sayi-mp-last-solution');if(data.sayiNumbers&&data.sayiTarget){const sol=findBestSolution(data.sayiNumbers,data.sayiTarget);let h=`<p class="text-sm font-bold text-summer-sea uppercase tracking-widest mb-2 text-center">💡 Son Turun Çözümü (Hedef: ${data.sayiTarget})</p><div class="space-y-1">`;(sol&&sol.steps?sol.steps:[]).forEach(s=>{h+=`<div class="bg-white px-2 py-1 rounded text-sm font-mono">${s}</div>`;});h+='</div>';if(sol)h+=sol.diff===0?`<p class="text-sm font-bold text-green-500 mt-2">🎯 Tam Sonuç: ${sol.result}</p>`:`<p class="text-sm font-bold text-summer-sea mt-2">Sonuç: ${sol.result} (Hedeften ${sol.diff} uzak)</p>`;solBox.innerHTML=h;solBox.classList.remove('hidden');}else{solBox.classList.add('hidden');}try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'sayi',playerName:game.playerName,score:game.sayi.score||0,category:'mp-islem'})});}catch(e){}}else{document.getElementById('game-over-screen').classList.remove('hidden');sounds.playSuccess();const bd=processLongestWordBonus(data);renderBonusBanner(bd,'game-over-bonus-banner');document.getElementById('final-score').textContent=game.score;const ranked=Object.entries(data.scores||{}).map(([n,s])=>({name:n,total:s.total||0})).sort((a,b)=>b.total-a.total);document.getElementById('leaderboard-title').textContent='🏆 Bu Oyunun Sonuçları';document.getElementById('leaderboard-list').innerHTML=ranked.map((p,i)=>`<div class="flex justify-between items-center px-3 py-2 rounded-lg ${p.name===game.playerName?'bg-summer-sun text-white font-bold':'bg-white text-gray-700'}"><span>${i+1}. ${p.name}</span><span>${p.total}</span></div>`).join('');try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({mode:'solo',playerName:game.playerName,score:game.score,category:'mp-kelime'})});}catch(e){}}}
+async function leaveMultiplayerLobby(){const gid=game.mp.gameId;const isHost=game.mp.isHost;detachMpListeners();clearInterval(mpTimerInterval);if(gid){try{if(isHost){await window.fb.remove(window.fb.ref(window.fb.db,`lobbies/${gid}`));await window.fb.remove(window.fb.ref(window.fb.db,`lobbies-index/${gid}`));}else{await window.fb.remove(window.fb.ref(window.fb.db,`lobbies/${gid}/players/${game.playerName}`));}}catch(e){}}game.mp.gameId=null;game.mp.isHost=false;switchToScreen('wordle-welcome-screen');}
+
+function processGameplayKeyInput(rawKey){if(game.wordle.isPlaying&&!document.getElementById('wordle-game-screen').classList.contains('hidden')){const k=rawKey.toLocaleUpperCase('tr-TR');if(rawKey==='Enter'){wordleSubmit();return;}if(rawKey==='Backspace'){wordleBackspace();return;}if(ALPHABET.includes(k)){wordleKey(k);return;}return;}
+if(!game.isPlaying)return;if(!document.getElementById('joker-modal').classList.contains('hidden')){const key=rawKey.toLocaleUpperCase('tr-TR');if(ALPHABET.includes(key))selectJokerLetter(key,true);else if(rawKey==='Escape')closeJokerModal();return;}const key=rawKey.toLocaleUpperCase('tr-TR');if(rawKey==='Enter'){submitWord();return;}if(rawKey==='Backspace'){if(game.activeWord.length>0)removeLetterFromWord(game.activeWord.length-1);return;}if(rawKey==='*'||rawKey==='?'||rawKey==='.'){const jt=game.roundLetters.find(t=>t.isJoker&&!t.isUsed);if(jt)openJokerModal(jt);return;}const at=game.roundLetters.find(t=>!t.isUsed&&!t.isJoker&&t.letter===key);if(at)selectLetter(at);else if(ALPHABET.includes(key)){const jt=game.roundLetters.find(t=>t.isJoker&&!t.isUsed);if(jt){jt.letter=key;jt.isUsed=true;game.activeWord.push({...jt,originId:jt.id});sounds.playClick();updateActiveWordDisplay();renderLettersRack(false);}}}
+window.addEventListener('keydown',(e)=>{if(document.activeElement&&document.activeElement.id==='mobile-keyboard-input')return;processGameplayKeyInput(e.key);});
+function focusMobileKeyboard(){if(game.isPlaying)document.getElementById('mobile-keyboard-input').focus();}
+const mki=document.getElementById('mobile-keyboard-input');
+mki.addEventListener('input',(e)=>{const val=e.target.value;if(val.length>0){const uv=val.toLocaleUpperCase('tr-TR');for(const ch of uv)processGameplayKeyInput(ch);}e.target.value='';});
+mki.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key==='Backspace'){e.preventDefault();processGameplayKeyInput(e.key);}});
+
+buildJokerKeyboard();
+let srk1=false,srk9=false,srHold=0,srTrig=false;
+document.addEventListener('keydown',(e)=>{if(e.key==='1')srk1=true;if(e.key==='9')srk9=true;});
+document.addEventListener('keyup',(e)=>{if(e.key==='1')srk1=false;if(e.key==='9')srk9=false;if(!srk1||!srk9)srTrig=false;});
+setInterval(()=>{const sv=!document.getElementById('scoreboard-screen').classList.contains('hidden');if(!sv||!srk1||!srk9){srHold=0;return;}if(srTrig)return;srHold+=100;if(srHold>=3000){srTrig=true;resetScoreboard();}},100);
+async function resetScoreboard(){if(!confirm('Tüm skor tablosunu kalıcı olarak silmek istediğine emin misin?'))return;try{await fetch(WEB_APP_URL,{method:'POST',body:JSON.stringify({action:'reset'})});showToast('Skor tablosu sıfırlandı!','success');loadScoreTabContent(currentScoreTab);}catch(e){showToast('Sıfırlama başarısız oldu');}}
+</script>
+
+<script type="module">
+import {initializeApp}from"https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import {getDatabase,ref,set,get,update,onValue,off,remove,serverTimestamp,onDisconnect}from"https://www.gstatic.com/firebasejs/12.15.0/firebase-database.js";
+const fc={apiKey:"AIzaSyCEAc1RBQrQwHy4MCzJ4e7TfddyzTWI2Ws",authDomain:"kelimelik-3fa74.firebaseapp.com",databaseURL:"https://kelimelik-3fa74-default-rtdb.europe-west1.firebasedatabase.app",projectId:"kelimelik-3fa74",storageBucket:"kelimelik-3fa74.firebasestorage.app",messagingSenderId:"140828268062",appId:"1:140828268062:web:4275f0e0a6395d259b800f"};
+const app=initializeApp(fc);const db=getDatabase(app);let sto=0;
+onValue(ref(db,'.info/serverTimeOffset'),(s)=>{sto=s.val()||0;});
+window.fb={db,ref,set,get,update,onValue,off,remove,serverTimestamp,onDisconnect,serverNow:()=>Date.now()+sto};
+// === PRESENCE ===
+const presenceSessionId='s_'+Math.random().toString(36).slice(2,10)+'_'+Date.now().toString(36);
+const myPresRef=ref(db,'presence/'+presenceSessionId);
+function updatePresenceName(){const nm=(game&&game.playerName)||'Oyuncu';set(myPresRef,{t:serverTimestamp(),n:nm}).catch(()=>{});}
+onValue(ref(db,'.info/connected'),(snap)=>{if(snap.val()===true){onDisconnect(myPresRef).remove();updatePresenceName();}});
+window.__updatePresenceName=updatePresenceName;
+window.__presenceNames=[];
+onValue(ref(db,'presence'),(snap)=>{const v=snap.val();const entries=v?Object.values(v):[];window.__presenceNames=entries.map(e=>(e&&e.n)?e.n:'Oyuncu');const count=window.__presenceNames.length;document.querySelectorAll('.presence-count').forEach(el=>{el.textContent=count;});});
+</script>
+</body>
+</html>
