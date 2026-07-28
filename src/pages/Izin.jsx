@@ -989,7 +989,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     });
     setTimeout(() => {
       setOnayLoading(null);
-      setBekleyenIzinler(prev => prev.filter(r => !(r["Personel"] === row["Personel"] && r["Başlangıç"] === row["Başlangıç"])));
+      setBekleyenIzinler(prev => prev.filter(r =>
+        !(r["Personel"] === row["Personel"] &&
+          r["Başlangıç"] === row["Başlangıç"] &&
+          (r["İzin Türü"] || r["Mazeret"]) === izinTuru &&
+          (r["İşlem Zamanı"] || "") === (row["İşlem Zamanı"] || ""))
+      ));
       setTimeout(() => fetchBekleyen(), 3000);
     }, 2000);
   }
@@ -1012,7 +1017,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     });
     setTimeout(() => {
       setReddetLoading(null);
-      setBekleyenIzinler(prev => prev.filter(r => !(r["Personel"] === row["Personel"] && r["Başlangıç"] === row["Başlangıç"])));
+      setBekleyenIzinler(prev => prev.filter(r =>
+        !(r["Personel"] === row["Personel"] &&
+          r["Başlangıç"] === row["Başlangıç"] &&
+          (r["İzin Türü"] || r["Mazeret"]) === izinTuru &&
+          (r["İşlem Zamanı"] || "") === (row["İşlem Zamanı"] || ""))
+      ));
       setTimeout(() => fetchBekleyen(), 3000);
     }, 2000);
   }
