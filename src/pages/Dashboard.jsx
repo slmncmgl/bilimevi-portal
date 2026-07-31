@@ -1,8 +1,9 @@
+// v1.0 — SCRIPT_URL merkezi config.js'e taşındı (eski deployment ID yerine güncel olan kullanılıyor)
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
-
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx5_k4M02agFQcEnQ5ggr-DODKllbwarSsVRJvtXNzFBGD2s-AreSvxy0npgbI7k0kq/exec";
+import { IZIN_YONETIM_SCRIPT_URL } from "../config";
+// SİL: yerel const SCRIPT_URL tanımı kaldırıldı (eski/ölü deployment ID kullanıyordu)
 
 const MODULE_CONFIG = [
   {
@@ -169,7 +170,7 @@ export default function Dashboard() {
     setSozlesmeLoading(true);
     setSozlesmeHata(null);
     try {
-      const res = await fetch(SCRIPT_URL, {
+      const res = await fetch(IZIN_YONETIM_SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({
           action: "danismanSozlesmeBul",
@@ -183,7 +184,7 @@ export default function Dashboard() {
       window.open(json.url, "_blank");
     } catch (err) {
       setSozlesmeHata(err.message);
-      fetch(SCRIPT_URL, {
+      fetch(IZIN_YONETIM_SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({
           action: "sozlesmeHataMailAt",
