@@ -122,7 +122,6 @@ export default function Login() {
 
     try {
       const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENTR-5ymJxnZihInrYKMhJPPrh6PZfFFoVM7_jAjC1qPHcOdgx/exec";
-
       let res;
       try {
         res = await fetch(SCRIPT_URL, {
