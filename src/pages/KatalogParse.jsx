@@ -2,26 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
+// v1.0 — Gemini çağrıları /api/gemini proxy'sine taşındı, key artık backend'de yönetiliyor
 // ─── SABİTLER ────────────────────────────────────────────────
-function getDecodedKeySync() {
-  const url = `https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=API&range=B1`;
-  const xhr = new XMLHttpRequest();
-  xhr.open('GET', url, false);
-  xhr.send();
-  const encoded = xhr.responseText.trim().replace(/^"|"$/g, '');
-  const binaryStr = atob(encoded);
-  let decoded = '';
-  for (let i = 0; i < binaryStr.length; i++) {
-    decoded += String.fromCharCode(binaryStr.charCodeAt(i) - 5);
-  }
-  return decoded;
-}
-
-const GEMINI_API_KEY = getDecodedKeySync();
+// SİL: getDecodedKeySync() fonksiyonu ve GEMINI_API_KEY, GEMINI_API_URL sabitleri kaldırıldı
 
 const GEMINI_MODEL = "gemini-3.1-pro-preview";
-
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2u8MvmPux34VaT8c1S45LYq8KLY9K6pKyBXYydi03SNAW8tPJgp_lB_tMkWj5zpC3/exec";
 
@@ -212,10 +197,11 @@ export default function KatalogParse() {
     const prompt = `Bu bir dil okulu katalog PDF'idir. İlk sayfayı analiz et, okul markasını belirle.
 Seçenekler: ${brandList}
 SADECE JSON döndür: {"brand":"EC","confidence":90}`;
-    const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+    const res = await fetch("/api/gemini", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        model: GEMINI_MODEL,
         contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }] }],
         generationConfig: { temperature: 0.1 }
       })
@@ -365,10 +351,11 @@ GENEL KURALLAR:
 7. MATRİS TABLO HİZALAMA: Fiyatlar matris tabloda ise (örn: satırlar=haftalar, sütunlar=kurs tipleri), satır ve sütun kesişimini DİKKATLİCE eşle. 24 haftalık fiyatı yanlışlıkla 12 hafta sütunundan alma. Her hücreyi doğru hafta ve doğru kurs tipiyle eşleştir.
 8. Backtick veya markdown kullanma, sadece düz JSON array.`;
 
-    const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+    const res = await fetch("/api/gemini", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        model: GEMINI_MODEL,
         contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }] }],
         generationConfig: { temperature: 0.1, topP: 0.95, maxOutputTokens: 32768 }
       })
@@ -598,10 +585,11 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}
 
 METİN:
 ${text}`;
-    const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+    const res = await fetch("/api/gemini", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        model: GEMINI_MODEL,
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0.1 }
       })
@@ -736,10 +724,11 @@ KRİTİK KURALLAR:
 
       setPromoProgress(30); setPromoProgressMsg("🤖 Promosyon bilgileri parse ediliyor...");
 
-      const res = await fetch(`${GEMINI_API_URL}/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+      const res = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          model: GEMINI_MODEL,
           contents: [{ parts: contentParts }],
           generationConfig: { temperature: 0.1, maxOutputTokens: 16000 }
         })
