@@ -1,9 +1,11 @@
+// v1.0 — SCRIPT_URL merkezi config.js'e taşındı
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
+import { IZIN_YONETIM_SCRIPT_URL } from "../config";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENTR-5ymJxnZihInrYKMhJPPrh6PZfFFoVM7_jAjC1qPHcOdgx/exec";
+// SİL: yerel const SCRIPT_URL tanımı kaldırıldı
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
@@ -83,7 +85,7 @@ async function fetchTatiller(ulkeKodu, yillar) {
 }
 
 async function submitIzin(data) {
-  await fetch(SCRIPT_URL, {
+  await fetch(IZIN_YONETIM_SCRIPT_URL, {
     method: "POST",
     mode: "no-cors",
     body: JSON.stringify(data),
@@ -574,7 +576,7 @@ export default function Izin() {
 
       <main style={styles.main} className="izin-main">
         {adminView ? (
-          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin" || rol === "owner"} adminTab={adminTab} setAdminTab={setAdminTab} isFortis={isFortis} isManagerOnly={!(rol === "admin" || rol === "owner")} />
+          <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={IZIN_YONETIM_SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin" || rol === "owner"} adminTab={adminTab} setAdminTab={setAdminTab} isFortis={isFortis} isManagerOnly={!(rol === "admin" || rol === "owner")} />
         ) : (
           <div style={styles.pageLayout}>
             <div style={styles.formLayout}>
