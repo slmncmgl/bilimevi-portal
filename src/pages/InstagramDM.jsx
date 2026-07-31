@@ -5,8 +5,6 @@ import { getSession } from "../utils/sheets";
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const PERSONNEL_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Personel`;
 const ID_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=ID`;
-const GEMINI_MODEL = "gemini-2.5-flash";
-
 const PIPELINE_CONFIG = {
   bilimevi: { id: 31227, name: "Bilimevi",       stageId: 217285, stageName: "Yeni Data",  subSource: "bilimevi"    },
   premium:  { id: 31167, name: "Premium Vize",  stageId: 216852, stageName: "Yeni Data",  subSource: "premiumvize" },
@@ -162,7 +160,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: GEMINI_MODEL,
           contents: [{ parts }]
         })
       });
