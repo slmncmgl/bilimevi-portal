@@ -13,21 +13,16 @@ const PIPELINE_CONFIG = {
   fortis:   { id: 31228, name: "Fortis Abroad", stageId: 217289, stageName: "New Data",   subSource: "fortis"      },
 };
 
-const KYLAS_API_KEY = import.meta.env.VITE_KYLAS_API_KEY;
-
 export default function InstagramDM() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [geminiKey, setGeminiKey] = useState("");
   const [allOwners, setAllOwners] = useState([]);
 
-  // Görsel
   const [files, setFiles] = useState([]);
   const [isDragOver, setIsDragOver] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const dropRef = useRef(null);
 
-  // Sonuçlar
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [dialCode, setDialCode] = useState("+90");
@@ -36,7 +31,6 @@ export default function InstagramDM() {
   const [dialogue, setDialogue] = useState("");
   const [note, setNote] = useState("");
 
-  // Pipeline & danışman
   const [pipeline, setPipeline] = useState(null);
   const [owners, setOwners] = useState([]);
   const [ownersLoading, setOwnersLoading] = useState(false);
@@ -44,7 +38,6 @@ export default function InstagramDM() {
   const [skipOwner, setSkipOwner] = useState(false);
   const [yurtdisiLise, setYurtdisiLise] = useState(false);
 
-  // CRM
   const [crmLoading, setCrmLoading] = useState(false);
   const [crmDone, setCrmDone] = useState(false);
   const [status, setStatus] = useState(null);
@@ -53,26 +46,8 @@ export default function InstagramDM() {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
-    fetchGeminiKey();
     loadOwners();
   }, []);
-
-  async function fetchGeminiKey() {
-    try {
-      const res = await fetch('https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=API');
-      const text = await res.text();
-      const firstLine = text.split('\n')[0];
-      const key = firstLine.replace(/"/g, '').split(',')[0].trim();
-      if (key.startsWith('AIza')) {
-        setGeminiKey(key);
-        console.log('✅ Gemini key yüklendi:', key.substring(0, 20) + '...');
-      } else {
-        console.error('❌ Geçersiz key formatı');
-      }
-    } catch (err) {
-      console.error('❌ Sheets hatası:', err);
-    }
-  }
 
   function parseCSV(text) {
     const lines = text.trim().split('\n');
@@ -113,7 +88,7 @@ export default function InstagramDM() {
       setAllOwners(ownerList);
       console.log(`✅ ${ownerList.length} danışman yüklendi`);
     } catch (err) {
-      console.error("❌ Personel yükleme hatası:", err);
+      console.error("Personel yükleme hatası:", err);
       setStatus({ type: "error", msg: "⚠️ Danışman listesi yüklenemedi" });
     }
   }
@@ -142,7 +117,6 @@ export default function InstagramDM() {
   }
 
   async function analyzeImages(newFiles) {
-    if (!geminiKey) { setStatus({ type: "error", msg: "Gemini API key yüklenemedi." }); return; }
     setAiLoading(true);
     setStatus({ type: "info", msg: "Görseller analiz ediliyor..." });
 
@@ -184,11 +158,18 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
         parts.push({ inlineData: { mimeType: file.type, data: b64.split(",")[1] } });
       }
 
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts }] }) }
-      );
+      const res = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: GEMINI_MODEL,
+          contents: [{ parts }]
+        })
+      });
+
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gemini API hatası");
+
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const clean = raw.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
@@ -219,7 +200,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
 
   function cleanPhone(raw, dialCode) {
     let cleaned = raw.replace(/\D/g, "");
-    // Sadece TR numaralarını temizle
     if (!dialCode || dialCode === "+90") {
       if (cleaned.startsWith("90") && cleaned.length === 12) cleaned = cleaned.substring(2);
       else if (cleaned.startsWith("0") && cleaned.length === 11) cleaned = cleaned.substring(1);
@@ -238,7 +218,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
     const filtered = allOwners.filter(o => o.company.toLowerCase().includes(filter));
     setOwners(filtered);
     setOwnersLoading(false);
-    console.log(`✅ ${filtered.length} danışman filtrelendi (${key})`);
   }
 
   async function sendToCRM() {
@@ -258,21 +237,29 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
         pipeline: { id: cfg.id, name: cfg.name, stage: { id: cfg.stageId, name: cfg.stageName } }
       };
 
-      const leadRes = await fetch("https://api.kylas.io/v1/leads", {
+      const leadRes = await fetch("/api/kylas", {
         method: "POST",
-        headers: { "api-key": KYLAS_API_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: "leads", method: "POST", body: payload })
       });
-      if (!leadRes.ok) { const e = await leadRes.json(); throw new Error(e.message || "Lead oluşturulamadı"); }
       const leadData = await leadRes.json();
-      const leadId = leadData.data?.id || leadData.id;
+      if (!leadRes.ok) throw new Error(leadData.message || "Lead oluşturulamadı");
+      const leadId = leadData.id;
 
       const sendNote = async (text) => {
         if (!text.trim()) return;
-        await fetch("https://api.kylas.io/v1/notes/relation", {
+        await fetch("/api/kylas", {
           method: "POST",
-          headers: { "api-key": KYLAS_API_KEY, "Content-Type": "application/json" },
-          body: JSON.stringify({ sourceEntity: { description: text.replace(/\n/g, "<br>") }, targetEntityId: Number(leadId), targetEntityType: "LEAD" })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            path: "notes/relation",
+            method: "POST",
+            body: {
+              sourceEntity: { description: text.replace(/\n/g, "<br>") },
+              targetEntityId: Number(leadId),
+              targetEntityType: "LEAD"
+            }
+          })
         });
       };
 
@@ -311,7 +298,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
     <div style={s.root} onPaste={handlePaste}>
       <div style={s.bgGrid} />
 
-      {/* Header */}
       <header style={s.header}>
         <div style={s.headerInner}>
           <div style={s.headerLeft}>
@@ -337,10 +323,8 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
       <main style={s.main}>
         <div data-grid style={s.grid}>
 
-          {/* SOL KOLON */}
           <div style={s.leftCol}>
 
-            {/* Görsel Yükleme */}
             <div style={s.card}>
               <div style={s.sectionLabel}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
@@ -371,7 +355,7 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
                         </div>
                       ))}
                     </div>
-                    <p style={{ fontSize: "12px", color: "#64748b", textAlign: "center" }}>{files.length} görsel yüklendi · Daha fazlası için tıkla</p>
+                    <p style={{ fontSize: "12px", color: "#64748b", textAlign: "center" }}>{files.length} görsel yüklendi</p>
                   </div>
                 ) : (
                   <div style={{ textAlign: "center" }}>
@@ -390,7 +374,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
               )}
             </div>
 
-            {/* Pipeline */}
             <div style={s.card}>
               <div style={s.sectionLabel}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
@@ -421,7 +404,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
               </label>
             </div>
 
-            {/* Danışman */}
             <div style={s.card}>
               <div style={s.sectionLabel}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
@@ -448,10 +430,8 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
 
           </div>
 
-          {/* SAĞ KOLON */}
           <div style={s.rightCol}>
 
-            {/* Müşteri İsmi */}
             <div style={s.card}>
               <div style={s.sectionLabel}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
@@ -470,7 +450,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
               </div>
             </div>
 
-            {/* Telefon + Email */}
             <div data-contact-grid style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <div style={s.card}>
                 <div style={s.sectionLabel}>
@@ -506,7 +485,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
               </div>
             </div>
 
-            {/* Mesaj Akışı */}
             <div style={s.card}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                 <div style={s.sectionLabel}>
@@ -522,7 +500,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
                 style={{ ...s.textarea, height: "160px" }} />
             </div>
 
-            {/* Danışman Notu */}
             <div style={s.card}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                 <div style={s.sectionLabel}>
@@ -538,7 +515,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
                 style={{ ...s.textarea, height: "100px" }} />
             </div>
 
-            {/* CRM Butonu */}
             <button onClick={sendToCRM} disabled={crmLoading || crmDone}
               style={{
                 ...s.submitBtn,
@@ -565,7 +541,6 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
         </div>
       </main>
 
-      {/* Status toast */}
       {status && (
         <div style={{ ...s.toast, background: status.type === "error" ? "#fef2f2" : status.type === "info" ? "#eff6ff" : "#fff", borderColor: status.type === "error" ? "#fecaca" : status.type === "info" ? "#bfdbfe" : "#bfdbfe", color: status.type === "error" ? "#dc2626" : "#1e3a5f" }}>
           {status.type === "success" && <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>}
