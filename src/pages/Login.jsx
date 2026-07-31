@@ -5,6 +5,7 @@ import logo from "../assets/Bilimevi_study_abroad.png";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "931368494993-gahav7fg7ss663e3v82enk2e6au6onfa.apps.googleusercontent.com";
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "https://bilimevi-portal.vercel.app/auth/callback";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxseCtKe77TrSuQRmWE635YMGHgeRiWNxXcusertZo62sjA_9aBC400e7mHsJUZ6UfJ/exec";
 
 const translations = {
   tr: {
@@ -121,7 +122,6 @@ export default function Login() {
     setSifreMesaj(null);
 
     try {
-      const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMxGFEglAha0n_IycD2Z1YUPOempA2zcDqYKZK4RCm3CG7WGxbLvkl2q74x1nv8BDO/exec";
       let res;
       try {
         res = await fetch(SCRIPT_URL, {
@@ -399,14 +399,23 @@ export default function Login() {
               </div>
             )}
             <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={() => { setSifrePopup(false); setSifreMesaj(null); }}
-                style={{ flex: 1, padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "'Inter', sans-serif" }}>
-                {t.popupCancel}
-              </button>
-              <button onClick={sifreyiGonder} disabled={sifreLoading || !sifreUsername.trim()}
-                style={{ flex: 2, padding: "10px", background: sifreLoading || !sifreUsername.trim() ? "#bfdbfe" : "#2563eb", border: "none", borderRadius: "10px", cursor: sifreUsername.trim() && !sifreLoading ? "pointer" : "not-allowed", fontSize: "13px", fontWeight: "600", color: "#fff", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                {sifreLoading ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> {t.popupSending}</> : t.popupSend}
-              </button>
+              {sifreMesaj && sifreMesaj.type === "success" ? (
+                <button onClick={() => { setSifrePopup(false); setSifreMesaj(null); }}
+                  style={{ width: "100%", padding: "10px", background: "#2563eb", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#fff", fontFamily: "'Inter', sans-serif" }}>
+                  Kapat
+                </button>
+              ) : (
+                <>
+                  <button onClick={() => { setSifrePopup(false); setSifreMesaj(null); }}
+                    style={{ flex: 1, padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "'Inter', sans-serif" }}>
+                    {t.popupCancel}
+                  </button>
+                  <button onClick={sifreyiGonder} disabled={sifreLoading || !sifreUsername.trim()}
+                    style={{ flex: 2, padding: "10px", background: sifreLoading || !sifreUsername.trim() ? "#bfdbfe" : "#2563eb", border: "none", borderRadius: "10px", cursor: sifreUsername.trim() && !sifreLoading ? "pointer" : "not-allowed", fontSize: "13px", fontWeight: "600", color: "#fff", fontFamily: "'Inter', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                    {sifreLoading ? <><span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> {t.popupSending}</> : t.popupSend}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
