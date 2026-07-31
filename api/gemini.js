@@ -4,7 +4,11 @@ export default async function handler(req, res) {
   }
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-  const { model, contents } = req.body;
+  const { model, contents, generationConfig } = req.body;
+
+  if (!model || !contents) {
+    return res.status(400).json({ error: "model ve contents parametreleri gerekli" });
+  }
 
   try {
     const response = await fetch(
@@ -12,7 +16,7 @@ export default async function handler(req, res) {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents })
+        body: JSON.stringify({ contents, ...(generationConfig ? { generationConfig } : {}) })
       }
     );
 
