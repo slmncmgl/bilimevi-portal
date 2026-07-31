@@ -1,3 +1,6 @@
+// v1.0 — SCRIPT_URL merkezi config.js'e taşındı
+import { IZIN_YONETIM_SCRIPT_URL } from "../config";
+
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=`;
 // 1. Spreadsheet ID'yi sabitlere ekle
@@ -47,10 +50,8 @@ function parseCSV(csv) {
 }
 
 export async function loginWithCredentials(username, password) {
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxseCtKe77TrSuQRmWE635YMGHgeRiWNxXcusertZo62sjA_9aBC400e7mHsJUZ6UfJ/exec";
-
   // Apps Script üzerinden login — gviz CSV sıralama sorununu aşmak için
-  const res = await fetch(SCRIPT_URL, {
+  const res = await fetch(IZIN_YONETIM_SCRIPT_URL, {
     method: "POST",
     body: JSON.stringify({ action: "loginWithKullaniciAdi", username, password })
   });
