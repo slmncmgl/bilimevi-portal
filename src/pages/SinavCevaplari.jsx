@@ -1,15 +1,15 @@
+// v1.0 — Gemini çağrısı /api/gemini proxy'sine taşındı, key ve model artık backend'de yönetiliyor
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQ2X2Vh9vxF1RO3D5o3UVWj0DHgxDdWHyYdLThI32i6kwcR0MUKswcfeVjpOXL6bZC/exec";
-const KEYS_SHEET_URL = "https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/export?format=csv&gid=1926186097";
-const GEMINI_MODEL = "gemini-2.5-flash";
+// SİL: KEYS_SHEET_URL ve GEMINI_MODEL sabitleri kaldırıldı (key artık frontend'e hiç gelmiyor)
 
 export default function SinavCevaplari() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [apiKey, setApiKey] = useState("");
+  // SİL: apiKey state kaldırıldı (key artık backend proxy'de, frontend'e hiç gelmiyor)
 
   const [quizTitle, setQuizTitle] = useState("");
   const [right, setRight] = useState("");
@@ -31,7 +31,7 @@ export default function SinavCevaplari() {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
-    fetchApiKey();
+    // SİL: fetchApiKey() çağrısı kaldırıldı
   }, []);
 
   function handlePaste(e) {
@@ -48,14 +48,7 @@ export default function SinavCevaplari() {
     }
   }
 
-  async function fetchApiKey() {
-    try {
-      const res = await fetch(KEYS_SHEET_URL);
-      const text = await res.text();
-      const key = text.split("\n")[0].split(",")[0].trim();
-      setApiKey(key);
-    } catch (_) {}
-  }
+  // SİL: fetchApiKey() fonksiyonu komple kaldırıldı (Sheets'ten key çekme mantığı artık yok)
 
   function calcAccuracy(r, t) {
     const rv = Number(r), tv = Number(t);
@@ -80,26 +73,23 @@ export default function SinavCevaplari() {
 
   async function processImage(base64, mimeType = "image/png") {
     setImageBase64(base64);
-    if (!apiKey) { setStatus({ type: "error", msg: "Sınav sonuçlarını manuel olarak giriniz." }); return; }
+    // SİL: apiKey kontrolü kaldırıldı (backend proxy key yönetimini kendi yapıyor)
     setAiLoading(true);
     setStatus({ type: "info", msg: "AI verileri analiz ediyor..." });
     try {
       const cleanBase64 = base64.split(",")[1];
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{
-              parts: [
-                { text: 'Analyze this quiz screenshot. Extract JSON: {"quizTitle": "", "right": 0, "wrong": 0, "skipped": 0, "totalQuestions": 0, "accuracy": ""}' },
-                { inlineData: { mimeType: mimeType, data: cleanBase64 } }
-              ]
-            }]
-          })
-        }
-      );
+      const res = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: 'Analyze this quiz screenshot. Extract JSON: {"quizTitle": "", "right": 0, "wrong": 0, "skipped": 0, "totalQuestions": 0, "accuracy": ""}' },
+              { inlineData: { mimeType: mimeType, data: cleanBase64 } }
+            ]
+          }]
+        })
+      });
       const result = await res.json();
       const text = result.candidates[0].content.parts[0].text;
       const data = JSON.parse(text.replace(/```json|```/g, "").trim());
