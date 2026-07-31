@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
+import { KATALOG_PARSE_SCRIPT_URL } from "../config";
 
-// v1.0 — Gemini çağrıları /api/gemini proxy'sine taşındı, key artık backend'de yönetiliyor
-// ─── SABİTLER ────────────────────────────────────────────────
+// v1.1 — SCRIPT_URL merkezi config.js'e taşındı (v1.0: Gemini çağrıları /api/gemini proxy'sine taşındı)
 // SİL: getDecodedKeySync() fonksiyonu ve GEMINI_API_KEY, GEMINI_API_URL sabitleri kaldırıldı
+// SİL: yerel const SCRIPT_URL tanımı kaldırıldı
+
+// ─── SABİTLER ────────────────────────────────────────────────
 
 const GEMINI_MODEL = "gemini-3.1-pro-preview";
-
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2u8MvmPux34VaT8c1S45LYq8KLY9K6pKyBXYydi03SNAW8tPJgp_lB_tMkWj5zpC3/exec";
 
 // NOT: Okul listesi, sheet URL'leri ve parse edilecek sekmeler artık hardcode değil.
 // Hepsi Apps Script üzerinden MASTER_INDEX > school_registry sekmesinden dinamik çekiliyor.
@@ -144,7 +145,7 @@ export default function KatalogParse() {
 
   // callAppsScript'in component fonksiyonlarından önce tanımlanmış hali gerekiyor — ham fetch
   async function callAppsScriptRaw(action, body) {
-    const res = await fetch(SCRIPT_URL, {
+    const res = await fetch(KATALOG_PARSE_SCRIPT_URL, {
       method: "POST",
       body: JSON.stringify({ action, ...body }),
     });
@@ -237,7 +238,7 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
 
   // ── Parse işlemi ──────────────────────────────────────────
   async function callAppsScript(action, body) {
-    const res = await fetch(SCRIPT_URL, {
+    const res = await fetch(KATALOG_PARSE_SCRIPT_URL, {
       method: "POST",
       body: JSON.stringify({ action, ...body }),
     });
