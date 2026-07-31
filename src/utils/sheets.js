@@ -46,7 +46,7 @@ function parseCSV(csv) {
   });
 }
 
-xport async function loginWithCredentials(username, password) {
+export async function loginWithCredentials(username, password) {
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxseCtKe77TrSuQRmWE635YMGHgeRiWNxXcusertZo62sjA_9aBC400e7mHsJUZ6UfJ/exec";
 
   // Apps Script üzerinden login — gviz CSV sıralama sorununu aşmak için
