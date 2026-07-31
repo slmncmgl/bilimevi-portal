@@ -3,8 +3,24 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 // ─── SABİTLER ────────────────────────────────────────────────
+function getDecodedKeySync() {
+  const url = `https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=API&range=B1`;
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', url, false);
+  xhr.send();
+  const encoded = xhr.responseText.trim().replace(/^"|"$/g, '');
+  const binaryStr = atob(encoded);
+  let decoded = '';
+  for (let i = 0; i < binaryStr.length; i++) {
+    decoded += String.fromCharCode(binaryStr.charCodeAt(i) - 5);
+  }
+  return decoded;
+}
+
+const GEMINI_API_KEY = getDecodedKeySync();
+
 const GEMINI_MODEL = "gemini-3.1-pro-preview";
-const GEMINI_API_KEY = "AIzaSyC4mloyXRqobdiGhZEINzPEAU8XEaBVTGY";
+
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2u8MvmPux34VaT8c1S45LYq8KLY9K6pKyBXYydi03SNAW8tPJgp_lB_tMkWj5zpC3/exec";
