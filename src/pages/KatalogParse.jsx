@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
-import { KATALOG_PARSE_SCRIPT_URL } from "../config";
 
-// v1.1 — SCRIPT_URL merkezi config.js'e taşındı (v1.0: Gemini çağrıları /api/gemini proxy'sine taşındı)
-// SİL: getDecodedKeySync() fonksiyonu ve GEMINI_API_KEY, GEMINI_API_URL sabitleri kaldırıldı
-// SİL: yerel const SCRIPT_URL tanımı kaldırıldı
-
+// v1.0 — Gemini çağrıları /api/gemini proxy'sine taşındı, key artık backend'de yönetiliyor
 // ─── SABİTLER ────────────────────────────────────────────────
+// SİL: getDecodedKeySync() fonksiyonu ve GEMINI_API_KEY, GEMINI_API_URL sabitleri kaldırıldı
 
 const GEMINI_MODEL = "gemini-3.1-pro-preview";
+
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2u8MvmPux34VaT8c1S45LYq8KLY9K6pKyBXYydi03SNAW8tPJgp_lB_tMkWj5zpC3/exec";
 
 // NOT: Okul listesi, sheet URL'leri ve parse edilecek sekmeler artık hardcode değil.
 // Hepsi Apps Script üzerinden MASTER_INDEX > school_registry sekmesinden dinamik çekiliyor.
@@ -30,6 +29,8 @@ const STEPS = {
   PROMO_PARSING:  "promo_parsing",
   PROMO_REVIEW:   "promo_review",
   PROMO_DONE:     "promo_done",
+  // Kampanya görüntüleme
+  CAMPAIGNS_VIEW: "campaigns_view",
 };
 
 const MODES = {
@@ -145,7 +146,7 @@ export default function KatalogParse() {
 
   // callAppsScript'in component fonksiyonlarından önce tanımlanmış hali gerekiyor — ham fetch
   async function callAppsScriptRaw(action, body) {
-    const res = await fetch(KATALOG_PARSE_SCRIPT_URL, {
+    const res = await fetch(SCRIPT_URL, {
       method: "POST",
       body: JSON.stringify({ action, ...body }),
     });
@@ -238,7 +239,7 @@ SADECE JSON döndür: {"brand":"EC","confidence":90}`;
 
   // ── Parse işlemi ──────────────────────────────────────────
   async function callAppsScript(action, body) {
-    const res = await fetch(KATALOG_PARSE_SCRIPT_URL, {
+    const res = await fetch(SCRIPT_URL, {
       method: "POST",
       body: JSON.stringify({ action, ...body }),
     });
@@ -818,7 +819,7 @@ KRİTİK KURALLAR:
             Okul listesi alınamadı. MASTER_INDEX'teki "school_registry" sekmesini kontrol edin veya sayfayı yenileyin.
           </div>
         )}
-        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, opacity: schoolsLoading?0.5:1, pointerEvents: schoolsLoading?"none":"auto"}}>
+        <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:16, opacity: schoolsLoading?0.5:1, pointerEvents: schoolsLoading?"none":"auto"}}>
           <button onClick={() => { setMode(MODES.PRICE); setStep(STEPS.UPLOAD); }}
             style={S.modeCard}
             onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#2563eb66"; e.currentTarget.style.boxShadow="0 20px 40px -12px #2563eb22"; }}
@@ -835,12 +836,34 @@ KRİTİK KURALLAR:
             <h3 style={{fontSize:18, fontWeight:700, color:"#0f172a", marginBottom:8}}>Promosyon Dökümanını Yükle</h3>
             <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Kampanya ve indirim dökümanını parse ederek discounts sekmesine kampanya kodları ve geçerlilik sürelerini ekle</p>
           </button>
+          <button onClick={() => setStep(STEPS.CAMPAIGNS_VIEW)}
+            style={S.modeCard}
+            onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#7c3aed66"; e.currentTarget.style.boxShadow="0 20px 40px -12px #7c3aed22"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.borderColor="#e2e8f0"; e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.06)"; }}>
+            <div style={{fontSize:48, marginBottom:16}}>📅</div>
+            <h3 style={{fontSize:18, fontWeight:700, color:"#0f172a", marginBottom:8}}>Devam Eden Kampanyalar</h3>
+            <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Tüm okullardaki aktif kampanyaları ve geçerlilik sürelerini tablo halinde görüntüle{activeCampaigns.length > 0 ? ` (${activeCampaigns.length})` : ""}</p>
+          </button>
         </div>
+      </main>
+      <Style/>
+    </div>
+  );
 
-        {/* --- DEVAM EDEN KAMPANYALAR --- */}
-        {!schoolsLoading && activeCampaigns.length > 0 && (
-          <div style={{...S.sectionCard, marginTop:32, animation:"fadeUp 0.6s ease-out"}}>
-            <h3 style={S.sectionTitle}>📅 Devam Eden Kampanyalar</h3>
+
+  // CAMPAIGNS VIEW — Devam eden kampanyalar tablosu
+  if (step === STEPS.CAMPAIGNS_VIEW) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Devam Eden Kampanyalar" user={user} onBack={() => setStep(STEPS.MODE_SELECT)}/>
+      <main style={{...S.main, maxWidth:800}}>
+        <div style={S.sectionCard}>
+          <h3 style={S.sectionTitle}>📅 Tüm Aktif Kampanyalar {activeCampaigns.length > 0 ? `(${activeCampaigns.length})` : ""}</h3>
+          {activeCampaigns.length === 0 ? (
+            <div style={{padding:"32px", textAlign:"center", color:"#94a3b8", fontSize:14}}>
+              {schoolsLoading ? "Kampanyalar yükleniyor..." : "Kayıtlı kampanya bulunamadı."}
+            </div>
+          ) : (
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%", borderCollapse:"collapse", fontSize:13, textAlign:"left"}}>
                 <thead>
@@ -865,12 +888,14 @@ KRİTİK KURALLAR:
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        <button onClick={() => setStep(STEPS.MODE_SELECT)} style={{...S.secondaryBtn, marginTop:8}}>← Ana Menü</button>
       </main>
       <Style/>
     </div>
   );
+
 
   // UPLOAD
   if (step === STEPS.UPLOAD) return (
