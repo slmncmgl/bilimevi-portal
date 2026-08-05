@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v70-konaklama-ui-2026-07-14";
+const BFT_BUILD_VERSION = "v71-mobil-uyum-2026-08-05";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1546,16 +1546,21 @@ export default function FiyatTeklifi() {
           padding:0 !important; margin:0 !important; border-radius:3px !important;
           -webkit-appearance:auto !important; appearance:auto !important; accent-color:${CYAN} !important;
         }
+        #bft-root, #bft-root * { box-sizing: border-box; }
+        #bft-root { overflow-x: hidden; max-width: 100vw; }
         #bft-root input.bft-phone { flex:1 1 auto !important; width:auto !important; min-width:0 !important; }
         #bft-root button { font-family:inherit !important; }
         #bft-root button.bft-dial-btn { color:#0f172a !important; -webkit-text-fill-color:#0f172a !important; text-shadow:none !important; }
         @media (max-width: 768px) {
-          #bft-root .bft-body { grid-template-columns:1fr !important; }
+          #bft-root .bft-body { grid-template-columns:1fr !important; max-width:100% !important; padding:0 12px !important; }
           #bft-root .bft-side { display:none !important; }
           #bft-root .bft-r2 { grid-template-columns:1fr !important; }
+          #bft-root .bft-main { padding:20px 16px !important; }
           #bft-root .bft-steps-desktop { display:none !important; }
           #bft-root .bft-steps-mobile { display:block !important; }
           #bft-root .bft-pdf-btn-mobile { display:flex !important; }
+          #bft-root input, #bft-root select, #bft-root textarea { font-size:16px !important; }
+          #bft-root .bft-hdr-cnt { padding:12px 16px !important; }
         }
         @media (min-width: 769px) {
           #bft-root .bft-pdf-btn-mobile { display:none !important; }
@@ -1564,7 +1569,7 @@ export default function FiyatTeklifi() {
       `}</style>
 
       <header style={S.hdr}>
-        <div style={S.cnt}>
+        <div style={S.cnt} className="bft-hdr-cnt">
           {isStaff ? <button onClick={() => navigate("/dashboard")} style={S.backBtn}>← Dashboard</button> : <span />}
           <span style={S.htitle}>Fiyat Teklifi</span>
           <div style={{ width:100 }} />
@@ -1596,7 +1601,7 @@ export default function FiyatTeklifi() {
       </div>
 
       <div style={isStaff ? S.body : { maxWidth:800, margin:"20px auto", padding:"0 20px", display:"block" }} className="bft-body">
-        <main style={S.main}>
+        <main style={S.main} className="bft-main">
           {stepName === "Genel Bilgi" && (
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>Öğrenci Bilgileri</h2>
