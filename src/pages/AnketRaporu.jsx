@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import groupMatchMap from "../data/groupMatchMap.json";
 
-const VERSION = "v1.5";
+const VERSION = "v1.6";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -44,22 +45,9 @@ function findHeaderIndex(headers, exactName) {
   return idx;
 }
 
-// --- Grup kayıt sayısı (roster) eşleştirme ---
+// --- Grup kayıt sayısı (roster) — sabit eşleştirme tablosu kullanılır ---
 const ROSTER_SHEET_ID = "1Qr2OLtRhIzXtXq1FmQvYiO1QnO8pjRxCx6Rzotrhsv0";
-
-function normalizeTr(str) {
-  return (str || "")
-    .toUpperCase()
-    .replace(/İ/g, "I").replace(/Ş/g, "S").replace(/Ğ/g, "G")
-    .replace(/Ü/g, "U").replace(/Ö/g, "O").replace(/Ç/g, "C")
-    .replace(/[^A-Z0-9 ]/g, " ")
-    .trim();
-}
-
-function firstKeyword(groupName) {
-  const cleaned = normalizeTr(groupName.split(",")[0].split("-")[0]);
-  return cleaned.split(" ").filter(Boolean)[0] || "";
-}
+const ROSTER_NAME_HEADER = "Başvuru Sahibi Öğrencinin Adı Soyadı";
 
 export default function AnketRaporu() {
   const navigate = useNavigate();
@@ -73,8 +61,9 @@ export default function AnketRaporu() {
   const [dataError, setDataError] = useState(null);
   const [studentPopup, setStudentPopup] = useState(null); // { title, names: [] }
   const [copiedText, setCopiedText] = useState(null);
-  const [rosterTabs, setRosterTabs] = useState([]);
   const [rosterCount, setRosterCount] = useState(null); // number | "-" | null (yükleniyor)
+  const [rosterNames, setRosterNames] = useState([]);
+  const [view, setView] = useState("results"); // "results" | "roster-list"
 
   useEffect(() => {
     (async () => {
@@ -90,19 +79,6 @@ export default function AnketRaporu() {
         setTabsError(err.message);
       } finally {
         setTabsLoading(false);
-      }
-    })();
-
-    (async () => {
-      try {
-        const url = `https://sheets.googleapis.com/v4/spreadsheets/${ROSTER_SHEET_ID}?key=${API_KEY}&fields=sheets.properties.title`;
-        const res = await fetch(url);
-        const json = await res.json();
-        if (res.ok) {
-          setRosterTabs((json.sheets || []).map(s => s.properties.title));
-        }
-      } catch {
-        // roster listesi alınamazsa sessizce geç, kartlarda "-" gösterilir
       }
     })();
   }, []);
@@ -135,35 +111,39 @@ export default function AnketRaporu() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (!activeTab || rosterTabs.length === 0) {
+    if (!activeTab) {
       setRosterCount(null);
+      setRosterNames([]);
       return;
     }
-    const keyword = firstKeyword(activeTab);
-    const matches = keyword
-      ? rosterTabs.filter(t => normalizeTr(t).includes(keyword))
-      : [];
+    const rosterTab = groupMatchMap[activeTab];
 
-    if (matches.length !== 1) {
+    if (!rosterTab) {
       setRosterCount("-");
+      setRosterNames([]);
       return;
     }
 
     (async () => {
       setRosterCount(null); // yükleniyor
       try {
-        const range = `'${matches[0]}'`;
+        const range = `'${rosterTab}'!A1:A500`;
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${ROSTER_SHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
         const res = await fetch(url);
         const json = await res.json();
         if (!res.ok) throw new Error();
         const values = json.values || [];
-        setRosterCount(Math.max(values.length - 1, 0));
+        const names = values
+          .map(r => (r[0] || "").trim())
+          .filter(n => n && n.toLocaleUpperCase("tr-TR") !== ROSTER_NAME_HEADER.toLocaleUpperCase("tr-TR"));
+        setRosterNames(names);
+        setRosterCount(names.length);
       } catch {
         setRosterCount("-");
+        setRosterNames([]);
       }
     })();
-  }, [activeTab, rosterTabs]);
+  }, [activeTab]);
 
   // --- İstatistik hesapla ---
   const genderIdx = findHeaderIndex(headers, GENDER_COLUMN);
@@ -303,7 +283,28 @@ export default function AnketRaporu() {
       </header>
 
       <main style={styles.main} className="ar-main">
-        {tabsLoading ? (
+        {view === "roster-list" ? (
+          <div>
+            <button onClick={() => setView("results")} style={styles.backToResultsBtn}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
+              Anket Sonuçlarına Dön
+            </button>
+            <h2 style={styles.commentsTitle}>{activeTab} — Kayıtlı Öğrenciler ({rosterNames.length})</h2>
+            <div style={styles.popupList}>
+              {rosterNames.map((name, i) => (
+                <div style={styles.popupNameRow} key={i}>
+                  <span style={styles.popupName}>{name}</span>
+                  <button onClick={() => copyText(name)} style={styles.copyBtn}>
+                    {copiedText === name ? "Kopyalandı" : "Kopyala"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : tabsLoading ? (
           <div style={styles.stateBox}>Sekmeler yükleniyor...</div>
         ) : tabsError ? (
           <div style={styles.errorBox}>
@@ -317,7 +318,7 @@ export default function AnketRaporu() {
               <label style={styles.selectLabel}>Grup seç</label>
               <select
                 value={activeTab || ""}
-                onChange={e => setActiveTab(e.target.value)}
+                onChange={e => { setActiveTab(e.target.value); setView("results"); }}
                 style={styles.select}
               >
                 {tabs.map(tab => (
@@ -338,7 +339,10 @@ export default function AnketRaporu() {
             ) : (
               <>
                 <div style={styles.summaryGrid} className="ar-summary-grid">
-                  <div style={styles.summaryCard}>
+                  <div
+                    style={{ ...styles.summaryCard, cursor: typeof rosterCount === "number" && rosterCount > 0 ? "pointer" : "default" }}
+                    onClick={() => typeof rosterCount === "number" && rosterCount > 0 && setView("roster-list")}
+                  >
                     <div style={styles.summaryValue}>{rosterCount === null ? "..." : rosterCount}</div>
                     <div style={styles.summaryLabel}>Grup Sayısı</div>
                   </div>
@@ -440,6 +444,7 @@ const styles = {
   selectWrap: { display: "flex", flexDirection: "column", gap: "6px", marginBottom: "28px", width: "100%" },
   selectLabel: { fontSize: "12px", fontWeight: "600", color: "#64748b" },
   select: { padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", fontSize: "14px", fontWeight: "600", color: "#0f172a", fontFamily: "inherit", cursor: "pointer", width: "100%" },
+  backToResultsBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#eef2ff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#4338ca", fontFamily: "inherit", marginBottom: "20px" },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px", marginBottom: "32px" },
   summaryCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", textAlign: "center" },
   summaryValue: { fontSize: "18px", fontWeight: "700", color: "#0f172a" },
