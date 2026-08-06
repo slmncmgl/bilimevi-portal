@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const VERSION = "v1.1";
+const VERSION = "v1.2";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -23,6 +23,7 @@ const QUESTION_COLUMNS = [
 ];
 
 const UNI_PLAN_COLUMN = "İlerde Çocuğunuz İçin Yurtdışında Üniversite Eğitimi Planlıyor Musunuz?";
+const HOW_REACHED_COLUMN = "Bilimevi'ne Nasıl Ulaştınız?";
 const COMMENT_COLUMN = "Yaz okulu deneyiminiz hakkında paylaşmak istediğiniz düşüncelerinizi aşağıya yazabilirsiniz.";
 const GENDER_COLUMN = "Öğrencinin Cinsiyeti";
 
@@ -34,6 +35,7 @@ const CATEGORY_COLORS = {
   "Memnun Değilim": "#ea580c",
   "Hiç Memnun Değilim": "#dc2626",
 };
+const DYNAMIC_PALETTE = ["#4338ca", "#0891b2", "#059669", "#d97706", "#dc2626", "#7c3aed", "#db2777", "#0369a1"];
 
 function findHeaderIndex(headers, exactName) {
   let idx = headers.findIndex(h => h.trim() === exactName);
@@ -52,7 +54,7 @@ export default function AnketRaporu() {
   const [dataLoading, setDataLoading] = useState(false);
   const [dataError, setDataError] = useState(null);
   const [studentPopup, setStudentPopup] = useState(null); // { title, names: [] }
-  const [copiedName, setCopiedName] = useState(null);
+  const [copiedText, setCopiedText] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -103,6 +105,7 @@ export default function AnketRaporu() {
   const genderIdx = findHeaderIndex(headers, GENDER_COLUMN);
   const commentIdx = findHeaderIndex(headers, COMMENT_COLUMN);
   const uniPlanIdx = findHeaderIndex(headers, UNI_PLAN_COLUMN);
+  const howReachedIdx = findHeaderIndex(headers, HOW_REACHED_COLUMN);
   const nameIdx = findHeaderIndex(headers, STUDENT_NAME_COLUMN);
 
   const total = rows.length;
@@ -115,6 +118,7 @@ export default function AnketRaporu() {
     });
   }
 
+  // Sabit sıralı (5'li skala) sorular
   const questionStats = QUESTION_COLUMNS.map(q => {
     const idx = findHeaderIndex(headers, q);
     const counts = {};
@@ -129,16 +133,29 @@ export default function AnketRaporu() {
         }
       });
     }
-    return { question: q, idx, counts, answered, found: idx !== -1 };
+    return { question: q, idx, entries: CATEGORY_ORDER.map(c => [c, counts[c]]), answered, found: idx !== -1, colorFor: c => CATEGORY_COLORS[c] };
   });
 
-  const uniPlanCounts = {};
-  if (uniPlanIdx !== -1) {
-    rows.forEach(r => {
-      const val = (r[uniPlanIdx] || "").trim();
-      if (val) uniPlanCounts[val] = (uniPlanCounts[val] || 0) + 1;
-    });
+  // Sayıya göre azalan sıralı, dinamik kategorili sorular (Üniversite Planı + Nasıl Ulaştınız)
+  function buildDynamicQuestion(idx, label) {
+    const counts = {};
+    let answered = 0;
+    if (idx !== -1) {
+      rows.forEach(r => {
+        const val = (r[idx] || "").trim();
+        if (val) {
+          counts[val] = (counts[val] || 0) + 1;
+          answered++;
+        }
+      });
+    }
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const colorFor = (_, i) => DYNAMIC_PALETTE[i % DYNAMIC_PALETTE.length];
+    return { question: label, idx, entries, answered, found: idx !== -1, colorFor };
   }
+
+  const uniPlanQ = buildDynamicQuestion(uniPlanIdx, UNI_PLAN_COLUMN);
+  const howReachedQ = buildDynamicQuestion(howReachedIdx, HOW_REACHED_COLUMN);
 
   const comments = commentIdx !== -1
     ? rows.map(r => (r[commentIdx] || "").trim()).filter(Boolean)
@@ -153,14 +170,45 @@ export default function AnketRaporu() {
     setStudentPopup({ title: `${questionLabel} — ${category}`, names });
   }
 
-  async function copyName(name) {
+  async function copyText(text) {
     try {
-      await navigator.clipboard.writeText(name);
-      setCopiedName(name);
-      setTimeout(() => setCopiedName(null), 1500);
+      await navigator.clipboard.writeText(text);
+      setCopiedText(text);
+      setTimeout(() => setCopiedText(null), 1500);
     } catch {
       // clipboard erişimi yoksa sessizce geç
     }
+  }
+
+  function renderQuestionCard(qs) {
+    return (
+      <div style={styles.questionCard} key={qs.question}>
+        <h3 style={styles.questionTitle}>{qs.question}</h3>
+        {!qs.found ? (
+          <p style={styles.notFoundText}>Bu sütun sheet'te bulunamadı.</p>
+        ) : qs.answered === 0 ? (
+          <p style={styles.notFoundText}>Cevap yok.</p>
+        ) : (
+          <div style={styles.barList}>
+            {qs.entries.map(([cat, count], i) => {
+              const pct = qs.answered > 0 ? Math.round((count / qs.answered) * 100) : 0;
+              const color = qs.colorFor(cat, i);
+              return (
+                <div
+                  key={cat}
+                  onClick={() => count > 0 && openStudentPopup(qs.idx, cat, qs.question)}
+                  style={{ ...styles.barBox, background: color + "14", cursor: count > 0 ? "pointer" : "default" }}
+                >
+                  <div style={{ ...styles.barBoxFill, width: `${pct}%`, background: color }} />
+                  <span style={styles.barBoxLabel}>{cat}</span>
+                  <span style={styles.barBoxCount}>{count} · %{pct}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -192,13 +240,12 @@ export default function AnketRaporu() {
           </div>
         ) : (
           <>
-            <div style={styles.selectWrap} className="ar-select-wrap">
+            <div style={styles.selectWrap}>
               <label style={styles.selectLabel}>Grup seç</label>
               <select
                 value={activeTab || ""}
                 onChange={e => setActiveTab(e.target.value)}
                 style={styles.select}
-                className="ar-select"
               >
                 {tabs.map(tab => (
                   <option key={tab} value={tab}>{tab}</option>
@@ -230,64 +277,10 @@ export default function AnketRaporu() {
                   ))}
                 </div>
 
-                <div style={styles.questionsWrap}>
-                  {questionStats.map(qs => (
-                    <div style={styles.questionCard} key={qs.question}>
-                      <h3 style={styles.questionTitle}>{qs.question}</h3>
-                      {!qs.found ? (
-                        <p style={styles.notFoundText}>Bu sütun sheet'te bulunamadı.</p>
-                      ) : qs.answered === 0 ? (
-                        <p style={styles.notFoundText}>Cevap yok.</p>
-                      ) : (
-                        <div style={styles.barList}>
-                          {CATEGORY_ORDER.map(cat => {
-                            const count = qs.counts[cat];
-                            const pct = qs.answered > 0 ? Math.round((count / qs.answered) * 100) : 0;
-                            return (
-                              <div
-                                style={{ ...styles.barRow, cursor: count > 0 ? "pointer" : "default" }}
-                                className="ar-bar-row"
-                                key={cat}
-                                onClick={() => count > 0 && openStudentPopup(qs.idx, cat, qs.question)}
-                              >
-                                <span style={styles.barLabel} className="ar-bar-label">{cat}</span>
-                                <div style={styles.barTrack}>
-                                  <div style={{ ...styles.barFill, width: `${pct}%`, background: CATEGORY_COLORS[cat] }} />
-                                </div>
-                                <span style={styles.barPct}>{count} · %{pct}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-
-                  {uniPlanIdx !== -1 && Object.keys(uniPlanCounts).length > 0 && (
-                    <div style={styles.questionCard}>
-                      <h3 style={styles.questionTitle}>{UNI_PLAN_COLUMN}</h3>
-                      <div style={styles.barList}>
-                        {Object.entries(uniPlanCounts).map(([label, count]) => {
-                          const sum = Object.values(uniPlanCounts).reduce((a, b) => a + b, 0);
-                          const pct = sum > 0 ? Math.round((count / sum) * 100) : 0;
-                          return (
-                            <div
-                              style={{ ...styles.barRow, cursor: count > 0 ? "pointer" : "default" }}
-                              className="ar-bar-row"
-                              key={label}
-                              onClick={() => count > 0 && openStudentPopup(uniPlanIdx, label, UNI_PLAN_COLUMN)}
-                            >
-                              <span style={styles.barLabel} className="ar-bar-label">{label}</span>
-                              <div style={styles.barTrack}>
-                                <div style={{ ...styles.barFill, width: `${pct}%`, background: "#4338ca" }} />
-                              </div>
-                              <span style={styles.barPct}>{count} · %{pct}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                <div style={styles.questionsGrid} className="ar-questions-grid">
+                  {howReachedQ.found && renderQuestionCard(howReachedQ)}
+                  {questionStats.map(qs => renderQuestionCard(qs))}
+                  {uniPlanQ.found && renderQuestionCard(uniPlanQ)}
                 </div>
 
                 {comments.length > 0 && (
@@ -295,7 +288,12 @@ export default function AnketRaporu() {
                     <h2 style={styles.commentsTitle}>Yorumlar ({comments.length})</h2>
                     <div style={styles.commentsList}>
                       {comments.map((c, i) => (
-                        <div style={styles.commentCard} key={i}>{c}</div>
+                        <div style={styles.commentCard} key={i}>
+                          <span style={styles.commentText}>{c}</span>
+                          <button onClick={() => copyText(c)} style={styles.copyBtn}>
+                            {copiedText === c ? "Kopyalandı" : "Kopyala"}
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -321,8 +319,8 @@ export default function AnketRaporu() {
                 {studentPopup.names.map((name, i) => (
                   <div style={styles.popupNameRow} key={i}>
                     <span style={styles.popupName}>{name}</span>
-                    <button onClick={() => copyName(name)} style={styles.copyBtn}>
-                      {copiedName === name ? "Kopyalandı" : "Kopyala"}
+                    <button onClick={() => copyText(name)} style={styles.copyBtn}>
+                      {copiedText === name ? "Kopyalandı" : "Kopyala"}
                     </button>
                   </div>
                 ))}
@@ -340,10 +338,7 @@ export default function AnketRaporu() {
           .ar-header-inner { padding: 12px 16px !important; }
           .ar-main { padding: 20px 12px 48px !important; }
           .ar-summary-grid { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important; }
-          .ar-select-wrap { width: 100% !important; }
-          .ar-select { width: 100% !important; }
-          .ar-bar-row { flex-direction: column !important; align-items: flex-start !important; gap: 4px !important; }
-          .ar-bar-label { min-width: 0 !important; }
+          .ar-questions-grid { grid-template-columns: 1fr !important; }
           .ar-popup-card { width: 100% !important; max-width: none !important; margin: 0 12px !important; }
         }
       `}</style>
@@ -354,35 +349,36 @@ export default function AnketRaporu() {
 const styles = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "900px", margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", gap: "16px" },
+  headerInner: { maxWidth: "1100px", margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", gap: "16px" },
   backBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#475569", fontFamily: "inherit" },
   headerTitleWrap: { display: "flex", alignItems: "center", gap: "8px" },
   headerTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a" },
   versionTag: { fontSize: "11px", fontWeight: "600", color: "#4338ca", background: "#eef2ff", padding: "2px 8px", borderRadius: "6px" },
-  main: { maxWidth: "900px", margin: "0 auto", padding: "32px 24px 64px" },
+  main: { maxWidth: "1100px", margin: "0 auto", padding: "32px 24px 64px" },
   stateBox: { padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: "14px" },
   errorBox: { padding: "24px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "12px", color: "#991b1b", fontSize: "13px", lineHeight: 1.6 },
-  selectWrap: { display: "flex", flexDirection: "column", gap: "6px", marginBottom: "28px", maxWidth: "420px" },
+  selectWrap: { display: "flex", flexDirection: "column", gap: "6px", marginBottom: "28px", width: "100%" },
   selectLabel: { fontSize: "12px", fontWeight: "600", color: "#64748b" },
-  select: { padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", fontSize: "14px", fontWeight: "600", color: "#0f172a", fontFamily: "inherit", cursor: "pointer" },
+  select: { padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", fontSize: "14px", fontWeight: "600", color: "#0f172a", fontFamily: "inherit", cursor: "pointer", width: "100%" },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px", marginBottom: "32px" },
   summaryCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", textAlign: "center" },
   summaryValue: { fontSize: "24px", fontWeight: "700", color: "#0f172a" },
   summaryLabel: { fontSize: "12px", color: "#94a3b8", marginTop: "4px" },
-  questionsWrap: { display: "flex", flexDirection: "column", gap: "16px" },
+  questionsGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" },
   questionCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "20px 24px" },
   questionTitle: { fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "14px" },
   notFoundText: { fontSize: "13px", color: "#94a3b8" },
-  barList: { display: "flex", flexDirection: "column", gap: "10px" },
-  barRow: { display: "flex", alignItems: "center", gap: "12px", borderRadius: "8px", padding: "4px", transition: "background 0.15s" },
-  barLabel: { fontSize: "12px", color: "#475569", minWidth: "140px", flexShrink: 0 },
-  barTrack: { flex: 1, height: "10px", background: "#f1f5f9", borderRadius: "6px", overflow: "hidden" },
-  barFill: { height: "100%", borderRadius: "6px", transition: "width 0.3s ease" },
-  barPct: { fontSize: "12px", color: "#94a3b8", minWidth: "70px", textAlign: "right", flexShrink: 0 },
+  barList: { display: "flex", flexDirection: "column", gap: "6px" },
+  barBox: { position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: "34px", borderRadius: "8px", padding: "0 12px", overflow: "hidden" },
+  barBoxFill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: "8px", opacity: 0.28, transition: "width 0.3s ease", zIndex: 0 },
+  barBoxLabel: { position: "relative", zIndex: 1, fontSize: "12.5px", fontWeight: "600", color: "#1e293b" },
+  barBoxCount: { position: "relative", zIndex: 1, fontSize: "12px", color: "#64748b", flexShrink: 0 },
   commentsSection: { marginTop: "40px" },
   commentsTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a", marginBottom: "16px" },
   commentsList: { display: "flex", flexDirection: "column", gap: "10px" },
-  commentCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px 20px", fontSize: "13px", color: "#334155", lineHeight: 1.6 },
+  commentCard: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px 20px" },
+  commentText: { fontSize: "13px", color: "#334155", lineHeight: 1.6, flex: 1 },
+  copyBtn: { flexShrink: 0, padding: "5px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#fff", color: "#4338ca", fontSize: "11px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
   popupOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
   popupCard: { background: "#fff", borderRadius: "20px", padding: "24px", maxWidth: "420px", width: "100%", maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" },
   popupHeader: { marginBottom: "16px" },
@@ -391,6 +387,5 @@ const styles = {
   popupList: { overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px", marginBottom: "16px" },
   popupNameRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "8px 12px", background: "#f8fafc", borderRadius: "8px" },
   popupName: { fontSize: "13px", color: "#334155", fontWeight: "500" },
-  copyBtn: { flexShrink: 0, padding: "5px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#fff", color: "#4338ca", fontSize: "11px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
   popupCloseBtn: { width: "100%", padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "inherit" },
 };
