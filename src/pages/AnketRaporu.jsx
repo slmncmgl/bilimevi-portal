@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 
-const VERSION = "v1.9";
+const VERSION = "v1.10";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -45,6 +45,292 @@ function findHeaderIndex(headers, exactName) {
   return idx;
 }
 
+// --- PDF Rapor Oluşturma (jsPDF, CDN'den runtime yüklenir) ---
+const JSPDF_CDNS = [
+  "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
+  "https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js",
+];
+const DEJAVU_CDNS = [
+  "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
+  "https://unpkg.com/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
+];
+const SCORE_MAP = { "Çok memnunum": 5, "Memnunum": 4, "Kararsızım": 3, "Memnun Değilim": 2, "Hiç Memnun Değilim": 1 };
+
+let jsPDFLoadPromise = null;
+let dejaVuFontPromise = null;
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("script yüklenemedi: " + src));
+    document.head.appendChild(s);
+  });
+}
+
+async function loadJsPDF() {
+  if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
+  if (!jsPDFLoadPromise) {
+    jsPDFLoadPromise = (async () => {
+      for (const url of JSPDF_CDNS) {
+        try {
+          await loadScript(url);
+          if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
+        } catch { /* sıradaki CDN'e geç */ }
+      }
+      throw new Error("jsPDF hiçbir CDN'den yüklenemedi");
+    })();
+  }
+  return jsPDFLoadPromise;
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function loadDejaVuFont() {
+  if (!dejaVuFontPromise) {
+    dejaVuFontPromise = (async () => {
+      for (const url of DEJAVU_CDNS) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const buf = await res.arrayBuffer();
+          return arrayBufferToBase64(buf);
+        } catch { /* sıradaki CDN'e geç */ }
+      }
+      throw new Error("DejaVuSans fontu yüklenemedi");
+    })();
+  }
+  return dejaVuFontPromise;
+}
+
+async function createPdfDoc() {
+  const jsPDF = await loadJsPDF();
+  const fontBase64 = await loadDejaVuFont();
+  const doc = new jsPDF("p", "mm", "a4");
+  doc.addFileToVFS("DejaVuSans.ttf", fontBase64);
+  doc.addFont("DejaVuSans.ttf", "DejaVuSans", "normal");
+  doc.setFont("DejaVuSans");
+  return doc;
+}
+
+function checkPageBreak(doc, y, needed = 12) {
+  if (y + needed > 280) {
+    doc.addPage();
+    doc.setFont("DejaVuSans");
+    return 20;
+  }
+  return y;
+}
+
+function drawBar(doc, x, y, width, height, fraction, color) {
+  doc.setFillColor(240, 240, 240);
+  doc.rect(x, y, width, height, "F");
+  doc.setFillColor(...color);
+  const fw = Math.max(width * Math.min(Math.max(fraction, 0), 1), 0);
+  if (fw > 0) doc.rect(x, y, fw, height, "F");
+}
+
+async function generateExternalReport(data) {
+  const doc = await createPdfDoc();
+  const margin = 15;
+  let y = 20;
+
+  doc.setFontSize(18);
+  doc.setTextColor(30, 60, 114);
+  doc.text(`${data.groupName} Yaz Okulu Memnuniyet Raporu`, margin, y);
+  y += 8;
+
+  doc.setFontSize(10);
+  doc.setTextColor(90, 90, 90);
+  doc.text(`Program: ${data.groupName}  |  Rapor Tarihi: ${data.reportDate}`, margin, y);
+  y += 4;
+  doc.setDrawColor(220, 220, 220);
+  doc.line(margin, y, 210 - margin, y);
+  y += 9;
+
+  doc.setFontSize(13);
+  doc.setTextColor(30, 60, 114);
+  doc.text("Katılım Oranı", margin, y);
+  y += 6;
+  doc.setFontSize(10);
+  doc.setTextColor(40, 40, 40);
+  const rateText = typeof data.rosterCount === "number" && data.rosterCount > 0
+    ? `Toplam Öğrenci: ${data.rosterCount}  |  Anket Cevaplayan: ${data.total}  |  Oran: %${((data.total / data.rosterCount) * 100).toFixed(1)}`
+    : `Anket Cevaplayan: ${data.total}`;
+  doc.text(rateText, margin, y);
+  y += 10;
+
+  doc.setFontSize(13);
+  doc.setTextColor(30, 60, 114);
+  doc.text("Demografi", margin, y);
+  y += 6;
+  doc.setFontSize(10);
+  doc.setTextColor(40, 40, 40);
+  const genderText = Object.entries(data.genderCounts)
+    .map(([g, c]) => `${g}: ${c} (%${((c / data.total) * 100).toFixed(1)})`)
+    .join("   |   ");
+  doc.text(genderText || "Cinsiyet verisi yok", margin, y);
+  y += 5;
+  if (data.ageRange) {
+    doc.text(`Yaş: ${data.ageRange}`, margin, y);
+    y += 5;
+  }
+  y += 5;
+
+  doc.setFontSize(13);
+  doc.setTextColor(30, 60, 114);
+  doc.text("Memnuniyet Ortalamaları (5 üzerinden)", margin, y);
+  y += 8;
+
+  const labelWidth = 62;
+  const barWidth = 90;
+  data.questionAverages.forEach(qa => {
+    y = checkPageBreak(doc, y, 9);
+    doc.setFontSize(9.5);
+    doc.setTextColor(40, 40, 40);
+    doc.text(qa.question, margin, y + 3.6);
+    if (qa.avg !== null) {
+      drawBar(doc, margin + labelWidth, y, barWidth, 5, qa.avg / 5, [76, 175, 80]);
+      doc.setFontSize(9.5);
+      doc.text(qa.avg.toFixed(2), margin + labelWidth + barWidth + 4, y + 4);
+    } else {
+      doc.setFontSize(9);
+      doc.setTextColor(160, 160, 160);
+      doc.text("Cevap yok", margin + labelWidth, y + 4);
+    }
+    y += 8;
+  });
+
+  y += 4;
+  y = checkPageBreak(doc, y, 20);
+  doc.setFontSize(13);
+  doc.setTextColor(30, 60, 114);
+  doc.text("Olumlu Geribildirimler", margin, y);
+  y += 7;
+  doc.setFontSize(10);
+  doc.setTextColor(40, 40, 40);
+  data.topCategories.forEach(tc => {
+    y = checkPageBreak(doc, y, 7);
+    doc.text(`•  ${tc.question} en yüksek puanlardan biri oldu (${tc.avg.toFixed(2)}/5)`, margin, y);
+    y += 6;
+  });
+
+  doc.save(`${data.groupName.replace(/[^a-zA-Z0-9ığüşöçİĞÜŞÖÇ]/g, "_")}_Kurum_Disi_Rapor.pdf`);
+}
+
+async function generateInternalReport(data) {
+  const doc = await createPdfDoc();
+  const margin = 15;
+  let y = 20;
+
+  doc.setFontSize(16);
+  doc.setTextColor(30, 60, 114);
+  doc.text(`${data.groupName} — Kurum İçi Anket Raporu`, margin, y);
+  y += 7;
+  doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  doc.text(`Rapor Tarihi: ${data.reportDate}`, margin, y);
+  y += 5;
+  doc.setDrawColor(220, 220, 220);
+  doc.line(margin, y, 210 - margin, y);
+  y += 8;
+
+  doc.setFontSize(11);
+  doc.setTextColor(30, 60, 114);
+  doc.text("Özet", margin, y);
+  y += 6;
+  doc.setFontSize(9);
+  doc.setTextColor(40, 40, 40);
+  const rosterText = typeof data.rosterCount === "number" ? data.rosterCount : "-";
+  doc.text(`Grup Sayısı: ${rosterText}   |   Anketi Cevaplayan: ${data.total}`, margin, y);
+  y += 5;
+  const genderText = Object.entries(data.genderCounts).map(([g, c]) => `${g}: ${c}`).join("   |   ");
+  doc.text(genderText || "Cinsiyet verisi yok", margin, y);
+  y += 9;
+
+  y = checkPageBreak(doc, y, 15);
+  doc.setFontSize(11);
+  doc.setTextColor(30, 60, 114);
+  doc.text("Ortalama Puanlar (5 üzerinden)", margin, y);
+  y += 6;
+  data.questionAverages.forEach(qa => {
+    y = checkPageBreak(doc, y, 6);
+    doc.setFontSize(9);
+    doc.setTextColor(40, 40, 40);
+    doc.text(`${qa.question}: ${qa.avg !== null ? qa.avg.toFixed(2) : "-"}`, margin, y);
+    y += 5;
+  });
+  y += 5;
+
+  y = checkPageBreak(doc, y, 15);
+  doc.setFontSize(11);
+  doc.setTextColor(30, 60, 114);
+  doc.text("Detaylı Dağılım", margin, y);
+  y += 7;
+
+  data.questionStats.forEach(qs => {
+    y = checkPageBreak(doc, y, 8 + qs.entries.length * 5);
+    doc.setFontSize(10);
+    doc.setTextColor(20, 20, 20);
+    doc.text(qs.question, margin, y);
+    y += 5;
+    qs.entries.forEach(([cat, count]) => {
+      const pct = qs.answered > 0 ? Math.round((count / qs.answered) * 100) : 0;
+      doc.setFontSize(8.5);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`${cat}: ${count} (%${pct})`, margin + 4, y);
+      y += 4.3;
+    });
+    y += 2;
+  });
+
+  [data.howReachedQ, data.uniPlanQ].forEach(dq => {
+    if (!dq.found || dq.entries.length === 0) return;
+    y = checkPageBreak(doc, y, 8 + dq.entries.length * 5);
+    doc.setFontSize(10);
+    doc.setTextColor(20, 20, 20);
+    doc.text(dq.question, margin, y);
+    y += 5;
+    dq.entries.forEach(([label, count]) => {
+      const pct = dq.answered > 0 ? Math.round((count / dq.answered) * 100) : 0;
+      doc.setFontSize(8.5);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`${label}: ${count} (%${pct})`, margin + 4, y);
+      y += 4.3;
+    });
+    y += 2;
+  });
+
+  if (data.comments.length > 0) {
+    y = checkPageBreak(doc, y, 15);
+    doc.setFontSize(11);
+    doc.setTextColor(30, 60, 114);
+    doc.text(`Yorumlar (${data.comments.length})`, margin, y);
+    y += 7;
+    data.comments.forEach(c => {
+      const text = c.name ? `${c.name}: ${c.text}` : c.text;
+      const lines = doc.splitTextToSize(text, 210 - margin * 2);
+      y = checkPageBreak(doc, y, lines.length * 4.3 + 3);
+      doc.setFontSize(8.5);
+      doc.setTextColor(50, 50, 50);
+      doc.text(lines, margin, y);
+      y += lines.length * 4.3 + 3;
+    });
+  }
+
+  doc.save(`${data.groupName.replace(/[^a-zA-Z0-9ığüşöçİĞÜŞÖÇ]/g, "_")}_Kurum_Ici_Rapor.pdf`);
+}
+
 // --- Grup kayıt sayısı (roster) — sabit eşleştirme tablosu kullanılır ---
 const ROSTER_SHEET_ID = "1Qr2OLtRhIzXtXq1FmQvYiO1QnO8pjRxCx6Rzotrhsv0";
 const ROSTER_NAME_HEADER = "Başvuru Sahibi Öğrencinin Adı Soyadı";
@@ -64,6 +350,7 @@ export default function AnketRaporu() {
   const [rosterCount, setRosterCount] = useState(null); // number | "-" | null (yükleniyor)
   const [rosterNames, setRosterNames] = useState([]);
   const [view, setView] = useState("results"); // "results" | "compare"
+  const [pdfLoading, setPdfLoading] = useState(null); // "external" | "internal" | null
 
   useEffect(() => {
     (async () => {
@@ -233,6 +520,50 @@ export default function AnketRaporu() {
   const respondentNames = nameIdx !== -1
     ? rows.map(r => (r[nameIdx] || "").trim()).filter(Boolean).sort((a, b) => a.localeCompare(b, "tr"))
     : [];
+
+  // --- Rapor için ek hesaplamalar ---
+  const ageIdx = findHeaderIndex(headers, "Öğrencinin Yaşı");
+  let ageRange = null;
+  if (ageIdx !== -1) {
+    const ages = rows.map(r => parseInt((r[ageIdx] || "").trim(), 10)).filter(n => !isNaN(n));
+    if (ages.length > 0) ageRange = `${Math.min(...ages)}-${Math.max(...ages)} arası`;
+  }
+
+  const questionAverages = questionStats.map(qs => {
+    if (qs.answered === 0) return { question: qs.question, avg: null };
+    let sum = 0;
+    qs.entries.forEach(([cat, count]) => { sum += (SCORE_MAP[cat] || 0) * count; });
+    return { question: qs.question, avg: sum / qs.answered };
+  });
+
+  const topCategories = questionAverages
+    .filter(qa => qa.avg !== null)
+    .sort((a, b) => b.avg - a.avg)
+    .slice(0, 3);
+
+  const reportDate = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+
+  async function handleExternalPdf() {
+    setPdfLoading("external");
+    try {
+      await generateExternalReport({ groupName: activeTab, rosterCount, total, genderCounts, ageRange, questionAverages, topCategories, reportDate });
+    } catch (e) {
+      alert("PDF oluşturulamadı: " + e.message);
+    } finally {
+      setPdfLoading(null);
+    }
+  }
+
+  async function handleInternalPdf() {
+    setPdfLoading("internal");
+    try {
+      await generateInternalReport({ groupName: activeTab, rosterCount, total, genderCounts, questionAverages, questionStats, howReachedQ, uniPlanQ, comments, reportDate });
+    } catch (e) {
+      alert("PDF oluşturulamadı: " + e.message);
+    } finally {
+      setPdfLoading(null);
+    }
+  }
 
   function openStudentPopup(colIdx, category, questionLabel) {
     if (colIdx === -1 || nameIdx === -1) return;
@@ -406,6 +737,12 @@ export default function AnketRaporu() {
                     <div style={styles.summaryValue}>{total}</div>
                     <div style={styles.summaryLabel}>Anketi Cevaplayan</div>
                   </div>
+                  <button onClick={handleExternalPdf} disabled={pdfLoading !== null} style={{ ...styles.pdfBtn, opacity: pdfLoading !== null ? 0.6 : 1 }}>
+                    {pdfLoading === "external" ? "Oluşturuluyor..." : "📄 Kurum Dışı Rapor"}
+                  </button>
+                  <button onClick={handleInternalPdf} disabled={pdfLoading !== null} style={{ ...styles.pdfBtnAlt, opacity: pdfLoading !== null ? 0.6 : 1 }}>
+                    {pdfLoading === "internal" ? "Oluşturuluyor..." : "📄 Kurum İçi Rapor"}
+                  </button>
                   {Object.entries(genderCounts).map(([g, c]) => (
                     <div style={styles.summaryCard} key={g}>
                       <div style={styles.summaryValue}>{c}</div>
@@ -505,6 +842,8 @@ const styles = {
   summaryCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", textAlign: "center" },
   summaryValue: { fontSize: "18px", fontWeight: "700", color: "#0f172a" },
   summaryLabel: { fontSize: "12px", color: "#94a3b8", marginTop: "4px" },
+  pdfBtn: { background: "#4338ca", color: "#fff", border: "none", borderRadius: "14px", padding: "18px 10px", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", textAlign: "center" },
+  pdfBtnAlt: { background: "#fff", color: "#4338ca", border: "1.5px solid #4338ca", borderRadius: "14px", padding: "18px 10px", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", textAlign: "center" },
   questionsGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" },
   questionCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "20px 24px" },
   questionTitle: { fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "14px" },
