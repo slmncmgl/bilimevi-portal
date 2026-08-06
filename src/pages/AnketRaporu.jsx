@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 
-const VERSION = "v1.10";
+const VERSION = "v1.11";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -704,6 +704,7 @@ export default function AnketRaporu() {
                 value={activeTab || ""}
                 onChange={e => { setActiveTab(e.target.value); setView("results"); }}
                 style={styles.select}
+                className="ar-select"
               >
                 {tabs.map(tab => (
                   <option key={tab} value={tab}>{tab}</option>
@@ -725,6 +726,7 @@ export default function AnketRaporu() {
                 <div style={styles.summaryGrid} className="ar-summary-grid">
                   <div
                     style={{ ...styles.summaryCard, cursor: "pointer" }}
+                    className="ar-summary-item"
                     onClick={() => setView("compare")}
                   >
                     <div style={styles.summaryValue}>{rosterCount === null ? "..." : rosterCount}</div>
@@ -732,23 +734,21 @@ export default function AnketRaporu() {
                   </div>
                   <div
                     style={{ ...styles.summaryCard, cursor: "pointer" }}
+                    className="ar-summary-item"
                     onClick={() => setView("compare")}
                   >
                     <div style={styles.summaryValue}>{total}</div>
                     <div style={styles.summaryLabel}>Anketi Cevaplayan</div>
                   </div>
-                  <button onClick={handleExternalPdf} disabled={pdfLoading !== null} style={{ ...styles.pdfBtn, opacity: pdfLoading !== null ? 0.6 : 1 }}>
-                    {pdfLoading === "external" ? "Oluşturuluyor..." : "📄 Kurum Dışı Rapor"}
-                  </button>
-                  <button onClick={handleInternalPdf} disabled={pdfLoading !== null} style={{ ...styles.pdfBtnAlt, opacity: pdfLoading !== null ? 0.6 : 1 }}>
-                    {pdfLoading === "internal" ? "Oluşturuluyor..." : "📄 Kurum İçi Rapor"}
-                  </button>
                   {Object.entries(genderCounts).map(([g, c]) => (
-                    <div style={styles.summaryCard} key={g}>
+                    <div style={styles.summaryCard} className="ar-summary-item" key={g}>
                       <div style={styles.summaryValue}>{c}</div>
                       <div style={styles.summaryLabel}>{g}</div>
                     </div>
                   ))}
+                  <button onClick={handleExternalPdf} disabled={pdfLoading !== null} className="ar-pdf-btn" style={{ ...styles.pdfBtn, opacity: pdfLoading !== null ? 0.6 : 1 }}>
+                    {pdfLoading === "external" ? "Oluşturuluyor..." : "📄 Kurum Dışı Rapor"}
+                  </button>
                 </div>
 
                 <div style={styles.questionsGrid} className="ar-questions-grid">
@@ -815,6 +815,9 @@ export default function AnketRaporu() {
           .ar-header-inner { padding: 12px 16px !important; }
           .ar-main { padding: 20px 12px 48px !important; }
           .ar-summary-grid { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important; }
+          .ar-summary-item { order: 0; }
+          .ar-pdf-btn { order: 1; }
+          .ar-select { width: calc(100% + 24px) !important; margin-left: -12px !important; margin-right: -12px !important; font-size: 13px !important; padding-left: 12px !important; padding-right: 30px !important; }
           .ar-questions-grid { grid-template-columns: 1fr !important; }
           .ar-popup-card { width: 100% !important; max-width: none !important; margin: 0 12px !important; }
         }
