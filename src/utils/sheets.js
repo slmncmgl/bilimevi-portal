@@ -86,7 +86,7 @@ const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxseCtKe77TrSuQRmWE6
     fiyatteklifi:  modulRow?.["Fiyat Teklifi"]?.toLowerCase() === "evet",
     katalogparse:  modulRow?.["Katalog Parse"]?.toLowerCase() === "evet",
     performansanalizi: modulRow?.["Performans Analizi"]?.toLowerCase() === "evet",
-    anketraporu: modulRow?.["Anket Raporu"]?.toLowerCase() === "evet",
+    anketraporu: modulRow?.["Anket Raporu"]?.toLowerCase() === "evet"
   };
     
   };
