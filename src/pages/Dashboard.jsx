@@ -149,6 +149,23 @@ const MODULE_CONFIG = [
     bg: "#ecfeff",
     border: "#a5f3fc",
   },
+  {
+    key: "anketraporu",
+    title: "Anket Raporu",
+    titleEn: "Survey Report",
+    desc: "Yaz okulu memnuniyet anketi sonuçları",
+    descEn: "Summer school satisfaction survey results",
+    path: "/anket-raporu",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M9 11l3 3L15 9"/>
+        <path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9c1.66 0 3.22.45 4.56 1.24"/>
+      </svg>
+    ),
+    color: "#4338ca",
+    bg: "#eef2ff",
+    border: "#c7d2fe",
+  },
 ];
 
 export default function Dashboard() {
