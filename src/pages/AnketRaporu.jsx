@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 
-const VERSION = "v1.8";
+const VERSION = "v1.9";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -157,6 +157,7 @@ export default function AnketRaporu() {
           );
         }
 
+        names.sort((a, b) => a.localeCompare(b, "tr"));
         setRosterNames(names);
         setRosterCount(names.length);
       } catch {
@@ -230,7 +231,7 @@ export default function AnketRaporu() {
     : [];
 
   const respondentNames = nameIdx !== -1
-    ? rows.map(r => (r[nameIdx] || "").trim()).filter(Boolean)
+    ? rows.map(r => (r[nameIdx] || "").trim()).filter(Boolean).sort((a, b) => a.localeCompare(b, "tr"))
     : [];
 
   function openStudentPopup(colIdx, category, questionLabel) {
@@ -238,7 +239,8 @@ export default function AnketRaporu() {
     const names = rows
       .filter(r => (r[colIdx] || "").trim() === category)
       .map(r => (r[nameIdx] || "").trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, "tr"));
     setStudentPopup({ title: `${questionLabel} — ${category}`, names });
   }
 
