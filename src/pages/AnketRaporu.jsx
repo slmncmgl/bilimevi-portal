@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const VERSION = "v1.4";
+const VERSION = "v1.5";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -44,6 +44,23 @@ function findHeaderIndex(headers, exactName) {
   return idx;
 }
 
+// --- Grup kayıt sayısı (roster) eşleştirme ---
+const ROSTER_SHEET_ID = "1Qr2OLtRhIzXtXq1FmQvYiO1QnO8pjRxCx6Rzotrhsv0";
+
+function normalizeTr(str) {
+  return (str || "")
+    .toUpperCase()
+    .replace(/İ/g, "I").replace(/Ş/g, "S").replace(/Ğ/g, "G")
+    .replace(/Ü/g, "U").replace(/Ö/g, "O").replace(/Ç/g, "C")
+    .replace(/[^A-Z0-9 ]/g, " ")
+    .trim();
+}
+
+function firstKeyword(groupName) {
+  const cleaned = normalizeTr(groupName.split(",")[0].split("-")[0]);
+  return cleaned.split(" ").filter(Boolean)[0] || "";
+}
+
 export default function AnketRaporu() {
   const navigate = useNavigate();
   const [tabs, setTabs] = useState([]);
@@ -56,6 +73,8 @@ export default function AnketRaporu() {
   const [dataError, setDataError] = useState(null);
   const [studentPopup, setStudentPopup] = useState(null); // { title, names: [] }
   const [copiedText, setCopiedText] = useState(null);
+  const [rosterTabs, setRosterTabs] = useState([]);
+  const [rosterCount, setRosterCount] = useState(null); // number | "-" | null (yükleniyor)
 
   useEffect(() => {
     (async () => {
@@ -71,6 +90,19 @@ export default function AnketRaporu() {
         setTabsError(err.message);
       } finally {
         setTabsLoading(false);
+      }
+    })();
+
+    (async () => {
+      try {
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${ROSTER_SHEET_ID}?key=${API_KEY}&fields=sheets.properties.title`;
+        const res = await fetch(url);
+        const json = await res.json();
+        if (res.ok) {
+          setRosterTabs((json.sheets || []).map(s => s.properties.title));
+        }
+      } catch {
+        // roster listesi alınamazsa sessizce geç, kartlarda "-" gösterilir
       }
     })();
   }, []);
@@ -101,6 +133,37 @@ export default function AnketRaporu() {
       }
     })();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!activeTab || rosterTabs.length === 0) {
+      setRosterCount(null);
+      return;
+    }
+    const keyword = firstKeyword(activeTab);
+    const matches = keyword
+      ? rosterTabs.filter(t => normalizeTr(t).includes(keyword))
+      : [];
+
+    if (matches.length !== 1) {
+      setRosterCount("-");
+      return;
+    }
+
+    (async () => {
+      setRosterCount(null); // yükleniyor
+      try {
+        const range = `'${matches[0]}'`;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${ROSTER_SHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+        const res = await fetch(url);
+        const json = await res.json();
+        if (!res.ok) throw new Error();
+        const values = json.values || [];
+        setRosterCount(Math.max(values.length - 1, 0));
+      } catch {
+        setRosterCount("-");
+      }
+    })();
+  }, [activeTab, rosterTabs]);
 
   // --- İstatistik hesapla ---
   const genderIdx = findHeaderIndex(headers, GENDER_COLUMN);
@@ -276,8 +339,12 @@ export default function AnketRaporu() {
               <>
                 <div style={styles.summaryGrid} className="ar-summary-grid">
                   <div style={styles.summaryCard}>
+                    <div style={styles.summaryValue}>{rosterCount === null ? "..." : rosterCount}</div>
+                    <div style={styles.summaryLabel}>Grup Sayısı</div>
+                  </div>
+                  <div style={styles.summaryCard}>
                     <div style={styles.summaryValue}>{total}</div>
-                    <div style={styles.summaryLabel}>Toplam Katılımcı</div>
+                    <div style={styles.summaryLabel}>Anketi Cevaplayan</div>
                   </div>
                   {Object.entries(genderCounts).map(([g, c]) => (
                     <div style={styles.summaryCard} key={g}>
