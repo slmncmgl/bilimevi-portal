@@ -92,7 +92,6 @@ export default function AuthCallback() {
             performansanalizi: moduller?.["Performans Analizi"]?.toLowerCase() === "evet",
             anketraporu: moduller?.["Anket Raporu"]?.toLowerCase() === "evet",
           },
-          },
         };
         saveSession(user);
         navigate("/dashboard");
