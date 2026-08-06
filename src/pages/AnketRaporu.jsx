@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 
-const VERSION = "v1.11";
+const VERSION = "v1.12";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -145,14 +145,28 @@ async function generateExternalReport(data) {
   const margin = 15;
   let y = 20;
 
-  doc.setFontSize(18);
+  const parts = data.groupName.split(",").map(s => s.trim()).filter(Boolean);
+  const titleLine1 = parts.length >= 2 ? parts.slice(0, -1).join(", ") : parts[0] || data.groupName;
+  const titleLine2 = parts.length >= 2 ? parts[parts.length - 1] : "";
+
+  doc.setFontSize(16);
   doc.setTextColor(30, 60, 114);
-  doc.text(`${data.groupName} Yaz Okulu Memnuniyet Raporu`, margin, y);
+  doc.text(titleLine1, margin, y);
+  y += 7;
+  if (titleLine2) {
+    doc.setFontSize(11);
+    doc.setTextColor(90, 90, 90);
+    doc.text(titleLine2, margin, y);
+    y += 6;
+  }
+  doc.setFontSize(14);
+  doc.setTextColor(30, 60, 114);
+  doc.text("Yaz Okulu Memnuniyet Raporu", margin, y);
   y += 8;
 
   doc.setFontSize(10);
   doc.setTextColor(90, 90, 90);
-  doc.text(`Program: ${data.groupName}  |  Rapor Tarihi: ${data.reportDate}`, margin, y);
+  doc.text(`Rapor Tarihi: ${data.reportDate}`, margin, y);
   y += 4;
   doc.setDrawColor(220, 220, 220);
   doc.line(margin, y, 210 - margin, y);
@@ -730,7 +744,7 @@ export default function AnketRaporu() {
                     onClick={() => setView("compare")}
                   >
                     <div style={styles.summaryValue}>{rosterCount === null ? "..." : rosterCount}</div>
-                    <div style={styles.summaryLabel}>Grup Sayısı</div>
+                    <div style={styles.summaryLabel}>Grupdaki Öğrenci Sayısı</div>
                   </div>
                   <div
                     style={{ ...styles.summaryCard, cursor: "pointer" }}
@@ -740,12 +754,16 @@ export default function AnketRaporu() {
                     <div style={styles.summaryValue}>{total}</div>
                     <div style={styles.summaryLabel}>Anketi Cevaplayan</div>
                   </div>
-                  {Object.entries(genderCounts).map(([g, c]) => (
-                    <div style={styles.summaryCard} className="ar-summary-item" key={g}>
-                      <div style={styles.summaryValue}>{c}</div>
-                      <div style={styles.summaryLabel}>{g}</div>
+                  {Object.keys(genderCounts).length > 0 && (
+                    <div style={styles.summaryCard} className="ar-summary-item">
+                      <div style={styles.summaryValue}>
+                        {Object.entries(genderCounts).map(([g, c]) => `${c}`).join(" / ")}
+                      </div>
+                      <div style={styles.summaryLabel}>
+                        {Object.keys(genderCounts).join(" / ")}
+                      </div>
                     </div>
-                  ))}
+                  )}
                   <button onClick={handleExternalPdf} disabled={pdfLoading !== null} className="ar-pdf-btn" style={{ ...styles.pdfBtn, opacity: pdfLoading !== null ? 0.6 : 1 }}>
                     {pdfLoading === "external" ? "Oluşturuluyor..." : "📄 Kurum Dışı Rapor"}
                   </button>
