@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 
-const VERSION = "v1.12";
+const VERSION = "v1.13";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -55,10 +55,15 @@ const DEJAVU_CDNS = [
   "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
   "https://unpkg.com/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans.ttf",
 ];
+const DEJAVU_BOLD_CDNS = [
+  "https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf",
+  "https://unpkg.com/dejavu-fonts-ttf@2.37.3/ttf/DejaVuSans-Bold.ttf",
+];
 const SCORE_MAP = { "Çok memnunum": 5, "Memnunum": 4, "Kararsızım": 3, "Memnun Değilim": 2, "Hiç Memnun Değilim": 1 };
 
 let jsPDFLoadPromise = null;
 let dejaVuFontPromise = null;
+let dejaVuBoldFontPromise = null;
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
@@ -113,13 +118,32 @@ async function loadDejaVuFont() {
   return dejaVuFontPromise;
 }
 
+async function loadDejaVuBoldFont() {
+  if (!dejaVuBoldFontPromise) {
+    dejaVuBoldFontPromise = (async () => {
+      for (const url of DEJAVU_BOLD_CDNS) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const buf = await res.arrayBuffer();
+          return arrayBufferToBase64(buf);
+        } catch { /* sıradaki CDN'e geç */ }
+      }
+      throw new Error("DejaVuSans-Bold fontu yüklenemedi");
+    })();
+  }
+  return dejaVuBoldFontPromise;
+}
+
 async function createPdfDoc() {
   const jsPDF = await loadJsPDF();
-  const fontBase64 = await loadDejaVuFont();
+  const [fontBase64, boldFontBase64] = await Promise.all([loadDejaVuFont(), loadDejaVuBoldFont()]);
   const doc = new jsPDF("p", "mm", "a4");
   doc.addFileToVFS("DejaVuSans.ttf", fontBase64);
   doc.addFont("DejaVuSans.ttf", "DejaVuSans", "normal");
-  doc.setFont("DejaVuSans");
+  doc.addFileToVFS("DejaVuSans-Bold.ttf", boldFontBase64);
+  doc.addFont("DejaVuSans-Bold.ttf", "DejaVuSans", "bold");
+  doc.setFont("DejaVuSans", "normal");
   return doc;
 }
 
@@ -149,21 +173,25 @@ async function generateExternalReport(data) {
   const titleLine1 = parts.length >= 2 ? parts.slice(0, -1).join(", ") : parts[0] || data.groupName;
   const titleLine2 = parts.length >= 2 ? parts[parts.length - 1] : "";
 
+  doc.setFont("DejaVuSans", "bold");
   doc.setFontSize(16);
   doc.setTextColor(30, 60, 114);
   doc.text(titleLine1, margin, y);
   y += 7;
   if (titleLine2) {
+    doc.setFont("DejaVuSans", "normal");
     doc.setFontSize(11);
     doc.setTextColor(90, 90, 90);
     doc.text(titleLine2, margin, y);
     y += 6;
   }
+  doc.setFont("DejaVuSans", "bold");
   doc.setFontSize(14);
   doc.setTextColor(30, 60, 114);
   doc.text("Yaz Okulu Memnuniyet Raporu", margin, y);
   y += 8;
 
+  doc.setFont("DejaVuSans", "normal");
   doc.setFontSize(10);
   doc.setTextColor(90, 90, 90);
   doc.text(`Rapor Tarihi: ${data.reportDate}`, margin, y);
@@ -172,10 +200,12 @@ async function generateExternalReport(data) {
   doc.line(margin, y, 210 - margin, y);
   y += 9;
 
+  doc.setFont("DejaVuSans", "bold");
   doc.setFontSize(13);
   doc.setTextColor(30, 60, 114);
   doc.text("Katılım Oranı", margin, y);
   y += 6;
+  doc.setFont("DejaVuSans", "normal");
   doc.setFontSize(10);
   doc.setTextColor(40, 40, 40);
   const rateText = typeof data.rosterCount === "number" && data.rosterCount > 0
@@ -184,10 +214,12 @@ async function generateExternalReport(data) {
   doc.text(rateText, margin, y);
   y += 10;
 
+  doc.setFont("DejaVuSans", "bold");
   doc.setFontSize(13);
   doc.setTextColor(30, 60, 114);
   doc.text("Demografi", margin, y);
   y += 6;
+  doc.setFont("DejaVuSans", "normal");
   doc.setFontSize(10);
   doc.setTextColor(40, 40, 40);
   const genderText = Object.entries(data.genderCounts)
@@ -201,6 +233,7 @@ async function generateExternalReport(data) {
   }
   y += 5;
 
+  doc.setFont("DejaVuSans", "bold");
   doc.setFontSize(13);
   doc.setTextColor(30, 60, 114);
   doc.text("Memnuniyet Ortalamaları (5 üzerinden)", margin, y);
@@ -210,6 +243,7 @@ async function generateExternalReport(data) {
   const barWidth = 90;
   data.questionAverages.forEach(qa => {
     y = checkPageBreak(doc, y, 9);
+    doc.setFont("DejaVuSans", "normal");
     doc.setFontSize(9.5);
     doc.setTextColor(40, 40, 40);
     doc.text(qa.question, margin, y + 3.6);
@@ -225,12 +259,14 @@ async function generateExternalReport(data) {
     y += 8;
   });
 
-  y += 4;
+  y += 10;
   y = checkPageBreak(doc, y, 20);
+  doc.setFont("DejaVuSans", "bold");
   doc.setFontSize(13);
   doc.setTextColor(30, 60, 114);
   doc.text("Olumlu Geribildirimler", margin, y);
   y += 7;
+  doc.setFont("DejaVuSans", "normal");
   doc.setFontSize(10);
   doc.setTextColor(40, 40, 40);
   data.topCategories.forEach(tc => {
@@ -835,7 +871,7 @@ export default function AnketRaporu() {
           .ar-summary-grid { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important; }
           .ar-summary-item { order: 0; }
           .ar-pdf-btn { order: 1; }
-          .ar-select { width: calc(100% + 24px) !important; margin-left: -12px !important; margin-right: -12px !important; font-size: 13px !important; padding-left: 12px !important; padding-right: 30px !important; }
+          .ar-select { position: relative !important; left: 50% !important; right: auto !important; width: 100vw !important; margin-left: -50vw !important; margin-right: 0 !important; font-size: 12.5px !important; padding-left: 12px !important; padding-right: 30px !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; }
           .ar-questions-grid { grid-template-columns: 1fr !important; }
           .ar-popup-card { width: 100% !important; max-width: none !important; margin: 0 12px !important; }
         }
