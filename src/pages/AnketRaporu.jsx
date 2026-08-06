@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 
-const VERSION = "v1.13";
+const VERSION = "v1.14";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -401,6 +401,18 @@ export default function AnketRaporu() {
   const [rosterNames, setRosterNames] = useState([]);
   const [view, setView] = useState("results"); // "results" | "compare"
   const [pdfLoading, setPdfLoading] = useState(null); // "external" | "internal" | null
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleOutsideClick(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -750,16 +762,32 @@ export default function AnketRaporu() {
           <>
             <div style={styles.selectWrap}>
               <label style={styles.selectLabel}>Grup seç</label>
-              <select
-                value={activeTab || ""}
-                onChange={e => { setActiveTab(e.target.value); setView("results"); }}
-                style={styles.select}
-                className="ar-select"
-              >
-                {tabs.map(tab => (
-                  <option key={tab} value={tab}>{tab}</option>
-                ))}
-              </select>
+              <div style={styles.selectInner} className="ar-select-inner" ref={dropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen(o => !o)}
+                  style={styles.selectButton}
+                  className="ar-select-btn"
+                >
+                  <span style={styles.selectButtonText}>{activeTab || "Grup seçin"}</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" style={{ flexShrink: 0, transform: dropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+                {dropdownOpen && (
+                  <div style={styles.dropdownList} className="ar-dropdown-list">
+                    {tabs.map(tab => (
+                      <div
+                        key={tab}
+                        onClick={() => { setActiveTab(tab); setView("results"); setDropdownOpen(false); }}
+                        style={{ ...styles.dropdownItem, ...(tab === activeTab ? styles.dropdownItemActive : {}) }}
+                      >
+                        {tab}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {dataLoading ? (
@@ -871,7 +899,9 @@ export default function AnketRaporu() {
           .ar-summary-grid { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)) !important; }
           .ar-summary-item { order: 0; }
           .ar-pdf-btn { order: 1; }
-          .ar-select { position: relative !important; left: 50% !important; right: auto !important; width: 100vw !important; margin-left: -50vw !important; margin-right: 0 !important; font-size: 12.5px !important; padding-left: 12px !important; padding-right: 30px !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; }
+          .ar-select-inner { position: relative !important; left: 50% !important; width: 100vw !important; margin-left: -50vw !important; }
+          .ar-select-btn { border-radius: 0 !important; border-left: none !important; border-right: none !important; padding-left: 12px !important; padding-right: 12px !important; }
+          .ar-dropdown-list { left: 0 !important; right: 0 !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; }
           .ar-questions-grid { grid-template-columns: 1fr !important; }
           .ar-popup-card { width: 100% !important; max-width: none !important; margin: 0 12px !important; }
         }
@@ -893,7 +923,12 @@ const styles = {
   errorBox: { padding: "24px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "12px", color: "#991b1b", fontSize: "13px", lineHeight: 1.6 },
   selectWrap: { display: "flex", flexDirection: "column", gap: "6px", marginBottom: "28px", width: "100%" },
   selectLabel: { fontSize: "12px", fontWeight: "600", color: "#64748b" },
-  select: { padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", fontSize: "14px", fontWeight: "600", color: "#0f172a", fontFamily: "inherit", cursor: "pointer", width: "100%" },
+  selectInner: { position: "relative", width: "100%" },
+  selectButton: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", fontSize: "14px", fontWeight: "600", color: "#0f172a", fontFamily: "inherit", cursor: "pointer", width: "100%" },
+  selectButtonText: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  dropdownList: { position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, maxHeight: "60vh", overflowY: "auto", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", boxShadow: "0 12px 32px rgba(0,0,0,0.12)", zIndex: 50 },
+  dropdownItem: { padding: "12px 14px", fontSize: "13.5px", color: "#334155", cursor: "pointer", borderBottom: "1px solid #f1f5f9" },
+  dropdownItemActive: { background: "#eef2ff", color: "#4338ca", fontWeight: "600" },
   backToResultsBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#eef2ff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#4338ca", fontFamily: "inherit", marginBottom: "20px" },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px", marginBottom: "32px" },
   summaryCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", textAlign: "center" },
