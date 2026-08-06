@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 
-const VERSION = "v1.6";
+const VERSION = "v1.7";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -63,7 +63,7 @@ export default function AnketRaporu() {
   const [copiedText, setCopiedText] = useState(null);
   const [rosterCount, setRosterCount] = useState(null); // number | "-" | null (yükleniyor)
   const [rosterNames, setRosterNames] = useState([]);
-  const [view, setView] = useState("results"); // "results" | "roster-list"
+  const [view, setView] = useState("results"); // "results" | "compare"
 
   useEffect(() => {
     (async () => {
@@ -208,6 +208,10 @@ export default function AnketRaporu() {
         .filter(c => c.text)
     : [];
 
+  const respondentNames = nameIdx !== -1
+    ? rows.map(r => (r[nameIdx] || "").trim()).filter(Boolean)
+    : [];
+
   function openStudentPopup(colIdx, category, questionLabel) {
     if (colIdx === -1 || nameIdx === -1) return;
     const names = rows
@@ -283,7 +287,7 @@ export default function AnketRaporu() {
       </header>
 
       <main style={styles.main} className="ar-main">
-        {view === "roster-list" ? (
+        {view === "compare" ? (
           <div>
             <button onClick={() => setView("results")} style={styles.backToResultsBtn}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
@@ -292,16 +296,42 @@ export default function AnketRaporu() {
               </svg>
               Anket Sonuçlarına Dön
             </button>
-            <h2 style={styles.commentsTitle}>{activeTab} — Kayıtlı Öğrenciler ({rosterNames.length})</h2>
-            <div style={styles.popupList}>
-              {rosterNames.map((name, i) => (
-                <div style={styles.popupNameRow} key={i}>
-                  <span style={styles.popupName}>{name}</span>
-                  <button onClick={() => copyText(name)} style={styles.copyBtn}>
-                    {copiedText === name ? "Kopyalandı" : "Kopyala"}
-                  </button>
-                </div>
-              ))}
+            <h2 style={styles.commentsTitle}>{activeTab}</h2>
+            <div style={styles.questionsGrid} className="ar-questions-grid">
+              <div style={styles.questionCard}>
+                <h3 style={styles.questionTitle}>Grup Sayısı ({rosterNames.length})</h3>
+                {rosterNames.length === 0 ? (
+                  <p style={styles.notFoundText}>Kayıtlı öğrenci bulunamadı.</p>
+                ) : (
+                  <div style={styles.popupList}>
+                    {rosterNames.map((name, i) => (
+                      <div style={styles.popupNameRow} key={i}>
+                        <span style={styles.popupName}>{name}</span>
+                        <button onClick={() => copyText(name)} style={styles.copyBtn}>
+                          {copiedText === name ? "Kopyalandı" : "Kopyala"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div style={styles.questionCard}>
+                <h3 style={styles.questionTitle}>Anketi Cevaplayan ({respondentNames.length})</h3>
+                {respondentNames.length === 0 ? (
+                  <p style={styles.notFoundText}>Cevap bulunamadı.</p>
+                ) : (
+                  <div style={styles.popupList}>
+                    {respondentNames.map((name, i) => (
+                      <div style={styles.popupNameRow} key={i}>
+                        <span style={styles.popupName}>{name}</span>
+                        <button onClick={() => copyText(name)} style={styles.copyBtn}>
+                          {copiedText === name ? "Kopyalandı" : "Kopyala"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         ) : tabsLoading ? (
@@ -340,13 +370,16 @@ export default function AnketRaporu() {
               <>
                 <div style={styles.summaryGrid} className="ar-summary-grid">
                   <div
-                    style={{ ...styles.summaryCard, cursor: typeof rosterCount === "number" && rosterCount > 0 ? "pointer" : "default" }}
-                    onClick={() => typeof rosterCount === "number" && rosterCount > 0 && setView("roster-list")}
+                    style={{ ...styles.summaryCard, cursor: "pointer" }}
+                    onClick={() => setView("compare")}
                   >
                     <div style={styles.summaryValue}>{rosterCount === null ? "..." : rosterCount}</div>
                     <div style={styles.summaryLabel}>Grup Sayısı</div>
                   </div>
-                  <div style={styles.summaryCard}>
+                  <div
+                    style={{ ...styles.summaryCard, cursor: "pointer" }}
+                    onClick={() => setView("compare")}
+                  >
                     <div style={styles.summaryValue}>{total}</div>
                     <div style={styles.summaryLabel}>Anketi Cevaplayan</div>
                   </div>
