@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const VERSION = "v1.2";
+const VERSION = "v1.3";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -36,6 +36,7 @@ const CATEGORY_COLORS = {
   "Hiç Memnun Değilim": "#dc2626",
 };
 const DYNAMIC_PALETTE = ["#4338ca", "#0891b2", "#059669", "#d97706", "#dc2626", "#7c3aed", "#db2777", "#0369a1"];
+const EMPTY_COLOR = "#cbd5e1";
 
 function findHeaderIndex(headers, exactName) {
   let idx = headers.findIndex(h => h.trim() === exactName);
@@ -157,8 +158,11 @@ export default function AnketRaporu() {
   const uniPlanQ = buildDynamicQuestion(uniPlanIdx, UNI_PLAN_COLUMN);
   const howReachedQ = buildDynamicQuestion(howReachedIdx, HOW_REACHED_COLUMN);
 
+  // Yorumlar: öğrenci adıyla birlikte
   const comments = commentIdx !== -1
-    ? rows.map(r => (r[commentIdx] || "").trim()).filter(Boolean)
+    ? rows
+        .map(r => ({ name: (r[nameIdx] || "").trim(), text: (r[commentIdx] || "").trim() }))
+        .filter(c => c.text)
     : [];
 
   function openStudentPopup(colIdx, category, questionLabel) {
@@ -192,15 +196,21 @@ export default function AnketRaporu() {
           <div style={styles.barList}>
             {qs.entries.map(([cat, count], i) => {
               const pct = qs.answered > 0 ? Math.round((count / qs.answered) * 100) : 0;
-              const color = qs.colorFor(cat, i);
+              const isEmpty = count === 0;
+              const color = isEmpty ? EMPTY_COLOR : qs.colorFor(cat, i);
               return (
                 <div
                   key={cat}
                   onClick={() => count > 0 && openStudentPopup(qs.idx, cat, qs.question)}
-                  style={{ ...styles.barBox, background: color + "14", cursor: count > 0 ? "pointer" : "default" }}
+                  style={{
+                    ...styles.barBox,
+                    background: isEmpty ? "#f8fafc" : color + "14",
+                    border: isEmpty ? "1px dashed #e2e8f0" : "1px solid transparent",
+                    cursor: count > 0 ? "pointer" : "default",
+                  }}
                 >
                   <div style={{ ...styles.barBoxFill, width: `${pct}%`, background: color }} />
-                  <span style={styles.barBoxLabel}>{cat}</span>
+                  <span style={{ ...styles.barBoxLabel, color: isEmpty ? "#94a3b8" : "#1e293b" }}>{cat}</span>
                   <span style={styles.barBoxCount}>{count} · %{pct}</span>
                 </div>
               );
@@ -289,9 +299,12 @@ export default function AnketRaporu() {
                     <div style={styles.commentsList}>
                       {comments.map((c, i) => (
                         <div style={styles.commentCard} key={i}>
-                          <span style={styles.commentText}>{c}</span>
-                          <button onClick={() => copyText(c)} style={styles.copyBtn}>
-                            {copiedText === c ? "Kopyalandı" : "Kopyala"}
+                          <span style={styles.commentText}>
+                            {c.name && <strong style={styles.commentName}>{c.name}: </strong>}
+                            {c.text}
+                          </span>
+                          <button onClick={() => copyText(c.text)} style={styles.copyBtn}>
+                            {copiedText === c.text ? "Kopyalandı" : "Kopyala"}
                           </button>
                         </div>
                       ))}
@@ -371,13 +384,14 @@ const styles = {
   barList: { display: "flex", flexDirection: "column", gap: "6px" },
   barBox: { position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: "34px", borderRadius: "8px", padding: "0 12px", overflow: "hidden" },
   barBoxFill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: "8px", opacity: 0.28, transition: "width 0.3s ease", zIndex: 0 },
-  barBoxLabel: { position: "relative", zIndex: 1, fontSize: "12.5px", fontWeight: "600", color: "#1e293b" },
+  barBoxLabel: { position: "relative", zIndex: 1, fontSize: "12.5px", fontWeight: "600" },
   barBoxCount: { position: "relative", zIndex: 1, fontSize: "12px", color: "#64748b", flexShrink: 0 },
   commentsSection: { marginTop: "40px" },
   commentsTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a", marginBottom: "16px" },
   commentsList: { display: "flex", flexDirection: "column", gap: "10px" },
   commentCard: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px 20px" },
   commentText: { fontSize: "13px", color: "#334155", lineHeight: 1.6, flex: 1 },
+  commentName: { color: "#0f172a" },
   copyBtn: { flexShrink: 0, padding: "5px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#fff", color: "#4338ca", fontSize: "11px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
   popupOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
   popupCard: { background: "#fff", borderRadius: "20px", padding: "24px", maxWidth: "420px", width: "100%", maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" },
