@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const VERSION = "v1.3";
+const VERSION = "v1.4";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -64,7 +64,7 @@ export default function AnketRaporu() {
         const res = await fetch(url);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error?.message || "Sekmeler yüklenemedi");
-        const titles = (json.sheets || []).map(s => s.properties.title);
+        const titles = (json.sheets || []).map(s => s.properties.title).sort((a, b) => a.localeCompare(b, "tr"));
         setTabs(titles);
         if (titles.length > 0) setActiveTab(titles[0]);
       } catch (err) {
@@ -375,7 +375,7 @@ const styles = {
   select: { padding: "10px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", fontSize: "14px", fontWeight: "600", color: "#0f172a", fontFamily: "inherit", cursor: "pointer", width: "100%" },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px", marginBottom: "32px" },
   summaryCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", textAlign: "center" },
-  summaryValue: { fontSize: "24px", fontWeight: "700", color: "#0f172a" },
+  summaryValue: { fontSize: "18px", fontWeight: "700", color: "#0f172a" },
   summaryLabel: { fontSize: "12px", color: "#94a3b8", marginTop: "4px" },
   questionsGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" },
   questionCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "20px 24px" },
