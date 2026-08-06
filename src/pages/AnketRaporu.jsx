@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 
-const VERSION = "v1.7";
+const VERSION = "v1.8";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -126,16 +126,37 @@ export default function AnketRaporu() {
 
     (async () => {
       setRosterCount(null); // yükleniyor
+      setRosterNames([]);
       try {
-        const range = `'${rosterTab}'!A1:A500`;
+        const range = `'${rosterTab}'!A1:H500`;
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${ROSTER_SHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
         const res = await fetch(url);
         const json = await res.json();
         if (!res.ok) throw new Error();
         const values = json.values || [];
-        const names = values
-          .map(r => (r[0] || "").trim())
-          .filter(n => n && n.toLocaleUpperCase("tr-TR") !== ROSTER_NAME_HEADER.toLocaleUpperCase("tr-TR"));
+
+        // Başlık hücresini (ve sütununu) hangi satırda olursa olsun bul — sekmeler arası sütun kayması olabiliyor
+        const targetHeader = ROSTER_NAME_HEADER.toLocaleUpperCase("tr-TR");
+        let headerRowIdx = -1, headerColIdx = -1;
+        for (let r = 0; r < values.length; r++) {
+          const c = values[r].findIndex(cell => (cell || "").trim().toLocaleUpperCase("tr-TR") === targetHeader);
+          if (c !== -1) { headerRowIdx = r; headerColIdx = c; break; }
+        }
+
+        let names = [];
+        if (headerRowIdx !== -1) {
+          names = values.slice(headerRowIdx + 1)
+            .map(r => (r[headerColIdx] || "").trim())
+            .filter(Boolean);
+        } else {
+          // Başlık bulunamadıysa yedek plan: A ve B sütunlarından hangisi daha dolu ise onu kullan
+          const colA = values.map(r => (r[0] || "").trim()).filter(Boolean);
+          const colB = values.map(r => (r[1] || "").trim()).filter(Boolean);
+          names = (colB.length > colA.length ? colB : colA).filter(
+            n => n.toLocaleUpperCase("tr-TR") !== targetHeader
+          );
+        }
+
         setRosterNames(names);
         setRosterCount(names.length);
       } catch {
