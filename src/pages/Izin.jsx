@@ -1070,10 +1070,15 @@ function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
   const tarihiGelmis = basDate && basDate <= today;
   const rowTone = durum === "Bekliyor"
     ? { background: "#fef9c3", border: "#fde68a", shadow: "0 3px 14px rgba(234,179,8,0.10)" }
-    ? { background: "#f5f3ff", border: "#ddd6fe", shadow: "0 3px 14px rgba(124,58,237,0.10)" }
     : durum === "Onaylandı" && !tarihiGelmis
       ? { background: "#ecfdf5", border: "#a7f3d0", shadow: "0 3px 14px rgba(34,197,94,0.10)" }
       : { background: "#f8fafc", border: "#e2e8f0", shadow: "none" };
+  let rowTone = { background: "#f8fafc", border: "#e2e8f0", shadow: "none" };
+  if (durum === "Bekliyor") {
+    rowTone = { background: "#f5f3ff", border: "#ddd6fe", shadow: "0 3px 14px rgba(124,58,237,0.10)" };
+  } else if (durum === "Onaylandı" && !tarihiGelmis) {
+    rowTone = { background: "#ecfdf5", border: "#a7f3d0", shadow: "0 3px 14px rgba(34,197,94,0.10)" };
+  }
 
   return (
     <div
