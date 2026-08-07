@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 
-const VERSION = "v1.14";
+const VERSION = "v1.15";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -275,7 +275,7 @@ async function generateExternalReport(data) {
     y += 6;
   });
 
-  doc.save(`${data.groupName.replace(/[^a-zA-Z0-9ığüşöçİĞÜŞÖÇ]/g, "_")}_Kurum_Disi_Rapor.pdf`);
+  doc.save(`${data.groupName.replace(/[^a-zA-Z0-9ığüşöçİĞÜŞÖÇ]/g, "_")}_Okul_Paylasim_Raporu.pdf`);
 }
 
 async function generateInternalReport(data) {
@@ -402,6 +402,7 @@ export default function AnketRaporu() {
   const [view, setView] = useState("results"); // "results" | "compare"
   const [pdfLoading, setPdfLoading] = useState(null); // "external" | "internal" | null
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showInfoPopup, setShowInfoPopup] = useState(true);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -724,7 +725,7 @@ export default function AnketRaporu() {
                       <div style={styles.popupNameRow} key={i}>
                         <span style={styles.popupName}>{name}</span>
                         <button onClick={() => copyText(name)} style={styles.copyBtn}>
-                          {copiedText === name ? "Kopyalandı" : "Kopyala"}
+                          {copiedText === name ? "Kopyalandı" : "İsmi Kopyala"}
                         </button>
                       </div>
                     ))}
@@ -741,7 +742,7 @@ export default function AnketRaporu() {
                       <div style={styles.popupNameRow} key={i}>
                         <span style={styles.popupName}>{name}</span>
                         <button onClick={() => copyText(name)} style={styles.copyBtn}>
-                          {copiedText === name ? "Kopyalandı" : "Kopyala"}
+                          {copiedText === name ? "Kopyalandı" : "İsmi Kopyala"}
                         </button>
                       </div>
                     ))}
@@ -829,7 +830,7 @@ export default function AnketRaporu() {
                     </div>
                   )}
                   <button onClick={handleExternalPdf} disabled={pdfLoading !== null} className="ar-pdf-btn" style={{ ...styles.pdfBtn, opacity: pdfLoading !== null ? 0.6 : 1 }}>
-                    {pdfLoading === "external" ? "Oluşturuluyor..." : "📄 Kurum Dışı Rapor"}
+                    {pdfLoading === "external" ? "Oluşturuluyor..." : "📄 Okul Paylaşım Raporu"}
                   </button>
                 </div>
 
@@ -850,7 +851,7 @@ export default function AnketRaporu() {
                             {c.text}
                           </span>
                           <button onClick={() => copyText(c.text)} style={styles.copyBtn}>
-                            {copiedText === c.text ? "Kopyalandı" : "Kopyala"}
+                            {copiedText === c.text ? "Kopyalandı" : "Yorumu Kopyala"}
                           </button>
                         </div>
                       ))}
@@ -862,6 +863,22 @@ export default function AnketRaporu() {
           </>
         )}
       </main>
+
+      {/* Bilgi Popup'ı */}
+      {showInfoPopup && (
+        <div onClick={() => setShowInfoPopup(false)} style={styles.popupOverlay}>
+          <div onClick={e => e.stopPropagation()} style={styles.popupCard} className="ar-popup-card">
+            <div style={styles.popupHeader}>
+              <h3 style={styles.popupTitle}>💡 İpuçları</h3>
+            </div>
+            <ul style={styles.infoList}>
+              <li style={styles.infoListItem}>Skorların üzerine tıkladığınızda o kategoriye cevap veren öğrencilerin isimlerini görebilirsiniz.</li>
+              <li style={styles.infoListItem}>"Okul Paylaşım Raporu"na tıkladığınızda özet istatistik sunan bir PDF çıktısı elde edebilirsiniz.</li>
+            </ul>
+            <button onClick={() => setShowInfoPopup(false)} style={styles.popupCloseBtnPrimary}>Tamam</button>
+          </div>
+        </div>
+      )}
 
       {/* Öğrenci Listesi Popup */}
       {studentPopup && (
@@ -879,7 +896,7 @@ export default function AnketRaporu() {
                   <div style={styles.popupNameRow} key={i}>
                     <span style={styles.popupName}>{name}</span>
                     <button onClick={() => copyText(name)} style={styles.copyBtn}>
-                      {copiedText === name ? "Kopyalandı" : "Kopyala"}
+                      {copiedText === name ? "Kopyalandı" : "İsmi Kopyala"}
                     </button>
                   </div>
                 ))}
@@ -961,4 +978,7 @@ const styles = {
   popupNameRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "8px 12px", background: "#f8fafc", borderRadius: "8px" },
   popupName: { fontSize: "13px", color: "#334155", fontWeight: "500" },
   popupCloseBtn: { width: "100%", padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "inherit" },
+  popupCloseBtnPrimary: { width: "100%", padding: "10px", background: "#4338ca", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "700", color: "#fff", fontFamily: "inherit" },
+  infoList: { margin: "0 0 18px", paddingLeft: "18px", display: "flex", flexDirection: "column", gap: "10px" },
+  infoListItem: { fontSize: "13px", color: "#334155", lineHeight: 1.6 },
 };
