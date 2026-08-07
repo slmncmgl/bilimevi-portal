@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v73-kurs-dil-etiketi-2026-08-05";
+const BFT_BUILD_VERSION = "v74-okul-sil-onay-2026-08-05";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -854,6 +854,12 @@ export default function FiyatTeklifi() {
   };
 
   const addNew = () => { if (destinations.length >= 3) return; setCur(emptyDest(cur.startDate, cur.weeks)); setStep(1); };
+  const removeDestination = (i) => {
+    const d = destinations[i];
+    const ad = d ? `${d.brand || ""} ${d.city || ""}`.trim() : "bu okul";
+    if (!window.confirm(`"${ad}" teklifini silmek istediğinize emin misiniz?`)) return;
+    setDestinations(p => p.filter((_, idx) => idx !== i));
+  };
   const reset = () => { setDestinations([]); setCur(emptyDest()); setStudent({ name:"", age:"", gender:"" }); setStep(0); };
 
   const loadScript = (src) => new Promise((resolve, reject) => {
@@ -1918,7 +1924,7 @@ export default function FiyatTeklifi() {
                 const accED = eD ? (() => { const x = new Date(eD); x.setDate(eD.getDate() + 2); return x; })() : null;
                 return (
                   <div key={i} style={S.summaryCard}>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:12 }}><strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong><span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span></div>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}><strong style={{ fontSize:15 }}>{d.brand} {d.city}</strong><div style={{ display:"flex", alignItems:"center", gap:10 }}><span style={{ fontSize:12, color:"#64748b" }}>{d.weeks} hafta</span><button onClick={() => removeDestination(i)} title="Bu okulu sil" style={{ width:26, height:26, borderRadius:"50%", border:"1.5px solid #fecaca", background:"#fef2f2", color:"#dc2626", cursor:"pointer", fontSize:16, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, padding:0 }}>×</button></div></div>
                     <div style={{ marginBottom:10 }}>
                       <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>{d.selectedPackage ? "Paket Program" : "Kurs"}</div>
                       {d.selectedPackage ? (<>
@@ -1966,7 +1972,7 @@ export default function FiyatTeklifi() {
               })}
               {destinations.length < 3
                 ? <button onClick={addNew} style={S.addBtn}>+ Yeni Destinasyon Ekle</button>
-                : <button onClick={reset} style={{ ...S.addBtn, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN }}>+ Yeni Teklif Oluştur</button>
+                : <button onClick={() => { if (window.confirm("Tüm okullar silinecek, emin misiniz?\n\nİpucu: Eklediğiniz okulları tek tek silip (kartların sağ üstündeki × ile) yerlerine başka okul da ekleyebilirsiniz.")) reset(); }} style={{ ...S.addBtn, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN }}>+ Yeni Teklif Oluştur</button>
               }
             </div>
           )}
