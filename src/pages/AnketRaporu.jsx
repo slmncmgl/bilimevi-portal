@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
+import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.15";
+const VERSION = "v1.17";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -402,8 +403,35 @@ export default function AnketRaporu() {
   const [view, setView] = useState("results"); // "results" | "compare"
   const [pdfLoading, setPdfLoading] = useState(null); // "external" | "internal" | null
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [showInfoPopup, setShowInfoPopup] = useState(true);
+  const [showInfoPopup, setShowInfoPopup] = useState(() => {
+    try {
+      const session = getSession();
+      const key = `anketRaporu_infoPopupSeen_v1_${session?.email || session?.name || "anon"}`;
+      return !localStorage.getItem(key);
+    } catch {
+      return true;
+    }
+  });
+  const [infoCountdown, setInfoCountdown] = useState(3);
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!showInfoPopup) return;
+    setInfoCountdown(3);
+    const timer = setInterval(() => {
+      setInfoCountdown(c => (c > 0 ? c - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [showInfoPopup]);
+
+  function closeInfoPopup() {
+    setShowInfoPopup(false);
+    try {
+      const session = getSession();
+      const key = `anketRaporu_infoPopupSeen_v1_${session?.email || session?.name || "anon"}`;
+      localStorage.setItem(key, "1");
+    } catch { /* localStorage erişilemezse sessizce geç */ }
+  }
 
   useEffect(() => {
     function handleOutsideClick(e) {
@@ -866,7 +894,7 @@ export default function AnketRaporu() {
 
       {/* Bilgi Popup'ı */}
       {showInfoPopup && (
-        <div onClick={() => setShowInfoPopup(false)} style={styles.popupOverlay}>
+        <div style={styles.popupOverlay}>
           <div onClick={e => e.stopPropagation()} style={styles.popupCard} className="ar-popup-card">
             <div style={styles.popupHeader}>
               <h3 style={styles.popupTitle}>💡 İpuçları</h3>
@@ -875,7 +903,13 @@ export default function AnketRaporu() {
               <li style={styles.infoListItem}>Skorların üzerine tıkladığınızda o kategoriye cevap veren öğrencilerin isimlerini görebilirsiniz.</li>
               <li style={styles.infoListItem}>"Okul Paylaşım Raporu"na tıkladığınızda özet istatistik sunan bir PDF çıktısı elde edebilirsiniz.</li>
             </ul>
-            <button onClick={() => setShowInfoPopup(false)} style={styles.popupCloseBtnPrimary}>Tamam</button>
+            <button
+              onClick={() => infoCountdown === 0 && closeInfoPopup()}
+              disabled={infoCountdown > 0}
+              style={{ ...styles.popupCloseBtnPrimary, opacity: infoCountdown > 0 ? 0.6 : 1, cursor: infoCountdown > 0 ? "default" : "pointer" }}
+            >
+              {infoCountdown > 0 ? `Tamam (${infoCountdown})` : "Tamam"}
+            </button>
           </div>
         </div>
       )}
