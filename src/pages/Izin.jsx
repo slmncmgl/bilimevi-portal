@@ -1856,15 +1856,18 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {yaklasanIzinlerAdmin.map((row, i) => {
                     const durum = row["Durum"] || "Bekliyor";
-                    const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#047857" : "#64748b";
-                    const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#d1fae5" : "#f1f5f9";
+                    const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#6d28d9" : "#64748b";
+                    const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#ede9fe" : "#f1f5f9";
                     const emp = list.find(p => p["Ad Soyad"] === row["Personel"]) || {};
                     const baslangicDate = adminTarihToDate(row["Başlangıç"]);
                     const today = new Date();
                     today.setHours(0,0,0,0);
                     const tarihiGelmemis = yaklasanPeriod === "buAy" && baslangicDate && baslangicDate > today;
+                    const rowBg = durum === "Bekliyor" ? "#f5f3ff" : tarihiGelmemis ? "#dcfce7" : "#f8fafc";
+                    const rowBorder = durum === "Bekliyor" ? "#ddd6fe" : tarihiGelmemis ? "#86efac" : "#e2e8f0";
+                    const rowShadow = durum === "Bekliyor" ? "0 3px 14px rgba(124,58,237,0.10)" : tarihiGelmemis ? "0 3px 14px rgba(34,197,94,0.12)" : "none";
                     return (
-                      <div key={i} style={{ background: tarihiGelmemis ? "#dcfce7" : "#f8fafc", border: `1px solid ${tarihiGelmemis ? "#86efac" : "#e2e8f0"}`, borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", boxShadow: tarihiGelmemis ? "0 3px 14px rgba(34,197,94,0.12)" : "none" }}>
+                      <div key={i} style={{ background: rowBg, border: `1px solid ${rowBorder}`, borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", boxShadow: rowShadow }}>
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
                             <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a" }}>{row["Personel"]}</span>
