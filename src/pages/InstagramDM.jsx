@@ -79,7 +79,7 @@ export default function InstagramDM() {
       persRows.forEach(row => {
         const name = (row[0] || '').trim();
         const company = (row[1] || '').trim();
-        const email = (row[7] || '').toLowerCase().trim();
+        const email = (row[8] || '').toLowerCase().trim();
         const ownerId = emailToId[email];
         if (name && company && ownerId) ownerList.push({ name, company, email, ownerId });
       });
