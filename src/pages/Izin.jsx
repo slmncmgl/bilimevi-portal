@@ -224,6 +224,10 @@ export default function Izin() {
   const [adminTab, setAdminTab] = useState("bekleyen");
   const [haftaSonuUyari, setHaftaSonuUyari] = useState(null);
   const [tatiller, setTatiller] = useState(new Set());
+  const formCardRef = useRef(null);
+  const [duzenlenenIzin, setDuzenlenenIzin] = useState(null);
+  const [iptalPopup, setIptalPopup] = useState(null);
+  const [iptalLoading, setIptalLoading] = useState(false);
 
   const yarimGun = izinTuru === "Yarım Gün İzin" || izinTuru === "Half Day Leave";
   const digerIzin = DIGER_IZINLER.includes(izinTuru);
@@ -495,6 +499,57 @@ function tarihToDate(str) {
     setBaslangic(""); setBitis("");
   }
 
+  function izinTuruNormalize(raw) {
+    const val = (raw || "").split(" - ")[0].trim();
+    const lower = val.toLowerCase();
+    if (lower.includes("yarım") || lower.includes("half")) return "Yarım Gün İzin";
+    if (lower.includes("yıllık") || lower.includes("annual")) return "Yıllık İzin";
+    if (lower.includes("hastalık") || lower.includes("sick")) return "Hastalık";
+    if (DIGER_IZINLER.includes(val)) return val;
+    return val || "Yıllık İzin";
+  }
+
+  function handleYaklasanDuzenle(iz) {
+    const tur = izinTuruNormalize(iz["İzin Türü"] || iz["Mazeret"]);
+    setDuzenlenenIzin(iz);
+    setIzinTuru(tur);
+    setDigerAcik(false);
+    setBaslangic(dateToInputValue(iz["Başlangıç"]));
+    setBitis(dateToInputValue(iz["Bitiş"]));
+    setAciklama(iz["Açıklama"] || "");
+    setDosya(null);
+    setStatus(null);
+    setTimeout(() => formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  }
+
+  async function handleIptalOnay() {
+    if (!iptalPopup || iptalLoading) return;
+    setIptalLoading(true);
+    try {
+      await fetch(IZIN_YONETIM_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({
+          action: "cancelIzinTalebi",
+          personelAdi: user.name,
+          userEmail: user.email,
+          eskiBaslangic: iptalPopup["Başlangıç"],
+          eskiBitis: iptalPopup["Bitiş"],
+          eskiIslemZamani: iptalPopup["İşlem Zamanı"] || "",
+          izinTuru: iptalPopup["İzin Türü"] || iptalPopup["Mazeret"] || "",
+          markOldLogCanceled: true,
+          canceledRowColor: "#fee2e2",
+        }),
+      });
+      setIptalPopup(null);
+      setStatus({ type: "success", msg: t("Talebiniz iptal edildi.", "Your request has been cancelled.") });
+      await loadData(user.name);
+    } catch (_) {
+      setStatus({ type: "error", msg: t("Talep iptal edilirken hata oluştu.", "An error occurred while cancelling.") });
+    }
+    setIptalLoading(false);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!baslangic) return;
@@ -522,6 +577,7 @@ function tarihToDate(str) {
       }
 
       const formData = {
+        action: duzenlenenIzin ? "updateIzinTalebi" : undefined,
         personelAdi: user.name,
         baslangicTarihi: baslangic,
         bitisTarihi: digerIzin ? baslangic : (yarimGun ? baslangic : bitis),
@@ -540,12 +596,19 @@ function tarihToDate(str) {
         dosyaData,
         dosyaAdi,
         dosyaTipi,
+        eskiBaslangic: duzenlenenIzin?.["Başlangıç"] || "",
+        eskiBitis: duzenlenenIzin?.["Bitiş"] || "",
+        eskiIslemZamani: duzenlenenIzin?.["İşlem Zamanı"] || "",
+        eskiIzinTuru: duzenlenenIzin?.["İzin Türü"] || duzenlenenIzin?.["Mazeret"] || "",
+        markOldLogCanceled: Boolean(duzenlenenIzin),
+        canceledRowColor: "#fee2e2",
       };
 
       await submitIzin(formData);
-      setStatus({ type: "success", msg: t("İzin talebiniz başarıyla kaydedildi!", "Your leave request has been submitted!") });
+      setStatus({ type: "success", msg: duzenlenenIzin ? t("Talebiniz tekrar gönderildi!", "Your request has been resubmitted!") : t("İzin talebiniz başarıyla kaydedildi!", "Your leave request has been submitted!") });
       setBaslangic(""); setBitis(""); setAciklama(""); setDosya(null);
       setIzinTuru("Yıllık İzin");
+      setDuzenlenenIzin(null);
       await loadData(user.name);
     } catch (err) {
       setStatus({ type: "error", msg: t("Kayıt sırasında hata oluştu.", "An error occurred while submitting.") });
@@ -653,8 +716,14 @@ function tarihToDate(str) {
               </div>
 
               {/* Form */}
-              <div style={styles.formCard} className="izin-form-card">
+              <div ref={formCardRef} style={styles.formCard} className="izin-form-card">
                 <h2 style={styles.formCardTitle}>{t("İzin Talep Formu", "Leave Request Form")}</h2>
+                {duzenlenenIzin && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "10px", padding: "10px 12px", marginBottom: "18px", fontSize: "13px", color: "#1d4ed8", fontWeight: "600" }}>
+                    <span>Mevcut talep düzenleniyor: {formatTarih(duzenlenenIzin["Başlangıç"])} – {formatTarih(duzenlenenIzin["Bitiş"])}</span>
+                    <button type="button" onClick={() => { setDuzenlenenIzin(null); setBaslangic(""); setBitis(""); setAciklama(""); setDosya(null); setIzinTuru("Yıllık İzin"); }} style={{ padding: "5px 10px", background: "#fff", border: "1px solid #bfdbfe", borderRadius: "7px", color: "#1d4ed8", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "Calibri, sans-serif" }}>Vazgeç</button>
+                  </div>
+                )}
                 <form onSubmit={handleSubmit} style={styles.form}>
 
                   {/* İzin Türü */}
@@ -817,7 +886,7 @@ function tarihToDate(str) {
                     onMouseEnter={e => !submitDisabled && (e.currentTarget.style.transform = "translateY(-1px)")}
                     onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
                   >
-                    {t("İzin Talebini Gönder", "Submit Leave Request")}
+                    {duzenlenenIzin ? t("Talebi Tekrar Gönder", "Resubmit Request") : t("İzin Talebini Gönder", "Submit Leave Request")}
                   </button>
                 </form>
               </div>
@@ -829,7 +898,7 @@ function tarihToDate(str) {
                 <h3 style={styles.yaklasanTitle}>{t("Şubenizdeki Yaklaşan İzinler", "Upcoming Leaves in Your Branch")}</h3>
                 <div style={styles.yaklasanList}>
                   {yaklasanIzinler.map((iz, i) => (
-                    <YaklasanIzinRow key={i} iz={iz} user={user} birim={birim} scriptUrl={IZIN_YONETIM_SCRIPT_URL} onDone={() => loadData(user.name)} />
+                    <YaklasanIzinRow key={i} iz={iz} user={user} birim={birim} onEdit={handleYaklasanDuzenle} onCancel={setIptalPopup} />
                   ))}
                 </div>
               </div>
@@ -838,6 +907,32 @@ function tarihToDate(str) {
         )}
       </main>
 
+      {/* İptal Popup */}
+      {iptalPopup && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div style={{ background: "#fff", borderRadius: "18px", padding: "26px", maxWidth: "420px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", animation: "fadeUp 0.2s ease" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              </div>
+              <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>Talebi İptal Et</h3>
+            </div>
+            <p style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.6, marginBottom: "18px" }}>
+              {formatTarih(iptalPopup["Başlangıç"])} – {formatTarih(iptalPopup["Bitiş"])} tarihli izin talebinizi iptal etmek istediğinize emin misiniz?
+            </p>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <button onClick={() => setIptalPopup(null)} disabled={iptalLoading}
+                style={{ padding: "9px 14px", background: "#f1f5f9", border: "none", borderRadius: "8px", color: "#64748b", cursor: iptalLoading ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "Calibri, sans-serif" }}>
+                Vazgeç
+              </button>
+              <button onClick={handleIptalOnay} disabled={iptalLoading}
+                style={{ padding: "9px 14px", background: iptalLoading ? "#fca5a5" : "#dc2626", border: "none", borderRadius: "8px", color: "#fff", cursor: iptalLoading ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "700", fontFamily: "Calibri, sans-serif" }}>
+                {iptalLoading ? "İptal Ediliyor..." : "Evet, İptal Et"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Çakışma Popup */}
       {cakismaPopup && (
@@ -936,50 +1031,8 @@ function dateToInputValue(value) {
   return `${y}-${m}-${day}`;
 }
 
-function YaklasanIzinRow({ iz, user, birim, scriptUrl, onDone }) {
+function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
   const benimSatirim = (iz["Personel"] || "").trim().toLowerCase() === (user?.name || "").trim().toLowerCase();
-  const [editing, setEditing] = useState(false);
-  const [baslangic, setBaslangic] = useState(dateToInputValue(iz["Başlangıç"]));
-  const [bitis, setBitis] = useState(dateToInputValue(iz["Bitiş"]));
-  const [aciklama, setAciklama] = useState(iz["Açıklama"] || "");
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
-
-  const originalBaslangic = dateToInputValue(iz["Başlangıç"]);
-  const originalBitis = dateToInputValue(iz["Bitiş"]);
-  const originalAciklama = iz["Açıklama"] || "";
-  const dirty = baslangic !== originalBaslangic || bitis !== originalBitis || aciklama !== originalAciklama;
-
-  async function handleResubmit() {
-    if (!dirty || saving) return;
-    setSaving(true);
-    setMsg("");
-    try {
-      await fetch(scriptUrl, {
-        method: "POST",
-        mode: "no-cors",
-        body: JSON.stringify({
-          action: "updateIzinTalebi",
-          personelAdi: user.name,
-          userEmail: user.email,
-          eskiBaslangic: iz["Başlangıç"],
-          eskiBitis: iz["Bitiş"],
-          eskiIslemZamani: iz["İşlem Zamanı"] || "",
-          baslangicTarihi: baslangic,
-          bitisTarihi: bitis,
-          izinTuru: iz["İzin Türü"] || iz["Mazeret"] || "",
-          aciklama,
-        }),
-      });
-      setMsg("Tekrar gönderildi.");
-      setEditing(false);
-      setTimeout(() => setMsg(""), 3500);
-      if (onDone) setTimeout(onDone, 1200);
-    } catch (_) {
-      setMsg("Gönderim sırasında hata oluştu.");
-    }
-    setSaving(false);
-  }
 
   return (
     <div
@@ -996,29 +1049,17 @@ function YaklasanIzinRow({ iz, user, birim, scriptUrl, onDone }) {
       <div style={{ flex: 1 }}>
         <div style={styles.yaklasanIsim}>{iz["Personel"]}{benimSatirim ? " · Benim iznim" : ""}</div>
         <div style={styles.yaklasanTur}>{(iz["İzin Türü"] || iz["Mazeret"] || "").split(" - ")[0]}</div>
-        {editing ? (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
-            <input type="date" value={baslangic} onChange={e => setBaslangic(e.target.value)} style={styles.input} />
-            <input type="date" value={bitis} min={baslangic || undefined} onChange={e => setBitis(e.target.value)} style={styles.input} />
-            <textarea value={aciklama} onChange={e => setAciklama(e.target.value)} rows={2} placeholder="Açıklama" style={{ ...styles.textarea, gridColumn: "1 / -1" }} />
-          </div>
-        ) : (
-          <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
-        )}
-        {msg && <div style={{ fontSize: "12px", color: msg.includes("hata") ? "#dc2626" : "#059669", marginTop: "6px", fontWeight: "600" }}>{msg}</div>}
+        <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
         <div style={styles.yaklasanBadge}>{iz["Gün Sayısı"] || iz["Talep Edilen İzin Günü"]} {birim}</div>
-        {benimSatirim && !editing && (
-          <button onClick={() => setEditing(true)} style={styles.editBtn}>Düzenle</button>
-        )}
-        {benimSatirim && editing && (
+        {benimSatirim && (
           <>
-            <button onClick={handleResubmit} disabled={!dirty || saving}
-              style={{ padding: "6px 12px", background: dirty && !saving ? "#2563eb" : "#bfdbfe", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: dirty && !saving ? "pointer" : "not-allowed", fontFamily: "Calibri, sans-serif" }}>
-              {saving ? "Gönderiliyor..." : (dirty ? "Tekrar Gönder" : "Düzenle")}
+            <button onClick={() => onEdit(iz)} style={styles.editBtn}>Düzenle</button>
+            <button onClick={() => onCancel(iz)}
+              style={{ padding: "6px 12px", background: "#dc2626", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
+              Talebi İptal Et
             </button>
-            <button onClick={() => { setEditing(false); setBaslangic(originalBaslangic); setBitis(originalBitis); setAciklama(originalAciklama); }} disabled={saving} style={styles.cancelBtn}>İptal</button>
           </>
         )}
       </div>
@@ -1845,12 +1886,13 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                     <tbody>
                       {islemGecmisi.map((row, i) => {
                         const durum = row["Durum"] || "";
-                        const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Reddedildi" ? "#dc2626" : durum === "Bekliyor" ? "#d97706" : "#64748b";
-                        const durumBg   = durum === "Onaylandı" ? "#ecfdf5" : durum === "Reddedildi" ? "#fef2f2" : durum === "Bekliyor" ? "#fef3c7" : "#f1f5f9";
+                        const iptalDurumu = durum.toLowerCase().includes("iptal");
+                        const durumColor = iptalDurumu ? "#dc2626" : durum === "Onaylandı" ? "#059669" : durum === "Reddedildi" ? "#dc2626" : durum === "Bekliyor" ? "#d97706" : "#64748b";
+                        const durumBg   = iptalDurumu ? "#fee2e2" : durum === "Onaylandı" ? "#ecfdf5" : durum === "Reddedildi" ? "#fef2f2" : durum === "Bekliyor" ? "#fef3c7" : "#f1f5f9";
                         const tarihRaw = row["İşlem Zamanı"];
                         const tarih = tarihRaw ? new Date(tarihRaw).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
                         return (
-                          <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                          <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: iptalDurumu ? "#fef2f2" : i % 2 === 0 ? "#fff" : "#fafafa" }}>
                             <td style={{ padding: "10px 12px", color: "#64748b", whiteSpace: "nowrap", fontSize: "12px" }}>{tarih}</td>
                             <td style={{ padding: "10px 12px", fontWeight: "600", color: "#0f172a", whiteSpace: "nowrap" }}>{row["Personel"]}</td>
                             <td style={{ padding: "10px 12px", color: "#475569", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(row["İzin Türü"] || row["Mazeret"] || "").split(" - ")[0]}</td>
