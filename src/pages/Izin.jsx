@@ -314,15 +314,21 @@ export default function Izin() {
     return d.toISOString().split("T")[0];
   }
 
-  function tarihToDate(str) {
-    if (!str) return null;
-    // DD.MM.YYYY veya YYYY-MM-DD veya M/D/YYYY
-    if (str.includes(".")) {
-      const [d, m, y] = str.split(".");
-      return new Date(`${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`);
-    }
-    if (str.includes("/")) {
-      const parts = str.split("/");
+function tarihToDate(str) {
+  if (!str) return null;
+  str = String(str).trim();
+  const onlyDate = str.split(" ")[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(onlyDate)) {
+    const [y, m, d] = onlyDate.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  // DD.MM.YYYY veya YYYY-MM-DD veya M/D/YYYY
+  if (str.includes(".")) {
+    const [d, m, y] = str.split(" ")[0].split(".");
+    return new Date(`${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`);
+  }
+  if (str.includes("/")) {
+    const parts = str.split(" ")[0].split("/");
       if (parts[2]?.length === 4) {
         const first = Number(parts[0]);
         const second = Number(parts[1]);
@@ -1034,8 +1040,14 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
       const csv = await fetchSheetCSV("İşlemler");
       const rows = parseCSVWithCols(csv).map(r => ({
         ...r,
+        "Personel": r["Personel"] || r.__cols?.[1] || "",
         "Başlangıç": r["Başlangıç"] || r.__cols?.[2] || "",
         "Bitiş": r["Bitiş"] || r.__cols?.[3] || "",
+        "Talep Edilen İzin Günü": r["Talep Edilen İzin Günü"] || r.__cols?.[6] || "",
+        "İzin Türü": r["İzin Türü"] || r.__cols?.[8] || "",
+        "Mail Adresi": r["Mail Adresi"] || r.__cols?.[9] || "",
+        "Durum": r["Durum"] || r.__cols?.[10] || "",
+        "Açıklama": r["Açıklama"] || r.__cols?.[11] || "",
       }));
       const { start, end } = getYaklasanRange(yaklasanPeriod);
       const izinliIsimler = list.map(p => (p["Ad Soyad"] || "").trim().toLowerCase());
@@ -1043,16 +1055,14 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
         .filter(r => r["Personel"] && izinliIsimler.includes((r["Personel"] || "").trim().toLowerCase()))
         .filter(r => (r["Durum"] || "").trim() !== "Reddedildi")
         .filter(r => {
-          const baslangicDegeri = r["Başlangıç"] || r.__cols?.[2] || "";
-          const bitisDegeri = r["Bitiş"] || r.__cols?.[3] || "";
-          const bas = tarihToDate(baslangicDegeri);
-          const bit = tarihToDate(bitisDegeri) || bas;
+          const bas = tarihToDate(r["Başlangıç"]);
+          const bit = tarihToDate(r["Bitiş"]) || bas;
           if (!bas || !bit || isNaN(bas.getTime()) || isNaN(bit.getTime())) return false;
           bas.setHours(0,0,0,0);
           bit.setHours(23,59,59,999);
           return bas <= end && bit >= start;
         })
-        .sort((a, b) => (tarihToDate(a["Başlangıç"] || a.__cols?.[2]) || 0) - (tarihToDate(b["Başlangıç"] || b.__cols?.[2]) || 0));
+        .sort((a, b) => (tarihToDate(a["Başlangıç"]) || 0) - (tarihToDate(b["Başlangıç"]) || 0));
       setYaklasanIzinlerAdmin(filtered);
     } catch (_) { setYaklasanIzinlerAdmin([]); }
     setYaklasanLoading(false);
