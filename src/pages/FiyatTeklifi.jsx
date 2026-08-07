@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v71-mobil-uyum-2026-08-05";
+const BFT_BUILD_VERSION = "v73-kurs-dil-etiketi-2026-08-05";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -275,7 +275,7 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
     courseRows.filter(r => r.city === city).forEach(r => {
       if (!courseMap[r.course_name]) {
         courseMap[r.course_name] = {
-          name: r.course_name, turkishName: (r.turkish_name || "").trim(), type: r.program_type || "General",
+          name: r.course_name, turkishName: (r.turkish_name || "").trim(), language: (r.language || "").trim(), type: r.program_type || "General",
           lessons: parseFloat(r.lessons_per_week) || 0, hours: parseFloat(r.hours_per_week) || 0,
           currency: r.currency, hs_supp: parseFloat(r.high_season_supplement) || 0,
           hs_start: r.high_season_start || "", hs_end: r.high_season_end || "",
@@ -495,6 +495,32 @@ function courseLabel(course) {
   const tr = (course.turkishName || "").trim();
   const invalid = !tr || tr.startsWith("#") || /^n\/?a$/i.test(tr);
   return invalid ? (course.name || "") : tr;
+}
+
+// Dil değeri → Türkçe karşılık (sheet İngilizce/karışık gelebilir). Bilinmeyen → olduğu gibi.
+const LANG_TR = {
+  english: "İngilizce", german: "Almanca", french: "Fransızca", spanish: "İspanyolca",
+  italian: "İtalyanca", "i̇ngilizce": "İngilizce", ingilizce: "İngilizce", almanca: "Almanca",
+  fransızca: "Fransızca", "fransizca": "Fransızca", ispanyolca: "İspanyolca", italyanca: "İtalyanca",
+};
+function langTR(lang) {
+  const k = (lang || "").trim().toLowerCase();
+  return LANG_TR[k] || (lang || "").trim();
+}
+// course_name'de herhangi bir dil adı (İng/Tür) geçiyor mu? Geçiyorsa etiket eklenmez.
+function courseNameHasLanguage(name) {
+  const n = (name || "").toLowerCase();
+  return /\b(english|i̇ngilizce|ingilizce|german|almanca|french|fransızca|fransizca|spanish|i̇spanyolca|ispanyolca|italian|i̇talyanca|italyanca)\b/i.test(n);
+}
+// Gösterilecek kurs adı + (koşullu) dil etiketi.
+// mode "tr" → Türkçe kurs adı + Türkçe dil; mode "orig" → orijinal course_name + ham language.
+function courseWithLang(course, mode) {
+  if (!course) return "";
+  const base = mode === "orig" ? (course.name || "") : courseLabel(course);
+  const rawLang = (course.language || "").trim();
+  if (!rawLang || courseNameHasLanguage(course.name)) return base;   // istisna: adında dil geçiyorsa ekleme
+  const lang = mode === "orig" ? rawLang : langTR(rawLang);          // staff ekran: ham; diğer: Türkçe
+  return `${base} - ${lang}`;
 }
 
 function calcFees(fees, weeks, age, accType, accWeeks) {
@@ -1056,7 +1082,7 @@ export default function FiyatTeklifi() {
         doc.setFontSize(10); doc.setTextColor(17);
         if (d.selectedPackage) {
           doc.text("Paket", MARGIN, y);
-          doc.text(d.course ? courseLabel(d.course) : (d.selectedPackage.course_name || ""), MARGIN + 32, y);
+          doc.text(d.course ? courseWithLang(d.course, "tr") : (d.selectedPackage.course_name || ""), MARGIN + 32, y);
           doc.text(money(d.selectedPackage.package_price), PAGE_W - MARGIN, y, { align:"right" });
           y += 5;
           doc.setFontSize(8); doc.setTextColor(85);
@@ -1074,7 +1100,7 @@ export default function FiyatTeklifi() {
           doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
         } else {
         doc.text("Kurs", MARGIN, y);
-        doc.text(`${d.brand} — ${courseLabel(d.course)}`, MARGIN + 32, y);
+        doc.text(`${d.brand} — ${courseWithLang(d.course, "tr")}`, MARGIN + 32, y);
         doc.text(money(d.courseBasePrice), PAGE_W - MARGIN, y, { align:"right" });
         y += 5;
         doc.setFontSize(8); doc.setTextColor(85);
@@ -1635,7 +1661,7 @@ export default function FiyatTeklifi() {
               {cur.isOnline && <>
                 <p style={S.slbl}>PAKET SEÇİMİ</p>
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                  {EC_LIVE.map((c,i) => (<div key={i} style={cur.course?.name===c.name ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, course:c}))}><strong>{c.name}</strong><span style={{ marginLeft:8, color:"#64748b", fontSize:12 }}>{c.hours} saat/hafta · €{c.tiers[0].price}/haftadan</span></div>))}
+                  {EC_LIVE.map((c,i) => (<div key={i} style={cur.course?.name===c.name ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, course:c}))}><strong>{c.name}</strong><span style={{ marginLeft:8, color:"#64748b", fontSize:12 }}>{c.hours > 0 ? `${c.hours} saat/hafta · ` : ""}€{c.tiers[0].price}/haftadan</span></div>))}
                 </div>
                 {cur.course && <div style={{ marginTop:10, padding:"8px 12px", background:"#f0fdff", border:`1px solid ${CYAN}`, borderRadius:8, fontSize:12, color:CYAN }}>✓ Online kurs seçildi — konaklama adımı atlanacak</div>}
               </>}
@@ -1682,7 +1708,7 @@ export default function FiyatTeklifi() {
                           onClick={() => setCur(p => ({...p, selectedPackage: pkg, course: matchCourse || p.course, noAccommodation: false, acc: null, transfer: packageIncludesTransfer(pkg) ? null : p.transfer }))}>
                           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                             <div style={{ flex:1 }}>
-                              <div style={{ fontWeight:700, fontSize:14, color: sel ? CYAN : "#0f172a" }}>{matchCourse ? courseLabel(matchCourse) : pkg.course_name}</div>
+                              <div style={{ fontWeight:700, fontSize:14, color: sel ? CYAN : "#0f172a" }}>{matchCourse ? (isStaff ? courseWithLang(matchCourse, "orig") : courseWithLang(matchCourse, "tr")) : pkg.course_name}</div>
                               <div style={{ fontSize:11, color:"#10b981", fontWeight:600, marginTop:3 }}>{pkg.package_type === "with_accommodation" ? "✓ Konaklama Dahil Paket" : "Konaklama Hariç Paket"}</div>
                               {pkg.includes_tr && <div style={{ fontSize:11, color:"#64748b", marginTop:5, lineHeight:1.5 }}>Dahil: {pkg.includes_tr}</div>}
                             </div>
@@ -1701,8 +1727,12 @@ export default function FiyatTeklifi() {
                       {courses.map((c,i) => {
                         const valid = isCourseValid(c, cur.weeks), sel = !cur.selectedPackage && cur.course?.name === c.name;
                         return (<div key={i} style={sel ? S.selActive : valid ? S.sel : S.selDisabled} onClick={() => valid && setCur(p => ({...p, course:c, selectedPackage:null}))}>
-                          <div style={{ fontWeight:600 }}>{courseLabel(c)}</div>
-                          <div style={{ fontSize:11, color: sel?"inherit":"#0d9488", marginTop:3, fontWeight:500 }}>{c.lessons} ders · {c.hours} saat/hafta</div>
+                          <div style={{ fontWeight:600 }}>{isStaff ? courseWithLang(c, "orig") : courseWithLang(c, "tr")}</div>
+                          {(c.lessons > 0 || c.hours > 0) && (
+                            <div style={{ fontSize:11, color: sel?"inherit":"#0d9488", marginTop:3, fontWeight:500 }}>
+                              {[c.lessons > 0 ? `${c.lessons} ders` : null, c.hours > 0 ? `${c.hours} saat/hafta` : null].filter(Boolean).join(" · ")}
+                            </div>
+                          )}
                           {c.max_weeks && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>Maks. {c.max_weeks} hafta</div>}
                           {!valid && <div style={{ fontSize:11, color:"#ef4444", marginTop:2 }}>Bu hafta için geçersiz</div>}
                         </div>);
@@ -1711,7 +1741,7 @@ export default function FiyatTeklifi() {
                   )}
                 </>);
               })()}
-              {cur.isOnline && cur.course && (<div style={{ padding:"14px 16px", background:"#f0fdff", border:`1.5px solid ${CYAN}`, borderRadius:12 }}><strong>{courseLabel(cur.course)}</strong> — {cur.course.hours} saat/hafta<br/><span style={{ fontSize:12, color:"#64748b" }}>{cur.weeks} hafta · €{getPrice(cur.course, cur.weeks).toLocaleString("tr-TR")}</span></div>)}
+              {cur.isOnline && cur.course && (<div style={{ padding:"14px 16px", background:"#f0fdff", border:`1.5px solid ${CYAN}`, borderRadius:12 }}><strong>{isStaff ? courseWithLang(cur.course, "orig") : courseWithLang(cur.course, "tr")}</strong>{cur.course.hours > 0 ? ` — ${cur.course.hours} saat/hafta` : ""}<br/><span style={{ fontSize:12, color:"#64748b" }}>{cur.weeks} hafta · €{getPrice(cur.course, cur.weeks).toLocaleString("tr-TR")}</span></div>)}
             </div>
           )}
 
@@ -1892,11 +1922,11 @@ export default function FiyatTeklifi() {
                     <div style={{ marginBottom:10 }}>
                       <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>{d.selectedPackage ? "Paket Program" : "Kurs"}</div>
                       {d.selectedPackage ? (<>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.course ? courseLabel(d.course) : d.selectedPackage.course_name}</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.selectedPackage.package_price, cur2)}</span>}</div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.course ? (isStaff ? courseWithLang(d.course, "orig") : courseWithLang(d.course, "tr")) : d.selectedPackage.course_name}</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.selectedPackage.package_price, cur2)}</span>}</div>
                         <div style={{ fontSize:11, color:"#10b981", fontWeight:600, marginTop:3 }}>{d.selectedPackage.package_type === "with_accommodation" ? "✓ Konaklama Dahil" : "Konaklama Hariç"}</div>
                         {d.selectedPackage.includes_tr && <div style={{ fontSize:11, color:"#64748b", marginTop:4, lineHeight:1.5 }}>Dahil: {d.selectedPackage.includes_tr}</div>}
                       </>) : (<>
-                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{courseLabel(d.course)}</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span>}</div>
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{isStaff ? courseWithLang(d.course, "orig") : courseWithLang(d.course, "tr")}</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.courseBasePrice, cur2)}</span>}</div>
                       {d.courseHsAmount > 0 && (<>
                         <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.courseHsStart)} – {formatDateShort(d.courseHsEnd)})</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.courseHsAmount, cur2)}</span>}</div>
 
@@ -1952,7 +1982,7 @@ export default function FiyatTeklifi() {
           <h3 style={S.sideTtl}>Anlık Özet</h3>
           <div style={S.liveBox}>
             {cur.lang && <div style={{ marginBottom:4 }}>📍 {cur.lang}{cur.country ? ` / ${cur.country}` : ""}{cur.city ? ` / ${cur.city}` : ""}</div>}
-            {cur.course && <div style={{ marginBottom:4 }}>📚 {courseLabel(cur.course)} ({cur.weeks}h)</div>}
+            {cur.course && <div style={{ marginBottom:4 }}>📚 {courseWithLang(cur.course, "orig")} ({cur.weeks}h)</div>}
             {cur.acc && <div style={{ marginBottom:4 }}>🏠 {cur.acc.name}</div>}
             {courseTotal > 0 && isCourseValid(cur.course, cur.weeks) && (
               <div style={S.liveTotal}>
@@ -1966,7 +1996,7 @@ export default function FiyatTeklifi() {
               </div>
             )}
           </div>
-          {destinations.length > 0 && destinations.map((d,i) => (<div key={i} style={{ fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" }}><strong>{d.city}</strong> · {d.weeks}h · {courseLabel(d.course)?.slice(0,20)}</div>))}
+          {destinations.length > 0 && destinations.map((d,i) => (<div key={i} style={{ fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" }}><strong>{d.city}</strong> · {d.weeks}h · {courseWithLang(d.course, "orig")?.slice(0,24)}</div>))}
           {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={S.pdfBtn}>📄 PDF Oluştur</button>)}
         </aside>}
       </div>
