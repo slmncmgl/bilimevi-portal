@@ -696,7 +696,7 @@ export default function AnketRaporu() {
             Dashboard
           </button>
           <div style={styles.headerTitleWrap}>
-            <h1 style={styles.headerTitle}>Anket Raporu</h1>
+            <h1 style={styles.headerTitle}>Yaz Okulu Memnuniyet Anketi Raporu</h1>
             <span style={styles.versionTag}>{VERSION}</span>
           </div>
         </div>
