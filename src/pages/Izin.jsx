@@ -1051,6 +1051,25 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
       }));
       const { start, end } = getYaklasanRange(yaklasanPeriod);
       const izinliIsimler = list.map(p => (p["Ad Soyad"] || "").trim().toLowerCase());
+      console.log("[Yaklaşan Debug] period/range", {
+        yaklasanPeriod,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        personelListCount: list.length,
+        izinliIsimler: izinliIsimler.slice(0, 20),
+        rowsCount: rows.length,
+        sampleRows: rows.slice(0, 10).map(r => ({
+          personel: r["Personel"],
+          baslangic: r["Başlangıç"],
+          bitis: r["Bitiş"],
+          durum: r["Durum"],
+          tur: r["İzin Türü"],
+          gun: r["Talep Edilen İzin Günü"],
+          inList: izinliIsimler.includes((r["Personel"] || "").trim().toLowerCase()),
+          basParsed: tarihToDate(r["Başlangıç"]),
+          bitParsed: tarihToDate(r["Bitiş"]),
+        })),
+      });
       const filtered = rows
         .filter(r => r["Personel"] && izinliIsimler.includes((r["Personel"] || "").trim().toLowerCase()))
         .filter(r => (r["Durum"] || "").trim() !== "Reddedildi")
@@ -1063,8 +1082,22 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           return bas <= end && bit >= start;
         })
         .sort((a, b) => (tarihToDate(a["Başlangıç"]) || 0) - (tarihToDate(b["Başlangıç"]) || 0));
+      console.log("[Yaklaşan Debug] filtered", {
+        count: filtered.length,
+        rows: filtered.map(r => ({
+          personel: r["Personel"],
+          baslangic: r["Başlangıç"],
+          bitis: r["Bitiş"],
+          durum: r["Durum"],
+          tur: r["İzin Türü"],
+          gun: r["Talep Edilen İzin Günü"],
+        })),
+      });
       setYaklasanIzinlerAdmin(filtered);
-    } catch (_) { setYaklasanIzinlerAdmin([]); }
+    } catch (err) {
+      console.error("[Yaklaşan Debug] hata", err);
+      setYaklasanIzinlerAdmin([]);
+    }
     setYaklasanLoading(false);
   }
 
