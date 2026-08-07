@@ -1234,8 +1234,9 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     const today = new Date();
     today.setHours(0,0,0,0);
     if (period === "buAy") {
+      // İçinde bulunduğumuz takvim ayının tamamı (geçmiş günler dahil)
       return {
-        start: today,
+        start: new Date(today.getFullYear(), today.getMonth(), 1),
         end: new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
       };
     }
@@ -1245,14 +1246,17 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
         end: new Date(today.getFullYear(), today.getMonth() + 2, 0, 23, 59, 59, 999)
       };
     }
-    const nextMonday = new Date(today);
-    const day = today.getDay();
-    const daysUntilNextMonday = day === 0 ? 1 : 8 - day;
-    nextMonday.setDate(today.getDate() + daysUntilNextMonday);
-    const nextSunday = new Date(nextMonday);
-    nextSunday.setDate(nextMonday.getDate() + 6);
-    nextSunday.setHours(23, 59, 59, 999);
-    return { start: nextMonday, end: nextSunday };
+    // Gelecek Hafta = bugünden itibaren sonraki 5 iş günü
+    const start = new Date(today);
+    const end = new Date(today);
+    let isGunuSayaci = 0;
+    while (isGunuSayaci < 5) {
+      end.setDate(end.getDate() + 1);
+      const gun = end.getDay();
+      if (gun !== 0 && gun !== 6) isGunuSayaci++;
+    }
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
   }
 
   async function fetchYaklasan() {
@@ -1859,15 +1863,8 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                     const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#c2410c" : "#64748b";
                     const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#ffedd5" : "#f1f5f9";
                     const emp = list.find(p => p["Ad Soyad"] === row["Personel"]) || {};
-                    const baslangicDate = adminTarihToDate(row["Başlangıç"]);
-                    const today = new Date();
-                    today.setHours(0,0,0,0);
-                    const tarihiGelmemis = yaklasanPeriod === "buAy" && baslangicDate && baslangicDate > today;
-                    const rowBg = durum === "Bekliyor" ? "#fff7ed" : tarihiGelmemis ? "#dcfce7" : "#f8fafc";
-                    const rowBorder = durum === "Bekliyor" ? "#fed7aa" : tarihiGelmemis ? "#86efac" : "#e2e8f0";
-                    const rowShadow = durum === "Bekliyor" ? "0 3px 14px rgba(249,115,22,0.10)" : tarihiGelmemis ? "0 3px 14px rgba(34,197,94,0.12)" : "none";
                     return (
-                      <div key={i} style={{ background: rowBg, border: `1px solid ${rowBorder}`, borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", boxShadow: rowShadow }}>
+                      <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
                             <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a" }}>{row["Personel"]}</span>
