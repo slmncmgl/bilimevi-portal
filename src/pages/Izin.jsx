@@ -538,6 +538,8 @@ function tarihToDate(str) {
           eskiIslemZamani: iptalPopup["İşlem Zamanı"] || "",
           izinTuru: iptalPopup["İzin Türü"] || iptalPopup["Mazeret"] || "",
           markOldLogCanceled: true,
+          oldLogStatus: "İptal Edildi",
+          oldLogNote: "Kullanıcı talebi iptal etti",
           canceledRowColor: "#fee2e2",
         }),
       });
@@ -601,6 +603,8 @@ function tarihToDate(str) {
         eskiIslemZamani: duzenlenenIzin?.["İşlem Zamanı"] || "",
         eskiIzinTuru: duzenlenenIzin?.["İzin Türü"] || duzenlenenIzin?.["Mazeret"] || "",
         markOldLogCanceled: Boolean(duzenlenenIzin),
+        oldLogStatus: duzenlenenIzin ? "İptal Edildi - Tekrar Gönderildi" : "",
+        oldLogNote: duzenlenenIzin ? "Kullanıcı talebi düzenleyip tekrar gönderdi" : "",
         canceledRowColor: "#fee2e2",
       };
 
