@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v74-okul-sil-onay-2026-08-05";
+const BFT_BUILD_VERSION = "v75-anlik-ozet-okul-2026-08-05";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1987,7 +1987,7 @@ export default function FiyatTeklifi() {
         {isStaff && <aside style={S.side} className="bft-side">
           <h3 style={S.sideTtl}>Anlık Özet</h3>
           <div style={S.liveBox}>
-            {cur.lang && <div style={{ marginBottom:4 }}>📍 {cur.lang}{cur.country ? ` / ${cur.country}` : ""}{cur.city ? ` / ${cur.city}` : ""}</div>}
+            {cur.lang && <div style={{ marginBottom:4 }}>📍 {cur.lang}{cur.country ? ` / ${cur.country}` : ""}{cur.city ? ` / ${cur.city}` : ""}{cur.brand ? ` / ${cur.brand}` : ""}</div>}
             {cur.course && <div style={{ marginBottom:4 }}>📚 {courseWithLang(cur.course, "orig")} ({cur.weeks}h)</div>}
             {cur.acc && <div style={{ marginBottom:4 }}>🏠 {cur.acc.name}</div>}
             {courseTotal > 0 && isCourseValid(cur.course, cur.weeks) && (
@@ -2002,7 +2002,7 @@ export default function FiyatTeklifi() {
               </div>
             )}
           </div>
-          {destinations.length > 0 && destinations.map((d,i) => (<div key={i} style={{ fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" }}><strong>{d.city}</strong> · {d.weeks}h · {courseWithLang(d.course, "orig")?.slice(0,24)}</div>))}
+          {destinations.length > 0 && destinations.map((d,i) => (<div key={i} style={{ fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" }}><strong>{d.brand || d.city}</strong>{d.brand && d.city ? ` · ${d.city}` : ""} · {d.weeks}h · {courseWithLang(d.course, "orig")?.slice(0,24)}</div>))}
           {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={S.pdfBtn}>📄 PDF Oluştur</button>)}
         </aside>}
       </div>
