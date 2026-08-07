@@ -3,25 +3,21 @@ import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 import { IZIN_YONETIM_SCRIPT_URL } from "../config";
-
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 // SİL: yerel const SCRIPT_URL tanımı kaldırıldı
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
-
 async function fetchRoller() {
   const csv = await fetchSheetCSV("Roller");
   const lines = csv.trim().split("\n");
   return lines.slice(0).map(l => l.replace(/^"|"$/g, "").trim()).filter(Boolean);
 }
-
 async function fetchSheetCSV(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Sheet okunamadı");
   return res.text();
 }
-
 function parseCSV(csv) {
   const lines = csv.trim().split("\n");
   const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
@@ -39,7 +35,6 @@ function parseCSV(csv) {
     return row;
   });
 }
-
 function parseCSVWithCols(csv) {
   const lines = csv.trim().split("\n");
   const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
@@ -57,29 +52,24 @@ function parseCSVWithCols(csv) {
     return row;
   });
 }
-
 async function fetchPersonelData(name) {
   const csv = await fetchSheetCSV("Personel");
   const rows = parseCSV(csv);
   return rows.find(r => r["Ad Soyad"] === name) || null;
 }
-
 async function fetchModuller(name) {
   const csv = await fetchSheetCSV("Modüller");
   const rows = parseCSV(csv);
   return rows.find(r => r["Ad Soyad"] === name) || null;
 }
-
 async function fetchTumPersonel() {
   const csv = await fetchSheetCSV("Personel");
   return parseCSV(csv).filter(r => r["Ad Soyad"]);
 }
-
 async function fetchIslemler() {
   const csv = await fetchSheetCSV("İşlemler");
   return parseCSV(csv).filter(r => r["Personel"]);
 }
-
 async function fetchIzinSureleri() {
   const csv = await fetchSheetCSV("İzin Süreleri");
   const rows = parseCSV(csv);
@@ -87,7 +77,6 @@ async function fetchIzinSureleri() {
   rows.forEach(r => { if (r["İzinler"]) map[r["İzinler"]] = Number(r["Süre"]) || 0; });
   return map;
 }
-
 // Resmi tatilleri Nager.Date API'den çeker (TR veya IE)
 async function fetchTatiller(ulkeKodu, yillar) {
   const tatilSet = new Set();
@@ -101,7 +90,6 @@ async function fetchTatiller(ulkeKodu, yillar) {
   } catch (_) {}
   return tatilSet;
 }
-
 async function submitIzin(data) {
   await fetch(IZIN_YONETIM_SCRIPT_URL, {
     method: "POST",
@@ -110,7 +98,6 @@ async function submitIzin(data) {
   });
   return true;
 }
-
 function sonrakiHakedis(girisDateStr) {
   if (!girisDateStr) return null;
   const parts = girisDateStr.split(".");
@@ -123,7 +110,6 @@ function sonrakiHakedis(girisDateStr) {
   if (hakedis <= bugun) hakedis = new Date(buYil + 1, ay, gun);
   return hakedis.toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 }
-
 function isGunuHesapla(baslangic, bitis, tatilSet) {
   if (!baslangic || !bitis) return 0;
   const start = new Date(baslangic);
@@ -140,7 +126,6 @@ function isGunuHesapla(baslangic, bitis, tatilSet) {
   }
   return count;
 }
-
 // Tarih aralığındaki resmi tatil sayısını döndürür (hafta içi olanlar)
 function tatilSayisiHesapla(baslangic, bitis, tatilSet) {
   if (!baslangic || !bitis || !tatilSet) return 0;
@@ -157,7 +142,6 @@ function tatilSayisiHesapla(baslangic, bitis, tatilSet) {
   }
   return count;
 }
-
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -166,21 +150,18 @@ function fileToBase64(file) {
     reader.readAsDataURL(file);
   });
 }
-
 function formatTarih(dateStr) {
   if (!dateStr) return "";
   const tarihObj = new Date(dateStr.replace(/-/g, "/"));
   if (isNaN(tarihObj.getTime())) return dateStr;
   return tarihObj.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 }
-
 function isHaftaSonu(dateStr) {
   if (!dateStr) return false;
   const d = new Date(dateStr);
   const gun = d.getDay();
   return gun === 0 || gun === 6;
 }
-
 function sonrakiIsGununeKaydir(dateStr) {
   const d = new Date(dateStr);
   while (d.getDay() === 0 || d.getDay() === 6) {
@@ -188,7 +169,6 @@ function sonrakiIsGununeKaydir(dateStr) {
   }
   return d.toISOString().split("T")[0];
 }
-
 function oncekiIsGununeKaydir(dateStr) {
   const d = new Date(dateStr);
   while (d.getDay() === 0 || d.getDay() === 6) {
@@ -196,10 +176,8 @@ function oncekiIsGununeKaydir(dateStr) {
   }
   return d.toISOString().split("T")[0];
 }
-
 const ANA_IZINLER = ["Yıllık İzin", "Yarım Gün İzin", "Hastalık", "Diğer"];
 const ANA_IZINLER_EN = ["Annual Leave", "Half Day Leave", "Sick Leave", "Other"];
-
 export default function Izin() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -228,7 +206,6 @@ export default function Izin() {
   const [duzenlenenIzin, setDuzenlenenIzin] = useState(null);
   const [iptalPopup, setIptalPopup] = useState(null);
   const [iptalLoading, setIptalLoading] = useState(false);
-
   const yarimGun = izinTuru === "Yarım Gün İzin" || izinTuru === "Half Day Leave";
   const digerIzin = DIGER_IZINLER.includes(izinTuru);
   const hastalık = izinTuru === "Hastalık" || izinTuru === "Sick Leave";
@@ -236,16 +213,13 @@ export default function Izin() {
   const isFortis = personel?.["Şirket"] === "Fortis";
   const birim = isFortis ? "hour" : "gün";
   const t = (tr, en) => isFortis ? en : tr;
-
   // Gün sayısı hesapla
   let isGunu = 0;
   if (yarimGun) isGunu = 0.5;
   else if (digerIzin) isGunu = izinSureleri[izinTuru] || 0;
   else if (baslangic && bitis) isGunu = isGunuHesapla(baslangic, bitis, tatiller);
-
   const araliktakiTatilSayisi = (baslangic && bitis && !yarimGun && !digerIzin)
     ? tatilSayisiHesapla(baslangic, bitis, tatiller) : 0;
-
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/"); return; }
@@ -260,7 +234,6 @@ export default function Izin() {
       if (params.get("tab") === "bekleyen") { setAdminView(true); setAdminTab("bekleyen"); }
     }
   }, []);
-
   async function loadData(name) {
     setDataLoading(true);
     try {
@@ -276,7 +249,6 @@ export default function Izin() {
       const currentSession = getSession();
       const gorIzni = (currentSession?.rol || currentSession?.title || "staff").toLowerCase().trim();
       setRol(gorIzni);
-
       const bugun = new Date();
       bugun.setHours(0, 0, 0, 0);
       const subePersonel = tumPersonel.filter(p =>
@@ -302,7 +274,6 @@ export default function Izin() {
       });
       setYaklasanIzinler(gelecek);
       setIslemlerCache(islemler);
-
       // Resmi tatilleri çek (Fortis → İrlanda, diğerleri → Türkiye)
       const ulkeKodu = data?.["Şirket"] === "Fortis" ? "IE" : "TR";
       const buYil = new Date().getFullYear();
@@ -311,13 +282,10 @@ export default function Izin() {
     } catch (_) {}
     setDataLoading(false);
   }
-
-
   function isTarihiMi(d) {
     const gun = d.getDay();
     return gun !== 0 && gun !== 6;
   }
-
   function sonrakiIsGunuTarih(dateStr, delta) {
     const d = new Date(dateStr);
     let adim = delta > 0 ? 1 : -1;
@@ -328,7 +296,6 @@ export default function Izin() {
     }
     return d.toISOString().split("T")[0];
   }
-
 function tarihToDate(str) {
   if (!str) return null;
   str = String(str).trim();
@@ -354,7 +321,6 @@ function tarihToDate(str) {
     }
     return new Date(str);
   }
-
   function cakismaKontrol(bas, bit) {
     if (!bas || !bit || !personel) return; // iki tarih de dolu olmalı
     const bitStr = bit || bas;
@@ -362,11 +328,9 @@ function tarihToDate(str) {
     const yeniBit = new Date(bitStr);
     yeniBas.setHours(0,0,0,0);
     yeniBit.setHours(23,59,59,0);
-
     const subeSirket = personel["Şirket"];
     const subeSube = personel["Şube"];
     const benimAd = personel["Ad Soyad"];
-
     const cakisanlar = islemlerCache.filter(row => {
       if (row["Personel"] === benimAd) return false;
       // Aynı şube mi?
@@ -374,10 +338,8 @@ function tarihToDate(str) {
       // Ama yaklasanIzinler zaten şube filtreli — ondan bakalım
       return true;
     });
-
     // yaklasanIzinler zaten aynı şubedeki izinler
     const subeIzinler = yaklasanIzinler.filter(row => row["Personel"] !== benimAd);
-
     const cakisan = subeIzinler.filter(row => {
       const rowBas = tarihToDate(row["Başlangıç"]);
       const rowBit = tarihToDate(row["Bitiş"]);
@@ -386,19 +348,15 @@ function tarihToDate(str) {
       rowBit.setHours(23,59,59,0);
       return yeniBas <= rowBit && yeniBit >= rowBas;
     });
-
     if (cakisan.length === 0) { setCakismaPopup(null); return; }
-
     const kisiler = cakisan.map(r => ({
       ad: r["Personel"],
       bas: formatTarih(r["Başlangıç"]),
       bit: formatTarih(r["Bitiş"])
     }));
-
     // Gün sayısını koru, izin bloğunu kaydır
     // İzin süresi (takvim günü)
     const gunSayisi = Math.round((yeniBit - yeniBas) / (1000 * 60 * 60 * 24));
-
     // En erken çakışan iznin başlangıcından 1 iş günü önce bitecek şekilde önceki blok
     const enErkenCakisan = cakisan.reduce((en, row) => {
       const d = tarihToDate(row["Başlangıç"]);
@@ -408,23 +366,18 @@ function tarihToDate(str) {
       const d = tarihToDate(row["Bitiş"]);
       return !en || d > en ? d : en;
     }, null);
-
     // Önceki blok: çakışan iznin başından 1 iş günü önce biter, geriye doğru günSayisi gün gider
     const oncekiBit = sonrakiIsGunuTarih(enErkenCakisan.toISOString().split("T")[0], -1);
     const oncekiBas = sonrakiIsGunuTarih(oncekiBit, -gunSayisi);
-
     // Sonraki blok: çakışan iznin bitişinden 1 iş günü sonra başlar
     const sonrakiBas = sonrakiIsGunuTarih(enGecCakisan.toISOString().split("T")[0], 1);
     const sonrakiBit = sonrakiIsGunuTarih(sonrakiBas, gunSayisi);
-
     const alternatifler = [
       { label: "Öncesinde izne çık", aciklama: "Çakışmadan önce bitiyor", bas: oncekiBas, bit: oncekiBit },
       { label: "Sonrasında izne çık", aciklama: "Çakışma bitince başlıyor", bas: sonrakiBas, bit: sonrakiBit },
     ];
-
     setCakismaPopup({ kisiler, alternatifler });
   }
-
   function handleBaslangicChange(val) {
     if (isHaftaSonu(val)) {
       const d = new Date(val);
@@ -447,7 +400,6 @@ function tarihToDate(str) {
       cakismaKontrol(val, bitis);
     }
   }
-
   function handleBitisChange(val) {
     if (isHaftaSonu(val)) {
       const yeniTarih = oncekiIsGununeKaydir(val);
@@ -463,7 +415,6 @@ function tarihToDate(str) {
       cakismaKontrol(baslangic, val);
     }
   }
-
   async function loadAdminList(sessionOverride) {
     setAdminLoading(true);
     try {
@@ -487,7 +438,6 @@ function tarihToDate(str) {
     } catch (_) {}
     setAdminLoading(false);
   }
-
   function handleIzinTuruSec(tur) {
     if (tur === "Diğer") {
       setDigerAcik(!digerAcik);
@@ -497,13 +447,11 @@ function tarihToDate(str) {
     setDigerAcik(false);
     setBaslangic(""); setBitis(""); setDosya(null);
   }
-
   function handleDigerSec(tur) {
     setIzinTuru(tur);
     setDigerAcik(false);
     setBaslangic(""); setBitis("");
   }
-
   function izinTuruNormalize(raw) {
     const val = (raw || "").split(" - ")[0].trim();
     const lower = val.toLowerCase();
@@ -513,7 +461,6 @@ function tarihToDate(str) {
     if (DIGER_IZINLER.includes(val)) return val;
     return val || "Yıllık İzin";
   }
-
   function handleYaklasanDuzenle(iz) {
     const tur = izinTuruNormalize(iz["İzin Türü"] || iz["Mazeret"]);
     setDuzenlenenIzin(iz);
@@ -526,7 +473,6 @@ function tarihToDate(str) {
     setStatus(null);
     setTimeout(() => formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }
-
   function ayniIzinSatiri(a, b) {
     if (!a || !b) return false;
     return (a["Personel"] || "").trim().toLowerCase() === (b["Personel"] || "").trim().toLowerCase()
@@ -534,7 +480,6 @@ function tarihToDate(str) {
       && dateToInputValue(a["Bitiş"]) === dateToInputValue(b["Bitiş"])
       && ((a["İzin Türü"] || a["Mazeret"] || "").split(" - ")[0].trim().toLowerCase() === (b["İzin Türü"] || b["Mazeret"] || "").split(" - ")[0].trim().toLowerCase());
   }
-
   function yaklasanIzinleriRefreshEt(eskiSatir) {
     if (eskiSatir) {
       setYaklasanIzinler(prev => prev.filter(row => !ayniIzinSatiri(row, eskiSatir)));
@@ -543,7 +488,6 @@ function tarihToDate(str) {
       setTimeout(() => loadData(user.name), 2500);
     }
   }
-
   async function handleIptalOnay() {
     if (!iptalPopup || iptalLoading) return;
     setIptalLoading(true);
@@ -574,7 +518,6 @@ function tarihToDate(str) {
     }
     setIptalLoading(false);
   }
-
   async function handleSubmit(e) {
     e.preventDefault();
     if (!baslangic) return;
@@ -589,18 +532,15 @@ function tarihToDate(str) {
     }
     setLoading(true);
     setStatus(null);
-
     try {
       let dosyaData = null;
       let dosyaAdi = null;
       let dosyaTipi = null;
-
       if (hastalık && dosya) {
         dosyaData = await fileToBase64(dosya);
         dosyaAdi = dosya.name;
         dosyaTipi = dosya.type;
       }
-
       const formData = {
         action: duzenlenenIzin ? "updateIzinTalebi" : undefined,
         personelAdi: user.name,
@@ -630,7 +570,6 @@ function tarihToDate(str) {
         oldLogNote: duzenlenenIzin ? "Kullanıcı talebi düzenleyip tekrar gönderdi" : "",
         canceledRowColor: "#fee2e2",
       };
-
       await submitIzin(formData);
       const eskiDuzenlenenIzin = duzenlenenIzin;
       setStatus({ type: "success", msg: duzenlenenIzin ? t("Talebiniz tekrar gönderildi!", "Your request has been resubmitted!") : t("İzin talebiniz başarıyla kaydedildi!", "Your leave request has been submitted!") });
@@ -645,12 +584,9 @@ function tarihToDate(str) {
       setLoading(false);
     }
   }
-
   function logout() { clearSession(); navigate("/"); }
   if (!user) return null;
-
   const submitDisabled = loading || (bitis && baslangic && bitis < baslangic) || isGunu <= 0 || !aciklama.trim();
-
   return (
     <div style={styles.root}>
       <div style={styles.bgGrid} />
@@ -699,7 +635,6 @@ function tarihToDate(str) {
           </div>
         </div>
       </header>
-
       <main style={styles.main} className="izin-main">
         {adminView ? (
           <AdminPanel list={adminList} loading={adminLoading} onRefresh={loadAdminList} scriptUrl={IZIN_YONETIM_SCRIPT_URL} adminEmail={user?.email} isAdmin={rol === "admin" || rol === "owner"} adminTab={adminTab} setAdminTab={setAdminTab} isFortis={isFortis} isManagerOnly={!(rol === "admin" || rol === "owner")} />
@@ -743,7 +678,6 @@ function tarihToDate(str) {
                   </>
                 ) : <div style={styles.infoLoading}>Personel verisi bulunamadı.</div>}
               </div>
-
               {/* Form */}
               <div ref={formCardRef} style={styles.formCard} className="izin-form-card">
                 <h2 style={styles.formCardTitle}>{t("İzin Talep Formu", "Leave Request Form")}</h2>
@@ -754,7 +688,6 @@ function tarihToDate(str) {
                   </div>
                 )}
                 <form onSubmit={handleSubmit} style={styles.form}>
-
                   {/* İzin Türü */}
                   <div style={styles.fieldGroup}>
                     <label style={styles.label}>{t("İzin Türü", "Leave Type")}</label>
@@ -773,7 +706,6 @@ function tarihToDate(str) {
                         );
                       })}
                     </div>
-
                     {/* Diğer alt seçenekler */}
                     {digerAcik && (
                       <div style={styles.digerGrid}>
@@ -786,7 +718,6 @@ function tarihToDate(str) {
                         ))}
                       </div>
                     )}
-
                     {/* Seçili diğer izin etiketi */}
                     {DIGER_IZINLER.includes(izinTuru) && (
                       <div style={styles.secilenEtiket}>
@@ -795,7 +726,6 @@ function tarihToDate(str) {
                       </div>
                     )}
                   </div>
-
                   {/* Tarihler */}
                   {/* Hafta sonu uyarısı */}
                   {haftaSonuUyari && (
@@ -806,7 +736,6 @@ function tarihToDate(str) {
                       {haftaSonuUyari}
                     </div>
                   )}
-
                   <div style={digerIzin || yarimGun ? {} : styles.dateGrid}>
                     <div style={styles.fieldGroup}>
                       <label style={styles.label}>{t("Başlangıç", "Start Date")}</label>
@@ -833,7 +762,6 @@ function tarihToDate(str) {
                       </div>
                     )}
                   </div>
-
                   {/* İş günü göstergesi */}
                   {baslangic && isGunu > 0 && (
                     <div style={styles.isGunuBox}>
@@ -860,7 +788,6 @@ function tarihToDate(str) {
                       )}
                     </div>
                   )}
-
                   {/* İş günü hesaplanamadı uyarısı */}
                   {baslangic && bitis && !yarimGun && !digerIzin && isGunu <= 0 && (
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "12px 16px", fontSize: "13px", color: "#dc2626" }}>
@@ -870,7 +797,6 @@ function tarihToDate(str) {
                       {t("Seçilen tarih aralığında iş günü bulunamadı.", "No working days found in the selected date range.")}
                     </div>
                   )}
-
                   {/* Hastalık raporu upload */}
                   {hastalık && (
                     <div style={styles.fieldGroup}>
@@ -893,7 +819,6 @@ function tarihToDate(str) {
                       </label>
                     </div>
                   )}
-
                   {/* Açıklama */}
                   <div style={styles.fieldGroup}>
                     <label style={styles.label}>{t("Açıklama", "Description")} <span style={{ color: "#dc2626", fontWeight: "600" }}>*</span></label>
@@ -903,13 +828,11 @@ function tarihToDate(str) {
                       onBlur={e => e.target.style.borderColor = "#e2e8f0"}
                     />
                   </div>
-
                   {status && (
                     <div style={{ ...styles.statusBox, ...(status.type === "success" ? styles.statusSuccess : styles.statusError) }}>
                       {status.msg}
                     </div>
                   )}
-
                   <button type="submit" disabled={submitDisabled}
                     style={{ ...styles.submitBtn, opacity: submitDisabled ? 0.5 : 1, cursor: submitDisabled ? "not-allowed" : "pointer" }}
                     onMouseEnter={e => !submitDisabled && (e.currentTarget.style.transform = "translateY(-1px)")}
@@ -920,7 +843,6 @@ function tarihToDate(str) {
                 </form>
               </div>
             </div>
-
             {/* Yaklaşan izinler */}
             {yaklasanIzinler.length > 0 && (
               <div style={styles.yaklasanCard}>
@@ -935,7 +857,6 @@ function tarihToDate(str) {
           </div>
         )}
       </main>
-
       {/* İptal Popup */}
       {iptalPopup && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
@@ -962,7 +883,6 @@ function tarihToDate(str) {
           </div>
         </div>
       )}
-
       {/* Çakışma Popup */}
       {cakismaPopup && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
@@ -1006,7 +926,6 @@ function tarihToDate(str) {
           </div>
         </div>
       )}
-
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: Calibri, sans-serif; }
@@ -1041,7 +960,6 @@ function tarihToDate(str) {
     </div>
   );
 }
-
 function dateToInputValue(value) {
   if (!value) return "";
   const raw = String(value).trim();
@@ -1059,7 +977,6 @@ function dateToInputValue(value) {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
-
 function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
   const benimSatirim = (iz["Personel"] || "").trim().toLowerCase() === (user?.name || "").trim().toLowerCase();
   const durum = (iz["Durum"] || "").trim();
@@ -1079,7 +996,6 @@ function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
   } else if (durum === "Onaylandı" && !tarihiGelmis) {
     rowTone = { background: "#ecfdf5", border: "#a7f3d0", shadow: "0 3px 14px rgba(34,197,94,0.10)" };
   }
-
   return (
     <div
       style={{
@@ -1120,7 +1036,6 @@ function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
     </div>
   );
 }
-
 function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, adminTab, setAdminTab, isFortis, isManagerOnly }) {
   const [roller, setRoller] = useState([]);
   useEffect(() => { fetchRoller().then(setRoller).catch(() => setRoller(["staff","manager","director","owner","admin"])); }, []);
@@ -1134,7 +1049,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   const [yaklasanLoading, setYaklasanLoading] = useState(false);
   const [yaklasanPeriod, setYaklasanPeriod] = useState("gelecekHafta");
   const [codeVersion, setCodeVersion] = useState(null);
-
   useEffect(() => {
     (async () => {
       try {
@@ -1162,7 +1076,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   const [subeEkleSaving, setSubeEkleSaving] = useState(false);
   const [subeSilSaving, setSubeSilSaving] = useState(false);
   const [saveOverlay, setSaveOverlay] = useState(false);
-
   async function acKlasor(row) {
     try {
       const url = scriptUrl + "?action=saglikKlasorBul&ad=" + encodeURIComponent(row["Personel"] || "");
@@ -1172,7 +1085,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
       else alert(json.msg || "Klasör bulunamadı.");
     } catch (_) { alert("Klasör açılırken hata oluştu."); }
   }
-
   async function fetchBekleyen() {
     setBekleyenLoading(true);
     try {
@@ -1188,7 +1100,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     } catch (_) { setBekleyenIzinler([]); }
     setBekleyenLoading(false);
   }
-
   async function fetchGecmis() {
     setGecmisLoading(true);
     try {
@@ -1210,7 +1121,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     } catch (_) { setIslemGecmisi([]); }
     setGecmisLoading(false);
   }
-
   function adminTarihToDate(str) {
     if (!str) return null;
     str = String(str).trim();
@@ -1235,7 +1145,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     }
     return new Date(str);
   }
-
   function getYaklasanRange(period) {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -1260,7 +1169,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     nextSunday.setHours(23, 59, 59, 999);
     return { start: nextMonday, end: nextSunday };
   }
-
   async function fetchYaklasan() {
     setYaklasanLoading(true);
     try {
@@ -1299,13 +1207,11 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     }
     setYaklasanLoading(false);
   }
-
   useEffect(() => {
     if (adminTab === "bekleyen") fetchBekleyen();
     if (adminTab === "yaklasan") fetchYaklasan();
     if (adminTab === "gecmis") fetchGecmis();
   }, [adminTab, list, yaklasanPeriod]);
-
   async function onaylaIzin(row) {
     const key = row["Personel"] + row["Başlangıç"];
     setOnayLoading(key);
@@ -1334,7 +1240,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
       setTimeout(() => fetchBekleyen(), 3000);
     }, 2000);
   }
-
   async function reddetIzin(row) {
     const key = row["Personel"] + row["Başlangıç"];
     setReddetLoading(key);
@@ -1362,7 +1267,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
       setTimeout(() => fetchBekleyen(), 3000);
     }, 2000);
   }
-
   async function fetchSubeListAll() {
     setSubeLoading(true);
     try {
@@ -1372,7 +1276,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     } catch (_) { setSubeListAll([]); }
     setSubeLoading(false);
   }
-
   async function handleSubeEkle() {
     if (!yeniSube.sube.trim()) return;
     setSubeEkleSaving(true);
@@ -1381,7 +1284,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     setSubeEkleSaving(false);
     fetchSubeListAll();
   }
-
   async function handleSubeSil(sirket, sube, kisiDahil) {
     setSubeSilSaving(true);
     await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "deleteSube", sirket, sube, kisiDahil }) });
@@ -1390,7 +1292,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     fetchSubeListAll();
     onRefresh();
   }
-
   async function fetchDuzenleData() {
     setDuzenleLoading(true);
     try {
@@ -1403,7 +1304,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     } catch (_) {}
     setDuzenleLoading(false);
   }
-
   async function fetchSubeler(sirket) {
     try {
       const csv = await fetchSheetCSV("Mail Grupları");
@@ -1416,7 +1316,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
       setSubeler(filtered);
     } catch (_) { setSubeler([]); }
   }
-
   async function handleYeniKullanici(e) {
     e.preventDefault();
     setFormError("");
@@ -1437,14 +1336,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     }
     setFormSaving(false);
   }
-
   const grouped = list.reduce((acc, emp) => {
     const key = `${emp["Şirket"]} - ${emp["Şube"]}`;
     if (!acc[key]) acc[key] = [];
     acc[key].push(emp);
     return acc;
   }, {});
-
   return (
     <div style={styles.adminWrap}>
       {saveOverlay && (
@@ -1687,7 +1584,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           Yenile
         </button>
       </div>
-
       {/* Üst iki kart */}
       {isAdmin && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
@@ -1706,7 +1602,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               Şube ekle, sil veya görüntüle
             </button>
           </div>
-
           {/* Kullanıcı Yönetimi */}
           <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: "16px", padding: "24px", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
             onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.12)"}
@@ -1732,7 +1627,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           </div>
         </div>
       )}
-
       {/* İzin Yönetimi kartı */}
       <div style={{ background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
         <div style={{ padding: "20px 24px 0", borderBottom: "2px solid #e2e8f0" }}>
@@ -1768,7 +1662,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
             ))}
           </div>
         </div>
-
         <div style={{ padding: "20px 24px 24px" }}>
           {adminTab === "bekleyen" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -1844,7 +1737,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               })}
             </div>
           )}
-
           {adminTab === "yaklasan" && (
             <div>
               <div style={{ display: "flex", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
@@ -1893,7 +1785,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               )}
             </div>
           )}
-
           {adminTab === "gecmis" && (
             <div>
               {gecmisLoading ? (
@@ -1963,7 +1854,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               )}
             </div>
           )}
-
           {adminTab === "personel" && (
             loading ? <div style={styles.adminLoading}>Yükleniyor...</div> : (
               <div style={styles.groupList}>
@@ -1978,8 +1868,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     </div>
   );
 }
-
-
 function groupByDept(rows) {
   return rows.reduce((acc, r) => {
     const key = (r["Şirket"] || r["sirket"] || "Diğer") + " - " + (r["Şube"] || r["sube"] || "");
@@ -1988,7 +1876,6 @@ function groupByDept(rows) {
     return acc;
   }, {});
 }
-
 function DuzenlePersonel({ data, scriptUrl, onRefresh, roller, onSaveStart, onSaveDone }) {
   const grouped = groupByDept(data);
   const [activeKey, setActiveKey] = useState(null);
@@ -2030,7 +1917,6 @@ function DuzenlePersonel({ data, scriptUrl, onRefresh, roller, onSaveStart, onSa
     </div>
   );
 }
-
 function ddmmyyyyToInput(val) {
   if (!val) return "";
   const p = val.split(".");
@@ -2043,7 +1929,6 @@ function inputToDdmmyyyy(val) {
   if (p.length === 3) return p[2] + "." + p[1] + "." + p[0];
   return val;
 }
-
 function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActivate, onDeactivate, onSaveStart, onSaveDone }) {
   const editing = isActive;
   const [showSil, setShowSil] = useState(false);
@@ -2059,13 +1944,11 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
   });
   const [subeList, setSubeList] = useState([]);
   const [saving, setSaving] = useState(false);
-
   async function handleSil() {
     setSilSaving(true);
     await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "deletePersonel", name: row["Ad Soyad"] }) });
     setSilSaving(false); setShowSil(false); onRefresh();
   }
-
   async function loadSubeler(sirket) {
     try {
       const csv = await fetchSheetCSV("Mail Grupları");
@@ -2078,9 +1961,7 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
       setSubeList(filtered);
     } catch (_) { setSubeList([]); }
   }
-
   useEffect(() => { if (editing && vals.sirket) loadSubeler(vals.sirket); }, [editing]);
-
   async function handleSave() {
     setSaving(true);
     if (onSaveStart) onSaveStart();
@@ -2091,7 +1972,6 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
     if (onSaveDone) onSaveDone();
     onRefresh();
   }
-
   if (!editing) return (
     <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
       <td style={{ padding: "8px 10px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row["Ad Soyad"]}</td>
@@ -2127,7 +2007,6 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
       </td>
     </tr>
   );
-
   return (
     <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#f8fafc" }}>
       <td style={{ padding: "8px 10px", fontWeight: "600" }}>{row["Ad Soyad"]}</td>
@@ -2173,13 +2052,10 @@ function PersonelEditRow({ row, scriptUrl, onRefresh, roller, isActive, onActiva
     </tr>
   );
 }
-
-
 const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefresh, onSaveDone }) {
   const [moduller, setModuller] = useState([]);
   const [globalVals, setGlobalVals] = useState({});
   const [saving, setSaving] = useState(false);
-
   useEffect(() => {
     fetchSheetCSV("Modüller").then(csv => {
       const lines = csv.trim().split("\n");
@@ -2203,14 +2079,12 @@ const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefre
       setGlobalVals(init);
     });
   }, [data]);
-
   function toggleVal(name, modul) {
     setGlobalVals(prev => ({
       ...prev,
       [name]: { ...prev[name], [modul]: !prev[name]?.[modul] }
     }));
   }
-
   function toggleAll(modul) {
     const allChecked = data.length > 0 && data.every(row => globalVals[row["Ad Soyad"]]?.[modul]);
     setGlobalVals(prev => {
@@ -2221,7 +2095,6 @@ const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefre
       return next;
     });
   }
-
   async function handleSaveAll() {
     setSaving(true);
     try {
@@ -2238,10 +2111,8 @@ const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefre
     setSaving(false);
     if (onSaveDone) onSaveDone();
   }
-
   const adColW = "20%";
   const modColW = moduller.length > 0 ? (80 / moduller.length).toFixed(1) + "%" : "10%";
-
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       <div style={{ overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "10px 10px 0 0" }}>
@@ -2288,7 +2159,6 @@ const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefre
         </table>
       </div>
       <div style={{ position: "sticky", bottom: 0, background: "#fff", borderTop: "1px solid #e2e8f0", padding: "12px 0", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "12px" }}>
-
         <button onClick={handleSaveAll} disabled={saving}
           style={{ padding: "9px 24px", background: saving ? "#bfdbfe" : "#2563eb", color: "#fff", border: "none", borderRadius: "8px", cursor: saving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
           {saving
@@ -2300,7 +2170,6 @@ const DuzenleModuller = memo(function DuzenleModuller({ data, scriptUrl, onRefre
     </div>
   );
 });
-
 function DuzenleID({ data, personelData, scriptUrl, onRefresh, onSaveDone }) {
   return (
     <div>
@@ -2317,12 +2186,10 @@ function DuzenleID({ data, personelData, scriptUrl, onRefresh, onSaveDone }) {
     </div>
   );
 }
-
 function IDEditRow({ row, scriptUrl, onRefresh, onSaveDone }) {
   const [editing, setEditing] = useState(false);
   const [crmId, setCrmId] = useState(row["ID"] || "");
   const [saving, setSaving] = useState(false);
-
   async function handleSave() {
     setSaving(true);
     await fetch(scriptUrl, { method: "POST", mode: "no-cors", body: JSON.stringify({ action: "updateIdRow", email: row["Email"], id: crmId }) });
@@ -2330,7 +2197,6 @@ function IDEditRow({ row, scriptUrl, onRefresh, onSaveDone }) {
     if (onSaveDone) onSaveDone();
     onRefresh();
   }
-
   return (
     <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
       <td style={{ padding: "8px 10px" }}>{row["Email"]}</td>
@@ -2354,7 +2220,6 @@ function IDEditRow({ row, scriptUrl, onRefresh, onSaveDone }) {
     </tr>
   );
 }
-
 function DeptGroup({ dept, emps, scriptUrl, onRefresh, adminEmail, isAdmin, roller }) {
   const [open, setOpen] = useState(false);
   return (
@@ -2381,17 +2246,14 @@ function DeptGroup({ dept, emps, scriptUrl, onRefresh, adminEmail, isAdmin, roll
     </div>
   );
 }
-
 function EmpRow({ emp, scriptUrl, onRefresh, adminEmail, isAdmin }) {
   const [editing, setEditing] = useState(false);
   const [displayHakedis, setDisplayHakedis] = useState(Number(emp["Hakediş"]) || 0);
   const [displayKalan, setDisplayKalan] = useState(Number(emp["Kalan İzin"]) || 0);
   const [newHakedis, setNewHakedis] = useState(String(Number(emp["Hakediş"]) || 0));
   const [saving, setSaving] = useState(false);
-
   const kalan = displayKalan;
   const hakedis = displayHakedis;
-
   async function handleSave() {
     const yeni = Number(newHakedis);
     if (isNaN(yeni) || yeni < 0) return;
@@ -2449,9 +2311,7 @@ function EmpRow({ emp, scriptUrl, onRefresh, adminEmail, isAdmin }) {
     </div>
   );
 }
-
 const styles = {
-
   loadingOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", backdropFilter: "blur(4px)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center" },
   loadingBox: { background: "#fff", borderRadius: "16px", padding: "32px 48px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", boxShadow: "0 25px 60px rgba(0,0,0,0.2)" },
   loadingSpinner: { width: "36px", height: "36px", border: "3px solid #e2e8f0", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.7s linear infinite" },
