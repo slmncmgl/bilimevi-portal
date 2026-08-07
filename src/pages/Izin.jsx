@@ -1460,7 +1460,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
             </div>
             <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>Şube Yönetimi</div>
             <button onClick={e => { e.stopPropagation(); setShowSubeler(true); fetchSubeListAll(); }}
-              style={{ marginTop: "16px", padding: "7px 14px", background: "linear-gradient(135deg, #d4af37, #f2c94c)", color: "#3f2f00", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Calibri, sans-serif", boxShadow: "0 3px 10px rgba(212,175,55,0.25)" }}>
               style={{ marginTop: "16px", padding: "6px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
               Şube ekle, sil veya görüntüle
             </button>
@@ -1521,7 +1520,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                   <span style={{ marginLeft: "6px", background: "#dc2626", color: "#fff", borderRadius: "100px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{bekleyenIzinler.length}</span>
                 )}
                 {key === "yaklasan" && yaklasanIzinlerAdmin.length > 0 && (
-                  <span style={{ marginLeft: "6px", background: "#d97706", color: "#fff", borderRadius: "100px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{yaklasanIzinlerAdmin.length}</span>
                   <span style={{ marginLeft: "6px", background: "#10b981", color: "#fff", borderRadius: "100px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{yaklasanIzinlerAdmin.length}</span>
                 )}
               </button>
@@ -1609,7 +1607,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               <div style={{ display: "flex", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
                 {[["gelecekHafta", "Gelecek Hafta"], ["buAy", "Bu Ay"], ["gelecekAy", "Gelecek Ay"]].map(([key, label]) => (
                   <button key={key} onClick={() => setYaklasanPeriod(key)}
-                    style={{ padding: "7px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif", background: yaklasanPeriod === key ? "#d97706" : "#fef3c7", color: yaklasanPeriod === key ? "#fff" : "#92400e" }}>
                     style={{ padding: "7px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif", background: yaklasanPeriod === key ? "#10b981" : "#d1fae5", color: yaklasanPeriod === key ? "#fff" : "#047857" }}>
                     {label}
                   </button>
@@ -1623,8 +1620,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {yaklasanIzinlerAdmin.map((row, i) => {
                     const durum = row["Durum"] || "Bekliyor";
-                    const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#d97706" : "#64748b";
-                    const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#fef3c7" : "#f1f5f9";
                     const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#047857" : "#64748b";
                     const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#d1fae5" : "#f1f5f9";
                     const emp = list.find(p => p["Ad Soyad"] === row["Personel"]) || {};
@@ -1640,7 +1635,6 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                           {(emp["Şirket"] || emp["Şube"]) && <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "3px" }}>{emp["Şirket"]} · {emp["Şube"]}</div>}
                         </div>
                         {(row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]) && (
-                          <div style={{ fontSize: "12px", fontWeight: "700", color: "#d97706", background: "#fffbeb", border: "1px solid #fde68a", padding: "4px 12px", borderRadius: "100px" }}>
                           <div style={{ fontSize: "12px", fontWeight: "700", color: "#047857", background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "4px 12px", borderRadius: "100px" }}>
                             {row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]} {emp["Şirket"] === "Fortis" ? "saat" : "gün"}
                           </div>
