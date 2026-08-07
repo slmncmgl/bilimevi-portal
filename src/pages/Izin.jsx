@@ -40,6 +40,24 @@ function parseCSV(csv) {
   });
 }
 
+function parseCSVWithCols(csv) {
+  const lines = csv.trim().split("\n");
+  const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
+  return lines.slice(1).map(line => {
+    const cols = [];
+    let cur = "", inQ = false;
+    for (const ch of line) {
+      if (ch === '"') inQ = !inQ;
+      else if (ch === "," && !inQ) { cols.push(cur.trim().replace(/"/g, "")); cur = ""; }
+      else cur += ch;
+    }
+    cols.push(cur.trim().replace(/"/g, ""));
+    const row = { __cols: cols };
+    headers.forEach((h, i) => { row[h] = (cols[i] || "").trim(); });
+    return row;
+  });
+}
+
 async function fetchPersonelData(name) {
   const csv = await fetchSheetCSV("Personel");
   const rows = parseCSV(csv);
@@ -306,7 +324,11 @@ export default function Izin() {
     if (str.includes("/")) {
       const parts = str.split("/");
       if (parts[2]?.length === 4) {
-        return new Date(`${parts[2]}-${parts[0].padStart(2,"0")}-${parts[1].padStart(2,"0")}`);
+        const first = Number(parts[0]);
+        const second = Number(parts[1]);
+        if (first > 12) return new Date(`${parts[2]}-${parts[1].padStart(2,"0")}-${parts[0].padStart(2,"0")}`);
+        if (second > 12) return new Date(`${parts[2]}-${parts[0].padStart(2,"0")}-${parts[1].padStart(2,"0")}`);
+        return new Date(`${parts[2]}-${parts[1].padStart(2,"0")}-${parts[0].padStart(2,"0")}`);
       }
     }
     return new Date(str);
@@ -1010,21 +1032,27 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     setYaklasanLoading(true);
     try {
       const csv = await fetchSheetCSV("İşlemler");
-      const rows = parseCSV(csv);
+      const rows = parseCSVWithCols(csv).map(r => ({
+        ...r,
+        "Başlangıç": r["Başlangıç"] || r.__cols?.[2] || "",
+        "Bitiş": r["Bitiş"] || r.__cols?.[3] || "",
+      }));
       const { start, end } = getYaklasanRange(yaklasanPeriod);
-      const izinliIsimler = list.map(p => p["Ad Soyad"]);
+      const izinliIsimler = list.map(p => (p["Ad Soyad"] || "").trim().toLowerCase());
       const filtered = rows
-        .filter(r => r["Personel"] && izinliIsimler.includes(r["Personel"]))
+        .filter(r => r["Personel"] && izinliIsimler.includes((r["Personel"] || "").trim().toLowerCase()))
         .filter(r => (r["Durum"] || "").trim() !== "Reddedildi")
         .filter(r => {
-          const bas = tarihToDate(r["Başlangıç"]);
-          const bit = tarihToDate(r["Bitiş"]) || bas;
+          const baslangicDegeri = r["Başlangıç"] || r.__cols?.[2] || "";
+          const bitisDegeri = r["Bitiş"] || r.__cols?.[3] || "";
+          const bas = tarihToDate(baslangicDegeri);
+          const bit = tarihToDate(bitisDegeri) || bas;
           if (!bas || !bit || isNaN(bas.getTime()) || isNaN(bit.getTime())) return false;
           bas.setHours(0,0,0,0);
           bit.setHours(23,59,59,999);
           return bas <= end && bit >= start;
         })
-        .sort((a, b) => (tarihToDate(a["Başlangıç"]) || 0) - (tarihToDate(b["Başlangıç"]) || 0));
+        .sort((a, b) => (tarihToDate(a["Başlangıç"] || a.__cols?.[2]) || 0) - (tarihToDate(b["Başlangıç"] || b.__cols?.[2]) || 0));
       setYaklasanIzinlerAdmin(filtered);
     } catch (_) { setYaklasanIzinlerAdmin([]); }
     setYaklasanLoading(false);
@@ -1433,6 +1461,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
             <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>Şube Yönetimi</div>
             <button onClick={e => { e.stopPropagation(); setShowSubeler(true); fetchSubeListAll(); }}
               style={{ marginTop: "16px", padding: "7px 14px", background: "linear-gradient(135deg, #d4af37, #f2c94c)", color: "#3f2f00", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "Calibri, sans-serif", boxShadow: "0 3px 10px rgba(212,175,55,0.25)" }}>
+              style={{ marginTop: "16px", padding: "6px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
               Şube ekle, sil veya görüntüle
             </button>
           </div>
@@ -1493,6 +1522,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 )}
                 {key === "yaklasan" && yaklasanIzinlerAdmin.length > 0 && (
                   <span style={{ marginLeft: "6px", background: "#d97706", color: "#fff", borderRadius: "100px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{yaklasanIzinlerAdmin.length}</span>
+                  <span style={{ marginLeft: "6px", background: "#10b981", color: "#fff", borderRadius: "100px", padding: "1px 7px", fontSize: "11px", fontWeight: "700" }}>{yaklasanIzinlerAdmin.length}</span>
                 )}
               </button>
             ))}
@@ -1580,6 +1610,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 {[["gelecekHafta", "Gelecek Hafta"], ["buAy", "Bu Ay"], ["gelecekAy", "Gelecek Ay"]].map(([key, label]) => (
                   <button key={key} onClick={() => setYaklasanPeriod(key)}
                     style={{ padding: "7px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif", background: yaklasanPeriod === key ? "#d97706" : "#fef3c7", color: yaklasanPeriod === key ? "#fff" : "#92400e" }}>
+                    style={{ padding: "7px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif", background: yaklasanPeriod === key ? "#10b981" : "#d1fae5", color: yaklasanPeriod === key ? "#fff" : "#047857" }}>
                     {label}
                   </button>
                 ))}
@@ -1594,6 +1625,8 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                     const durum = row["Durum"] || "Bekliyor";
                     const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#d97706" : "#64748b";
                     const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#fef3c7" : "#f1f5f9";
+                    const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#047857" : "#64748b";
+                    const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#d1fae5" : "#f1f5f9";
                     const emp = list.find(p => p["Ad Soyad"] === row["Personel"]) || {};
                     return (
                       <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
@@ -1603,11 +1636,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                             {durum && <span style={{ padding: "2px 9px", borderRadius: "100px", background: durumBg, color: durumColor, fontSize: "11px", fontWeight: "700" }}>{durum}</span>}
                           </div>
                           <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", marginBottom: "3px" }}>{(row["İzin Türü"] || row["Mazeret"] || "").split(" - ")[0]}</div>
-                          <div style={{ fontSize: "12px", color: "#64748b" }}>{formatTarih(row["Başlangıç"])} – {formatTarih(row["Bitiş"])}</div>
+                          <div style={{ fontSize: "12px", color: "#64748b" }}>{formatTarih(row["Başlangıç"] || row.__cols?.[2])} – {formatTarih(row["Bitiş"] || row.__cols?.[3])}</div>
                           {(emp["Şirket"] || emp["Şube"]) && <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "3px" }}>{emp["Şirket"]} · {emp["Şube"]}</div>}
                         </div>
                         {(row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]) && (
                           <div style={{ fontSize: "12px", fontWeight: "700", color: "#d97706", background: "#fffbeb", border: "1px solid #fde68a", padding: "4px 12px", borderRadius: "100px" }}>
+                          <div style={{ fontSize: "12px", fontWeight: "700", color: "#047857", background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "4px 12px", borderRadius: "100px" }}>
                             {row["Talep Edilen İzin Günü"] || row["Gün Sayısı"]} {emp["Şirket"] === "Fortis" ? "saat" : "gün"}
                           </div>
                         )}
