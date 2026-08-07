@@ -281,9 +281,15 @@ export default function Izin() {
       );
       const subeIsimler = subePersonel.map(p => p["Ad Soyad"]);
       const gelecek = islemler.filter(row => {
-        const b = new Date(row["Bitiş"]);
+        const b = tarihToDate(row["Bitiş"]);
         const izinTipi = (row["Mazeret"] || "").toLowerCase();
         return subeIsimler.includes(row["Personel"]) && b >= bugun && !izinTipi.includes("yarım gün");
+      }).sort((a, b) => {
+        const currentName = (name || "").trim().toLowerCase();
+        const aBenim = (a["Personel"] || "").trim().toLowerCase() === currentName ? 0 : 1;
+        const bBenim = (b["Personel"] || "").trim().toLowerCase() === currentName ? 0 : 1;
+        if (aBenim !== bBenim) return aBenim - bBenim;
+        return (tarihToDate(a["Başlangıç"]) || 0) - (tarihToDate(b["Başlangıç"]) || 0);
       });
       setYaklasanIzinler(gelecek);
       setIslemlerCache(islemler);
@@ -823,14 +829,7 @@ function tarihToDate(str) {
                 <h3 style={styles.yaklasanTitle}>{t("Şubenizdeki Yaklaşan İzinler", "Upcoming Leaves in Your Branch")}</h3>
                 <div style={styles.yaklasanList}>
                   {yaklasanIzinler.map((iz, i) => (
-                    <div key={i} style={styles.yaklasanRow} className="izin-yaklasan-row">
-                      <div>
-                        <div style={styles.yaklasanIsim}>{iz["Personel"]}</div>
-                        <div style={styles.yaklasanTur}>{(iz["Mazeret"] || "").split(" - ")[0]}</div>    
-                        <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
-                      </div>
-                      <div style={styles.yaklasanBadge}>{iz["Gün Sayısı"]} {birim}</div>
-                    </div>
+                    <YaklasanIzinRow key={i} iz={iz} user={user} birim={birim} scriptUrl={IZIN_YONETIM_SCRIPT_URL} onDone={() => loadData(user.name)} />
                   ))}
                 </div>
               </div>
@@ -915,6 +914,114 @@ function tarihToDate(str) {
           .izin-table-wrap { overflow-x: auto !important; }
         }
       `}</style>
+    </div>
+  );
+}
+
+function dateToInputValue(value) {
+  if (!value) return "";
+  const raw = String(value).trim();
+  const onlyDate = raw.split(" ")[0];
+  let d;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(onlyDate)) {
+    const [y, m, day] = onlyDate.split("-").map(Number);
+    d = new Date(y, m - 1, day);
+  } else {
+    d = new Date(raw);
+  }
+  if (!d || isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function YaklasanIzinRow({ iz, user, birim, scriptUrl, onDone }) {
+  const benimSatirim = (iz["Personel"] || "").trim().toLowerCase() === (user?.name || "").trim().toLowerCase();
+  const [editing, setEditing] = useState(false);
+  const [baslangic, setBaslangic] = useState(dateToInputValue(iz["Başlangıç"]));
+  const [bitis, setBitis] = useState(dateToInputValue(iz["Bitiş"]));
+  const [aciklama, setAciklama] = useState(iz["Açıklama"] || "");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const originalBaslangic = dateToInputValue(iz["Başlangıç"]);
+  const originalBitis = dateToInputValue(iz["Bitiş"]);
+  const originalAciklama = iz["Açıklama"] || "";
+  const dirty = baslangic !== originalBaslangic || bitis !== originalBitis || aciklama !== originalAciklama;
+
+  async function handleResubmit() {
+    if (!dirty || saving) return;
+    setSaving(true);
+    setMsg("");
+    try {
+      await fetch(scriptUrl, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({
+          action: "updateIzinTalebi",
+          personelAdi: user.name,
+          userEmail: user.email,
+          eskiBaslangic: iz["Başlangıç"],
+          eskiBitis: iz["Bitiş"],
+          eskiIslemZamani: iz["İşlem Zamanı"] || "",
+          baslangicTarihi: baslangic,
+          bitisTarihi: bitis,
+          izinTuru: iz["İzin Türü"] || iz["Mazeret"] || "",
+          aciklama,
+        }),
+      });
+      setMsg("Tekrar gönderildi.");
+      setEditing(false);
+      setTimeout(() => setMsg(""), 3500);
+      if (onDone) setTimeout(onDone, 1200);
+    } catch (_) {
+      setMsg("Gönderim sırasında hata oluştu.");
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div
+      style={{
+        ...styles.yaklasanRow,
+        ...(benimSatirim ? {
+          border: "2px solid #2563eb",
+          background: "#eff6ff",
+          boxShadow: "0 4px 18px rgba(37,99,235,0.12)"
+        } : {})
+      }}
+      className="izin-yaklasan-row"
+    >
+      <div style={{ flex: 1 }}>
+        <div style={styles.yaklasanIsim}>{iz["Personel"]}{benimSatirim ? " · Benim iznim" : ""}</div>
+        <div style={styles.yaklasanTur}>{(iz["İzin Türü"] || iz["Mazeret"] || "").split(" - ")[0]}</div>
+        {editing ? (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
+            <input type="date" value={baslangic} onChange={e => setBaslangic(e.target.value)} style={styles.input} />
+            <input type="date" value={bitis} min={baslangic || undefined} onChange={e => setBitis(e.target.value)} style={styles.input} />
+            <textarea value={aciklama} onChange={e => setAciklama(e.target.value)} rows={2} placeholder="Açıklama" style={{ ...styles.textarea, gridColumn: "1 / -1" }} />
+          </div>
+        ) : (
+          <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
+        )}
+        {msg && <div style={{ fontSize: "12px", color: msg.includes("hata") ? "#dc2626" : "#059669", marginTop: "6px", fontWeight: "600" }}>{msg}</div>}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <div style={styles.yaklasanBadge}>{iz["Gün Sayısı"] || iz["Talep Edilen İzin Günü"]} {birim}</div>
+        {benimSatirim && !editing && (
+          <button onClick={() => setEditing(true)} style={styles.editBtn}>Düzenle</button>
+        )}
+        {benimSatirim && editing && (
+          <>
+            <button onClick={handleResubmit} disabled={!dirty || saving}
+              style={{ padding: "6px 12px", background: dirty && !saving ? "#2563eb" : "#bfdbfe", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: dirty && !saving ? "pointer" : "not-allowed", fontFamily: "Calibri, sans-serif" }}>
+              {saving ? "Gönderiliyor..." : (dirty ? "Tekrar Gönder" : "Düzenle")}
+            </button>
+            <button onClick={() => { setEditing(false); setBaslangic(originalBaslangic); setBitis(originalBitis); setAciklama(originalAciklama); }} disabled={saving} style={styles.cancelBtn}>İptal</button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -1691,8 +1798,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                     const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#047857" : "#64748b";
                     const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#d1fae5" : "#f1f5f9";
                     const emp = list.find(p => p["Ad Soyad"] === row["Personel"]) || {};
+                    const baslangicDate = adminTarihToDate(row["Başlangıç"]);
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    const tarihiGelmemis = yaklasanPeriod === "buAy" && baslangicDate && baslangicDate > today;
                     return (
-                      <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                      <div key={i} style={{ background: tarihiGelmemis ? "#dcfce7" : "#f8fafc", border: `1px solid ${tarihiGelmemis ? "#86efac" : "#e2e8f0"}`, borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", boxShadow: tarihiGelmemis ? "0 3px 14px rgba(34,197,94,0.12)" : "none" }}>
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
                             <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a" }}>{row["Personel"]}</span>
