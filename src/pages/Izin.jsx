@@ -287,7 +287,12 @@ export default function Izin() {
       const gelecek = islemler.filter(row => {
         const b = tarihToDate(row["Bitiş"]);
         const izinTipi = (row["Mazeret"] || "").toLowerCase();
-        return subeIsimler.includes(row["Personel"]) && b >= bugun && !izinTipi.includes("yarım gün");
+        const durum = (row["Durum"] || "").trim();
+        const benimIznim = (row["Personel"] || "").trim().toLowerCase() === (name || "").trim().toLowerCase();
+        const durumUygun = benimIznim
+          ? ["Bekliyor", "Onaylandı"].includes(durum)
+          : durum === "Onaylandı";
+        return subeIsimler.includes(row["Personel"]) && b >= bugun && !izinTipi.includes("yarım gün") && durumUygun;
       }).sort((a, b) => {
         const currentName = (name || "").trim().toLowerCase();
         const aBenim = (a["Personel"] || "").trim().toLowerCase() === currentName ? 0 : 1;
@@ -522,6 +527,23 @@ function tarihToDate(str) {
     setTimeout(() => formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }
 
+  function ayniIzinSatiri(a, b) {
+    if (!a || !b) return false;
+    return (a["Personel"] || "").trim().toLowerCase() === (b["Personel"] || "").trim().toLowerCase()
+      && dateToInputValue(a["Başlangıç"]) === dateToInputValue(b["Başlangıç"])
+      && dateToInputValue(a["Bitiş"]) === dateToInputValue(b["Bitiş"])
+      && ((a["İzin Türü"] || a["Mazeret"] || "").split(" - ")[0].trim().toLowerCase() === (b["İzin Türü"] || b["Mazeret"] || "").split(" - ")[0].trim().toLowerCase());
+  }
+
+  function yaklasanIzinleriRefreshEt(eskiSatir) {
+    if (eskiSatir) {
+      setYaklasanIzinler(prev => prev.filter(row => !ayniIzinSatiri(row, eskiSatir)));
+    }
+    if (user?.name) {
+      setTimeout(() => loadData(user.name), 2500);
+    }
+  }
+
   async function handleIptalOnay() {
     if (!iptalPopup || iptalLoading) return;
     setIptalLoading(true);
@@ -546,6 +568,7 @@ function tarihToDate(str) {
       setIptalPopup(null);
       setStatus({ type: "success", msg: t("Talebiniz iptal edildi.", "Your request has been cancelled.") });
       await loadData(user.name);
+      yaklasanIzinleriRefreshEt(iptalPopup);
     } catch (_) {
       setStatus({ type: "error", msg: t("Talep iptal edilirken hata oluştu.", "An error occurred while cancelling.") });
     }
@@ -609,11 +632,13 @@ function tarihToDate(str) {
       };
 
       await submitIzin(formData);
+      const eskiDuzenlenenIzin = duzenlenenIzin;
       setStatus({ type: "success", msg: duzenlenenIzin ? t("Talebiniz tekrar gönderildi!", "Your request has been resubmitted!") : t("İzin talebiniz başarıyla kaydedildi!", "Your leave request has been submitted!") });
       setBaslangic(""); setBitis(""); setAciklama(""); setDosya(null);
       setIzinTuru("Yıllık İzin");
       setDuzenlenenIzin(null);
       await loadData(user.name);
+      yaklasanIzinleriRefreshEt(eskiDuzenlenenIzin);
     } catch (err) {
       setStatus({ type: "error", msg: t("Kayıt sırasında hata oluştu.", "An error occurred while submitting.") });
     } finally {
@@ -1037,15 +1062,28 @@ function dateToInputValue(value) {
 
 function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
   const benimSatirim = (iz["Personel"] || "").trim().toLowerCase() === (user?.name || "").trim().toLowerCase();
+  const durum = (iz["Durum"] || "").trim();
+  const basInput = dateToInputValue(iz["Başlangıç"]);
+  const basDate = basInput ? new Date(Number(basInput.slice(0, 4)), Number(basInput.slice(5, 7)) - 1, Number(basInput.slice(8, 10))) : null;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const tarihiGelmis = basDate && basDate <= today;
+  const rowTone = durum === "Bekliyor"
+    ? { background: "#fef9c3", border: "#fde68a", shadow: "0 3px 14px rgba(234,179,8,0.10)" }
+    : durum === "Onaylandı" && !tarihiGelmis
+      ? { background: "#ecfdf5", border: "#a7f3d0", shadow: "0 3px 14px rgba(34,197,94,0.10)" }
+      : { background: "#f8fafc", border: "#e2e8f0", shadow: "none" };
 
   return (
     <div
       style={{
         ...styles.yaklasanRow,
+        background: rowTone.background,
+        border: `${benimSatirim ? "2px" : "1px"} solid ${benimSatirim ? "#2563eb" : rowTone.border}`,
+        boxShadow: benimSatirim ? "0 4px 18px rgba(37,99,235,0.12)" : rowTone.shadow,
         ...(benimSatirim ? {
-          border: "2px solid #2563eb",
-          background: "#eff6ff",
-          boxShadow: "0 4px 18px rgba(37,99,235,0.12)"
+          outline: `2px solid ${rowTone.border}`,
+          outlineOffset: "2px"
         } : {})
       }}
       className="izin-yaklasan-row"
@@ -1228,28 +1266,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
       }));
       const { start, end } = getYaklasanRange(yaklasanPeriod);
       const izinliIsimler = list.map(p => (p["Ad Soyad"] || "").trim().toLowerCase());
-      console.log("[Yaklaşan Debug] period/range", {
-        yaklasanPeriod,
-        start: start.toISOString(),
-        end: end.toISOString(),
-        personelListCount: list.length,
-        izinliIsimler: izinliIsimler.slice(0, 20),
-        rowsCount: rows.length,
-        sampleRows: rows.slice(0, 10).map(r => ({
-          personel: r["Personel"],
-          baslangic: r["Başlangıç"],
-          bitis: r["Bitiş"],
-          durum: r["Durum"],
-          tur: r["İzin Türü"],
-          gun: r["Talep Edilen İzin Günü"],
-          inList: izinliIsimler.includes((r["Personel"] || "").trim().toLowerCase()),
-          basParsed: adminTarihToDate(r["Başlangıç"]),
-          bitParsed: adminTarihToDate(r["Bitiş"]),
-        })),
-      });
       const filtered = rows
         .filter(r => r["Personel"] && izinliIsimler.includes((r["Personel"] || "").trim().toLowerCase()))
-        .filter(r => (r["Durum"] || "").trim() !== "Reddedildi")
+        .filter(r => {
+          const durum = (r["Durum"] || "").trim();
+          return durum === "Bekliyor" || durum === "Onaylandı";
+        })
         .filter(r => {
           const bas = adminTarihToDate(r["Başlangıç"]);
           const bit = adminTarihToDate(r["Bitiş"]) || bas;
@@ -1259,20 +1281,8 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           return bas <= end && bit >= start;
         })
         .sort((a, b) => (adminTarihToDate(a["Başlangıç"]) || 0) - (adminTarihToDate(b["Başlangıç"]) || 0));
-      console.log("[Yaklaşan Debug] filtered", {
-        count: filtered.length,
-        rows: filtered.map(r => ({
-          personel: r["Personel"],
-          baslangic: r["Başlangıç"],
-          bitis: r["Bitiş"],
-          durum: r["Durum"],
-          tur: r["İzin Türü"],
-          gun: r["Talep Edilen İzin Günü"],
-        })),
-      });
       setYaklasanIzinlerAdmin(filtered);
     } catch (err) {
-      console.error("[Yaklaşan Debug] hata", err);
       setYaklasanIzinlerAdmin([]);
     }
     setYaklasanLoading(false);
