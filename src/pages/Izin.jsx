@@ -1070,7 +1070,7 @@ function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
   const tarihiGelmis = basDate && basDate <= today;
   let rowTone = { background: "#f8fafc", border: "#e2e8f0", shadow: "none" };
   if (durum === "Bekliyor") {
-    rowTone = { background: "#f5f3ff", border: "#ddd6fe", shadow: "0 3px 14px rgba(124,58,237,0.10)" };
+    rowTone = { background: "#fff7ed", border: "#fed7aa", shadow: "0 3px 14px rgba(249,115,22,0.10)" };
   } else if (durum === "Onaylandı" && !tarihiGelmis) {
     rowTone = { background: "#ecfdf5", border: "#a7f3d0", shadow: "0 3px 14px rgba(34,197,94,0.10)" };
   }
@@ -1094,7 +1094,7 @@ function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
           <div style={styles.yaklasanTur}>{(iz["İzin Türü"] || iz["Mazeret"] || "").split(" - ")[0]}</div>
           {benimSatirim && durum === "Bekliyor" && (
-            <span style={{ padding: "2px 9px", borderRadius: "100px", background: "#ede9fe", color: "#6d28d9", fontSize: "11px", fontWeight: "700" }}>Beklemede</span>
+            <span style={{ padding: "2px 9px", borderRadius: "100px", background: "#ffedd5", color: "#c2410c", fontSize: "11px", fontWeight: "700" }}>Beklemede</span>
           )}
         </div>
         <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
@@ -1781,7 +1781,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 const isReddetProcessing = reddetloading === rowKey;
                 const isProcessing = isOnayProcessing || isReddetProcessing;
                 return (
-                  <div key={i} style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "12px", padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", boxShadow: "0 3px 14px rgba(124,58,237,0.08)" }}>
+                  <div key={i} style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "12px", padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", boxShadow: "0 3px 14px rgba(249,115,22,0.08)" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>{row["Personel"]}</div>
                       <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", marginBottom: "3px" }}>{(row["İzin Türü"] || row["Mazeret"] || "").split(" - ")[0]}</div>
@@ -1856,16 +1856,16 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {yaklasanIzinlerAdmin.map((row, i) => {
                     const durum = row["Durum"] || "Bekliyor";
-                    const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#6d28d9" : "#64748b";
-                    const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#ede9fe" : "#f1f5f9";
+                    const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#c2410c" : "#64748b";
+                    const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#ffedd5" : "#f1f5f9";
                     const emp = list.find(p => p["Ad Soyad"] === row["Personel"]) || {};
                     const baslangicDate = adminTarihToDate(row["Başlangıç"]);
                     const today = new Date();
                     today.setHours(0,0,0,0);
                     const tarihiGelmemis = yaklasanPeriod === "buAy" && baslangicDate && baslangicDate > today;
-                    const rowBg = durum === "Bekliyor" ? "#f5f3ff" : tarihiGelmemis ? "#dcfce7" : "#f8fafc";
-                    const rowBorder = durum === "Bekliyor" ? "#ddd6fe" : tarihiGelmemis ? "#86efac" : "#e2e8f0";
-                    const rowShadow = durum === "Bekliyor" ? "0 3px 14px rgba(124,58,237,0.10)" : tarihiGelmemis ? "0 3px 14px rgba(34,197,94,0.12)" : "none";
+                    const rowBg = durum === "Bekliyor" ? "#fff7ed" : tarihiGelmemis ? "#dcfce7" : "#f8fafc";
+                    const rowBorder = durum === "Bekliyor" ? "#fed7aa" : tarihiGelmemis ? "#86efac" : "#e2e8f0";
+                    const rowShadow = durum === "Bekliyor" ? "0 3px 14px rgba(249,115,22,0.10)" : tarihiGelmemis ? "0 3px 14px rgba(34,197,94,0.12)" : "none";
                     return (
                       <div key={i} style={{ background: rowBg, border: `1px solid ${rowBorder}`, borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", boxShadow: rowShadow }}>
                         <div>
