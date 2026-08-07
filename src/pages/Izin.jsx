@@ -1070,6 +1070,7 @@ function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
   const tarihiGelmis = basDate && basDate <= today;
   const rowTone = durum === "Bekliyor"
     ? { background: "#fef9c3", border: "#fde68a", shadow: "0 3px 14px rgba(234,179,8,0.10)" }
+    ? { background: "#f5f3ff", border: "#ddd6fe", shadow: "0 3px 14px rgba(124,58,237,0.10)" }
     : durum === "Onaylandı" && !tarihiGelmis
       ? { background: "#ecfdf5", border: "#a7f3d0", shadow: "0 3px 14px rgba(34,197,94,0.10)" }
       : { background: "#f8fafc", border: "#e2e8f0", shadow: "none" };
@@ -1091,6 +1092,12 @@ function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
       <div style={{ flex: 1 }}>
         <div style={styles.yaklasanIsim}>{iz["Personel"]}{benimSatirim ? " · Benim iznim" : ""}</div>
         <div style={styles.yaklasanTur}>{(iz["İzin Türü"] || iz["Mazeret"] || "").split(" - ")[0]}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+          <div style={styles.yaklasanTur}>{(iz["İzin Türü"] || iz["Mazeret"] || "").split(" - ")[0]}</div>
+          {benimSatirim && durum === "Bekliyor" && (
+            <span style={{ padding: "2px 9px", borderRadius: "100px", background: "#ede9fe", color: "#6d28d9", fontSize: "11px", fontWeight: "700" }}>Beklemede</span>
+          )}
+        </div>
         <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -1776,6 +1783,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 const isProcessing = isOnayProcessing || isReddetProcessing;
                 return (
                   <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                  <div key={i} style={{ background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: "12px", padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", boxShadow: "0 3px 14px rgba(124,58,237,0.08)" }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>{row["Personel"]}</div>
                       <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", marginBottom: "3px" }}>{(row["İzin Türü"] || row["Mazeret"] || "").split(" - ")[0]}</div>
