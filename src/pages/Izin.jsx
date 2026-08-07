@@ -1009,6 +1009,31 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
     setGecmisLoading(false);
   }
 
+  function adminTarihToDate(str) {
+    if (!str) return null;
+    str = String(str).trim();
+    const onlyDate = str.split(" ")[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(onlyDate)) {
+      const [y, m, d] = onlyDate.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+    if (str.includes(".")) {
+      const [d, m, y] = str.split(" ")[0].split(".");
+      return new Date(`${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`);
+    }
+    if (str.includes("/")) {
+      const parts = str.split(" ")[0].split("/");
+      if (parts[2]?.length === 4) {
+        const first = Number(parts[0]);
+        const second = Number(parts[1]);
+        if (first > 12) return new Date(`${parts[2]}-${parts[1].padStart(2,"0")}-${parts[0].padStart(2,"0")}`);
+        if (second > 12) return new Date(`${parts[2]}-${parts[0].padStart(2,"0")}-${parts[1].padStart(2,"0")}`);
+        return new Date(`${parts[2]}-${parts[1].padStart(2,"0")}-${parts[0].padStart(2,"0")}`);
+      }
+    }
+    return new Date(str);
+  }
+
   function getYaklasanRange(period) {
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -1066,22 +1091,22 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           tur: r["İzin Türü"],
           gun: r["Talep Edilen İzin Günü"],
           inList: izinliIsimler.includes((r["Personel"] || "").trim().toLowerCase()),
-          basParsed: tarihToDate(r["Başlangıç"]),
-          bitParsed: tarihToDate(r["Bitiş"]),
+          basParsed: adminTarihToDate(r["Başlangıç"]),
+          bitParsed: adminTarihToDate(r["Bitiş"]),
         })),
       });
       const filtered = rows
         .filter(r => r["Personel"] && izinliIsimler.includes((r["Personel"] || "").trim().toLowerCase()))
         .filter(r => (r["Durum"] || "").trim() !== "Reddedildi")
         .filter(r => {
-          const bas = tarihToDate(r["Başlangıç"]);
-          const bit = tarihToDate(r["Bitiş"]) || bas;
+          const bas = adminTarihToDate(r["Başlangıç"]);
+          const bit = adminTarihToDate(r["Bitiş"]) || bas;
           if (!bas || !bit || isNaN(bas.getTime()) || isNaN(bit.getTime())) return false;
           bas.setHours(0,0,0,0);
           bit.setHours(23,59,59,999);
           return bas <= end && bit >= start;
         })
-        .sort((a, b) => (tarihToDate(a["Başlangıç"]) || 0) - (tarihToDate(b["Başlangıç"]) || 0));
+        .sort((a, b) => (adminTarihToDate(a["Başlangıç"]) || 0) - (adminTarihToDate(b["Başlangıç"]) || 0));
       console.log("[Yaklaşan Debug] filtered", {
         count: filtered.length,
         rows: filtered.map(r => ({
