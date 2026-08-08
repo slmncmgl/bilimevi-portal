@@ -314,6 +314,7 @@ export default function Izin() {
         p["Şube"] === data?.["Şube"]
       );
       const subeIsimler = subePersonel.map(p => p["Ad Soyad"]);
+      const isStaff = gorIzni === "staff" || gorIzni === "personel";
       const gelecek = islemler.filter(row => {
         const b = tarihToDate(row["Bitiş"]);
         const izinTipi = (row["Mazeret"] || "").toLowerCase();
@@ -322,7 +323,9 @@ export default function Izin() {
         const durumUygun = benimIznim
           ? ["Bekliyor", "Onaylandı"].includes(durum)
           : durum === "Onaylandı";
-        return subeIsimler.includes(row["Personel"]) && b >= bugun && !izinTipi.includes("yarım gün") && durumUygun;
+        // staff sadece kendi izinlerini görür, manager+ tüm şubeyi görür
+        const gorunur = isStaff ? benimIznim : subeIsimler.includes(row["Personel"]);
+        return gorunur && b >= bugun && !izinTipi.includes("yarım gün") && durumUygun;
       }).sort((a, b) => {
         const currentName = (name || "").trim().toLowerCase();
         const aBenim = (a["Personel"] || "").trim().toLowerCase() === currentName ? 0 : 1;
@@ -957,7 +960,11 @@ function tarihToDate(str) {
             {/* Yaklaşan izinler */}
             {yaklasanIzinler.length > 0 && (
               <div style={styles.yaklasanCard}>
-                <h3 style={styles.yaklasanTitle}>{t("Şubenizdeki Yaklaşan İzinler", "Upcoming Leaves in Your Branch")}</h3>
+                <h3 style={styles.yaklasanTitle}>{
+                  (rol === "staff" || rol === "personel")
+                    ? t("Yaklaşan İzinlerim", "My Upcoming Leaves")
+                    : t("Şubenizdeki Yaklaşan İzinler", "Upcoming Leaves in Your Branch")
+                }</h3>
                 <div style={styles.yaklasanList}>
                   {yaklasanIzinler.map((iz, i) => (
                     <YaklasanIzinRow key={i} iz={iz} user={user} birim={birim} onEdit={handleYaklasanDuzenle} onCancel={setIptalPopup} />
