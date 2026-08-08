@@ -124,6 +124,36 @@ function sonrakiHakedis(girisDateStr) {
   return hakedis.toLocaleDateString("tr-TR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
+// Giriş tarihini parse et (dd.MM.yyyy veya yyyy-MM-dd)
+function parseGirisTarihi(str) {
+  if (!str) return null;
+  if (str.includes(".")) {
+    const [g, a, y] = str.split(".");
+    if (!g || !a || !y) return null;
+    return new Date(parseInt(y), parseInt(a) - 1, parseInt(g));
+  }
+  if (str.includes("-")) {
+    const [y, a, g] = str.split("-");
+    if (!y || !a || !g) return null;
+    return new Date(parseInt(y), parseInt(a) - 1, parseInt(g));
+  }
+  return null;
+}
+
+// Devreden izin son kullanım tarihi = en son yıldönümü + 60 takvim günü
+function devredenSonTarih(girisDateStr) {
+  const giris = parseGirisTarihi(girisDateStr);
+  if (!giris) return null;
+  const bugun = new Date();
+  bugun.setHours(0, 0, 0, 0);
+  const buYil = bugun.getFullYear();
+  let yildonumu = new Date(buYil, giris.getMonth(), giris.getDate());
+  if (yildonumu > bugun) yildonumu = new Date(buYil - 1, giris.getMonth(), giris.getDate());
+  const sonTarih = new Date(yildonumu);
+  sonTarih.setDate(sonTarih.getDate() + 60);
+  return sonTarih;
+}
+
 function isGunuHesapla(baslangic, bitis, tatilSet) {
   if (!baslangic || !bitis) return 0;
   const start = new Date(baslangic);
@@ -715,30 +745,33 @@ function tarihToDate(str) {
                 {dataLoading ? <div style={styles.infoLoading}>Yükleniyor...</div> : personel ? (
                   <>
                     <div style={{ display: "flex", gap: "12px", alignItems: "stretch" }} className="izin-info-row-wrap">
-                      <div style={styles.infoRow}>
-                        <span style={styles.infoLabel}>{t("Toplam Hak", "Total Entitlement")}</span>
-                        <span style={styles.infoValue}>{personel["Hakediş"]} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>{birim}</span></span>
-                      </div>
-                      <div style={styles.infoRow}>
-                        <span style={styles.infoLabel}>{t("Kullanılan", "Used")}</span>
-                        <span style={{ ...styles.infoValue, color: "#dc2626" }}>{personel["Kullanılan İzin"] || 0} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>{birim}</span></span>
-                      </div>
                       <div style={{ ...styles.infoRow, background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-                        <span style={styles.infoLabel}>{t("Kalan", "Remaining")}</span>
+                        <span style={styles.infoLabel}>{t("Kalan İzin", "Remaining")}</span>
                         <span style={{ ...styles.infoValue, color: "#059669" }}>{personel["Kalan İzin"]} <span style={{ fontSize: "13px", fontWeight: "500", color: "#86efac" }}>{birim}</span></span>
                       </div>
-                      <div style={{ flex: 2, display: "flex", flexDirection: "column", justifyContent: "center", gap: "6px" }}>
-                        <div style={styles.progressBg}>
-                          <div style={{ ...styles.progressFill, width: `${Math.min((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100, 100)}%` }} />
-                        </div>
-                        <span style={styles.progressText}>{Math.round((Number(personel["Kullanılan İzin"]) / Number(personel["Hakediş"])) * 100)}% {t("kullanıldı", "used")}</span>
-                        {personel["Giriş Tarihi"] && sonrakiHakedis(personel["Giriş Tarihi"]) && (
-                          <div style={styles.hakedisBox}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            <span>Sonraki hakediş: <strong>{sonrakiHakedis(personel["Giriş Tarihi"])}</strong></span>
-                          </div>
-                        )}
+                      <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>{t("Bu Yıl Kullanılan", "Used This Year")}</span>
+                        <span style={{ ...styles.infoValue, color: "#dc2626" }}>{personel["Kullanılan İzin"] || 0} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>{birim}</span></span>
                       </div>
+                      <div style={{ ...styles.infoRow, background: (Number(personel["Devreden Hakediş"]) || 0) > 0 ? "#fff7ed" : "#f8fafc", border: (Number(personel["Devreden Hakediş"]) || 0) > 0 ? "1px solid #fed7aa" : "1px solid transparent" }}>
+                        <span style={styles.infoLabel}>{t("Devreden İzin", "Carried Over")}</span>
+                        <span style={{ ...styles.infoValue, color: (Number(personel["Devreden Hakediş"]) || 0) > 0 ? "#c2410c" : "#94a3b8" }}>{personel["Devreden Hakediş"] || 0} <span style={{ fontSize: "13px", fontWeight: "500", color: "#94a3b8" }}>{birim}</span></span>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {personel["Giriş Tarihi"] && sonrakiHakedis(personel["Giriş Tarihi"]) && (
+                        <div style={styles.hakedisBox}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                          <span>{t("Sonraki hakediş", "Next entitlement")}: <strong>{sonrakiHakedis(personel["Giriş Tarihi"])}</strong></span>
+                        </div>
+                      )}
+                      {(Number(personel["Devreden Hakediş"]) || 0) > 0 && personel["Giriş Tarihi"] && devredenSonTarih(personel["Giriş Tarihi"]) && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "7px", fontSize: "12px", color: "#c2410c", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "8px", padding: "8px 12px" }}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+                          <span>{t("Devreden izinleri kullanmak için son tarih", "Deadline to use carried-over leave")}: <strong>{devredenSonTarih(personel["Giriş Tarihi"]).toLocaleDateString(isFortis ? "en-GB" : "tr-TR", { day: "2-digit", month: "long", year: "numeric" })}</strong></span>
+                        </div>
+                      )}
                     </div>
                   </>
                 ) : <div style={styles.infoLoading}>Personel verisi bulunamadı.</div>}
