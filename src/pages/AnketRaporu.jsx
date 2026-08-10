@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.18";
+const VERSION = "v1.19";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -848,7 +848,7 @@ export default function AnketRaporu() {
                         onClick={() => { setActiveTab(tab); setView("results"); setDropdownOpen(false); }}
                         style={{ ...styles.dropdownItem, ...(tab === activeTab ? styles.dropdownItemActive : {}) }}
                       >
-                        {tab} {groupCounts[tab] !== undefined ? `(${groupCounts[tab]})` : ""}
+                        {tab} {groupCounts[tab] !== undefined ? <strong>({groupCounts[tab]})</strong> : ""}
                       </div>
                     ))}
                   </div>
