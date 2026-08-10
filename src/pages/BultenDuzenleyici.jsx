@@ -1,4 +1,4 @@
-// v1.0
+// v1.1
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -72,7 +72,8 @@ export default function BultenDuzenleyici() {
 
   // result: { options: [{title, content}, ...], urls: [...] }
   const [result, setResult] = useState(null);
-  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [selectedTitle, setSelectedTitle] = useState(null);     // hangi seçeneğin BAŞLIĞI seçili
+  const [selectedContent, setSelectedContent] = useState(null); // hangi seçeneğin ÖZETİ seçili
   const [sourceText, setSourceText] = useState(""); // tekli alan yenilemede kaynak metin
 
   const [regenLoading, setRegenLoading] = useState({}); // key: "idx:field"
@@ -126,7 +127,7 @@ export default function BultenDuzenleyici() {
     if (!urlInput.trim()) return;
     setUrlLoading(true);
     setStatus({ type: "info", msg: "Sayfa çekiliyor..." });
-    setResult(null); setSelectedIndex(null); setActiveChannel(null); setFromSheetPreview(false);
+    setResult(null); setSelectedTitle(null); setSelectedContent(null); setActiveChannel(null); setFromSheetPreview(false);
     try {
       // 1. Apps Script'ten temizlenmiş sayfa metnini al
       const res = await fetch(SCRIPT_URL, {
@@ -143,7 +144,7 @@ export default function BultenDuzenleyici() {
 
       setSourceText(metin);
       setResult({ options, urls: [urlInput.trim()] });
-      setSelectedIndex(null);
+      setSelectedTitle(null); setSelectedContent(null);
       setStatus({ type: "success", msg: options.length + " alternatif hazır" });
     } catch (err) {
       setStatus({ type: "error", msg: "Hata: " + err.message });
@@ -182,8 +183,11 @@ export default function BultenDuzenleyici() {
   }
 
   function getSelected() {
-    if (!result || selectedIndex === null) return null;
-    return result.options[selectedIndex] || null;
+    if (!result || selectedTitle === null || selectedContent === null) return null;
+    const t = result.options[selectedTitle];
+    const c = result.options[selectedContent];
+    if (!t || !c) return null;
+    return { title: t.title, content: c.content };
   }
 
   // ── Sheet'e Kaydet ────────────────────────────────────────────
@@ -231,7 +235,7 @@ export default function BultenDuzenleyici() {
     const ch = channels[idx];
     // Kanalı tek seçenekli sonuç olarak yükle (önceden seçilmiş içerik)
     setResult({ options: [{ title: ch.title, content: ch.content }], urls: ch.urls || [] });
-    setSelectedIndex(0);
+    setSelectedTitle(0); setSelectedContent(0);
     setSourceText("");
     setCopied({});
     if (ch.fromSheet) { setActiveChannel(null); setFromSheetPreview(true); }
@@ -241,7 +245,7 @@ export default function BultenDuzenleyici() {
   function karakterKontrol() {
     const errors = [];
     const sel = getSelected();
-    if (!sel) { errors.push("Önce bir seçenek seçin."); return errors; }
+    if (!sel) { errors.push("Önce bir başlık ve bir özet seçin."); return errors; }
     if (sel.title.length > 50)
       errors.push("Başlık 50 karakteri aşıyor (" + sel.title.length + "/50). Yenile butonunu kullanın.");
     if (sel.content.length > 200)
@@ -434,44 +438,46 @@ export default function BultenDuzenleyici() {
               </div>
             )}
 
-            {result && !single && selectedIndex === null && (
+            {result && !single && (selectedTitle === null || selectedContent === null) && (
               <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", textAlign: "center", marginBottom: "2px" }}>
-                Kaydetmek için bir seçenek seç ↓
+                Kaydetmek için bir <strong>başlık</strong> ve bir <strong>özet</strong> seç ↓
               </div>
             )}
 
             {/* Alternatif kartları */}
             {result && result.options.map((opt, idx) => {
-              const selected = selectedIndex === idx;
+              const titleSel = selectedTitle === idx;
+              const contentSel = selectedContent === idx;
               const titleOver = opt.title.length > 50;
               const contentOver = opt.content.length > 200;
               return (
-                <div key={idx}
-                  onClick={() => setSelectedIndex(idx)}
-                  style={{
-                    ...s.optionCard,
-                    cursor: single ? "default" : "pointer",
-                    borderColor: selected ? "#2563eb" : (titleOver || contentOver) ? "#fca5a5" : "#e2e8f0",
-                    background: selected && !single ? "#f8fbff" : "#fff",
-                    boxShadow: selected && !single ? "0 0 0 3px rgba(37,99,235,0.12)" : "0 1px 3px rgba(0,0,0,0.04)"
-                  }}>
+                <div key={idx} style={{ ...s.optionCard }}>
 
                   {!single && (
                     <div style={s.optionHead}>
-                      <div style={s.optionNum}>
-                        <span style={{ ...s.radio, borderColor: selected ? "#2563eb" : "#cbd5e1", background: selected ? "#2563eb" : "#fff" }}>
-                          {selected && <span style={s.radioDot} />}
-                        </span>
-                        Seçenek {idx + 1}
-                      </div>
-                      {selected && <span style={s.selBadge}>✓ Seçildi</span>}
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#94a3b8" }}>Seçenek {idx + 1}</div>
                     </div>
                   )}
 
                   {/* Başlık */}
-                  <div style={s.fieldBlock}>
+                  <div
+                    onClick={() => !single && setSelectedTitle(idx)}
+                    style={{
+                      ...s.fieldBlock, ...s.fieldSelectable,
+                      cursor: single ? "default" : "pointer",
+                      borderColor: titleSel ? "#2563eb" : titleOver ? "#fca5a5" : "#e8edf3",
+                      background: titleSel ? "#eff6ff" : "#fff"
+                    }}>
                     <div style={s.fieldHead}>
-                      <span style={s.fieldLabel}>Başlık</span>
+                      <div style={s.fieldLabelRow}>
+                        {!single && (
+                          <span style={{ ...s.radio, borderColor: titleSel ? "#2563eb" : "#cbd5e1", background: titleSel ? "#2563eb" : "#fff" }}>
+                            {titleSel && <span style={s.radioDot} />}
+                          </span>
+                        )}
+                        <span style={{ ...s.fieldLabel, color: titleSel ? "#2563eb" : "#475569" }}>Başlık</span>
+                        {titleSel && !single && <span style={s.selBadge}>✓ Seçili</span>}
+                      </div>
                       <div style={{ display: "flex", gap: "6px" }}>
                         <button onClick={(e) => { e.stopPropagation(); regenField(idx, "title"); }} disabled={rk(idx, "title")} style={s.regenBtn}>
                           {rk(idx, "title") ? <div style={{ ...s.spinner, width: "11px", height: "11px", border: "1.5px solid #e2e8f0", borderTopColor: "#2563eb" }} /> : "↻ Yenile"}
@@ -482,15 +488,30 @@ export default function BultenDuzenleyici() {
                         </button>
                       </div>
                     </div>
-                    <textarea value={opt.title} onChange={e => editField(idx, "title", e.target.value)}
+                    <textarea value={opt.title} onClick={(e) => e.stopPropagation()} onChange={e => editField(idx, "title", e.target.value)}
                       rows={2} style={{ ...s.textarea, borderColor: titleOver ? "#fca5a5" : "#e2e8f0" }} />
                     <CharBar value={opt.title} max={50} />
                   </div>
 
                   {/* Haber Özeti */}
-                  <div style={{ ...s.fieldBlock, marginTop: "14px" }}>
+                  <div
+                    onClick={() => !single && setSelectedContent(idx)}
+                    style={{
+                      ...s.fieldBlock, ...s.fieldSelectable, marginTop: "12px",
+                      cursor: single ? "default" : "pointer",
+                      borderColor: contentSel ? "#2563eb" : contentOver ? "#fca5a5" : "#e8edf3",
+                      background: contentSel ? "#eff6ff" : "#fff"
+                    }}>
                     <div style={s.fieldHead}>
-                      <span style={s.fieldLabel}>Haber Özeti</span>
+                      <div style={s.fieldLabelRow}>
+                        {!single && (
+                          <span style={{ ...s.radio, borderColor: contentSel ? "#2563eb" : "#cbd5e1", background: contentSel ? "#2563eb" : "#fff" }}>
+                            {contentSel && <span style={s.radioDot} />}
+                          </span>
+                        )}
+                        <span style={{ ...s.fieldLabel, color: contentSel ? "#2563eb" : "#475569" }}>Haber Özeti</span>
+                        {contentSel && !single && <span style={s.selBadge}>✓ Seçili</span>}
+                      </div>
                       <div style={{ display: "flex", gap: "6px" }}>
                         <button onClick={(e) => { e.stopPropagation(); regenField(idx, "content"); }} disabled={rk(idx, "content")} style={s.regenBtn}>
                           {rk(idx, "content") ? <div style={{ ...s.spinner, width: "11px", height: "11px", border: "1.5px solid #e2e8f0", borderTopColor: "#2563eb" }} /> : "↻ Yenile"}
@@ -501,7 +522,7 @@ export default function BultenDuzenleyici() {
                         </button>
                       </div>
                     </div>
-                    <textarea value={opt.content} onChange={e => editField(idx, "content", e.target.value)}
+                    <textarea value={opt.content} onClick={(e) => e.stopPropagation()} onChange={e => editField(idx, "content", e.target.value)}
                       rows={4} style={{ ...s.textarea, borderColor: contentOver ? "#fca5a5" : "#e2e8f0" }} />
                     <CharBar value={opt.content} max={200} />
                   </div>
@@ -668,7 +689,9 @@ const s = {
   selBadge: { fontSize: "10px", fontWeight: "700", color: "#2563eb", background: "#eff6ff", padding: "3px 8px", borderRadius: "20px" },
 
   fieldBlock: {},
+  fieldSelectable: { border: "1.5px solid #e8edf3", borderRadius: "12px", padding: "12px", transition: "border-color 0.15s, background 0.15s" },
   fieldHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" },
+  fieldLabelRow: { display: "flex", alignItems: "center", gap: "8px" },
   fieldLabel: { fontSize: "11px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
 
   textarea: { width: "100%", padding: "12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", fontFamily: "inherit", color: "#0f172a", resize: "vertical", boxSizing: "border-box", lineHeight: "1.6", transition: "border-color 0.2s", background: "#fff" },
