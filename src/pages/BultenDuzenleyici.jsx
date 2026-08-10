@@ -1,26 +1,81 @@
+// v1.0
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxL1tyheVomQJxaGcENTR-5ymJxnZihInrYKMhJPPrh6PZfFFoVM7_jAjC1qPHcOdgx/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxseCtKe77TrSuQRmWE635YMGHgeRiWNxXcusertZo62sjA_9aBC400e7mHsJUZ6UfJ/exec";
 
-const URL_REGEX = /(https?:\/\/[^\s]+)/g;
-const extractUrls = (text) => text.match(URL_REGEX) || [];
-const stripUrls = (text) => text.replace(URL_REGEX, "").replace(/\s{2,}/g, " ").trim();
+// Gemini çağrısı artık Vercel /api/gemini üzerinden (API key server-side, tarayıcıya gönderilmez)
+const GEMINI_ENDPOINT = "/api/gemini";
+const GEMINI_MODEL = "gemini-3.6-flash";
+
+// ── Gemini yardımcıları ──────────────────────────────────────────
+async function callGemini(prompt, temperature) {
+  const res = await fetch(GEMINI_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: GEMINI_MODEL,
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: temperature ?? 0.4 }
+    })
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || ("Gemini HTTP " + res.status));
+  }
+  const data = await res.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+}
+
+function parseJson(raw) {
+  if (!raw) return null;
+  const clean = raw.replace(/```json/g, "").replace(/```/g, "").trim();
+  try { return JSON.parse(clean); } catch (_) {}
+  const m = clean.match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch (_) {} }
+  return null;
+}
+
+async function callGeminiOptions(text) {
+  const prompt =
+`Sen profesyonel bir e-bülten editörüsün.
+Aşağıdaki metinden 3 FARKLI alternatif başlık ve özet üret.
+KESİN KURALLAR:
+1. BAŞLIK: 40-50 karakter.
+2. İÇERİK: 140-160 karakter.
+3. Cümleyi tam bitir.
+4. 3 seçenek birbirinden farklı açılardan yazılsın (ör. avantaj odaklı, süreç odaklı, harekete geçirici).
+5. SADECE JSON döndür: { "options": [ {"title":"...","content":"..."}, {"title":"...","content":"..."}, {"title":"...","content":"..."} ] }
+
+METİN:
+${text.substring(0, 8000)}`;
+  const raw = await callGemini(prompt, 0.7);
+  const parsed = parseJson(raw);
+  if (parsed && Array.isArray(parsed.options) && parsed.options.length) {
+    return parsed.options.slice(0, 3).map(o => ({ title: (o.title || "").trim(), content: (o.content || "").trim() }));
+  }
+  if (parsed && (parsed.title || parsed.content)) {
+    return [{ title: parsed.title || "", content: parsed.content || "" }];
+  }
+  throw new Error("Gemini geçerli yanıt döndürmedi");
+}
 
 export default function BultenDuzenleyici() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
 
-  const [input, setInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
   const [channelsLoading, setChannelsLoading] = useState(true);
   const [fromSheetPreview, setFromSheetPreview] = useState(false);
-  const [detectedUrls, setDetectedUrls] = useState([]);
-  const [result, setResult] = useState(null); // { title, content, urls }
-  const [loading, setLoading] = useState(false);
-  const [regenLoading, setRegenLoading] = useState({ title: false, content: false });
+
+  // result: { options: [{title, content}, ...], urls: [...] }
+  const [result, setResult] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(null);
+  const [sourceText, setSourceText] = useState(""); // tekli alan yenilemede kaynak metin
+
+  const [regenLoading, setRegenLoading] = useState({}); // key: "idx:field"
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState(null); // { type: "success"|"error"|"info", msg }
 
@@ -29,7 +84,10 @@ export default function BultenDuzenleyici() {
   const [showModal, setShowModal] = useState(false);
   const [overwriteConfirm, setOverwriteConfirm] = useState(null);
   const [activeChannel, setActiveChannel] = useState(null);
-  const [copied, setCopied] = useState({ title: false, content: false, link: false });
+  const [copied, setCopied] = useState({}); // key: "idx:field" veya "link"
+
+  const rk = (idx, field) => !!regenLoading[idx + ":" + field];
+  const ck = (key) => !!copied[key];
 
   useEffect(() => {
     const session = getSession();
@@ -48,13 +106,7 @@ export default function BultenDuzenleyici() {
       json.data.forEach(h => {
         const idx = h.row - 2;
         if (idx >= 0 && idx < 8) {
-          updated[idx] = {
-            title: h.title,
-            content: h.content,
-            urls: h.url ? [h.url] : [],
-            date: "",
-            fromSheet: true
-          };
+          updated[idx] = { title: h.title, content: h.content, urls: h.url ? [h.url] : [], date: "", fromSheet: true };
         }
       });
       setChannels(updated);
@@ -69,33 +121,30 @@ export default function BultenDuzenleyici() {
     return () => clearTimeout(t);
   }, [status]);
 
-  // ── Input ──────────────────────────────────────────────────────
-  function handleInput(e) {
-    setInput(e.target.value);
-    setDetectedUrls(extractUrls(e.target.value));
-  }
-
-  // ── URL'den Özetle ────────────────────────────────────────────
-  const URL_FETCH_SCRIPT = "https://script.google.com/macros/s/AKfycbyhEpYKU6xGlzyr-JNocqhVsaxKkZHTTRYoC5siYB0lOhesTzX3vI-ab50qWdLnLDwM/exec";
-
+  // ── URL'den 3 alternatif üret ────────────────────────────────
   async function summarizeFromUrl() {
     if (!urlInput.trim()) return;
     setUrlLoading(true);
     setStatus({ type: "info", msg: "Sayfa çekiliyor..." });
-    setResult(null);
-    setActiveChannel(null);
-    setFromSheetPreview(false);
+    setResult(null); setSelectedIndex(null); setActiveChannel(null); setFromSheetPreview(false);
     try {
-      const res = await fetch(URL_FETCH_SCRIPT, {
+      // 1. Apps Script'ten temizlenmiş sayfa metnini al
+      const res = await fetch(SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ action: "bultenUrlOzetle", url: urlInput.trim() })
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.msg || "Hata");
-      if (!json.data || !json.data.title) throw new Error("Geçersiz yanıt: " + JSON.stringify(json));
-      const { title, content } = json.data;
-      setResult({ title, content, urls: [urlInput.trim()] });
-      setStatus({ type: "success", msg: "Özet hazır" });
+      if (!json.success || !json.data || !json.data.metin) throw new Error(json.msg || "Sayfa içeriği alınamadı");
+      const metin = json.data.metin;
+
+      // 2. Gemini'den 3 alternatif üret
+      setStatus({ type: "info", msg: "3 alternatif üretiliyor..." });
+      const options = await callGeminiOptions(metin);
+
+      setSourceText(metin);
+      setResult({ options, urls: [urlInput.trim()] });
+      setSelectedIndex(null);
+      setStatus({ type: "success", msg: options.length + " alternatif hazır" });
     } catch (err) {
       setStatus({ type: "error", msg: "Hata: " + err.message });
     } finally {
@@ -103,81 +152,55 @@ export default function BultenDuzenleyici() {
     }
   }
 
-  // ── Özetle (Apps Script üzerinden) ────────────────────────────
-  async function summarize() {
-    if (!input.trim()) return;
-    setLoading(true);
-    setStatus({ type: "info", msg: "Özetleniyor..." });
-    setResult(null);
-    setActiveChannel(null);
-    setFromSheetPreview(false);
+  // ── Tek alan yenile (idx'inci kartın başlık/özetini yeniden üret) ──
+  async function regenField(idx, field) {
+    if (!result || !result.options[idx]) return;
+    const key = idx + ":" + field;
+    setRegenLoading(r => ({ ...r, [key]: true }));
     try {
-      const textOnly = stripUrls(input) || input;
-      const res = await fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "bultenOzetle", metin: textOnly })
-      });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.msg || "Hata");
-      const { title, content } = json.data;
-      setResult({ title, content, urls: extractUrls(input) });
-      setStatus({ type: "success", msg: "Özet hazır" });
-    } catch (err) {
-      setStatus({ type: "error", msg: "Hata: " + err.message });
-    }
-    setLoading(false);
+      const opt = result.options[idx];
+      const source = sourceText || (opt.title + ". " + opt.content);
+      const current = opt[field];
+      const prompt = field === "title"
+        ? `Sen profesyonel bir e-bülten editörüsün. Aşağıdaki metin için SADECE 1 yeni BAŞLIK üret. KURALLAR: 40-50 karakter, cümleyi tam bitir, mevcut başlıktan belirgin şekilde farklı olsun. Mevcut başlık: "${current}". SADECE JSON döndür: { "title": "..." }\n\nMETİN:\n${source.substring(0, 8000)}`
+        : `Sen profesyonel bir e-bülten editörüsün. Aşağıdaki metin için SADECE 1 yeni ÖZET üret. KURALLAR: 140-160 karakter, cümleyi tam bitir, mevcut özetten belirgin şekilde farklı olsun. Mevcut özet: "${current}". SADECE JSON döndür: { "content": "..." }\n\nMETİN:\n${source.substring(0, 8000)}`;
+      const raw = await callGemini(prompt, 0.85);
+      const parsed = parseJson(raw);
+      const val = parsed && parsed[field];
+      if (val) editField(idx, field, val.trim());
+    } catch (_) {}
+    setRegenLoading(r => ({ ...r, [key]: false }));
   }
 
-  // ── Tek alan yenile ───────────────────────────────────────────
-  async function regenField(field) {
-    if (!result) return;
-    setRegenLoading(r => ({ ...r, [field]: true }));
-    try {
-      const sourceUrl = result.urls?.[0] || "";
-      let res, json;
+  function editField(idx, field, value) {
+    setResult(r => {
+      if (!r) return r;
+      const opts = [...r.options];
+      opts[idx] = { ...opts[idx], [field]: value };
+      return { ...r, options: opts };
+    });
+  }
 
-      if (sourceUrl) {
-        // URL varsa URL'den yeniden çek
-        res = await fetch(SCRIPT_URL, {
-          method: "POST",
-          body: JSON.stringify({ action: "bultenUrlOzetle", url: sourceUrl })
-        });
-        json = await res.json();
-        if (!json.success || !json.data) throw new Error(json.msg || "Hata");
-      } else {
-        // URL yoksa mevcut title+content'i metin olarak gönder
-        const metin = result.title + " " + result.content;
-        res = await fetch(SCRIPT_URL, {
-          method: "POST",
-          body: JSON.stringify({ action: "bultenOzetle", metin })
-        });
-        json = await res.json();
-        if (!json.success) throw new Error(json.msg || "Hata");
-      }
-
-      if (field === "title" && json.data.title) setResult(r => ({ ...r, title: json.data.title }));
-      if (field === "content" && json.data.content) setResult(r => ({ ...r, content: json.data.content }));
-    } catch (_) {}
-    setRegenLoading(r => ({ ...r, [field]: false }));
+  function getSelected() {
+    if (!result || selectedIndex === null) return null;
+    return result.options[selectedIndex] || null;
   }
 
   // ── Sheet'e Kaydet ────────────────────────────────────────────
   async function saveToSheet() {
-    if (!result) return;
+    const sel = getSelected();
+    if (!sel) return;
     setSaving(true);
     setStatus({ type: "info", msg: "Sheet'e kaydediliyor..." });
     try {
       const payload = {
         action: "bultenKaydet",
-        baslik: result.title,
-        ozet: result.content,
+        baslik: sel.title,
+        ozet: sel.content,
         url: result.urls?.[0] || "",
         slot: activeChannel !== null ? activeChannel : undefined
       };
-      const res = await fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
+      const res = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
       const json = await res.json();
       if (!json.success) throw new Error(json.msg || "Kayıt hatası");
       setStatus({ type: "success", msg: `Sheet'e kaydedildi (satır ${json.satir})` });
@@ -188,51 +211,41 @@ export default function BultenDuzenleyici() {
   }
 
   // ── Kopyala ───────────────────────────────────────────────────
-  function copyField(field, text) {
+  function copyField(key, text) {
     navigator.clipboard.writeText(text).catch(() => {});
-    setCopied(c => ({ ...c, [field]: true }));
-    setTimeout(() => setCopied(c => ({ ...c, [field]: false })), 2000);
-  }
-
-  // ── Temizle ───────────────────────────────────────────────────
-  function clearAll() {
-    setInput(""); setDetectedUrls([]); setResult(null);
-    setActiveChannel(null); setStatus(null);
-    setCopied({ title: false, content: false, link: false });
+    setCopied(c => ({ ...c, [key]: true }));
+    setTimeout(() => setCopied(c => ({ ...c, [key]: false })), 2000);
   }
 
   // ── Kanal hafıza ─────────────────────────────────────────────
   function loadChannel(idx) {
     if (!channels[idx]) {
-      // Boş kanal — eğer mevcut sonuç varsa oraya kaydet
-      if (result) {
+      // Boş kanal — seçili bir sonuç varsa oraya kaydet
+      if (getSelected()) {
         const errors = karakterKontrol();
         if (errors.length > 0) { setStatus({ type: "error", msg: errors.join(" | ") }); return; }
         saveToChannel(idx);
       }
       return;
     }
-    if (channels[idx].fromSheet) {
-      // Sheet'ten gelen — sadece görüntüle, activeChannel set etme
-      setResult({ title: channels[idx].title, content: channels[idx].content, urls: channels[idx].urls || [] });
-      setActiveChannel(null);
-      setFromSheetPreview(true);
-      setCopied({ title: false, content: false, link: false });
-      return;
-    }
-    // Hafızaya kaydedilmiş kanal — aktif olarak işaretle
-    setResult({ title: channels[idx].title, content: channels[idx].content, urls: channels[idx].urls || [] });
-    setActiveChannel(idx);
-    setFromSheetPreview(false);
-    setCopied({ title: false, content: false, link: false });
+    const ch = channels[idx];
+    // Kanalı tek seçenekli sonuç olarak yükle (önceden seçilmiş içerik)
+    setResult({ options: [{ title: ch.title, content: ch.content }], urls: ch.urls || [] });
+    setSelectedIndex(0);
+    setSourceText("");
+    setCopied({});
+    if (ch.fromSheet) { setActiveChannel(null); setFromSheetPreview(true); }
+    else { setActiveChannel(idx); setFromSheetPreview(false); }
   }
 
   function karakterKontrol() {
     const errors = [];
-    if (result?.title && result.title.length > 50)
-      errors.push("Başlık 50 karakteri aşıyor (" + result.title.length + "/50). Yenile butonunu kullanın.");
-    if (result?.content && result.content.length > 200)
-      errors.push("Haber Özeti 200 karakteri aşıyor (" + result.content.length + "/200). Yenile butonunu kullanın.");
+    const sel = getSelected();
+    if (!sel) { errors.push("Önce bir seçenek seçin."); return errors; }
+    if (sel.title.length > 50)
+      errors.push("Başlık 50 karakteri aşıyor (" + sel.title.length + "/50). Yenile butonunu kullanın.");
+    if (sel.content.length > 200)
+      errors.push("Haber Özeti 200 karakteri aşıyor (" + sel.content.length + "/200). Yenile butonunu kullanın.");
     return errors;
   }
 
@@ -243,7 +256,7 @@ export default function BultenDuzenleyici() {
   }
 
   function handleChannelSelect(idx) {
-    if (channels[idx]?.fromSheet) return; // Sheet'ten gelen — dokunulamaz
+    if (channels[idx]?.fromSheet) return;
     if (channels[idx]) { setOverwriteConfirm(idx); return; }
     saveToChannel(idx);
   }
@@ -251,8 +264,9 @@ export default function BultenDuzenleyici() {
   function saveToChannel(idx) {
     const errors = karakterKontrol();
     if (errors.length > 0) { setStatus({ type: "error", msg: errors.join(" | ") }); setShowModal(false); setOverwriteConfirm(null); return; }
+    const sel = getSelected();
     const entry = {
-      title: result.title, content: result.content, urls: result.urls || [],
+      title: sel.title, content: sel.content, urls: result.urls || [],
       date: new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "short", year: "numeric" }),
       fromSheet: false
     };
@@ -263,7 +277,7 @@ export default function BultenDuzenleyici() {
 
   function clearChannel(idx, e) {
     e.stopPropagation();
-    if (channels[idx]?.fromSheet) return; // Sheet'ten gelen — silinemez
+    if (channels[idx]?.fromSheet) return;
     const updated = [...channels]; updated[idx] = null;
     setChannels(updated);
     if (activeChannel === idx) setActiveChannel(null);
@@ -285,6 +299,8 @@ export default function BultenDuzenleyici() {
       </div>
     );
   }
+
+  const single = result && result.options.length === 1;
 
   return (
     <div style={s.root}>
@@ -333,16 +349,9 @@ export default function BultenDuzenleyici() {
                   onKeyDown={e => e.key === "Enter" && summarizeFromUrl()}
                   placeholder="https://..."
                   style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    padding: "9px 12px",
-                    border: "1.5px solid #e2e8f0",
-                    borderRadius: "8px",
-                    fontSize: "13px",
-                    color: "#1e3a5f",
-                    outline: "none",
-                    fontFamily: "inherit",
-                    background: "#fff"
+                    width: "100%", boxSizing: "border-box", padding: "9px 12px",
+                    border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px",
+                    color: "#1e3a5f", outline: "none", fontFamily: "inherit", background: "#fff"
                   }}
                 />
                 <button
@@ -356,12 +365,12 @@ export default function BultenDuzenleyici() {
                   }}
                 >
                   {urlLoading
-                    ? <><div style={s.spinner} /> Çekiliyor...</>
+                    ? <><div style={s.spinner} /> İşleniyor...</>
                     : <>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                         </svg>
-                        Özetle
+                        3 Alternatif Üret
                       </>
                   }
                 </button>
@@ -382,10 +391,8 @@ export default function BultenDuzenleyici() {
                       <div key={i} style={{
                         ...s.channelBtn,
                         background: "linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%)",
-                        backgroundSize: "200% 100%",
-                        animation: "shimmer 1.4s infinite",
-                        border: "1.5px solid #e2e8f0",
-                        height: "56px"
+                        backgroundSize: "200% 100%", animation: "shimmer 1.4s infinite",
+                        border: "1.5px solid #e2e8f0", height: "56px"
                       }} />
                     ))
                   : channels.map((ch, i) => (
@@ -420,109 +427,139 @@ export default function BultenDuzenleyici() {
               </div>
             )}
 
-            {/* Başlık */}
-            <div style={{ ...s.card, borderColor: result && result.title.length > 50 ? "#fca5a5" : "#e2e8f0" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", presidential: "center", alignItems: "center", marginBottom: "10px" }}>
-                    <div style={s.sectionLabel}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
-                        <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/>
-                      </svg>
-                      Başlık
-                    </div>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => regenField("title")} disabled={regenLoading.title || !result} style={s.regenBtn}>
-                        {regenLoading.title ? <div style={{ ...s.spinner, width: "11px", height: "11px", border: "1.5px solid #e2e8f0", borderTopColor: "#2563eb" }} /> : "↻ Yenile"}
-                      </button>
-                      <button onClick={() => copyField("title", result?.title || "")} style={{ ...s.miniCopyBtn, background: copied.title ? "#dcfce7" : "#eff6ff", color: copied.title ? "#16a34a" : "#2563eb" }}>
-                        {copied.title ? "✓ Kopyalandı" : "Kopyala"}
-                      </button>
-                    </div>
-                  </div>
-              <textarea value={result?.title || ""} onChange={e => result && setResult(r => ({ ...r, title: e.target.value }))}
-                rows={2} style={{ ...s.textarea, color: result ? "#0f172a" : "#94a3b8" }} />
-              {result && <CharBar value={result.title} max={50} />}
-                </div>
+            {!result && (
+              <div style={{ ...s.card, textAlign: "center", color: "#94a3b8", fontSize: "13px", padding: "36px 20px" }}>
+                Bir link girip <strong style={{ color: "#475569" }}>3 Alternatif Üret</strong>'e bas.
+                Alternatifler burada listelenir; birini seçip düzenleyebilirsin.
+              </div>
+            )}
 
-            {/* Haber Özeti */}
-            <div style={{ ...s.card, borderColor: result && result.content.length > 200 ? "#fca5a5" : "#e2e8f0" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <div style={s.sectionLabel}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
-                        <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="14" x2="14" y2="14"/>
-                      </svg>
-                      Haber Özeti
+            {result && !single && selectedIndex === null && (
+              <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", textAlign: "center", marginBottom: "2px" }}>
+                Kaydetmek için bir seçenek seç ↓
+              </div>
+            )}
+
+            {/* Alternatif kartları */}
+            {result && result.options.map((opt, idx) => {
+              const selected = selectedIndex === idx;
+              const titleOver = opt.title.length > 50;
+              const contentOver = opt.content.length > 200;
+              return (
+                <div key={idx}
+                  onClick={() => setSelectedIndex(idx)}
+                  style={{
+                    ...s.optionCard,
+                    cursor: single ? "default" : "pointer",
+                    borderColor: selected ? "#2563eb" : (titleOver || contentOver) ? "#fca5a5" : "#e2e8f0",
+                    background: selected && !single ? "#f8fbff" : "#fff",
+                    boxShadow: selected && !single ? "0 0 0 3px rgba(37,99,235,0.12)" : "0 1px 3px rgba(0,0,0,0.04)"
+                  }}>
+
+                  {!single && (
+                    <div style={s.optionHead}>
+                      <div style={s.optionNum}>
+                        <span style={{ ...s.radio, borderColor: selected ? "#2563eb" : "#cbd5e1", background: selected ? "#2563eb" : "#fff" }}>
+                          {selected && <span style={s.radioDot} />}
+                        </span>
+                        Seçenek {idx + 1}
+                      </div>
+                      {selected && <span style={s.selBadge}>✓ Seçildi</span>}
                     </div>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <button onClick={() => regenField("content")} disabled={regenLoading.content || !result} style={s.regenBtn}>
-                        {regenLoading.content ? <div style={{ ...s.spinner, width: "11px", height: "11px", border: "1.5px solid #e2e8f0", borderTopColor: "#2563eb" }} /> : "↻ Yenile"}
-                      </button>
-                      <button onClick={() => copyField("content", result?.content || "")} style={{ ...s.miniCopyBtn, background: copied.content ? "#dcfce7" : "#eff6ff", color: copied.content ? "#16a34a" : "#2563eb" }}>
-                        {copied.content ? "✓ Kopyalandı" : "Kopyala"}
-                      </button>
+                  )}
+
+                  {/* Başlık */}
+                  <div style={s.fieldBlock}>
+                    <div style={s.fieldHead}>
+                      <span style={s.fieldLabel}>Başlık</span>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button onClick={(e) => { e.stopPropagation(); regenField(idx, "title"); }} disabled={rk(idx, "title")} style={s.regenBtn}>
+                          {rk(idx, "title") ? <div style={{ ...s.spinner, width: "11px", height: "11px", border: "1.5px solid #e2e8f0", borderTopColor: "#2563eb" }} /> : "↻ Yenile"}
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); copyField(idx + ":title", opt.title); }}
+                          style={{ ...s.miniCopyBtn, background: ck(idx + ":title") ? "#dcfce7" : "#eff6ff", color: ck(idx + ":title") ? "#16a34a" : "#2563eb" }}>
+                          {ck(idx + ":title") ? "✓ Kopyalandı" : "Kopyala"}
+                        </button>
+                      </div>
                     </div>
+                    <textarea value={opt.title} onChange={e => editField(idx, "title", e.target.value)}
+                      rows={2} style={{ ...s.textarea, borderColor: titleOver ? "#fca5a5" : "#e2e8f0" }} />
+                    <CharBar value={opt.title} max={50} />
                   </div>
-              <textarea value={result?.content || ""} onChange={e => result && setResult(r => ({ ...r, content: e.target.value }))}
-                rows={4} style={{ ...s.textarea, color: result ? "#0f172a" : "#94a3b8" }} />
-              {result && <CharBar value={result.content} max={200} />}
+
+                  {/* Haber Özeti */}
+                  <div style={{ ...s.fieldBlock, marginTop: "14px" }}>
+                    <div style={s.fieldHead}>
+                      <span style={s.fieldLabel}>Haber Özeti</span>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button onClick={(e) => { e.stopPropagation(); regenField(idx, "content"); }} disabled={rk(idx, "content")} style={s.regenBtn}>
+                          {rk(idx, "content") ? <div style={{ ...s.spinner, width: "11px", height: "11px", border: "1.5px solid #e2e8f0", borderTopColor: "#2563eb" }} /> : "↻ Yenile"}
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); copyField(idx + ":content", opt.content); }}
+                          style={{ ...s.miniCopyBtn, background: ck(idx + ":content") ? "#dcfce7" : "#eff6ff", color: ck(idx + ":content") ? "#16a34a" : "#2563eb" }}>
+                          {ck(idx + ":content") ? "✓ Kopyalandı" : "Kopyala"}
+                        </button>
+                      </div>
+                    </div>
+                    <textarea value={opt.content} onChange={e => editField(idx, "content", e.target.value)}
+                      rows={4} style={{ ...s.textarea, borderColor: contentOver ? "#fca5a5" : "#e2e8f0" }} />
+                    <CharBar value={opt.content} max={200} />
+                  </div>
                 </div>
+              );
+            })}
 
             {/* Linkler */}
             {result && result.urls && result.urls.length > 0 && (
-                  <div style={s.card}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                      <div style={s.sectionLabel}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
-                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                        </svg>
-                        {result.urls.length > 1 ? `Kaynak Linkler (${result.urls.length})` : "Kaynak Link"}
-                      </div>
-                      {result.urls.length === 1 && (
-                        <button onClick={() => copyField("link", result.urls[0])} style={{ ...s.miniCopyBtn, background: copied.link ? "#dcfce7" : "#eff6ff", color: copied.link ? "#16a34a" : "#2563eb" }}>
-                          {copied.link ? "✓ Kopyalandı" : "Kopyala"}
-                        </button>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {result.urls.map((url, i) => (
-                        <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#2563eb", flexShrink: 0 }} />
-                          <a href={url} target="_blank" rel="noopener noreferrer"
-                            style={{ flex: 1, fontSize: "12px", color: "#2563eb", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{url}</a>
-                          {result.urls.length > 1 && (
-                            <button onClick={() => copyField("link", url)} style={{ ...s.miniCopyBtn, fontSize: "10px" }}>Kopyala</button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+              <div style={s.card}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                  <div style={s.sectionLabel}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="15" height="15">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                    Kaynak Link
                   </div>
-                )}
+                  <button onClick={() => copyField("link", result.urls[0])}
+                    style={{ ...s.miniCopyBtn, background: ck("link") ? "#dcfce7" : "#eff6ff", color: ck("link") ? "#16a34a" : "#2563eb" }}>
+                    {ck("link") ? "✓ Kopyalandı" : "Kopyala"}
+                  </button>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#2563eb", flexShrink: 0 }} />
+                  <a href={result.urls[0]} target="_blank" rel="noopener noreferrer"
+                    style={{ flex: 1, fontSize: "12px", color: "#2563eb", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{result.urls[0]}</a>
+                </div>
+              </div>
+            )}
 
             {/* Aksiyon butonları */}
-            <div style={{ display: "flex", gap: "10px" }} className="bulten-action-btns">
-              {result && activeChannel === null && !fromSheetPreview && (
-                <button onClick={handleSaveClick} style={{ ...s.secondaryBtn, flex: 1 }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  Hafızaya Kaydet
+            {result && (
+              <div style={{ display: "flex", gap: "10px" }} className="bulten-action-btns">
+                {getSelected() && activeChannel === null && !fromSheetPreview && (
+                  <button onClick={handleSaveClick} style={{ ...s.secondaryBtn, flex: 1 }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    Hafızaya Kaydet
+                  </button>
+                )}
+                <button onClick={saveToSheet} disabled={saving || activeChannel === null || !getSelected()} style={{
+                  ...s.primaryBtn, flex: 1,
+                  opacity: (saving || activeChannel === null || !getSelected()) ? 0.4 : 1,
+                  cursor: (saving || activeChannel === null || !getSelected()) ? "not-allowed" : "pointer"
+                }}>
+                  {saving
+                    ? <><div style={s.spinner} /> Kaydediliyor...</>
+                    : <>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        Sheet'e Kaydet
+                      </>
+                  }
                 </button>
-              )}
-              <button onClick={saveToSheet} disabled={saving || activeChannel === null} style={{
-                ...s.primaryBtn, flex: 1,
-                opacity: (saving || activeChannel === null) ? 0.4 : 1,
-                cursor: (saving || activeChannel === null) ? "not-allowed" : "pointer"
-              }}>
-                {saving
-                  ? <><div style={s.spinner} /> Kaydediliyor...</>
-                  : <>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
-                      </svg>
-                      Sheet'e Kaydet
-                    </>
-                }
-              </button>
-            </div>
+              </div>
+            )}
 
           </div>
         </div>
@@ -569,7 +606,7 @@ export default function BultenDuzenleyici() {
         <div style={{
           ...s.toast,
           background: status.type === "error" ? "#fef2f2" : "#fff",
-          borderColor: status.type === "error" ? "#fecaca" : status.type === "success" ? "#bfdbfe" : "#bfdbfe",
+          borderColor: status.type === "error" ? "#fecaca" : "#bfdbfe",
           color: status.type === "error" ? "#dc2626" : "#1e3a5f"
         }}>
           {status.type === "success" && <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" width="16" height="16"><polyline points="20 6 9 17 4 12"/></svg>}
@@ -622,11 +659,22 @@ const s = {
   card: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", animation: "fadeUp 0.3s ease-out" },
   sectionLabel: { display: "flex", alignItems: "center", gap: "7px", fontSize: "11px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
 
+  // Alternatif kartı
+  optionCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "18px", animation: "fadeUp 0.3s ease-out", transition: "border-color 0.15s, box-shadow 0.15s, background 0.15s" },
+  optionHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" },
+  optionNum: { display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", fontWeight: "700", color: "#0f172a" },
+  radio: { width: "16px", height: "16px", borderRadius: "50%", border: "2px solid #cbd5e1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" },
+  radioDot: { width: "6px", height: "6px", borderRadius: "50%", background: "#fff" },
+  selBadge: { fontSize: "10px", fontWeight: "700", color: "#2563eb", background: "#eff6ff", padding: "3px 8px", borderRadius: "20px" },
+
+  fieldBlock: {},
+  fieldHead: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" },
+  fieldLabel: { fontSize: "11px", fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" },
+
   textarea: { width: "100%", padding: "12px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "13px", fontFamily: "inherit", color: "#0f172a", resize: "vertical", boxSizing: "border-box", lineHeight: "1.6", transition: "border-color 0.2s", background: "#fff" },
 
   primaryBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "10px 18px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "10px", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", cursor: "pointer", transition: "opacity 0.2s" },
   secondaryBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "10px 18px", background: "#fff", color: "#1e3a5f", border: "1.5px solid #bfdbfe", borderRadius: "10px", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", cursor: "pointer" },
-  clearBtn: { padding: "10px 16px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "12px", color: "#94a3b8", cursor: "pointer", fontFamily: "inherit" },
   regenBtn: { display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "6px", fontSize: "11px", color: "#475569", cursor: "pointer", fontFamily: "inherit" },
   miniCopyBtn: { padding: "4px 10px", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", background: "#eff6ff", color: "#2563eb" },
 
