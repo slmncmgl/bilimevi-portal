@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.17";
+const VERSION = "v1.18";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -44,6 +44,11 @@ function findHeaderIndex(headers, exactName) {
   let idx = headers.findIndex(h => h.trim() === exactName);
   if (idx === -1) idx = headers.findIndex(h => h.trim().startsWith(exactName));
   return idx;
+}
+
+// Google Sheets A1 aralık gösteriminde sekme adındaki tek tırnakları kaçışlar (örn. "St George's School")
+function escapeSheetName(name) {
+  return (name || "").replace(/'/g, "''");
 }
 
 // --- PDF Rapor Oluşturma (jsPDF, CDN'den runtime yüklenir) ---
@@ -389,6 +394,7 @@ const ROSTER_NAME_HEADER = "Başvuru Sahibi Öğrencinin Adı Soyadı";
 export default function AnketRaporu() {
   const navigate = useNavigate();
   const [tabs, setTabs] = useState([]);
+  const [groupCounts, setGroupCounts] = useState({});
   const [activeTab, setActiveTab] = useState(null);
   const [rows, setRows] = useState([]);
   const [headers, setHeaders] = useState([]);
@@ -467,7 +473,7 @@ export default function AnketRaporu() {
       setDataLoading(true);
       setDataError(null);
       try {
-        const range = `'${activeTab}'`;
+        const range = `'${escapeSheetName(activeTab)}'`;
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
         const res = await fetch(url);
         const json = await res.json();
@@ -506,7 +512,7 @@ export default function AnketRaporu() {
       setRosterCount(null); // yükleniyor
       setRosterNames([]);
       try {
-        const range = `'${rosterTab}'!A1:H500`;
+        const range = `'${escapeSheetName(rosterTab)}'!A1:H500`;
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${ROSTER_SHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
         const res = await fetch(url);
         const json = await res.json();
@@ -544,6 +550,37 @@ export default function AnketRaporu() {
       }
     })();
   }, [activeTab]);
+
+  // Dropdown'da her grubun yanında göstermek için, tüm grupların cevap sayısını
+  // tek seferde (parçalı toplu isteklerle) çek
+  useEffect(() => {
+    if (tabs.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const CHUNK = 15;
+      for (let i = 0; i < tabs.length; i += CHUNK) {
+        if (cancelled) return;
+        const chunk = tabs.slice(i, i + CHUNK);
+        const ranges = chunk
+          .map(t => `ranges=${encodeURIComponent(`'${escapeSheetName(t)}'!A2:A2000`)}`)
+          .join("&");
+        try {
+          const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?key=${API_KEY}&${ranges}`);
+          const json = await res.json();
+          if (res.ok) {
+            const partial = {};
+            chunk.forEach((t, j) => {
+              const values = json.valueRanges?.[j]?.values || [];
+              partial[t] = values.filter(r => (r[0] || "").trim()).length;
+            });
+            if (!cancelled) setGroupCounts(prev => ({ ...prev, ...partial }));
+          }
+        } catch { /* bu parça alınamazsa sessizce geç, sayı gösterilmez */ }
+        await new Promise(r => setTimeout(r, 250));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [tabs]);
 
   // --- İstatistik hesapla ---
   const genderIdx = findHeaderIndex(headers, GENDER_COLUMN);
@@ -811,7 +848,7 @@ export default function AnketRaporu() {
                         onClick={() => { setActiveTab(tab); setView("results"); setDropdownOpen(false); }}
                         style={{ ...styles.dropdownItem, ...(tab === activeTab ? styles.dropdownItemActive : {}) }}
                       >
-                        {tab}
+                        {tab} {groupCounts[tab] !== undefined ? `(${groupCounts[tab]})` : ""}
                       </div>
                     ))}
                   </div>
