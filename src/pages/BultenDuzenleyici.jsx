@@ -1,9 +1,11 @@
-// v1.1
+// v1.2
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxseCtKe77TrSuQRmWE635YMGHgeRiWNxXcusertZo62sjA_9aBC400e7mHsJUZ6UfJ/exec";
+
+const APP_VERSION = "v1.2";
 
 // Gemini çağrısı artık Vercel /api/gemini üzerinden (API key server-side, tarayıcıya gönderilmez)
 const GEMINI_ENDPOINT = "/api/gemini";
@@ -322,6 +324,7 @@ export default function BultenDuzenleyici() {
             </button>
             <span style={s.headerSep}>·</span>
             <span style={s.headerTitle}>Bülten Düzenleyici</span>
+            <span style={s.versionTag}>{APP_VERSION}</span>
           </div>
           <div style={s.headerRight} className="bulten-header-right">
             <div style={s.userChip}><div style={s.userDot} />{user?.name}</div>
@@ -668,6 +671,7 @@ const s = {
   backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
   headerSep: { color: "#cbd5e1", fontSize: "14px" },
   headerTitle: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
+  versionTag: { fontSize: "10px", fontWeight: "700", color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "20px", padding: "2px 8px", letterSpacing: "0.3px" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
   userDot: { width: "7px", height: "7px", borderRadius: "50%", background: "#22c55e" },
   logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
