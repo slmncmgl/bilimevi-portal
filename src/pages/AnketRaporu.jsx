@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.19";
+const VERSION = "v1.21";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -39,6 +39,7 @@ const CATEGORY_COLORS = {
 };
 const DYNAMIC_PALETTE = ["#4338ca", "#0891b2", "#059669", "#d97706", "#dc2626", "#7c3aed", "#db2777", "#0369a1"];
 const EMPTY_COLOR = "#cbd5e1";
+const ALL_GROUPS_OPTION = "__ALL_GROUPS__";
 
 function findHeaderIndex(headers, exactName) {
   let idx = headers.findIndex(h => h.trim() === exactName);
@@ -395,6 +396,11 @@ export default function AnketRaporu() {
   const navigate = useNavigate();
   const [tabs, setTabs] = useState([]);
   const [groupCounts, setGroupCounts] = useState({});
+  const [allLoading, setAllLoading] = useState(false);
+  const [allLoaded, setAllLoaded] = useState(false);
+  const [allQuestionStats, setAllQuestionStats] = useState([]);
+  const [allGenderCounts, setAllGenderCounts] = useState({});
+  const [allTotal, setAllTotal] = useState(0);
   const [activeTab, setActiveTab] = useState(null);
   const [rows, setRows] = useState([]);
   const [headers, setHeaders] = useState([]);
@@ -458,7 +464,7 @@ export default function AnketRaporu() {
         if (!res.ok) throw new Error(json.error?.message || "Sekmeler yüklenemedi");
         const titles = (json.sheets || []).map(s => s.properties.title).sort((a, b) => a.localeCompare(b, "tr"));
         setTabs(titles);
-        if (titles.length > 0) setActiveTab(titles[0]);
+        setActiveTab(ALL_GROUPS_OPTION);
       } catch (err) {
         setTabsError(err.message);
       } finally {
@@ -468,7 +474,11 @@ export default function AnketRaporu() {
   }, []);
 
   useEffect(() => {
-    if (!activeTab) return;
+    if (!activeTab || activeTab === ALL_GROUPS_OPTION) {
+      setHeaders([]);
+      setRows([]);
+      return;
+    }
     (async () => {
       setDataLoading(true);
       setDataError(null);
@@ -495,7 +505,7 @@ export default function AnketRaporu() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (!activeTab) {
+    if (!activeTab || activeTab === ALL_GROUPS_OPTION) {
       setRosterCount(null);
       setRosterNames([]);
       return;
@@ -582,6 +592,76 @@ export default function AnketRaporu() {
     return () => { cancelled = true; };
   }, [tabs]);
 
+  // "Tüm Gruplar — Genel Ortalama" için, tüm grupların soru verilerini bir kez topla
+  useEffect(() => {
+    if (activeTab !== ALL_GROUPS_OPTION || tabs.length === 0 || allLoaded) return;
+    let cancelled = false;
+    (async () => {
+      setAllLoading(true);
+      const CHUNK = 10;
+      const questionSums = {};
+      QUESTION_COLUMNS.forEach(q => {
+        questionSums[q] = {};
+        CATEGORY_ORDER.forEach(c => { questionSums[q][c] = 0; });
+      });
+      const genderSums = {};
+      let totalCount = 0;
+
+      for (let i = 0; i < tabs.length; i += CHUNK) {
+        if (cancelled) return;
+        const chunk = tabs.slice(i, i + CHUNK);
+        const ranges = chunk
+          .map(t => `ranges=${encodeURIComponent(`'${escapeSheetName(t)}'!A1:Z2000`)}`)
+          .join("&");
+        try {
+          const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?key=${API_KEY}&${ranges}`);
+          const json = await res.json();
+          if (res.ok) {
+            chunk.forEach((t, j) => {
+              const values = json.valueRanges?.[j]?.values || [];
+              if (values.length < 2) return;
+              const hdrs = values[0];
+              const dataRows = values.slice(1);
+              totalCount += dataRows.length;
+
+              const gIdx = findHeaderIndex(hdrs, GENDER_COLUMN);
+              if (gIdx !== -1) {
+                dataRows.forEach(r => {
+                  const val = (r[gIdx] || "").trim();
+                  if (val) genderSums[val] = (genderSums[val] || 0) + 1;
+                });
+              }
+
+              QUESTION_COLUMNS.forEach(q => {
+                const qIdx = findHeaderIndex(hdrs, q);
+                if (qIdx === -1) return;
+                dataRows.forEach(r => {
+                  const val = (r[qIdx] || "").trim();
+                  if (CATEGORY_ORDER.includes(val)) questionSums[q][val]++;
+                });
+              });
+            });
+          }
+        } catch { /* bu parça alınamazsa sessizce geç */ }
+        await new Promise(r => setTimeout(r, 250));
+      }
+
+      if (!cancelled) {
+        const stats = QUESTION_COLUMNS.map(q => {
+          const counts = questionSums[q];
+          const answered = CATEGORY_ORDER.reduce((s, c) => s + counts[c], 0);
+          return { question: q, idx: -1, entries: CATEGORY_ORDER.map(c => [c, counts[c]]), answered, found: true, colorFor: c => CATEGORY_COLORS[c] };
+        });
+        setAllQuestionStats(stats);
+        setAllGenderCounts(genderSums);
+        setAllTotal(totalCount);
+        setAllLoaded(true);
+      }
+      setAllLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [activeTab, tabs, allLoaded]);
+
   // --- İstatistik hesapla ---
   const genderIdx = findHeaderIndex(headers, GENDER_COLUMN);
   const commentIdx = findHeaderIndex(headers, COMMENT_COLUMN);
@@ -638,11 +718,24 @@ export default function AnketRaporu() {
   const uniPlanQ = buildDynamicQuestion(uniPlanIdx, UNI_PLAN_COLUMN);
   const howReachedQ = buildDynamicQuestion(howReachedIdx, HOW_REACHED_COLUMN);
 
-  // Yorumlar: öğrenci adıyla birlikte
+  // Yorumlar: öğrenci adı + kişisel ortalama puanla birlikte (pastel kırmızı vurgusu için)
+  const questionColIndices = QUESTION_COLUMNS.map(q => findHeaderIndex(headers, q));
   const comments = commentIdx !== -1
     ? rows
-        .map(r => ({ name: (r[nameIdx] || "").trim(), text: (r[commentIdx] || "").trim() }))
-        .filter(c => c.text)
+        .map(r => {
+          const text = (r[commentIdx] || "").trim();
+          if (!text) return null;
+          const name = (r[nameIdx] || "").trim();
+          let sum = 0, count = 0;
+          questionColIndices.forEach(idx => {
+            if (idx === -1) return;
+            const val = (r[idx] || "").trim();
+            if (SCORE_MAP[val] !== undefined) { sum += SCORE_MAP[val]; count++; }
+          });
+          const avg = count > 0 ? sum / count : null;
+          return { name, text, negative: avg !== null && avg < 3 };
+        })
+        .filter(Boolean)
     : [];
 
   const respondentNames = nameIdx !== -1
@@ -713,7 +806,7 @@ export default function AnketRaporu() {
     }
   }
 
-  function renderQuestionCard(qs) {
+  function renderQuestionCard(qs, clickable = true) {
     return (
       <div style={styles.questionCard} key={qs.question}>
         <h3 style={styles.questionTitle}>{qs.question}</h3>
@@ -730,12 +823,12 @@ export default function AnketRaporu() {
               return (
                 <div
                   key={cat}
-                  onClick={() => count > 0 && openStudentPopup(qs.idx, cat, qs.question)}
+                  onClick={() => clickable && count > 0 && openStudentPopup(qs.idx, cat, qs.question)}
                   style={{
                     ...styles.barBox,
                     background: isEmpty ? "#f8fafc" : color + "14",
                     border: isEmpty ? "1px dashed #e2e8f0" : "1px solid transparent",
-                    cursor: count > 0 ? "pointer" : "default",
+                    cursor: clickable && count > 0 ? "pointer" : "default",
                   }}
                 >
                   <div style={{ ...styles.barBoxFill, width: `${pct}%`, background: color }} />
@@ -835,13 +928,21 @@ export default function AnketRaporu() {
                   style={styles.selectButton}
                   className="ar-select-btn"
                 >
-                  <span style={styles.selectButtonText}>{activeTab || "Grup seçin"}</span>
+                  <span style={styles.selectButtonText}>
+                    {activeTab === ALL_GROUPS_OPTION ? "📊 Tüm Gruplar — Genel Ortalama" : (activeTab || "Grup seçin")}
+                  </span>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18" style={{ flexShrink: 0, transform: dropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
                 </button>
                 {dropdownOpen && (
                   <div style={styles.dropdownList} className="ar-dropdown-list">
+                    <div
+                      onClick={() => { setActiveTab(ALL_GROUPS_OPTION); setView("results"); setDropdownOpen(false); }}
+                      style={{ ...styles.dropdownItem, ...(activeTab === ALL_GROUPS_OPTION ? styles.dropdownItemActive : {}), fontWeight: 700 }}
+                    >
+                      📊 Tüm Gruplar — Genel Ortalama
+                    </div>
                     {tabs.map(tab => (
                       <div
                         key={tab}
@@ -856,7 +957,29 @@ export default function AnketRaporu() {
               </div>
             </div>
 
-            {dataLoading ? (
+            {activeTab === ALL_GROUPS_OPTION ? (
+              allLoading && !allLoaded ? (
+                <div style={styles.stateBox}>Genel veriler yükleniyor... (49 grup, birkaç saniye sürebilir)</div>
+              ) : (
+                <>
+                  <div style={styles.summaryGrid} className="ar-summary-grid">
+                    <div style={styles.summaryCard}>
+                      <div style={styles.summaryValue}>{allTotal}</div>
+                      <div style={styles.summaryLabel}>Toplam Katılımcı (Tüm Gruplar)</div>
+                    </div>
+                    {Object.keys(allGenderCounts).length > 0 && (
+                      <div style={styles.summaryCard}>
+                        <div style={styles.summaryValue}>{Object.values(allGenderCounts).join(" / ")}</div>
+                        <div style={styles.summaryLabel}>{Object.keys(allGenderCounts).join(" / ")}</div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={styles.questionsGrid} className="ar-questions-grid">
+                    {allQuestionStats.map(qs => renderQuestionCard(qs, false))}
+                  </div>
+                </>
+              )
+            ) : dataLoading ? (
               <div style={styles.stateBox}>Veri yükleniyor...</div>
             ) : dataError ? (
               <div style={styles.errorBox}>
@@ -910,7 +1033,7 @@ export default function AnketRaporu() {
                     <h2 style={styles.commentsTitle}>Yorumlar ({comments.length})</h2>
                     <div style={styles.commentsList}>
                       {comments.map((c, i) => (
-                        <div style={styles.commentCard} key={i}>
+                        <div style={{ ...styles.commentCard, ...(c.negative ? styles.commentCardNegative : {}) }} key={i}>
                           <span style={styles.commentText}>
                             {c.name && <strong style={styles.commentName}>{c.name}: </strong>}
                             {c.text}
@@ -1037,6 +1160,7 @@ const styles = {
   commentsTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a", marginBottom: "16px" },
   commentsList: { display: "flex", flexDirection: "column", gap: "10px" },
   commentCard: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px 20px" },
+  commentCardNegative: { background: "#fef2f2", borderColor: "#fecaca" },
   commentText: { fontSize: "13px", color: "#334155", lineHeight: 1.6, flex: 1 },
   commentName: { color: "#0f172a" },
   copyBtn: { flexShrink: 0, padding: "5px 12px", borderRadius: "6px", border: "1px solid #e2e8f0", background: "#fff", color: "#4338ca", fontSize: "11px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
