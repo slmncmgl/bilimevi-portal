@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.24";
+const VERSION = "v1.25";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -966,7 +966,7 @@ export default function AnketRaporu() {
 
             {activeTab === ALL_GROUPS_OPTION ? (
               allLoading ? (
-                <div style={styles.stateBox}>Genel veriler yükleniyor... (49 grup, birkaç saniye sürebilir)</div>
+                <div style={styles.stateBox}>Genel veriler yükleniyor...</div>
               ) : (
                 <>
                   <div style={styles.summaryGrid} className="ar-summary-grid">
