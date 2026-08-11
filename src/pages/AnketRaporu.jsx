@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.23";
+const VERSION = "v1.24";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -397,8 +397,8 @@ export default function AnketRaporu() {
   const [tabs, setTabs] = useState([]);
   const [groupCounts, setGroupCounts] = useState({});
   const [groupHasNegative, setGroupHasNegative] = useState({});
-  const [allLoading, setAllLoading] = useState(false);
-  const [allLoaded, setAllLoaded] = useState(false);
+  const [allLoading, setAllLoading] = useState(true);
+  const [allQuestionStats, setAllQuestionStats] = useState([]);
   const [allGenderCounts, setAllGenderCounts] = useState({});
   const [allTotal, setAllTotal] = useState(0);
   const [activeTab, setActiveTab] = useState(null);
@@ -561,13 +561,23 @@ export default function AnketRaporu() {
     })();
   }, [activeTab]);
 
-  // Dropdown'da her grubun yanında göstermek için, tüm grupların cevap sayısını
-  // ve olumsuz yorum içerip içermediğini tek seferde (parçalı toplu isteklerle) çek
+  // Dropdown'da her grubun yanında göstermek için tüm grupların cevap sayısını,
+  // olumsuz yorum içerip içermediğini VE "Tüm Gruplar" genel ortalamasını
+  // TEK BİR toplu fetch turunda birlikte hesapla (gereksiz ikinci fetch'i önler)
   useEffect(() => {
     if (tabs.length === 0) return;
     let cancelled = false;
     (async () => {
+      setAllLoading(true);
       const CHUNK = 10;
+      const genderSums = {};
+      let totalCount = 0;
+      const questionSums = {};
+      QUESTION_COLUMNS.forEach(q => {
+        questionSums[q] = {};
+        CATEGORY_ORDER.forEach(c => { questionSums[q][c] = 0; });
+      });
+
       for (let i = 0; i < tabs.length; i += CHUNK) {
         if (cancelled) return;
         const chunk = tabs.slice(i, i + CHUNK);
@@ -586,9 +596,27 @@ export default function AnketRaporu() {
               const hdrs = values[0];
               const dataRows = values.slice(1);
               partialCounts[t] = dataRows.length;
+              totalCount += dataRows.length;
+
+              const gIdx = findHeaderIndex(hdrs, GENDER_COLUMN);
+              if (gIdx !== -1) {
+                dataRows.forEach(r => {
+                  const val = (r[gIdx] || "").trim();
+                  if (val) genderSums[val] = (genderSums[val] || 0) + 1;
+                });
+              }
+
+              const qIdxs = QUESTION_COLUMNS.map(q => findHeaderIndex(hdrs, q));
+              QUESTION_COLUMNS.forEach((q, qi) => {
+                const idx = qIdxs[qi];
+                if (idx === -1) return;
+                dataRows.forEach(r => {
+                  const val = (r[idx] || "").trim();
+                  if (CATEGORY_ORDER.includes(val)) questionSums[q][val]++;
+                });
+              });
 
               const cIdx = findHeaderIndex(hdrs, COMMENT_COLUMN);
-              const qIdxs = QUESTION_COLUMNS.map(q => findHeaderIndex(hdrs, q));
               let neg = false;
               if (cIdx !== -1) {
                 for (const r of dataRows) {
@@ -614,59 +642,21 @@ export default function AnketRaporu() {
         } catch { /* bu parça alınamazsa sessizce geç, sayı gösterilmez */ }
         await new Promise(r => setTimeout(r, 250));
       }
-    })();
-    return () => { cancelled = true; };
-  }, [tabs]);
-
-  // "Tüm Gruplar — Genel Ortalama" için, tüm grupların soru verilerini bir kez topla
-  useEffect(() => {
-    if (activeTab !== ALL_GROUPS_OPTION || tabs.length === 0 || allLoaded) return;
-    let cancelled = false;
-    (async () => {
-      setAllLoading(true);
-      const CHUNK = 10;
-      const genderSums = {};
-      let totalCount = 0;
-
-      for (let i = 0; i < tabs.length; i += CHUNK) {
-        if (cancelled) return;
-        const chunk = tabs.slice(i, i + CHUNK);
-        const ranges = chunk
-          .map(t => `ranges=${encodeURIComponent(`'${escapeSheetName(t)}'!A1:Z2000`)}`)
-          .join("&");
-        try {
-          const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?key=${API_KEY}&${ranges}`);
-          const json = await res.json();
-          if (res.ok) {
-            chunk.forEach((t, j) => {
-              const values = json.valueRanges?.[j]?.values || [];
-              if (values.length < 2) return;
-              const hdrs = values[0];
-              const dataRows = values.slice(1);
-              totalCount += dataRows.length;
-
-              const gIdx = findHeaderIndex(hdrs, GENDER_COLUMN);
-              if (gIdx !== -1) {
-                dataRows.forEach(r => {
-                  const val = (r[gIdx] || "").trim();
-                  if (val) genderSums[val] = (genderSums[val] || 0) + 1;
-                });
-              }
-            });
-          }
-        } catch { /* bu parça alınamazsa sessizce geç */ }
-        await new Promise(r => setTimeout(r, 250));
-      }
 
       if (!cancelled) {
+        const stats = QUESTION_COLUMNS.map(q => {
+          const counts = questionSums[q];
+          const answered = CATEGORY_ORDER.reduce((s, c) => s + counts[c], 0);
+          return { question: q, idx: -1, entries: CATEGORY_ORDER.map(c => [c, counts[c]]), answered, found: true, colorFor: c => CATEGORY_COLORS[c] };
+        });
+        setAllQuestionStats(stats);
         setAllGenderCounts(genderSums);
         setAllTotal(totalCount);
-        setAllLoaded(true);
       }
       setAllLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [activeTab, tabs, allLoaded]);
+  }, [tabs]);
 
   // --- İstatistik hesapla ---
   const genderIdx = findHeaderIndex(headers, GENDER_COLUMN);
@@ -975,7 +965,7 @@ export default function AnketRaporu() {
             </div>
 
             {activeTab === ALL_GROUPS_OPTION ? (
-              allLoading && !allLoaded ? (
+              allLoading ? (
                 <div style={styles.stateBox}>Genel veriler yükleniyor... (49 grup, birkaç saniye sürebilir)</div>
               ) : (
                 <>
@@ -990,6 +980,9 @@ export default function AnketRaporu() {
                         <div style={styles.summaryLabel}>{Object.keys(allGenderCounts).join(" / ")}</div>
                       </div>
                     )}
+                  </div>
+                  <div style={styles.questionsGrid} className="ar-questions-grid">
+                    {allQuestionStats.map(qs => renderQuestionCard(qs, false))}
                   </div>
                 </>
               )
