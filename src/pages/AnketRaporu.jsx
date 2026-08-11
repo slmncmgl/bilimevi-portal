@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.21";
+const VERSION = "v1.23";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -396,9 +396,9 @@ export default function AnketRaporu() {
   const navigate = useNavigate();
   const [tabs, setTabs] = useState([]);
   const [groupCounts, setGroupCounts] = useState({});
+  const [groupHasNegative, setGroupHasNegative] = useState({});
   const [allLoading, setAllLoading] = useState(false);
   const [allLoaded, setAllLoaded] = useState(false);
-  const [allQuestionStats, setAllQuestionStats] = useState([]);
   const [allGenderCounts, setAllGenderCounts] = useState({});
   const [allTotal, setAllTotal] = useState(0);
   const [activeTab, setActiveTab] = useState(null);
@@ -562,28 +562,54 @@ export default function AnketRaporu() {
   }, [activeTab]);
 
   // Dropdown'da her grubun yanında göstermek için, tüm grupların cevap sayısını
-  // tek seferde (parçalı toplu isteklerle) çek
+  // ve olumsuz yorum içerip içermediğini tek seferde (parçalı toplu isteklerle) çek
   useEffect(() => {
     if (tabs.length === 0) return;
     let cancelled = false;
     (async () => {
-      const CHUNK = 15;
+      const CHUNK = 10;
       for (let i = 0; i < tabs.length; i += CHUNK) {
         if (cancelled) return;
         const chunk = tabs.slice(i, i + CHUNK);
         const ranges = chunk
-          .map(t => `ranges=${encodeURIComponent(`'${escapeSheetName(t)}'!A2:A2000`)}`)
+          .map(t => `ranges=${encodeURIComponent(`'${escapeSheetName(t)}'!A1:Z2000`)}`)
           .join("&");
         try {
           const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values:batchGet?key=${API_KEY}&${ranges}`);
           const json = await res.json();
           if (res.ok) {
-            const partial = {};
+            const partialCounts = {};
+            const partialNeg = {};
             chunk.forEach((t, j) => {
               const values = json.valueRanges?.[j]?.values || [];
-              partial[t] = values.filter(r => (r[0] || "").trim()).length;
+              if (values.length < 1) { partialCounts[t] = 0; partialNeg[t] = false; return; }
+              const hdrs = values[0];
+              const dataRows = values.slice(1);
+              partialCounts[t] = dataRows.length;
+
+              const cIdx = findHeaderIndex(hdrs, COMMENT_COLUMN);
+              const qIdxs = QUESTION_COLUMNS.map(q => findHeaderIndex(hdrs, q));
+              let neg = false;
+              if (cIdx !== -1) {
+                for (const r of dataRows) {
+                  const text = (r[cIdx] || "").trim();
+                  if (!text) continue;
+                  let sum = 0, count = 0;
+                  qIdxs.forEach(idx => {
+                    if (idx === -1) return;
+                    const val = (r[idx] || "").trim();
+                    if (SCORE_MAP[val] !== undefined) { sum += SCORE_MAP[val]; count++; }
+                  });
+                  const avg = count > 0 ? sum / count : null;
+                  if (avg !== null && avg < 3) { neg = true; break; }
+                }
+              }
+              partialNeg[t] = neg;
             });
-            if (!cancelled) setGroupCounts(prev => ({ ...prev, ...partial }));
+            if (!cancelled) {
+              setGroupCounts(prev => ({ ...prev, ...partialCounts }));
+              setGroupHasNegative(prev => ({ ...prev, ...partialNeg }));
+            }
           }
         } catch { /* bu parça alınamazsa sessizce geç, sayı gösterilmez */ }
         await new Promise(r => setTimeout(r, 250));
@@ -599,11 +625,6 @@ export default function AnketRaporu() {
     (async () => {
       setAllLoading(true);
       const CHUNK = 10;
-      const questionSums = {};
-      QUESTION_COLUMNS.forEach(q => {
-        questionSums[q] = {};
-        CATEGORY_ORDER.forEach(c => { questionSums[q][c] = 0; });
-      });
       const genderSums = {};
       let totalCount = 0;
 
@@ -631,15 +652,6 @@ export default function AnketRaporu() {
                   if (val) genderSums[val] = (genderSums[val] || 0) + 1;
                 });
               }
-
-              QUESTION_COLUMNS.forEach(q => {
-                const qIdx = findHeaderIndex(hdrs, q);
-                if (qIdx === -1) return;
-                dataRows.forEach(r => {
-                  const val = (r[qIdx] || "").trim();
-                  if (CATEGORY_ORDER.includes(val)) questionSums[q][val]++;
-                });
-              });
             });
           }
         } catch { /* bu parça alınamazsa sessizce geç */ }
@@ -647,12 +659,6 @@ export default function AnketRaporu() {
       }
 
       if (!cancelled) {
-        const stats = QUESTION_COLUMNS.map(q => {
-          const counts = questionSums[q];
-          const answered = CATEGORY_ORDER.reduce((s, c) => s + counts[c], 0);
-          return { question: q, idx: -1, entries: CATEGORY_ORDER.map(c => [c, counts[c]]), answered, found: true, colorFor: c => CATEGORY_COLORS[c] };
-        });
-        setAllQuestionStats(stats);
         setAllGenderCounts(genderSums);
         setAllTotal(totalCount);
         setAllLoaded(true);
@@ -847,17 +853,27 @@ export default function AnketRaporu() {
     <div style={styles.root}>
       <header style={styles.header}>
         <div style={styles.headerInner} className="ar-header-inner">
-          <button onClick={() => navigate("/dashboard")} style={styles.backBtn}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-              <line x1="19" y1="12" x2="5" y2="12"/>
-              <polyline points="12 19 5 12 12 5"/>
-            </svg>
-            Dashboard
-          </button>
-          <div style={styles.headerTitleWrap}>
-            <h1 style={styles.headerTitle}>Yaz Okulu Memnuniyet Anketi Raporu</h1>
-            <span style={styles.versionTag}>{VERSION}</span>
+          <div style={styles.headerLeftGroup}>
+            <button onClick={() => navigate("/dashboard")} style={styles.backBtn}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
+              Dashboard
+            </button>
+            <div style={styles.headerTitleWrap}>
+              <h1 style={styles.headerTitle}>Yaz Okulu Memnuniyet Anketi Raporu</h1>
+              <span style={styles.versionTag}>{VERSION}</span>
+            </div>
           </div>
+          {activeTab !== ALL_GROUPS_OPTION && (
+            <button
+              onClick={() => { setActiveTab(ALL_GROUPS_OPTION); setView("results"); }}
+              style={styles.generalReportBtn}
+            >
+              📊 Genel Rapor
+            </button>
+          )}
         </div>
       </header>
 
@@ -950,6 +966,7 @@ export default function AnketRaporu() {
                         style={{ ...styles.dropdownItem, ...(tab === activeTab ? styles.dropdownItemActive : {}) }}
                       >
                         {tab} {groupCounts[tab] !== undefined ? <strong>({groupCounts[tab]})</strong> : ""}
+                        {groupHasNegative[tab] && <strong style={styles.negativeWarning}> !</strong>}
                       </div>
                     ))}
                   </div>
@@ -973,9 +990,6 @@ export default function AnketRaporu() {
                         <div style={styles.summaryLabel}>{Object.keys(allGenderCounts).join(" / ")}</div>
                       </div>
                     )}
-                  </div>
-                  <div style={styles.questionsGrid} className="ar-questions-grid">
-                    {allQuestionStats.map(qs => renderQuestionCard(qs, false))}
                   </div>
                 </>
               )
@@ -1124,7 +1138,9 @@ export default function AnketRaporu() {
 const styles = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "1100px", margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", gap: "16px" },
+  headerInner: { maxWidth: "1100px", margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" },
+  headerLeftGroup: { display: "flex", alignItems: "center", gap: "16px" },
+  generalReportBtn: { flexShrink: 0, display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#4338ca", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "700", fontFamily: "inherit", whiteSpace: "nowrap" },
   backBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#475569", fontFamily: "inherit" },
   headerTitleWrap: { display: "flex", alignItems: "center", gap: "8px" },
   headerTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a" },
@@ -1140,6 +1156,7 @@ const styles = {
   dropdownList: { position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, maxHeight: "60vh", overflowY: "auto", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", boxShadow: "0 12px 32px rgba(0,0,0,0.12)", zIndex: 50 },
   dropdownItem: { padding: "12px 14px", fontSize: "13.5px", color: "#334155", cursor: "pointer", borderBottom: "1px solid #f1f5f9" },
   dropdownItemActive: { background: "#eef2ff", color: "#4338ca", fontWeight: "600" },
+  negativeWarning: { color: "#dc2626", fontWeight: "800" },
   backToResultsBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#eef2ff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#4338ca", fontFamily: "inherit", marginBottom: "20px" },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "12px", marginBottom: "32px" },
   summaryCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "18px", textAlign: "center" },
