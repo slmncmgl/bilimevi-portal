@@ -93,6 +93,11 @@ export default function KatalogParse() {
   const [commitLoading, setCommitLoading]     = useState(false);
   const [successMessage, setSuccessMessage]   = useState("");
 
+  // Gizli klasör kontrolü (Cmd+Option+S)
+  const [showFolderConfirm, setShowFolderConfirm] = useState(false);
+  const [folderCheckLoading, setFolderCheckLoading] = useState(false);
+  const [folderCheckResult, setFolderCheckResult]   = useState("");
+
   // PDF
   const [selectedFile, setSelectedFile]   = useState(null);
   const [isDragOver, setIsDragOver]       = useState(false);
@@ -127,6 +132,33 @@ export default function KatalogParse() {
     setUser(session);
     loadSchoolList();
   }, []);
+
+  // Gizli klavye kombosu: Cmd/Ctrl + Alt(Option) + S → klasör kontrolü onayı
+  useEffect(() => {
+    function handleKeyCombo(e) {
+      const key = (e.key || "").toLowerCase();
+      if ((e.metaKey || e.ctrlKey) && e.altKey && key === "s") {
+        e.preventDefault();
+        setShowFolderConfirm(true);
+      }
+    }
+    window.addEventListener("keydown", handleKeyCombo);
+    return () => window.removeEventListener("keydown", handleKeyCombo);
+  }, []);
+
+  // Klasör kontrolünü Apps Script'e yaptır
+  async function runFolderCheck() {
+    setFolderCheckLoading(true);
+    setFolderCheckResult("");
+    try {
+      const res = await callAppsScriptRaw("ensureSchoolFolders", {});
+      if (!res.success) throw new Error(res.msg);
+      setFolderCheckResult(res.msg || "Kontrol tamamlandı.");
+    } catch (err) {
+      setFolderCheckResult("Hata: " + err.message);
+    }
+    setFolderCheckLoading(false);
+  }
 
   // Okul listesini Apps Script'ten dinamik çek
   async function loadSchoolList() {
@@ -351,7 +383,9 @@ GENEL KURALLAR:
 5. Eğer sütunlar arasında "min_age" veya "max_age" varsa: dökümanda o kursa dair yaş şartı ("minimum age", "16+", "18+", "ages 30 and over", "30+" gibi) belirtiliyorsa sadece sayıyı yaz (örn. "30+" → 30, "16+" → 16). Yaş şartı belirtilmemişse boş bırak ("").
 6. DİPNOTLARI OKU: Sayfanın altındaki veya yanındaki dipnotları, yıldızlı (*, **) notları, küçük punto "terms & conditions" yazılarını mutlaka oku. High season koşulu, yaş kısıtı, özel ücret şartı, minimum hafta gibi bilgiler genelde bu ince yazılarda gizlidir. Bunları ilgili sütuna (high_season_condition, notes vb.) ekle — görmezden gelme.
 7. MATRİS TABLO HİZALAMA: Fiyatlar matris tabloda ise (örn: satırlar=haftalar, sütunlar=kurs tipleri), satır ve sütun kesişimini DİKKATLİCE eşle. 24 haftalık fiyatı yanlışlıkla 12 hafta sütunundan alma. Her hücreyi doğru hafta ve doğru kurs tipiyle eşleştir.
-8. Backtick veya markdown kullanma, sadece düz JSON array.`;
+8. SABİT SÜRELİ PROGRAM: Eğer sütunlar arasında "weeks_tier_min"/"weeks_tier_max" varsa ve bir program KESİN belirli bir hafta sayısında satılıyorsa (örn: Teacher Training sadece 2 hafta, Exam Prep sadece 4 hafta), weeks_tier_min ve weeks_tier_max alanlarının İKİSİNİ DE o sayıya eşitle (örn: min=2, max=2).
+9. PAKET/MODÜL PROGRAM: Eğer bir program "haftalık (per week)" mantığıyla değil, "toplam ders (in total)" veya "modül/paket" mantığıyla tek fiyata satılıyorsa (örn: "Business German Plus 90 lessons"), weeks_tier_min ve weeks_tier_max alanlarını BOŞ bırak, toplam tutarı/ders saatini işle ve durumu notes sütununda açıkça belirt.
+10. Backtick veya markdown kullanma, sadece düz JSON array.`;
 
     const res = await fetch("/api/gemini", {
       method: "POST",
@@ -797,6 +831,44 @@ KRİTİK KURALLAR:
 
   // ─── RENDER ───────────────────────────────────────────────
   if (!user) return null;
+
+  // GİZLİ KLASÖR KONTROLÜ POPUP'I (Cmd+Option+S) — her ekranda öncelikli
+  if (showFolderConfirm) return (
+    <div style={{position:"fixed", inset:0, background:"rgba(15, 23, 42, 0.6)", backdropFilter:"blur(6px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:9999}}>
+      <div style={{background:"#fff", padding:"40px 32px", borderRadius:24, textAlign:"center", maxWidth:440, width:"90%", boxShadow:"0 20px 40px rgba(0,0,0,0.15)", animation:"fadeUp 0.3s ease-out"}}>
+        <div style={{fontSize:56, marginBottom:16}}>🗂️</div>
+        <h3 style={{fontSize:20, fontWeight:700, color:"#0f172a", marginBottom:12}}>Okul Klasörlerini Kontrol Et</h3>
+        {folderCheckResult ? (
+          <>
+            <p style={{fontSize:14, color:"#059669", lineHeight:1.6, marginBottom:24, fontWeight:600}}>{folderCheckResult}</p>
+            <button onClick={() => { setShowFolderConfirm(false); setFolderCheckResult(""); }}
+              style={{...S.primaryBtn, background:"#059669", width:"100%"}}>
+              Kapat
+            </button>
+          </>
+        ) : (
+          <>
+            <p style={{fontSize:14, color:"#475569", lineHeight:1.6, marginBottom:8}}>
+              school_registry'deki her okul için ana dizinde klasör kontrol edilecek. Eksik olanlar oluşturulacak.
+            </p>
+            <p style={{fontSize:12, color:"#94a3b8", lineHeight:1.6, marginBottom:28}}>
+              Mevcut klasörlere dokunulmaz, sadece eksikler açılır.
+            </p>
+            <div style={{display:"flex", gap:12}}>
+              <button onClick={() => setShowFolderConfirm(false)} disabled={folderCheckLoading}
+                style={{...S.secondaryBtn, flex:1, opacity:folderCheckLoading?0.5:1}}>
+                İptal
+              </button>
+              <button onClick={runFolderCheck} disabled={folderCheckLoading}
+                style={{...S.primaryBtn, flex:1, marginTop:0, opacity:folderCheckLoading?0.6:1}}>
+                {folderCheckLoading ? "Kontrol ediliyor..." : "✓ Kontrol Et"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 
   // MODE SELECT — Ana seçim ekranı
   if (step === STEPS.MODE_SELECT) return (
