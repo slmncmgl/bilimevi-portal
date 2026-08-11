@@ -160,20 +160,32 @@ export default function KatalogParse() {
     setFolderCheckLoading(false);
   }
 
-  // Okul listesini Apps Script'ten dinamik çek
+  // Okul listesini Apps Script'ten dinamik çek (hızlı — kampanya beklemez)
   async function loadSchoolList() {
     setSchoolsLoading(true);
     try {
       const res = await callAppsScriptRaw("listSchools", {});
       if (res.success) {
         setKnownBrands(res.schools || []);
-        setActiveCampaigns(res.activeCampaigns || []);
       }
       else setError("Okul listesi yüklenemedi: " + res.msg);
     } catch (err) {
       setError("Okul listesi yüklenemedi: " + err.message);
     }
     setSchoolsLoading(false);
+  }
+
+  // Devam eden kampanyaları ayrı çek (sadece CAMPAIGNS_VIEW'a girince)
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
+  async function loadActiveCampaigns() {
+    setCampaignsLoading(true);
+    try {
+      const res = await callAppsScriptRaw("getActiveCampaigns", {});
+      if (res.success) setActiveCampaigns(res.activeCampaigns || []);
+    } catch (err) {
+      // sessizce geç — ekranda "bulunamadı" gösterilir
+    }
+    setCampaignsLoading(false);
   }
 
   // callAppsScript'in component fonksiyonlarından önce tanımlanmış hali gerekiyor — ham fetch
@@ -908,13 +920,13 @@ KRİTİK KURALLAR:
             <h3 style={{fontSize:18, fontWeight:700, color:"#0f172a", marginBottom:8}}>Promosyon Dökümanını Yükle</h3>
             <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Kampanya ve indirim dökümanını parse ederek discounts sekmesine kampanya kodları ve geçerlilik sürelerini ekle</p>
           </button>
-          <button onClick={() => setStep(STEPS.CAMPAIGNS_VIEW)}
+          <button onClick={() => { setStep(STEPS.CAMPAIGNS_VIEW); loadActiveCampaigns(); }}
             style={S.modeCard}
             onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#7c3aed66"; e.currentTarget.style.boxShadow="0 20px 40px -12px #7c3aed22"; }}
             onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.borderColor="#e2e8f0"; e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.06)"; }}>
             <div style={{fontSize:48, marginBottom:16}}>📅</div>
             <h3 style={{fontSize:18, fontWeight:700, color:"#0f172a", marginBottom:8}}>Devam Eden Kampanyalar</h3>
-            <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Tüm okullardaki aktif kampanyaları ve geçerlilik sürelerini tablo halinde görüntüle{activeCampaigns.length > 0 ? ` (${activeCampaigns.length})` : ""}</p>
+            <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Tüm okullardaki aktif kampanyaları ve geçerlilik sürelerini tablo halinde görüntüle</p>
           </button>
         </div>
       </main>
@@ -933,7 +945,7 @@ KRİTİK KURALLAR:
           <h3 style={S.sectionTitle}>📅 Tüm Aktif Kampanyalar {activeCampaigns.length > 0 ? `(${activeCampaigns.length})` : ""}</h3>
           {activeCampaigns.length === 0 ? (
             <div style={{padding:"32px", textAlign:"center", color:"#94a3b8", fontSize:14}}>
-              {schoolsLoading ? "Kampanyalar yükleniyor..." : "Kayıtlı kampanya bulunamadı."}
+              {campaignsLoading ? "Kampanyalar yükleniyor..." : "Kayıtlı kampanya bulunamadı."}
             </div>
           ) : (
             <div style={{overflowX:"auto"}}>
