@@ -12,7 +12,9 @@ const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 async function fetchRoller() {
   const csv = await fetchSheetCSV("Roller");
   const lines = csv.trim().split("\n");
-  return lines.slice(0).map(l => l.replace(/^"|"$/g, "").trim()).filter(Boolean);
+  return lines
+    .map(l => l.replace(/["',]/g, "").trim())
+    .filter(Boolean);
 }
 
 async function fetchSheetCSV(sheetName) {
@@ -1109,9 +1111,7 @@ function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
   today.setHours(0,0,0,0);
   const tarihiGelmis = basDate && basDate <= today;
   let rowTone = { background: "#f8fafc", border: "#e2e8f0", shadow: "none" };
-  if (durum === "Bekliyor") {
-    rowTone = { background: "#fff7ed", border: "#fed7aa", shadow: "0 3px 14px rgba(249,115,22,0.10)" };
-  } else if (durum === "Onaylandı" && !tarihiGelmis) {
+  if (durum === "Onaylandı" && !tarihiGelmis) {
     rowTone = { background: "#ecfdf5", border: "#a7f3d0", shadow: "0 3px 14px rgba(34,197,94,0.10)" };
   }
 
@@ -1134,7 +1134,7 @@ function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
           <div style={styles.yaklasanTur}>{(iz["İzin Türü"] || iz["Mazeret"] || "").split(" - ")[0]}</div>
           {benimSatirim && durum === "Bekliyor" && (
-            <span style={{ padding: "2px 9px", borderRadius: "100px", background: "#ffedd5", color: "#c2410c", fontSize: "11px", fontWeight: "700" }}>Beklemede</span>
+            <span style={{ padding: "2px 9px", borderRadius: "100px", background: "#fef3c7", color: "#f59e0b", fontSize: "11px", fontWeight: "700" }}>Beklemede</span>
           )}
         </div>
         <div style={styles.yaklasanTarih}>{formatTarih(iz["Başlangıç"])} – {formatTarih(iz["Bitiş"])}</div>
@@ -1273,6 +1273,17 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   function getYaklasanRange(period) {
     const today = new Date();
     today.setHours(0,0,0,0);
+    if (period === "buHafta") {
+      // İçinde bulunduğumuz takvim haftası (Pazartesi - Pazar)
+      const gun = today.getDay(); // 0=Pazar
+      const pazartesiFarki = gun === 0 ? -6 : 1 - gun;
+      const pazartesi = new Date(today);
+      pazartesi.setDate(today.getDate() + pazartesiFarki);
+      const pazar = new Date(pazartesi);
+      pazar.setDate(pazartesi.getDate() + 6);
+      pazar.setHours(23, 59, 59, 999);
+      return { start: pazartesi, end: pazar };
+    }
     if (period === "buAy") {
       // İçinde bulunduğumuz takvim ayının tamamı (geçmiş günler dahil)
       return {
@@ -1885,7 +1896,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           {adminTab === "yaklasan" && (
             <div>
               <div style={{ display: "flex", gap: "6px", marginBottom: "16px", flexWrap: "wrap" }}>
-                {[["gelecekHafta", "Gelecek Hafta"], ["buAy", "Bu Ay"], ["gelecekAy", "Gelecek Ay"]].map(([key, label]) => (
+                {[["buHafta", "Bu Hafta"], ["gelecekHafta", "Gelecek Hafta"], ["buAy", "Bu Ay"], ["gelecekAy", "Gelecek Ay"]].map(([key, label]) => (
                   <button key={key} onClick={() => setYaklasanPeriod(key)}
                     style={{ padding: "7px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif", background: yaklasanPeriod === key ? "#10b981" : "#d1fae5", color: yaklasanPeriod === key ? "#fff" : "#047857" }}>
                     {label}
@@ -1900,15 +1911,19 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {yaklasanIzinlerAdmin.map((row, i) => {
                     const durum = row["Durum"] || "Bekliyor";
-                    const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#c2410c" : "#64748b";
-                    const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#ffedd5" : "#f1f5f9";
+                    const durumColor = durum === "Onaylandı" ? "#059669" : durum === "Bekliyor" ? "#f59e0b" : "#64748b";
+                    const durumBg = durum === "Onaylandı" ? "#ecfdf5" : durum === "Bekliyor" ? "#fef3c7" : "#f1f5f9";
                     const emp = list.find(p => p["Ad Soyad"] === row["Personel"]) || {};
+                    // Bu Ay'da mevcut tarihten geride kalanlar soluk gösterilsin
+                    const bugunKontrol = new Date(); bugunKontrol.setHours(0,0,0,0);
+                    const bitisTarihi = adminTarihToDate(row["Bitiş"]);
+                    const gecmiste = yaklasanPeriod === "buAy" && bitisTarihi && bitisTarihi < bugunKontrol;
                     return (
-                      <div key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                      <div key={i} style={{ background: gecmiste ? "#fcfcfd" : "#f8fafc", border: "1px solid " + (gecmiste ? "#f1f5f9" : "#e2e8f0"), borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", opacity: gecmiste ? 0.55 : 1 }}>
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
                             <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a" }}>{row["Personel"]}</span>
-                            {durum && <span style={{ padding: "2px 9px", borderRadius: "100px", background: durumBg, color: durumColor, fontSize: "11px", fontWeight: "700" }}>{durum}</span>}
+                            {durum && <span style={{ padding: "2px 9px", borderRadius: "100px", background: durumBg, color: durumColor, fontSize: "11px", fontWeight: "700" }}>{durum === "Bekliyor" ? "Beklemede" : durum}</span>}
                           </div>
                           <div style={{ fontSize: "12px", color: "#2563eb", fontWeight: "600", marginBottom: "3px" }}>{(row["İzin Türü"] || row["Mazeret"] || "").split(" - ")[0]}</div>
                           <div style={{ fontSize: "12px", color: "#64748b" }}>{formatTarih(row["Başlangıç"] || row.__cols?.[2])} – {formatTarih(row["Bitiş"] || row.__cols?.[3])}</div>
@@ -1947,7 +1962,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                       {islemGecmisi.map((row, i) => {
                         const durum = row["Durum"] || "";
                         const iptalDurumu = durum.toLowerCase().includes("iptal");
-                        const durumColor = iptalDurumu ? "#dc2626" : durum === "Onaylandı" ? "#059669" : durum === "Reddedildi" ? "#dc2626" : durum === "Bekliyor" ? "#d97706" : "#64748b";
+                        const durumColor = iptalDurumu ? "#dc2626" : durum === "Onaylandı" ? "#059669" : durum === "Reddedildi" ? "#dc2626" : durum === "Bekliyor" ? "#f59e0b" : "#64748b";
                         const durumBg   = iptalDurumu ? "#fee2e2" : durum === "Onaylandı" ? "#ecfdf5" : durum === "Reddedildi" ? "#fef2f2" : durum === "Bekliyor" ? "#fef3c7" : "#f1f5f9";
                         const tarihRaw = row["İşlem Zamanı"];
                         const tarih = tarihRaw ? new Date(tarihRaw).toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
