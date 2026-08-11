@@ -1,11 +1,11 @@
-// v1.2
+// v1.3
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxseCtKe77TrSuQRmWE635YMGHgeRiWNxXcusertZo62sjA_9aBC400e7mHsJUZ6UfJ/exec";
 
-const APP_VERSION = "v1.2";
+const APP_VERSION = "v1.3";
 
 // Gemini çağrısı artık Vercel /api/gemini üzerinden (API key server-side, tarayıcıya gönderilmez)
 const GEMINI_ENDPOINT = "/api/gemini";
@@ -109,7 +109,17 @@ export default function BultenDuzenleyici() {
       json.data.forEach(h => {
         const idx = h.row - 2;
         if (idx >= 0 && idx < 8) {
-          updated[idx] = { title: h.title, content: h.content, urls: h.url ? [h.url] : [], date: "", fromSheet: true };
+          const alts = (h.alternatifler && h.alternatifler.length) ? h.alternatifler : [{ title: h.title, content: h.content }];
+          const options = alts.map(o => ({ title: o.title || "", content: o.content || "" }));
+          // Önceki seçimi B/C ile eşleştirerek bul (mavi işaretli gelsin)
+          let selT = options.findIndex(o => o.title === h.title);
+          let selC = options.findIndex(o => o.content === h.content);
+          if (selT < 0) selT = 0;
+          if (selC < 0) selC = 0;
+          updated[idx] = {
+            title: h.title, content: h.content, urls: h.url ? [h.url] : [],
+            options, selTitle: selT, selContent: selC, date: "", fromSheet: true
+          };
         }
       });
       setChannels(updated);
@@ -204,7 +214,8 @@ export default function BultenDuzenleyici() {
         baslik: sel.title,
         ozet: sel.content,
         url: result.urls?.[0] || "",
-        slot: activeChannel !== null ? activeChannel : undefined
+        slot: activeChannel !== null ? activeChannel : undefined,
+        alternatifler: result.options.map(o => ({ title: o.title, content: o.content }))
       };
       const res = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
       const json = await res.json();
@@ -235,9 +246,11 @@ export default function BultenDuzenleyici() {
       return;
     }
     const ch = channels[idx];
-    // Kanalı tek seçenekli sonuç olarak yükle (önceden seçilmiş içerik)
-    setResult({ options: [{ title: ch.title, content: ch.content }], urls: ch.urls || [] });
-    setSelectedTitle(0); setSelectedContent(0);
+    // Kanalı 3 alternatifle (varsa) geri yükle; önceki seçim mavi işaretli gelir
+    const opts = (ch.options && ch.options.length) ? ch.options : [{ title: ch.title, content: ch.content }];
+    setResult({ options: opts.map(o => ({ title: o.title, content: o.content })), urls: ch.urls || [] });
+    setSelectedTitle(ch.selTitle != null ? ch.selTitle : 0);
+    setSelectedContent(ch.selContent != null ? ch.selContent : 0);
     setSourceText("");
     setCopied({});
     if (ch.fromSheet) { setActiveChannel(null); setFromSheetPreview(true); }
@@ -273,6 +286,8 @@ export default function BultenDuzenleyici() {
     const sel = getSelected();
     const entry = {
       title: sel.title, content: sel.content, urls: result.urls || [],
+      options: result.options.map(o => ({ title: o.title, content: o.content })),
+      selTitle: selectedTitle, selContent: selectedContent,
       date: new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "short", year: "numeric" }),
       fromSheet: false
     };
