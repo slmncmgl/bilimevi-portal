@@ -9,6 +9,13 @@ const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const DIGER_IZINLER = ["Evlilik İzni", "Doğum İzni", "Babalık İzni", "Cenaze İzni"];
 const HAKEDISTEN_DUSEN = ["Yıllık İzin", "Yarım Gün İzin"];
 
+const EMAIL_DOMAINS = {
+  "Bilimevi": "@bilimevi.com",
+  "Premium Vize": "@premiumvize.com",
+  "Fortis": "@fortisabroad.com",
+  "Vagus": ""
+};
+
 async function fetchRoller() {
   const csv = await fetchSheetCSV("Roller");
   const lines = csv.trim().split("\n");
@@ -1461,7 +1468,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
         .filter(r => (r["Şirket"] || "").trim() === sirket)
         .map(r => (r["Şube"] || "").trim())
         .filter(Boolean)
-        .sort();
+        .sort((a, b) => a.localeCompare(b, "tr"));
       setSubeler(filtered);
     } catch (_) { setSubeler([]); }
   }
@@ -1469,13 +1476,26 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   async function handleYeniKullanici(e) {
     e.preventDefault();
     setFormError("");
-    if (!formData.email.includes("@")) { setFormError("Geçerli bir e-posta adresi girin."); return; }
+    if (!formData.email.trim()) { setFormError("E-posta kullanıcı adını girin."); return; }
     setFormSaving(true);
+
+    // Giriş tarihini yyyy-MM-dd → dd.MM.yyyy çevir
+    let girisFormatli = formData.girisTarihi;
+    if (girisFormatli && girisFormatli.includes("-")) {
+      const [y, a, g] = girisFormatli.split("-");
+      girisFormatli = `${g}.${a}.${y}`;
+    }
+
+    // Şirkete göre tam e-posta oluştur
+    const domain = EMAIL_DOMAINS[formData.sirket] || "";
+    const solTaraf = formData.email.trim().replace(/@.*$/, ""); // varsa @ sonrasını temizle
+    const tamEmail = domain ? solTaraf + domain : solTaraf;
+
     try {
       await fetch(scriptUrl, {
         method: "POST",
         mode: "no-cors",
-        body: JSON.stringify({ action: "addNewEmployee", ...formData }),
+        body: JSON.stringify({ action: "addNewEmployee", ...formData, girisTarihi: girisFormatli, email: tamEmail }),
       });
       setShowModal(false);
       setFormData({ name: "", sirket: "", sube: "", girisTarihi: "", email: "", pass: "", title: "staff", crmId: "" });
@@ -1689,8 +1709,18 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               </div>
               {/* E-posta */}
               <div style={styles.modalField}>
-                <label style={styles.modalLabel}>E-posta</label>
-                <input type="email" required value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} style={styles.modalInput} />
+                <label style={styles.modalLabel}>E-posta {EMAIL_DOMAINS[formData.sirket] ? <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none" }}>(sadece sol tarafı yazın)</span> : null}</label>
+                {EMAIL_DOMAINS[formData.sirket] ? (
+                  <div style={{ display: "flex", alignItems: "stretch", border: "1.5px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
+                    <input type="text" required value={formData.email}
+                      onChange={e => setFormData(p => ({ ...p, email: e.target.value.replace(/@.*$/, "") }))}
+                      placeholder="adsoyad"
+                      style={{ flex: 1, padding: "10px 12px", border: "none", outline: "none", fontSize: "14px", color: "#0f172a", fontFamily: "inherit", minWidth: 0 }} />
+                    <span style={{ display: "flex", alignItems: "center", padding: "0 12px", background: "#f1f5f9", color: "#64748b", fontSize: "13px", fontWeight: "600", whiteSpace: "nowrap" }}>{EMAIL_DOMAINS[formData.sirket]}</span>
+                  </div>
+                ) : (
+                  <input type="email" required value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} placeholder={formData.sirket ? "tam e-posta adresi" : "Önce şirket seçin"} style={styles.modalInput} />
+                )}
               </div>
               {/* Şifre — otomatik, pasif */}
               <div style={styles.modalField}>
@@ -1917,7 +1947,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                     // Bu Ay'da mevcut tarihten geride kalanlar soluk gösterilsin
                     const bugunKontrol = new Date(); bugunKontrol.setHours(0,0,0,0);
                     const bitisTarihi = adminTarihToDate(row["Bitiş"]);
-                    const gecmiste = yaklasanPeriod === "buAy" && bitisTarihi && bitisTarihi < bugunKontrol;
+                    const gecmiste = (yaklasanPeriod === "buAy" || yaklasanPeriod === "buHafta") && bitisTarihi && bitisTarihi < bugunKontrol;
                     return (
                       <div key={i} style={{ background: gecmiste ? "#fcfcfd" : "#f8fafc", border: "1px solid " + (gecmiste ? "#f1f5f9" : "#e2e8f0"), borderRadius: "12px", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", opacity: gecmiste ? 0.55 : 1 }}>
                         <div>
