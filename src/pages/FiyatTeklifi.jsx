@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v75-anlik-ozet-okul-2026-08-05";
+const BFT_BUILD_VERSION = "v76-custom-confirm-2026-08-05";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -703,6 +703,8 @@ export default function FiyatTeklifi() {
 
   const [leadLoading, setLeadLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  // Özel onay modalı: { title, message, hint, confirmLabel, danger, onConfirm } | null
+  const [confirmModal, setConfirmModal] = useState(null);
   const [preselectDone, setPreselectDone] = useState(false); // URL okul+şehir bir kez işlendi mi
   const [urlWarning, setUrlWarning] = useState(""); // eşleşmezse üst banner uyarısı
 
@@ -857,8 +859,13 @@ export default function FiyatTeklifi() {
   const removeDestination = (i) => {
     const d = destinations[i];
     const ad = d ? `${d.brand || ""} ${d.city || ""}`.trim() : "bu okul";
-    if (!window.confirm(`"${ad}" teklifini silmek istediğinize emin misiniz?`)) return;
-    setDestinations(p => p.filter((_, idx) => idx !== i));
+    setConfirmModal({
+      title: "Okulu Sil",
+      message: `"${ad}" teklifini silmek istediğinize emin misiniz?`,
+      confirmLabel: "Evet, Sil",
+      danger: true,
+      onConfirm: () => setDestinations(p => p.filter((_, idx) => idx !== i)),
+    });
   };
   const reset = () => { setDestinations([]); setCur(emptyDest()); setStudent({ name:"", age:"", gender:"" }); setStep(0); };
 
@@ -1486,6 +1493,30 @@ export default function FiyatTeklifi() {
         </button>
       </div>
     )}
+    {confirmModal && (
+      <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:100000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+        onClick={() => setConfirmModal(null)}>
+        <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:20, padding:"28px 28px 24px", maxWidth:400, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)", animation:"fadeUp 0.2s" }}>
+          <h3 style={{ fontSize:18, fontWeight:700, marginBottom:10, color:"#0f172a" }}>{confirmModal.title}</h3>
+          <p style={{ fontSize:14, color:"#475569", marginBottom: confirmModal.hint ? 12 : 22, lineHeight:1.5 }}>{confirmModal.message}</p>
+          {confirmModal.hint && (
+            <div style={{ fontSize:12.5, color:"#0f766e", background:"#f0fdfa", border:"1px solid #99f6e4", borderRadius:10, padding:"10px 12px", marginBottom:22, lineHeight:1.5 }}>
+              💡 {confirmModal.hint}
+            </div>
+          )}
+          <div style={{ display:"flex", gap:10 }}>
+            <button onClick={() => setConfirmModal(null)}
+              style={{ flex:1, padding:"12px 0", background:"#f1f5f9", color:"#475569", border:"none", borderRadius:12, fontWeight:600, cursor:"pointer", fontSize:14, fontFamily:"inherit" }}>
+              Vazgeç
+            </button>
+            <button onClick={() => { const cb = confirmModal.onConfirm; setConfirmModal(null); if (cb) cb(); }}
+              style={{ flex:1, padding:"12px 0", background: confirmModal.danger ? "#dc2626" : CYAN, color:"#fff", border:"none", borderRadius:12, fontWeight:700, cursor:"pointer", fontSize:14, fontFamily:"inherit" }}>
+              {confirmModal.confirmLabel || "Onayla"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     {pdfLoading && (
       <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.85)", zIndex:99999, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", backdropFilter:"blur(2px)" }}>
         <div style={{ width:48, height:48, border:`4px solid #e2e8f0`, borderTopColor:CYAN, borderRadius:"50%", animation:"bftSpin 0.8s linear infinite" }} />
@@ -1972,7 +2003,14 @@ export default function FiyatTeklifi() {
               })}
               {destinations.length < 3
                 ? <button onClick={addNew} style={S.addBtn}>+ Yeni Destinasyon Ekle</button>
-                : <button onClick={() => { if (window.confirm("Tüm okullar silinecek, emin misiniz?\n\nİpucu: Eklediğiniz okulları tek tek silip (kartların sağ üstündeki × ile) yerlerine başka okul da ekleyebilirsiniz.")) reset(); }} style={{ ...S.addBtn, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN }}>+ Yeni Teklif Oluştur</button>
+                : <button onClick={() => setConfirmModal({
+                    title: "Yeni Teklif Oluştur",
+                    message: "Tüm okullar silinecek, emin misiniz?",
+                    hint: "İpucu: Eklediğiniz okulları tek tek silip (kartların sağ üstündeki × ile) yerlerine başka okul da ekleyebilirsiniz.",
+                    confirmLabel: "Evet, Yeni Teklif",
+                    danger: false,
+                    onConfirm: reset,
+                  })} style={{ ...S.addBtn, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN }}>+ Yeni Teklif Oluştur</button>
               }
             </div>
           )}
