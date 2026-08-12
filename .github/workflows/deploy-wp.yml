@@ -1,36 +1,47 @@
+# Workflow version: v1.0
 name: Deploy to WordPress
-
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
-
       - name: Install dependencies
         run: npm install
-
       - name: Build for WordPress
         run: npm run build:wp
 
-      - name: Deploy to cPanel via FTP
+      # --- DEPLOY: ingilteredil (canlı) ---
+      # continue-on-error: bu step patlasa bile maltadil deploy'u yine çalışsın
+      - name: Deploy to ingilteredil (cPanel FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        continue-on-error: true
+        with:
+          server: ${{ secrets.FTP_SERVER_INGILTEREDIL }}
+          username: ${{ secrets.FTP_USER_INGILTEREDIL }}
+          password: ${{ secrets.FTP_PASSWORD_INGILTEREDIL }}
+          port: 21
+          local-dir: ./dist-wp/
+          server-dir: /public_html/wp-content/plugins/bilimevi-fiyat-teklifi/assets/
+          dangerous-clean-slate: true
+
+      # --- DEPLOY: maltadil (yeni) ---
+      # son step: patlarsa workflow kırmızı olsun ki fark edilsin
+      - name: Deploy to maltadil (cPanel FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ftp.ingilteredil.com
-          username: ingilteredil
-          password: ${{ secrets.FTP_PASSWORD }}
+          server: ${{ secrets.FTP_SERVER_MALTADIL }}
+          username: ${{ secrets.FTP_USER_MALTADIL }}
+          password: ${{ secrets.FTP_PASSWORD_MALTADIL }}
           port: 21
           local-dir: ./dist-wp/
           server-dir: /public_html/wp-content/plugins/bilimevi-fiyat-teklifi/assets/
