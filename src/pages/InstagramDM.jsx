@@ -212,7 +212,9 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
     setOwnersLoading(true);
     const companyMap = { bilimevi: 'bilimevi', premium: 'premium vize', fortis: 'fortis' };
     const filter = companyMap[key] || '';
-    const filtered = allOwners.filter(o => o.company.toLowerCase().includes(filter));
+    const filtered = allOwners
+      .filter(o => o.company.toLowerCase().includes(filter))
+      .sort((a, b) => a.name.localeCompare(b.name, 'tr'));
     setOwners(filtered);
     setOwnersLoading(false);
   }
