@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithCredentials, saveSession, getSession } from "../utils/sheets";
 import logo from "../assets/Bilimevi_study_abroad.png";
+import { LOGIN_SCRIPT_URL } from "../config";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "931368494993-gahav7fg7ss663e3v82enk2e6au6onfa.apps.googleusercontent.com";
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "https://bilimevi-portal.vercel.app/auth/callback";
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxseCtKe77TrSuQRmWE635YMGHgeRiWNxXcusertZo62sjA_9aBC400e7mHsJUZ6UfJ/exec";
 
 const translations = {
   tr: {
@@ -124,7 +124,7 @@ export default function Login() {
     try {
       let res;
       try {
-        res = await fetch(SCRIPT_URL, {
+        res = await fetch(LOGIN_SCRIPT_URL, {
           method: "POST",
           body: JSON.stringify({ action: "sifreyiGonder", email: sifreUsername.trim() })
         });
@@ -188,7 +188,7 @@ export default function Login() {
         saveSession(res.user);
 
         // Ghost login log — await yok, cevabı beklenmiyor, hata olsa bile login'i etkilemez
-        fetch(SCRIPT_URL, {
+        fetch(LOGIN_SCRIPT_URL, {
           method: "POST",
           body: JSON.stringify({ action: "loginLogKaydet", username })
         }).catch(() => {});
