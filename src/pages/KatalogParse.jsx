@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
+// v1.3 — Özel fiyat: 3 aşamalı gruplama (şehir → kurs → bitişik hafta kademesi)
 // v1.2 — Özel fiyat: şehir gruplama + esnek eşleştirme + teşhis logları
 // v1.1 — Özel Fiyat Listesi parse akışı eklendi (indirimli fiyat → oran hesaplama)
 // v1.0 — Gemini çağrıları /api/gemini proxy'sine taşındı, key artık backend'de yönetiliyor
@@ -1081,50 +1082,80 @@ KURALLAR:
         });
       });
 
-      // 5. GRUPLA — aynı oran/kurs/hafta/currency olan şehirleri tek satırda birleştir
-      //    (Oxford formatı: city = "London Greenwich, Oxford, Brighton, Edinburgh")
+      // 5. GRUPLA — 3 aşamalı: şehir → kurs → hafta
+      //    Aynı oranı paylaşanlar tek satırda toplanır, farklı oran ayrı satır kalır.
       setSpecialProgress(88); setSpecialProgressMsg("🔗 Aynı oranlar gruplanıyor...");
 
-      const groupMap = new Map();
+      // Aşama 1: aynı oran + kurs + hafta + currency + country → şehirleri birleştir
+      const g1 = new Map();
       matched.forEach(r => {
-        // Grup anahtarı: oran + kurs + hafta kademesi + para birimi + ülke
-        const key = [
-          r.discount_value,
-          norm(r.course_name),
-          r.weeks_min,
-          r.weeks_max,
-          norm(r.currency),
-          norm(r.country),
-        ].join("|");
-
-        if (!groupMap.has(key)) {
-          groupMap.set(key, {
-            cities: [],
-            country: r.country,
-            course_name: r.course_name,
-            weeks_min: r.weeks_min,
-            weeks_max: r.weeks_max,
-            currency: r.currency,
-            discount_value: r.discount_value,
-            priceSamples: [],
-          });
+        const key = [r.discount_value, norm(r.course_name), r.weeks_min, r.weeks_max, norm(r.currency), norm(r.country)].join("|");
+        if (!g1.has(key)) {
+          g1.set(key, { cities: [], courses: [r.course_name], country: r.country,
+                        weeks_min: r.weeks_min, weeks_max: r.weeks_max,
+                        currency: r.currency, discount_value: r.discount_value, samples: [] });
         }
-        const g = groupMap.get(key);
+        const g = g1.get(key);
         if (!g.cities.includes(r.city)) g.cities.push(r.city);
-        g.priceSamples.push(`${r.city}: ${r.special_price} (normal ${r.normal_price})`);
+        g.samples.push(`${r.city} ${r.course_name} ${r.weeks_min}-${r.weeks_max}: ${r.special_price} (normal ${r.normal_price})`);
       });
 
-      const grouped = [...groupMap.values()].map(g => ({
-        city: g.cities.join(", "),
-        cityCount: g.cities.length,
-        country: g.country,
-        course_name: g.course_name,
-        weeks_min: g.weeks_min,
-        weeks_max: g.weeks_max,
-        currency: g.currency,
-        discount_value: g.discount_value,
-        priceNote: g.priceSamples.join(" | "),
-      }));
+      // Aşama 2: aynı oran + şehir seti + hafta + currency → kursları birleştir
+      const g2 = new Map();
+      [...g1.values()].forEach(g => {
+        const cityKey = [...g.cities].sort().join(",");
+        const key = [g.discount_value, cityKey, g.weeks_min, g.weeks_max, norm(g.currency), norm(g.country)].join("|");
+        if (!g2.has(key)) {
+          g2.set(key, { ...g, cities: [...g.cities], courses: [...g.courses] });
+        } else {
+          const t = g2.get(key);
+          g.courses.forEach(c => { if (!t.courses.includes(c)) t.courses.push(c); });
+          t.samples.push(...g.samples);
+        }
+      });
+
+      // Aşama 3: aynı oran + şehir seti + kurs seti → BİTİŞİK hafta kademelerini birleştir
+      const g3 = new Map();
+      [...g2.values()].forEach(g => {
+        const cityKey   = [...g.cities].sort().join(",");
+        const courseKey = [...g.courses].sort().join(",");
+        const key = [g.discount_value, cityKey, courseKey, norm(g.currency), norm(g.country)].join("|");
+        if (!g3.has(key)) g3.set(key, { ...g, ranges: [[g.weeks_min, g.weeks_max]], cities: [...g.cities], courses: [...g.courses] });
+        else {
+          const t = g3.get(key);
+          t.ranges.push([g.weeks_min, g.weeks_max]);
+          t.samples.push(...g.samples);
+        }
+      });
+
+      // Bitişik aralıkları birleştir (2-4 + 5-11 → 2-11), boşluk varsa ayrı bırak
+      const grouped = [];
+      [...g3.values()].forEach(g => {
+        const sorted = g.ranges.slice().sort((a, b) => a[0] - b[0]);
+        const merged = [];
+        sorted.forEach(([mn, mx]) => {
+          const last = merged[merged.length - 1];
+          // bitişik veya örtüşen ise genişlet (aradaki 1 birimlik boşluğa izin ver: 4 → 5)
+          if (last && mn <= last[1] + 1) last[1] = Math.max(last[1], mx);
+          else merged.push([mn, mx]);
+        });
+        merged.forEach(([mn, mx]) => {
+          grouped.push({
+            city: g.cities.join(", "),
+            cityCount: g.cities.length,
+            country: g.country,
+            course_name: g.courses.join(", "),
+            courseCount: g.courses.length,
+            weeks_min: mn,
+            weeks_max: mx,
+            currency: g.currency,
+            discount_value: g.discount_value,
+            priceNote: g.samples.slice(0, 6).join(" | ") + (g.samples.length > 6 ? ` | +${g.samples.length - 6} satır` : ""),
+          });
+        });
+      });
+
+      grouped.sort((a, b) => b.discount_value - a.discount_value || a.city.localeCompare(b.city));
 
       setSpecialMeta({
         campaign_name: parsed.campaign_name || `${specialBrand} Özel Fiyat Listesi`,
@@ -2023,7 +2054,10 @@ KURALLAR:
                         {r.city}
                         {r.cityCount > 1 && <span style={{fontSize:10,color:"#0891b2",marginLeft:6}}>({r.cityCount} şehir)</span>}
                       </td>
-                      <td style={{padding:"9px 6px", color:"#475569"}}>{r.course_name}</td>
+                      <td style={{padding:"9px 6px", color:"#475569"}}>
+                        {r.course_name}
+                        {r.courseCount > 1 && <span style={{fontSize:10,color:"#0891b2",marginLeft:6}}>({r.courseCount} kurs)</span>}
+                      </td>
                       <td style={{padding:"9px 6px", color:"#64748b"}}>{r.weeks_min}-{r.weeks_max === 999 ? "∞" : r.weeks_max}</td>
                       <td style={{padding:"9px 6px", color:"#059669", textAlign:"right", fontWeight:700}}>%{r.discount_value}</td>
                     </tr>
