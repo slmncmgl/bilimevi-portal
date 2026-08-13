@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
+// v1.2 — Özel fiyat: şehir gruplama + esnek eşleştirme + teşhis logları
 // v1.1 — Özel Fiyat Listesi parse akışı eklendi (indirimli fiyat → oran hesaplama)
 // v1.0 — Gemini çağrıları /api/gemini proxy'sine taşındı, key artık backend'de yönetiliyor
 // ─── SABİTLER ────────────────────────────────────────────────
@@ -939,6 +940,10 @@ KRİTİK KURALLAR:
       if (!fullRes.success) throw new Error("courses okunamadı: " + fullRes.msg);
       const coursesRows = fullRes.rows || [];
       if (coursesRows.length === 0) throw new Error("courses sekmesi boş — oran hesaplanamaz.");
+      console.log("=== COURSES SATIR SAYISI ===", coursesRows.length);
+      console.log("=== COURSES ŞEHİRLER ===", [...new Set(coursesRows.map(c => c.city))].join(" | "));
+      console.log("=== COURSES KURSLAR ===", [...new Set(coursesRows.map(c => c.course_name))].join(" | "));
+      console.log("=== COURSES ÖRNEK SATIR ===", JSON.stringify(coursesRows[0]));
 
       // 3. Gemini ham fiyatları çıkarsın (HESAP YAPMAZ)
       setSpecialProgress(30); setSpecialProgressMsg("🤖 Özel fiyatlar okunuyor...");
@@ -1000,6 +1005,9 @@ KURALLAR:
 
       const rawRows = Array.isArray(parsed.rows) ? parsed.rows : [];
       if (rawRows.length === 0) throw new Error("Broşürden hiç fiyat satırı çıkarılamadı.");
+      console.log("=== GEMINI ÇIKARDIĞI SATIR SAYISI ===", rawRows.length);
+      console.log("=== GEMINI ŞEHİRLER ===", [...new Set(rawRows.map(r => r.city))].join(" | "));
+      console.log("=== GEMINI KURSLAR ===", [...new Set(rawRows.map(r => r.course_name))].join(" | "));
 
       // 4. ORAN HESAPLA (kod yapar, Gemini değil)
       setSpecialProgress(75); setSpecialProgressMsg("🧮 İndirim oranları hesaplanıyor...");
@@ -1017,18 +1025,34 @@ KURALLAR:
         }
 
         // courses'ta eşleşen satırı bul: şehir + kurs + hafta kademesi
-        const hit = coursesRows.find(c => {
-          if (norm(c.city) !== norm(r.city)) return false;
-          if (norm(c.course_name) !== norm(r.course_name)) return false;
+        // Şehir ve kurs adında kısmi eşleşmeye izin ver (yazım farklılıkları için)
+        const cityMatch = (a, b) => {
+          const na = norm(a), nb = norm(b);
+          if (!na || !nb) return false;
+          return na === nb || na.includes(nb) || nb.includes(na);
+        };
+
+        const candidates = coursesRows.filter(c =>
+          cityMatch(c.city, r.city) && cityMatch(c.course_name, r.course_name)
+        );
+
+        // Hafta kademesi örtüşen ilk adayı seç (aralıklar kesişiyor mu)
+        const hit = candidates.find(c => {
           const cMin = toNum(c.weeks_tier_min);
           const cMax = toNum(c.weeks_tier_max);
           if (cMin === null || cMax === null) return false;
-          // PDF kademesi, courses kademesinin içine düşüyor mu
-          return wMin >= cMin && wMin <= cMax;
-        });
+          const pMax = wMax ?? wMin;
+          return wMin <= cMax && pMax >= cMin; // aralık kesişimi
+        }) || candidates[0]; // kademe tutmazsa ilk adayı kullan
 
         if (!hit) {
-          unmatched.push({ ...r, reason: "courses'ta eşleşen satır bulunamadı" });
+          const cityHit = coursesRows.some(c => cityMatch(c.city, r.city));
+          unmatched.push({
+            ...r,
+            reason: cityHit
+              ? `courses'ta "${r.course_name}" kursu bu şehirde yok`
+              : `courses'ta "${r.city}" şehri bulunamadı`
+          });
           return;
         }
 
@@ -1057,12 +1081,58 @@ KURALLAR:
         });
       });
 
+      // 5. GRUPLA — aynı oran/kurs/hafta/currency olan şehirleri tek satırda birleştir
+      //    (Oxford formatı: city = "London Greenwich, Oxford, Brighton, Edinburgh")
+      setSpecialProgress(88); setSpecialProgressMsg("🔗 Aynı oranlar gruplanıyor...");
+
+      const groupMap = new Map();
+      matched.forEach(r => {
+        // Grup anahtarı: oran + kurs + hafta kademesi + para birimi + ülke
+        const key = [
+          r.discount_value,
+          norm(r.course_name),
+          r.weeks_min,
+          r.weeks_max,
+          norm(r.currency),
+          norm(r.country),
+        ].join("|");
+
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
+            cities: [],
+            country: r.country,
+            course_name: r.course_name,
+            weeks_min: r.weeks_min,
+            weeks_max: r.weeks_max,
+            currency: r.currency,
+            discount_value: r.discount_value,
+            priceSamples: [],
+          });
+        }
+        const g = groupMap.get(key);
+        if (!g.cities.includes(r.city)) g.cities.push(r.city);
+        g.priceSamples.push(`${r.city}: ${r.special_price} (normal ${r.normal_price})`);
+      });
+
+      const grouped = [...groupMap.values()].map(g => ({
+        city: g.cities.join(", "),
+        cityCount: g.cities.length,
+        country: g.country,
+        course_name: g.course_name,
+        weeks_min: g.weeks_min,
+        weeks_max: g.weeks_max,
+        currency: g.currency,
+        discount_value: g.discount_value,
+        priceNote: g.priceSamples.join(" | "),
+      }));
+
       setSpecialMeta({
         campaign_name: parsed.campaign_name || `${specialBrand} Özel Fiyat Listesi`,
         reg_date_start: parsed.reg_date_start || "",
         reg_date_end: parsed.reg_date_end || "",
+        rawCount: matched.length,
       });
-      setSpecialRows(matched);
+      setSpecialRows(grouped);
       setSpecialUnmatched(unmatched);
 
       setSpecialProgress(100); setSpecialProgressMsg("✅ Tamamlandı!");
@@ -1085,7 +1155,7 @@ KURALLAR:
 
       const discountRows = specialRows.map((r, i) => ({
         school: specialBrand,
-        city: r.city,
+        city: r.city,                       // "London, Edinburgh, Oxford" — virgüllü tek hücre
         country: r.country,
         campaign_id: `${campaignBase}_${i + 1}`,
         campaign_name: specialMeta.campaign_name,
@@ -1114,7 +1184,7 @@ KURALLAR:
         includes_eng: "",
         includes_tr: "",
         excludes: "",
-        notes: `Özel fiyat listesinden hesaplandı: ${r.special_price} ${r.currency}/hafta (normal ${r.normal_price})`,
+        notes: r.priceNote || "",
       }));
 
       const res = await callAppsScript("writeDraftData", {
@@ -1921,7 +1991,8 @@ KURALLAR:
         <div style={S.sectionCard}>
           <h3 style={S.sectionTitle}>💱 {specialMeta.campaign_name || "Özel Fiyat Listesi"} — {specialBrand}</h3>
           <p style={{fontSize:13,color:"#64748b",marginBottom:8}}>
-            <strong>{specialRows.length}</strong> satır eşleşti ve indirim oranı hesaplandı.
+            <strong>{specialRows.length}</strong> indirim satırı oluştu
+            {specialMeta.rawCount ? ` (${specialMeta.rawCount} fiyat satırı gruplandı)` : ""}.
             {specialUnmatched.length > 0 && <> <strong style={{color:"#dc2626"}}>{specialUnmatched.length}</strong> satır eşleşmedi.</>}
           </p>
           {(specialMeta.reg_date_start || specialMeta.reg_date_end) && (
@@ -1939,22 +2010,21 @@ KURALLAR:
               <table style={{width:"100%", borderCollapse:"collapse", fontSize:12.5, textAlign:"left"}}>
                 <thead>
                   <tr style={{borderBottom:"2px solid #e2e8f0", color:"#64748b"}}>
-                    <th style={{padding:"10px 6px"}}>Şehir</th>
+                    <th style={{padding:"10px 6px"}}>Şehir(ler)</th>
                     <th style={{padding:"10px 6px"}}>Kurs</th>
                     <th style={{padding:"10px 6px"}}>Hafta</th>
-                    <th style={{padding:"10px 6px",textAlign:"right"}}>Normal</th>
-                    <th style={{padding:"10px 6px",textAlign:"right"}}>Özel</th>
                     <th style={{padding:"10px 6px",textAlign:"right"}}>İndirim</th>
                   </tr>
                 </thead>
                 <tbody>
                   {specialRows.map((r, i) => (
                     <tr key={i} style={{borderBottom:"1px solid #f1f5f9"}}>
-                      <td style={{padding:"9px 6px", fontWeight:600, color:"#0f172a"}}>{r.city}</td>
+                      <td style={{padding:"9px 6px", fontWeight:600, color:"#0f172a"}}>
+                        {r.city}
+                        {r.cityCount > 1 && <span style={{fontSize:10,color:"#0891b2",marginLeft:6}}>({r.cityCount} şehir)</span>}
+                      </td>
                       <td style={{padding:"9px 6px", color:"#475569"}}>{r.course_name}</td>
                       <td style={{padding:"9px 6px", color:"#64748b"}}>{r.weeks_min}-{r.weeks_max === 999 ? "∞" : r.weeks_max}</td>
-                      <td style={{padding:"9px 6px", color:"#94a3b8", textAlign:"right", textDecoration:"line-through"}}>{r.normal_price}</td>
-                      <td style={{padding:"9px 6px", color:"#0f172a", textAlign:"right", fontWeight:600}}>{r.special_price}</td>
                       <td style={{padding:"9px 6px", color:"#059669", textAlign:"right", fontWeight:700}}>%{r.discount_value}</td>
                     </tr>
                   ))}
