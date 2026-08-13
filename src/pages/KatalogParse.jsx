@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
+// v1.1 — Özel Fiyat Listesi parse akışı eklendi (indirimli fiyat → oran hesaplama)
 // v1.0 — Gemini çağrıları /api/gemini proxy'sine taşındı, key artık backend'de yönetiliyor
 // ─── SABİTLER ────────────────────────────────────────────────
 // SİL: getDecodedKeySync() fonksiyonu ve GEMINI_API_KEY, GEMINI_API_URL sabitleri kaldırıldı
@@ -31,6 +32,12 @@ const STEPS = {
   PROMO_DONE:     "promo_done",
   // Kampanya görüntüleme
   CAMPAIGNS_VIEW: "campaigns_view",
+  // Özel fiyat listesi akışı (indirimli fiyat → oran hesaplama)
+  SPECIAL_UPLOAD:  "special_upload",
+  SPECIAL_CONFIRM: "special_confirm",
+  SPECIAL_PARSING: "special_parsing",
+  SPECIAL_REVIEW:  "special_review",
+  SPECIAL_DONE:    "special_done",
 };
 
 const MODES = {
@@ -92,6 +99,19 @@ export default function KatalogParse() {
   const [activeCampaigns, setActiveCampaigns] = useState([]);
   const [commitLoading, setCommitLoading]     = useState(false);
   const [successMessage, setSuccessMessage]   = useState("");
+
+  // Özel fiyat listesi (indirimli fiyat → oran) state'leri
+  const [specialFile, setSpecialFile]         = useState(null);
+  const [specialIsDragOver, setSpecialIsDragOver] = useState(false);
+  const [specialBrand, setSpecialBrand]       = useState("");
+  const [specialDetected, setSpecialDetected] = useState("");
+  const [specialLoading, setSpecialLoading]   = useState(false);
+  const [specialRows, setSpecialRows]         = useState([]);   // eşleşen + oran hesaplanmış
+  const [specialUnmatched, setSpecialUnmatched] = useState([]); // eşleşmeyenler
+  const [specialError, setSpecialError]       = useState(null);
+  const [specialProgress, setSpecialProgress] = useState(0);
+  const [specialProgressMsg, setSpecialProgressMsg] = useState("");
+  const [specialMeta, setSpecialMeta]         = useState({});   // campaign_name, tarihler vb.
 
   // Gizli klasör kontrolü (Cmd+Option+S)
   const [showFolderConfirm, setShowFolderConfirm] = useState(false);
@@ -580,6 +600,15 @@ GENEL KURALLAR:
     setPromoProgressMsg("");
     setCommitLoading(false);
     setSuccessMessage("");
+    setSpecialFile(null);
+    setSpecialBrand("");
+    setSpecialDetected("");
+    setSpecialRows([]);
+    setSpecialUnmatched([]);
+    setSpecialError(null);
+    setSpecialProgress(0);
+    setSpecialProgressMsg("");
+    setSpecialMeta({});
   }
 
   // ── Promosyon parse fonksiyonları ──────────────────────────
@@ -841,6 +870,279 @@ KRİTİK KURALLAR:
     }
   }
 
+  // ── ÖZEL FİYAT LİSTESİ (indirimli fiyat → oran hesaplama) ──
+
+  function handleSpecialFileSelect(e) {
+    const file = e.target.files[0];
+    if (file?.type === "application/pdf") { setSpecialFile(file); setSpecialError(null); }
+    else setSpecialError("Lütfen geçerli bir PDF dosyası seçin.");
+  }
+
+  function handleSpecialDrop(e) {
+    e.preventDefault(); setSpecialIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file?.type === "application/pdf") { setSpecialFile(file); setSpecialError(null); }
+    else setSpecialError("Lütfen geçerli bir PDF dosyası seçin.");
+  }
+
+  async function analyzeSpecialFile() {
+    if (!specialFile) return;
+    setSpecialLoading(true); setSpecialError(null);
+    let brand = detectBrandFromFileName(specialFile.name);
+    if (!brand) {
+      try {
+        const base64 = await fileToBase64(specialFile);
+        brand = await detectBrandFromContent(base64);
+      } catch { brand = null; }
+    }
+    setSpecialDetected(brand || "");
+    setSpecialBrand(brand || "");
+    setSpecialLoading(false);
+    setStep(STEPS.SPECIAL_CONFIRM);
+  }
+
+  // Sayıyı temizle: "€248.50" → 248.50
+  function toNum(v) {
+    if (typeof v === "number") return v;
+    const s = String(v ?? "").replace(/[^\d.,-]/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", ".");
+    const n = parseFloat(s);
+    return isNaN(n) ? null : n;
+  }
+
+  // Metin normalize: karşılaştırma için
+  function norm(s) {
+    return String(s ?? "").toLowerCase().trim().replace(/\s+/g, " ");
+  }
+
+  async function startSpecialParsing() {
+    if (!specialBrand) { setSpecialError("Lütfen okul seçin."); return; }
+    setStep(STEPS.SPECIAL_PARSING); setSpecialError(null);
+
+    try {
+      // 1. Kurs adı referansı
+      setSpecialProgress(8); setSpecialProgressMsg("📚 Kurs listesi alınıyor...");
+      let courseNamesStr = "";
+      try {
+        const cr = await callAppsScriptRaw("getCourseNames", { brand: specialBrand });
+        if (cr.success && cr.courseNames?.length > 0) courseNamesStr = cr.courseNames.join(", ");
+      } catch { courseNamesStr = ""; }
+
+      // Sheet URL'ini de al (sonuç ekranındaki link için)
+      try {
+        const hr = await callAppsScriptRaw("getSheetHeaders", { brand: specialBrand });
+        if (hr.success && hr.sheetUrl) setSheetUrls(prev => ({ ...prev, [specialBrand]: hr.sheetUrl }));
+      } catch { /* link opsiyonel */ }
+
+      // 2. courses sekmesinin TAMAMI (oran hesabı için)
+      setSpecialProgress(18); setSpecialProgressMsg("💰 Normal fiyat listesi alınıyor...");
+      const fullRes = await callAppsScriptRaw("getFullTabData", { brand: specialBrand, tab: "courses" });
+      if (!fullRes.success) throw new Error("courses okunamadı: " + fullRes.msg);
+      const coursesRows = fullRes.rows || [];
+      if (coursesRows.length === 0) throw new Error("courses sekmesi boş — oran hesaplanamaz.");
+
+      // 3. Gemini ham fiyatları çıkarsın (HESAP YAPMAZ)
+      setSpecialProgress(30); setSpecialProgressMsg("🤖 Özel fiyatlar okunuyor...");
+      const base64 = await fileToBase64(specialFile);
+
+      const prompt = `Bu bir ${specialBrand} dil okulunun ÖZEL/İNDİRİMLİ FİYAT broşürüdür.
+Broşürdeki indirimli haftalık fiyatları çıkar. Sadece JSON döndür, başka hiçbir şey yazma.
+
+Format:
+{
+  "campaign_name": "kampanyanın adı",
+  "reg_date_start": "YYYY-MM-DD veya boş",
+  "reg_date_end": "YYYY-MM-DD veya boş",
+  "currency_note": "varsa para birimi notu",
+  "rows": [
+    { "city": "", "country": "", "course_name": "", "weeks_min": 0, "weeks_max": 0, "special_price": 0, "currency": "" }
+  ]
+}
+
+KURALLAR:
+
+1. ŞEHİR AÇILIMI: Bir satırda birden fazla şehir varsa (örn: "London/Edinburgh/Oxford", "Toronto/*Vancouver") HER ŞEHİR İÇİN AYRI SATIR üret. Yıldız (*) gibi işaretleri şehir adından temizle.
+
+2. KURS ADI NORMALİZASYONU:${courseNamesStr ? ` course_name için KESİNLİKLE şu referans listesinden en uygun adı seç: [${courseNamesStr}]. Broşürdeki kısa adları (örn: "Standard Course", "Intensive Course", "Super Intensive Course", "Afternoon") bu listedeki tam adlara eşle. Listede karşılığı yoksa o satırı ATLA.` : ` Broşürdeki kurs adını olduğu gibi yaz.`}
+
+3. HAFTA KADEMESİ: Broşürdeki hafta aralığını weeks_min/weeks_max olarak yaz. "2-4 weeks" → min:2, max:4. "36+ weeks" → min:36, max:999.
+
+4. SADECE TABLODAKİ FİYATLAR: Sadece broşürde SOMUT FİYATI verilen kurslar için satır üret. Dipnotta "şu kurs da aynı fiyata" gibi ifadeler varsa o kurslar için SATIR ÜRETME.
+
+5. FİYAT TEMİZLİĞİ: special_price sadece sayı olsun (€248.50 → 248.50, $1,500 → 1500). currency ayrı sütunda (EUR/GBP/USD/CAD).
+
+6. SABİT PAKET FİYATLARI: Eğer bir satır haftalık değil TOPLAM paket fiyatıysa (örn: "15 hour lessons - €3,050.00"), o satırı ATLA. Sadece haftalık birim fiyatları al.
+
+7. ÜLKE: Şehre göre ülkeyi doldur (Dublin/Cork → Ireland, London/Edinburgh/Oxford/Leeds/Worthing → UK, Toronto/Vancouver → Canada).
+
+8. HESAP YAPMA: İndirim oranı hesaplama, sadece broşürdeki fiyatı yaz.
+
+9. Backtick veya markdown kullanma, sadece düz JSON.`;
+
+      const res = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: GEMINI_MODEL,
+          contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "application/pdf", data: base64 } }] }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 32768 }
+        })
+      });
+
+      const data = await res.json();
+      if (data.error) throw new Error("Gemini hatası: " + data.error.message);
+      let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      if (!text) throw new Error("Gemini boş yanıt döndürdü. finishReason: " + data.candidates?.[0]?.finishReason);
+      text = text.replace(/```json|```/g, "").trim();
+
+      let parsed;
+      try { parsed = JSON.parse(text); }
+      catch (e) { throw new Error("JSON parse hatası: " + e.message + " | " + text.slice(0, 300)); }
+
+      const rawRows = Array.isArray(parsed.rows) ? parsed.rows : [];
+      if (rawRows.length === 0) throw new Error("Broşürden hiç fiyat satırı çıkarılamadı.");
+
+      // 4. ORAN HESAPLA (kod yapar, Gemini değil)
+      setSpecialProgress(75); setSpecialProgressMsg("🧮 İndirim oranları hesaplanıyor...");
+
+      const matched = [];
+      const unmatched = [];
+
+      rawRows.forEach(r => {
+        const price = toNum(r.special_price);
+        const wMin = toNum(r.weeks_min);
+        const wMax = toNum(r.weeks_max);
+        if (price === null || wMin === null) {
+          unmatched.push({ ...r, reason: "Fiyat veya hafta bilgisi okunamadı" });
+          return;
+        }
+
+        // courses'ta eşleşen satırı bul: şehir + kurs + hafta kademesi
+        const hit = coursesRows.find(c => {
+          if (norm(c.city) !== norm(r.city)) return false;
+          if (norm(c.course_name) !== norm(r.course_name)) return false;
+          const cMin = toNum(c.weeks_tier_min);
+          const cMax = toNum(c.weeks_tier_max);
+          if (cMin === null || cMax === null) return false;
+          // PDF kademesi, courses kademesinin içine düşüyor mu
+          return wMin >= cMin && wMin <= cMax;
+        });
+
+        if (!hit) {
+          unmatched.push({ ...r, reason: "courses'ta eşleşen satır bulunamadı" });
+          return;
+        }
+
+        const normalPrice = toNum(hit.price_per_week);
+        if (normalPrice === null || normalPrice <= 0) {
+          unmatched.push({ ...r, reason: "Normal fiyat okunamadı" });
+          return;
+        }
+        if (price >= normalPrice) {
+          unmatched.push({ ...r, reason: `Özel fiyat (${price}) normal fiyattan (${normalPrice}) düşük değil` });
+          return;
+        }
+
+        const rate = Math.round(((normalPrice - price) / normalPrice) * 10000) / 100; // 2 ondalık
+
+        matched.push({
+          city: r.city,
+          country: r.country || hit.country || "",
+          course_name: r.course_name,
+          weeks_min: wMin,
+          weeks_max: wMax ?? 999,
+          normal_price: normalPrice,
+          special_price: price,
+          currency: r.currency || hit.currency || "",
+          discount_value: rate,
+        });
+      });
+
+      setSpecialMeta({
+        campaign_name: parsed.campaign_name || `${specialBrand} Özel Fiyat Listesi`,
+        reg_date_start: parsed.reg_date_start || "",
+        reg_date_end: parsed.reg_date_end || "",
+      });
+      setSpecialRows(matched);
+      setSpecialUnmatched(unmatched);
+
+      setSpecialProgress(100); setSpecialProgressMsg("✅ Tamamlandı!");
+      await new Promise(r => setTimeout(r, 400));
+      setStep(STEPS.SPECIAL_REVIEW);
+
+    } catch (err) {
+      setSpecialError("Parse hatası: " + err.message);
+      setStep(STEPS.SPECIAL_CONFIRM);
+    }
+  }
+
+  // Hesaplanan oranları discounts_draft'a yaz
+  async function saveSpecialData() {
+    setStep(STEPS.SAVING);
+    setProgressMsg("✏️ İndirim satırları yazılıyor...");
+    try {
+      const campaignBase = (specialMeta.campaign_name || "SPECIAL")
+        .toUpperCase().replace(/[^A-Z0-9]+/g, "_").slice(0, 24);
+
+      const discountRows = specialRows.map((r, i) => ({
+        school: specialBrand,
+        city: r.city,
+        country: r.country,
+        campaign_id: `${campaignBase}_${i + 1}`,
+        campaign_name: specialMeta.campaign_name,
+        discount_type: "percentage",
+        reg_date_start: specialMeta.reg_date_start,
+        reg_date_end: specialMeta.reg_date_end,
+        arrival_start: "",
+        arrival_end: "",
+        min_weeks: r.weeks_min,
+        max_weeks: r.weeks_max,
+        min_age: "",
+        max_age: "",
+        channel: "all",
+        applies_to: "tuition",
+        target_name: "",
+        discount_value: r.discount_value,
+        value_type: "percentage",
+        eligible_courses: r.course_name,
+        excluded_courses: "",
+        group_size: "",
+        course_name: "",
+        weeks: "",
+        package_price: "",
+        currency: r.currency,
+        package_type: "",
+        includes_eng: "",
+        includes_tr: "",
+        excludes: "",
+        notes: `Özel fiyat listesinden hesaplandı: ${r.special_price} ${r.currency}/hafta (normal ${r.normal_price})`,
+      }));
+
+      const res = await callAppsScript("writeDraftData", {
+        brand: specialBrand,
+        data: { discounts: discountRows },
+        columns: { discounts: DISCOUNT_COLUMNS },
+      });
+      if (!res.success) throw new Error(res.msg);
+      setStep(STEPS.SPECIAL_DONE);
+    } catch (err) {
+      setSpecialError(err.message);
+      setStep(STEPS.SPECIAL_REVIEW);
+    }
+  }
+
+  async function commitSpecialToMaster() {
+    setCommitLoading(true);
+    try {
+      const res = await callAppsScript("commitPromoDraft", { brand: specialBrand });
+      if (!res.success) throw new Error(res.msg);
+      setCommitLoading(false);
+      setSuccessMessage(`✅ ${res.msg || "İndirimler discounts sekmesine aktarıldı"} (${specialBrand})`);
+    } catch (err) {
+      setSpecialError("Yükleme hatası: " + err.message);
+      setCommitLoading(false);
+    }
+  }
+
   // ─── RENDER ───────────────────────────────────────────────
   if (!user) return null;
 
@@ -927,6 +1229,14 @@ KRİTİK KURALLAR:
             <div style={{fontSize:48, marginBottom:16}}>📅</div>
             <h3 style={{fontSize:18, fontWeight:700, color:"#0f172a", marginBottom:8}}>Devam Eden Kampanyalar</h3>
             <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Tüm okullardaki aktif kampanyaları ve geçerlilik sürelerini tablo halinde görüntüle</p>
+          </button>
+          <button onClick={() => setStep(STEPS.SPECIAL_UPLOAD)}
+            style={S.modeCard}
+            onMouseEnter={e => { e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.borderColor="#0891b266"; e.currentTarget.style.boxShadow="0 20px 40px -12px #0891b222"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.borderColor="#e2e8f0"; e.currentTarget.style.boxShadow="0 1px 3px rgba(0,0,0,0.06)"; }}>
+            <div style={{fontSize:48, marginBottom:16}}>💱</div>
+            <h3 style={{fontSize:18, fontWeight:700, color:"#0f172a", marginBottom:8}}>Özel Fiyat Listesi</h3>
+            <p style={{fontSize:13, color:"#94a3b8", lineHeight:1.6}}>Okulun indirimli fiyat broşürünü yükle — normal fiyatlarla karşılaştırıp indirim oranını otomatik hesaplasın</p>
           </button>
         </div>
       </main>
@@ -1495,6 +1805,217 @@ KRİTİK KURALLAR:
           <div style={{display:"flex",gap:12,marginTop:16}}>
             <button onClick={resetAll} style={S.secondaryBtn}>İptal / Menü</button>
             <button onClick={commitPromoToMaster} disabled={commitLoading}
+              style={{...S.primaryBtn, flex:1, background:"#059669", opacity:commitLoading?0.5:1}}>
+              {commitLoading ? "Yükleniyor..." : "✓ Onayla & discounts'a Aktar"}
+            </button>
+          </div>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // ── ÖZEL FİYAT LİSTESİ AKIŞI ─────────────────────────────
+
+  // SPECIAL UPLOAD
+  if (step === STEPS.SPECIAL_UPLOAD) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Özel Fiyat Listesi" user={user} onBack={() => setStep(STEPS.MODE_SELECT)}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={S.bigIcon}>💱</div>
+          <h2 style={S.cardTitle}>İndirimli Fiyat Broşürü Yükle</h2>
+          <p style={S.cardSub}>Okulun özel/indirimli haftalık fiyat listesini yükleyin. Sistem normal fiyatlarla karşılaştırıp indirim oranını hesaplayacak.</p>
+          <div
+            onDragOver={e => { e.preventDefault(); setSpecialIsDragOver(true); }}
+            onDragLeave={() => setSpecialIsDragOver(false)}
+            onDrop={handleSpecialDrop}
+            style={{ ...S.dropZone, borderColor: specialIsDragOver ? "#0891b2" : "#e2e8f0", background: specialIsDragOver ? "#ecfeff" : "#f8fafc" }}>
+            <input type="file" accept="application/pdf" onChange={handleSpecialFileSelect}
+              style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0, cursor:"pointer", zIndex:10 }}/>
+            {specialFile ? (
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:36}}>💱</div>
+                <p style={{fontWeight:700, marginTop:8}}>{specialFile.name}</p>
+                <p style={{fontSize:12, color:"#64748b"}}>{(specialFile.size/1024/1024).toFixed(2)} MB</p>
+              </div>
+            ) : (
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:48}}>📁</div>
+                <p style={{fontWeight:500, marginTop:8}}>PDF sürükle veya tıkla seç</p>
+                <p style={{fontSize:12, color:"#94a3b8"}}>Özel fiyat / indirimli fiyat broşürü</p>
+              </div>
+            )}
+          </div>
+          {specialError && <div style={S.errorBox}>{specialError}</div>}
+          <button onClick={analyzeSpecialFile} disabled={!specialFile || specialLoading}
+            style={{...S.primaryBtn, background:"#0891b2", opacity:(!specialFile||specialLoading)?0.5:1}}>
+            {specialLoading ? "Analiz ediliyor..." : "📊 Analiz Et"}
+          </button>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // SPECIAL CONFIRM
+  if (step === STEPS.SPECIAL_CONFIRM) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Okul Seçimi" user={user} onBack={() => setStep(STEPS.SPECIAL_UPLOAD)}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={S.bigIcon}>🎯</div>
+          <h2 style={S.cardTitle}>Okul Onaylayın</h2>
+          {specialDetected
+            ? <p style={S.cardSub}>Tespit edilen okul: <strong>{specialDetected}</strong></p>
+            : <p style={S.cardSub}>Okul tespit edilemedi. Lütfen manuel seçin.</p>}
+          <div style={{display:"flex", flexDirection:"column", gap:8, marginBottom:24}}>
+            {knownBrands.map(brand => (
+              <div key={brand} onClick={() => setSpecialBrand(brand)}
+                style={{...S.brandCard, borderColor: specialBrand===brand?"#0891b2":"#e2e8f0", background: specialBrand===brand?"#ecfeff":"#fff"}}>
+                <span style={{fontSize:22}}>{brand==="EC"?"🇬🇧":brand==="Kaplan"?"🇺🇸":"🏫"}</span>
+                <div>
+                  <div style={{fontWeight:700}}>{brand}</div>
+                  {specialDetected===brand && <div style={{fontSize:11,color:"#0891b2"}}>✓ Tespit edildi</div>}
+                </div>
+                {specialBrand===brand && <span style={{color:"#0891b2",marginLeft:"auto",fontWeight:700}}>✓</span>}
+              </div>
+            ))}
+          </div>
+          {specialError && <div style={S.errorBox}>{specialError}</div>}
+          <button onClick={startSpecialParsing} disabled={!specialBrand}
+            style={{...S.primaryBtn, background:"#0891b2", opacity:!specialBrand?0.5:1}}>
+            {specialBrand ? `${specialBrand} özel fiyatlarını hesapla →` : "Okul seçin"}
+          </button>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // SPECIAL PARSING
+  if (step === STEPS.SPECIAL_PARSING) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Hesaplanıyor..." user={user}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={{...S.spinner, borderTopColor:"#0891b2"}}/>
+          <h3 style={{fontSize:16,fontWeight:600,color:"#0f172a",marginBottom:8}}>{specialProgressMsg}</h3>
+          <div style={S.progressBar}><div style={{...S.progressFill,width:`${specialProgress}%`,background:"#0891b2"}}/></div>
+          <p style={{fontSize:12,color:"#94a3b8",marginTop:8}}>{Math.floor(specialProgress)}% tamamlandı</p>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // SPECIAL REVIEW
+  if (step === STEPS.SPECIAL_REVIEW) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Hesaplanan İndirimler" user={user} onBack={() => setStep(STEPS.SPECIAL_CONFIRM)}/>
+      <main style={{...S.main, maxWidth:760}}>
+        <div style={S.sectionCard}>
+          <h3 style={S.sectionTitle}>💱 {specialMeta.campaign_name || "Özel Fiyat Listesi"} — {specialBrand}</h3>
+          <p style={{fontSize:13,color:"#64748b",marginBottom:8}}>
+            <strong>{specialRows.length}</strong> satır eşleşti ve indirim oranı hesaplandı.
+            {specialUnmatched.length > 0 && <> <strong style={{color:"#dc2626"}}>{specialUnmatched.length}</strong> satır eşleşmedi.</>}
+          </p>
+          {(specialMeta.reg_date_start || specialMeta.reg_date_end) && (
+            <p style={{fontSize:12,color:"#94a3b8",marginBottom:16}}>
+              📅 Kayıt: {specialMeta.reg_date_start || "süresiz"} → {specialMeta.reg_date_end || "belirtilmemiş"}
+            </p>
+          )}
+
+          {specialRows.length === 0 ? (
+            <div style={{padding:"24px",textAlign:"center",color:"#94a3b8",fontSize:13}}>
+              Hiç eşleşme bulunamadı. Kurs adları ve şehirler courses sekmesiyle uyuşmuyor olabilir.
+            </div>
+          ) : (
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%", borderCollapse:"collapse", fontSize:12.5, textAlign:"left"}}>
+                <thead>
+                  <tr style={{borderBottom:"2px solid #e2e8f0", color:"#64748b"}}>
+                    <th style={{padding:"10px 6px"}}>Şehir</th>
+                    <th style={{padding:"10px 6px"}}>Kurs</th>
+                    <th style={{padding:"10px 6px"}}>Hafta</th>
+                    <th style={{padding:"10px 6px",textAlign:"right"}}>Normal</th>
+                    <th style={{padding:"10px 6px",textAlign:"right"}}>Özel</th>
+                    <th style={{padding:"10px 6px",textAlign:"right"}}>İndirim</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {specialRows.map((r, i) => (
+                    <tr key={i} style={{borderBottom:"1px solid #f1f5f9"}}>
+                      <td style={{padding:"9px 6px", fontWeight:600, color:"#0f172a"}}>{r.city}</td>
+                      <td style={{padding:"9px 6px", color:"#475569"}}>{r.course_name}</td>
+                      <td style={{padding:"9px 6px", color:"#64748b"}}>{r.weeks_min}-{r.weeks_max === 999 ? "∞" : r.weeks_max}</td>
+                      <td style={{padding:"9px 6px", color:"#94a3b8", textAlign:"right", textDecoration:"line-through"}}>{r.normal_price}</td>
+                      <td style={{padding:"9px 6px", color:"#0f172a", textAlign:"right", fontWeight:600}}>{r.special_price}</td>
+                      <td style={{padding:"9px 6px", color:"#059669", textAlign:"right", fontWeight:700}}>%{r.discount_value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {specialUnmatched.length > 0 && (
+          <div style={S.sectionCard}>
+            <h3 style={{...S.sectionTitle, color:"#dc2626"}}>⚠️ Eşleşmeyen Satırlar ({specialUnmatched.length})</h3>
+            <p style={{fontSize:12,color:"#64748b",marginBottom:12}}>
+              Bu satırlar discounts'a yazılmayacak. Gerekirse manuel ekleyin.
+            </p>
+            <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:220,overflowY:"auto"}}>
+              {specialUnmatched.map((u, i) => (
+                <div key={i} style={{padding:"8px 12px",background:"#fef2f2",borderRadius:8,fontSize:12,color:"#991b1b"}}>
+                  <strong>{u.city || "?"}</strong> · {u.course_name || "?"} · {u.weeks_min ?? "?"}-{u.weeks_max ?? "?"} hafta
+                  <span style={{color:"#dc2626",marginLeft:8}}>— {u.reason}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {specialError && <div style={S.errorBox}>{specialError}</div>}
+        <div style={{display:"flex",gap:12}}>
+          <button onClick={() => { setSpecialRows([]); setSpecialUnmatched([]); setStep(STEPS.SPECIAL_CONFIRM); }} style={S.secondaryBtn}>
+            ← Yeniden Hesapla
+          </button>
+          <button onClick={saveSpecialData} disabled={specialRows.length===0}
+            style={{...S.primaryBtn, flex:1, background:"#0891b2", opacity:specialRows.length===0?0.5:1}}>
+            💾 discounts Taslağına Kaydet ({specialRows.length})
+          </button>
+        </div>
+      </main>
+      <Style/>
+    </div>
+  );
+
+  // SPECIAL DONE
+  if (step === STEPS.SPECIAL_DONE) return (
+    <div style={S.root}>
+      <div style={S.bgGrid}/>
+      <Header title="Tamamlandı" user={user}/>
+      <main style={S.main}>
+        <div style={S.card}>
+          <div style={{fontSize:64,marginBottom:16}}>✅</div>
+          <h2 style={S.cardTitle}>İndirimler Kaydedildi!</h2>
+          <p style={S.cardSub}>
+            <strong>{specialRows.length}</strong> indirim satırı <strong>{specialBrand}</strong> discounts_draft sekmesine yazıldı.
+          </p>
+          <a href={sheetUrls[specialBrand]} target="_blank" rel="noreferrer"
+            style={{...S.linkBtn, display:"block", textAlign:"center", marginTop:16, textDecoration:"none"}}>
+            📊 {specialBrand} Sheet'ini Aç
+          </a>
+          {specialError && <div style={{...S.errorBox, marginTop:16}}>{specialError}</div>}
+          <div style={{display:"flex",gap:12,marginTop:16}}>
+            <button onClick={resetAll} style={S.secondaryBtn}>İptal / Menü</button>
+            <button onClick={commitSpecialToMaster} disabled={commitLoading}
               style={{...S.primaryBtn, flex:1, background:"#059669", opacity:commitLoading?0.5:1}}>
               {commitLoading ? "Yükleniyor..." : "✓ Onayla & discounts'a Aktar"}
             </button>
