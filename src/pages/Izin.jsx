@@ -318,12 +318,9 @@ export default function Izin() {
 
       const bugun = new Date();
       bugun.setHours(0, 0, 0, 0);
-      const subePersonel = tumPersonel.filter(p =>
-        p["Şirket"] === data?.["Şirket"] &&
-        p["Şube"] === data?.["Şube"]
-      );
-      const subeIsimler = subePersonel.map(p => p["Ad Soyad"]);
-      const isStaff = gorIzni === "staff" || gorIzni === "personel";
+      // Şirket bazlı görünürlük: aynı şirketteki tüm çalışanlar birbirini görür
+      const sirketPersonel = tumPersonel.filter(p => p["Şirket"] === data?.["Şirket"]);
+      const sirketIsimler = sirketPersonel.map(p => p["Ad Soyad"]);
       const gelecek = islemler.filter(row => {
         const b = tarihToDate(row["Bitiş"]);
         const izinTipi = (row["Mazeret"] || "").toLowerCase();
@@ -332,8 +329,7 @@ export default function Izin() {
         const durumUygun = benimIznim
           ? ["Bekliyor", "Onaylandı"].includes(durum)
           : durum === "Onaylandı";
-        // staff sadece kendi izinlerini görür, manager+ tüm şubeyi görür
-        const gorunur = isStaff ? benimIznim : subeIsimler.includes(row["Personel"]);
+        const gorunur = sirketIsimler.includes(row["Personel"]);
         return gorunur && b >= bugun && !izinTipi.includes("yarım gün") && durumUygun;
       }).sort((a, b) => {
         const currentName = (name || "").trim().toLowerCase();
@@ -398,6 +394,8 @@ function tarihToDate(str) {
   }
 
   function cakismaKontrol(bas, bit) {
+    // Çakışma kontrolü sadece Yıllık İzin ve Yarım Gün İzin için yapılır
+    if (!HAKEDISTEN_DUSEN.includes(izinTuru)) { setCakismaPopup(null); return; }
     if (!bas || !bit || !personel) return; // iki tarih de dolu olmalı
     const bitStr = bit || bas;
     const yeniBas = new Date(bas);
@@ -969,11 +967,7 @@ function tarihToDate(str) {
             {/* Yaklaşan izinler */}
             {yaklasanIzinler.length > 0 && (
               <div style={styles.yaklasanCard}>
-                <h3 style={styles.yaklasanTitle}>{
-                  (rol === "staff" || rol === "personel")
-                    ? t("Yaklaşan İzinlerim", "My Upcoming Leaves")
-                    : t("Şubenizdeki Yaklaşan İzinler", "Upcoming Leaves in Your Branch")
-                }</h3>
+                <h3 style={styles.yaklasanTitle}>{t("Yaklaşan İzinler", "Upcoming Leaves")}</h3>
                 <div style={styles.yaklasanList}>
                   {yaklasanIzinler.map((iz, i) => (
                     <YaklasanIzinRow key={i} iz={iz} user={user} birim={birim} onEdit={handleYaklasanDuzenle} onCancel={setIptalPopup} />
@@ -1203,6 +1197,51 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   const [subeEkleSaving, setSubeEkleSaving] = useState(false);
   const [subeSilSaving, setSubeSilSaving] = useState(false);
   const [saveOverlay, setSaveOverlay] = useState(false);
+  const [duzenlePopup, setDuzenlePopup] = useState(null);
+  const [duzenleForm, setDuzenleForm] = useState({ baslangic: "", bitis: "", gunSayisi: "", izinTuru: "" });
+  const [duzenleSaving, setDuzenleSaving] = useState(false);
+
+  function acDuzenlePopup(row) {
+    setDuzenlePopup(row);
+    setDuzenleForm({
+      baslangic: dateToInputValue(row["Başlangıç"]),
+      bitis: dateToInputValue(row["Bitiş"]),
+      gunSayisi: row["Talep Edilen İzin Günü"] || row["Gün Sayısı"] || "",
+      izinTuru: (row["İzin Türü"] || row["Mazeret"] || "").split(" - ")[0],
+    });
+  }
+
+  async function kaydetDuzenleme() {
+    if (!duzenlePopup || duzenleSaving) return;
+    setDuzenleSaving(true);
+    try {
+      await fetch(scriptUrl, {
+        method: "POST", mode: "no-cors",
+        body: JSON.stringify({
+          action: "adminIzinDuzenle",
+          personel: duzenlePopup["Personel"],
+          eskiBaslangic: duzenlePopup["Başlangıç"],
+          eskiBitis: duzenlePopup["Bitiş"],
+          eskiIslemZamani: duzenlePopup["İşlem Zamanı"] || "",
+          eskiIzinTuru: duzenlePopup["İzin Türü"] || duzenlePopup["Mazeret"] || "",
+          yeniBaslangic: duzenleForm.baslangic,
+          yeniBitis: duzenleForm.bitis,
+          yeniGunSayisi: duzenleForm.gunSayisi,
+          yeniIzinTuru: duzenleForm.izinTuru,
+          adminEmail,
+        }),
+      });
+      setTimeout(() => {
+        setDuzenleSaving(false);
+        setDuzenlePopup(null);
+        setSaveOverlay(true);
+        setTimeout(() => setSaveOverlay(false), 2000);
+        fetchBekleyen(); fetchGecmis(); fetchYaklasan();
+      }, 2000);
+    } catch (_) {
+      setDuzenleSaving(false);
+    }
+  }
 
   async function acKlasor(row) {
     try {
@@ -1521,6 +1560,72 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", color: "#1e3a5f", padding: "16px 32px", borderRadius: "14px", fontSize: "14px", fontWeight: "600", boxShadow: "0 4px 24px rgba(30,58,95,0.13)", display: "flex", alignItems: "center", gap: "10px", fontFamily: "inherit", animation: "fadeUp 0.2s ease" }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" width="18" height="18"><polyline points="20 6 9 17 4 12"/></svg>
             Kaydedildi
+          </div>
+        </div>
+      )}
+      {duzenlePopup && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
+          <div style={{ background: "#fff", borderRadius: "18px", padding: "26px", maxWidth: "440px", width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", animation: "fadeUp 0.2s ease" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="18" height="18">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>İzni Düzenle</h3>
+                <div style={{ fontSize: "12px", color: "#64748b" }}>{duzenlePopup["Personel"]}</div>
+              </div>
+            </div>
+            <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "18px" }}>
+              Değişiklik kaydedilince personele bilgilendirme maili gönderilir.
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div>
+                <label style={styles.modalLabel}>İzin Türü</label>
+                <select value={duzenleForm.izinTuru}
+                  onChange={e => setDuzenleForm(p => ({ ...p, izinTuru: e.target.value }))}
+                  style={{ ...styles.modalInput, width: "100%" }}>
+                  {["Yıllık İzin", "Yarım Gün İzin", "Hastalık", ...DIGER_IZINLER].map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.modalLabel}>Başlangıç</label>
+                  <input type="date" value={duzenleForm.baslangic}
+                    onChange={e => setDuzenleForm(p => ({ ...p, baslangic: e.target.value }))}
+                    style={{ ...styles.modalInput, width: "100%" }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={styles.modalLabel}>Bitiş</label>
+                  <input type="date" value={duzenleForm.bitis}
+                    onChange={e => setDuzenleForm(p => ({ ...p, bitis: e.target.value }))}
+                    style={{ ...styles.modalInput, width: "100%" }} />
+                </div>
+              </div>
+              <div>
+                <label style={styles.modalLabel}>Gün / Saat Sayısı</label>
+                <input type="text" inputMode="decimal" value={duzenleForm.gunSayisi}
+                  onChange={e => setDuzenleForm(p => ({ ...p, gunSayisi: e.target.value.replace(",", ".") }))}
+                  style={{ ...styles.modalInput, width: "100%" }} />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "20px" }}>
+              <button onClick={() => setDuzenlePopup(null)} disabled={duzenleSaving}
+                style={{ padding: "9px 14px", background: "#f1f5f9", border: "none", borderRadius: "8px", color: "#64748b", cursor: duzenleSaving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit" }}>
+                Vazgeç
+              </button>
+              <button onClick={kaydetDuzenleme} disabled={duzenleSaving}
+                style={{ padding: "9px 18px", background: duzenleSaving ? "#bfdbfe" : "#2563eb", border: "none", borderRadius: "8px", color: "#fff", cursor: duzenleSaving ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "700", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "8px" }}>
+                {duzenleSaving ? <span style={{ display: "inline-block", width: "13px", height: "13px", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
+                {duzenleSaving ? "Kaydediliyor..." : "Kaydet ve Bildir"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1911,6 +2016,15 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                             style={{ padding: "8px 16px", background: isReddetProcessing ? "#fecaca" : "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px" }}>
                             {isReddetProcessing ? <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid rgba(255,0,0,0.2)", borderTopColor: "#dc2626", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> : null}
                             Reddet
+                          </button>
+                          <button onClick={() => acDuzenlePopup(row)} disabled={isProcessing}
+                            title="İzni Düzenle"
+                            style={{ padding: "8px 14px", background: "#f1f5f9", border: "1px solid #e2e8f0", color: "#475569", borderRadius: "8px", cursor: isProcessing ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "6px" }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                            Düzenle
                           </button>
                         </>
                       ) : (
