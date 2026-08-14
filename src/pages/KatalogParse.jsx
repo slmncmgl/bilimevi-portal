@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
+// v1.4 — Promosyon: token limiti 32768, hata mesajları görünür, konaklama+ülke bazlı oran kuralları
 // v1.3 — Özel fiyat: 3 aşamalı gruplama (şehir → kurs → bitişik hafta kademesi)
 // v1.2 — Özel fiyat: şehir gruplama + esnek eşleştirme + teşhis logları
 // v1.1 — Özel Fiyat Listesi parse akışı eklendi (indirimli fiyat → oran hesaplama)
@@ -791,7 +792,18 @@ KRİTİK KURALLAR:
 
 5. SAYI TEMİZLİĞİ — discount_value ve package_price alanlarına sadece sayı yaz: £70 → 70, $1,500 → 1500
 
-6. Backtick veya markdown kullanma, sadece düz JSON array döndür.`;
+6. ÜLKE/BÖLGE BAZLI TOPLU ORANLAR — Döküman "LSI İngiltere %30 — London Central, Brighton & Cambridge" gibi bir ülke başlığı altında oran + şehir listesi veriyorsa: TEK satır aç, city alanına şehirleri virgülle yaz ("London Central, Brighton, Cambridge"), country alanına ülkeyi yaz, applies_to="tuition".
+
+7. KONAKLAMA İNDİRİMLERİ — Konaklama ile ilgili indirimler applies_to="accommodation" olur:
+   - "Aile yanı konaklamada %10 indirim, en az 12 haftalık kurs" → applies_to="accommodation", discount_value=10, min_weeks=12, notes'a konaklama tipini yaz (homestay/B&B/HB).
+   - Belirli bir yurt/rezidans için hafta kademeli indirim varsa (örn: "Portland 55: 1-11 hafta %10, 12-23 hafta %25, 24+ hafta %50") HER KADEME İÇİN AYRI SATIR aç: applies_to="accommodation", min_weeks/max_weeks doldur, notes'a tesis adını yaz.
+   - Yurt için sabit fiyat indirimi varsa ("£320 yerine £295") → applies_to="accommodation", value_type="fixed", discount_value=25 (fark), notes'a tesis adı ve fiyatlar.
+
+8. KAYIT/ÜCRET HEDİYELERİ — "Kayıt ücreti acenteye hediye", "kayıt ücreti alınmaz" gibi ifadeler → applies_to="fee", target_name="Registration" (veya fees listesindeki karşılığı), value_type="free".
+
+9. İNDİRİM UYGULANMIŞ FİYAT TABLOLARINI YOK SAY — Döküman "promosyon uygulandıktan sonraki fiyatlar" başlığıyla üstü çizili/indirimli fiyat tabloları içeriyorsa (örn: "CAD 435 → CAD 304.50") BU TABLOLARDAN SATIR ÜRETME. Oranlar zaten ayrı bölümde verilmiştir; sadece o oranları kullan. Tablo yalnızca teyit amaçlıdır.
+
+10. Backtick veya markdown kullanma, sadece düz JSON array döndür.`;
 
       let contentParts;
       if (promoInputMode === "pdf") {
@@ -809,7 +821,7 @@ KRİTİK KURALLAR:
         body: JSON.stringify({
           model: GEMINI_MODEL,
           contents: [{ parts: contentParts }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 16000 }
+          generationConfig: { temperature: 0.1, maxOutputTokens: 32768 }
         })
       });
 
@@ -818,17 +830,35 @@ KRİTİK KURALLAR:
       if (data.error) throw new Error("Gemini hatası: " + data.error.message);
 
       let text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const finishReason = data.candidates?.[0]?.finishReason;
       console.log("=== GEMINI TEXT ===", text.slice(0, 1000));
-      console.log("=== FINISH REASON ===", data.candidates?.[0]?.finishReason);
+      console.log("=== FINISH REASON ===", finishReason);
+
+      if (!text) {
+        throw new Error(`Gemini boş yanıt döndürdü. finishReason: ${finishReason || "bilinmiyor"}`);
+      }
+      if (finishReason === "MAX_TOKENS") {
+        throw new Error("Yanıt token limitine takıldı (MAX_TOKENS). Döküman çok büyük — sayfaları bölerek deneyin.");
+      }
+
       text = text.replace(/```json|```/g, "").trim();
 
+      // Bazen { "rows": [...] } veya { "discounts": [...] } sarmalıyla gelir
       let parsed = [];
       try {
-        parsed = JSON.parse(text);
-        if (!Array.isArray(parsed)) parsed = [];
+        const obj = JSON.parse(text);
+        if (Array.isArray(obj)) parsed = obj;
+        else if (obj && typeof obj === "object") {
+          const arrKey = Object.keys(obj).find(k => Array.isArray(obj[k]));
+          parsed = arrKey ? obj[arrKey] : [];
+        }
       } catch (e) {
         console.log("=== JSON PARSE HATASI ===", e.message, "| TEXT:", text.slice(0, 500));
-        parsed = [];
+        throw new Error(`JSON parse hatası: ${e.message}. Gemini çıktısı: ${text.slice(0, 200)}`);
+      }
+
+      if (parsed.length === 0) {
+        throw new Error("Gemini geçerli JSON döndürdü ama hiç kampanya satırı yok. Döküman formatı beklenenden farklı olabilir.");
       }
 
       setPromoData(parsed);
