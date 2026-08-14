@@ -1200,6 +1200,42 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
   const [duzenlePopup, setDuzenlePopup] = useState(null);
   const [duzenleForm, setDuzenleForm] = useState({ baslangic: "", bitis: "", gunSayisi: "", izinTuru: "" });
   const [duzenleSaving, setDuzenleSaving] = useState(false);
+  const [adminTatiller, setAdminTatiller] = useState(new Set());
+
+  // Düzenleme popup'ı açıldığında ilgili ülkenin tatillerini çek
+  useEffect(() => {
+    if (!duzenlePopup) return;
+    const emp = list.find(p => p["Ad Soyad"] === duzenlePopup["Personel"]) || {};
+    const ulkeKodu = emp["Şirket"] === "Fortis" ? "IE" : "TR";
+    const buYil = new Date().getFullYear();
+    fetchTatiller(ulkeKodu, [buYil, buYil + 1]).then(setAdminTatiller).catch(() => {});
+  }, [duzenlePopup]);
+
+  // Tarih veya izin türü değişince gün/saat sayısını otomatik hesapla
+  useEffect(() => {
+    if (!duzenlePopup) return;
+    const { baslangic, bitis, izinTuru } = duzenleForm;
+    if (!baslangic) return;
+
+    const emp = list.find(p => p["Ad Soyad"] === duzenlePopup["Personel"]) || {};
+    const empFortis = emp["Şirket"] === "Fortis";
+    const carpan = empFortis ? (emp["Work Status"] === "part-time" ? 5 : 8) : 1;
+
+    let bazGun = 0;
+    if (izinTuru === "Yarım Gün İzin") {
+      bazGun = 0.5;
+    } else if (DIGER_IZINLER.includes(izinTuru)) {
+      return; // Diğer izinlerin süresi sabit, otomatik hesaplanmaz
+    } else if (bitis) {
+      bazGun = isGunuHesapla(baslangic, bitis, adminTatiller);
+    }
+    if (bazGun <= 0) return;
+
+    const sonuc = empFortis
+      ? (bazGun === 0.5 ? (emp["Work Status"] === "part-time" ? 2.5 : 4) : bazGun * carpan)
+      : bazGun;
+    setDuzenleForm(p => (String(p.gunSayisi) === String(sonuc) ? p : { ...p, gunSayisi: String(sonuc) }));
+  }, [duzenleForm.baslangic, duzenleForm.bitis, duzenleForm.izinTuru, adminTatiller, duzenlePopup]);
 
   function acDuzenlePopup(row) {
     setDuzenlePopup(row);
@@ -1586,7 +1622,10 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               <div>
                 <label style={styles.modalLabel}>İzin Türü</label>
                 <select value={duzenleForm.izinTuru}
-                  onChange={e => setDuzenleForm(p => ({ ...p, izinTuru: e.target.value }))}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setDuzenleForm(p => ({ ...p, izinTuru: v, bitis: v === "Yarım Gün İzin" ? p.baslangic : p.bitis }));
+                  }}
                   style={{ ...styles.modalInput, width: "100%" }}>
                   {["Yıllık İzin", "Yarım Gün İzin", "Hastalık", ...DIGER_IZINLER].map(t => (
                     <option key={t} value={t}>{t}</option>
@@ -1597,18 +1636,24 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 <div style={{ flex: 1 }}>
                   <label style={styles.modalLabel}>Başlangıç</label>
                   <input type="date" value={duzenleForm.baslangic}
-                    onChange={e => setDuzenleForm(p => ({ ...p, baslangic: e.target.value }))}
+                    onChange={e => setDuzenleForm(p => ({ ...p, baslangic: e.target.value, bitis: p.izinTuru === "Yarım Gün İzin" ? e.target.value : p.bitis }))}
                     style={{ ...styles.modalInput, width: "100%" }} />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={styles.modalLabel}>Bitiş</label>
-                  <input type="date" value={duzenleForm.bitis}
-                    onChange={e => setDuzenleForm(p => ({ ...p, bitis: e.target.value }))}
-                    style={{ ...styles.modalInput, width: "100%" }} />
-                </div>
+                {duzenleForm.izinTuru !== "Yarım Gün İzin" && (
+                  <div style={{ flex: 1 }}>
+                    <label style={styles.modalLabel}>Bitiş</label>
+                    <input type="date" value={duzenleForm.bitis}
+                      min={duzenleForm.baslangic || undefined}
+                      onChange={e => setDuzenleForm(p => ({ ...p, bitis: e.target.value }))}
+                      style={{ ...styles.modalInput, width: "100%" }} />
+                  </div>
+                )}
               </div>
               <div>
-                <label style={styles.modalLabel}>Gün / Saat Sayısı</label>
+                <label style={styles.modalLabel}>
+                  {(list.find(p => p["Ad Soyad"] === duzenlePopup["Personel"]) || {})["Şirket"] === "Fortis" ? "Saat Sayısı" : "Gün Sayısı"}
+                  <span style={{ color: "#94a3b8", fontWeight: "400", textTransform: "none", marginLeft: "6px" }}>(otomatik hesaplanır, elle değiştirilebilir)</span>
+                </label>
                 <input type="text" inputMode="decimal" value={duzenleForm.gunSayisi}
                   onChange={e => setDuzenleForm(p => ({ ...p, gunSayisi: e.target.value.replace(",", ".") }))}
                   style={{ ...styles.modalInput, width: "100%" }} />
