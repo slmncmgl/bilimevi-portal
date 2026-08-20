@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v76-custom-confirm-2026-08-05";
+const BFT_BUILD_VERSION = "v79-pdf-danisman-tel-2026-08-20";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -523,6 +523,18 @@ function courseWithLang(course, mode) {
   return `${base} - ${lang}`;
 }
 
+// Danışman telefonu: ham "905419189177" → görünen "+90 541 918 91 77", link "tel:+905419189177"
+function formatAdvisorPhone(raw) {
+  const d = (raw || "").replace(/\D/g, "");
+  if (!d) return null;
+  const tel = "+" + d;
+  // TR (90 + 10 hane) okunaklı gruplama; diğer ülkelerde düz +numara
+  const display = (d.length === 12 && d.startsWith("90"))
+    ? `+90 ${d.slice(2,5)} ${d.slice(5,8)} ${d.slice(8,10)} ${d.slice(10,12)}`
+    : tel;
+  return { display, tel };
+}
+
 function calcFees(fees, weeks, age, accType, accWeeks) {
   const currency = fees?.[0]?.currency || "GBP";
   const items = [];
@@ -646,7 +658,10 @@ function getDestinationTotals(d, fees) {
     grandTotal: courseTotal + accTotal + feesTotal + addonsCost + transferCost - discountsTotal };
 }
 
-const fmt = (n, cur) => `${cur || ""} ${Number(n || 0).toLocaleString("tr-TR", { minimumFractionDigits: 2 })}`;
+// Tutarları en yakın 50 kuruşa yuvarlar (,00 veya ,50 ile biter).
+// Örn: 1.347,948 → 1.348,00 | 1.347,47 → 1.347,50 | 1.347,20 → 1.347,00
+const roundHalf = (n) => Math.round((Number(n) || 0) * 2) / 2;
+const fmt = (n, cur) => `${cur || ""} ${roundHalf(n).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const emptyDest = (sd = "2026-07-06", w = 4) => ({
   lang: "", country: "", city: "", brand: "", course: null, weeks: w, accWeeks: w, accWeeksTouched: false, acc: null, startDate: sd,
   isOnline: false, cityData: null, cityLoading: false, addons: [], transfer: null,
@@ -998,7 +1013,7 @@ export default function FiyatTeklifi() {
         const accEndD = new Date(accEndBase); accEndD.setDate(accEndBase.getDate() + 2);
 
         let y = 20;
-        const money = (n) => Number(n||0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const money = (n) => roundHalf(n).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         // Header
         doc.setFont(FONT, "normal");
@@ -1018,6 +1033,14 @@ export default function FiyatTeklifi() {
           doc.text(user?.name || "—", MARGIN, y + 4);
           doc.setFontSize(8); doc.setTextColor(85);
           doc.text(user?.email || "", MARGIN, y + 8);
+          const advPhone = formatAdvisorPhone(user?.phone);
+          if (advPhone) {
+            doc.setTextColor(0, 100, 160);
+            doc.text(advPhone.display, MARGIN, y + 12);
+            const pw = doc.getTextWidth(advPhone.display);
+            doc.link(MARGIN, y + 9, pw, 4.5, { url: "tel:" + advPhone.tel });
+            doc.setTextColor(85);
+          }
         }
         // Sağ: Bilimevi logosu (her zaman)
         if (bilimeviLogo) {
@@ -1157,7 +1180,7 @@ export default function FiyatTeklifi() {
           doc.text(`Giriş: ${fmtDate(accStartD)}  |  Çıkış: ${fmtDate(accEndD)}`, MARGIN + 32, y);
           y += 4;
           doc.setTextColor(120);
-          doc.text(`${d.acc.room} · ${d.acc.bathroom} · Okula ${d.acc.distance}`, MARGIN + 32, y);
+          doc.text([d.acc.room, d.acc.bathroom, d.acc.distance ? `Okula ${d.acc.distance}` : ""].filter(Boolean).join(" · "), MARGIN + 32, y);
           y += 4;
           doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
 
@@ -1279,6 +1302,14 @@ export default function FiyatTeklifi() {
           doc.text(user?.name || "—", MARGIN, cy + 4);
           doc.setFontSize(8); doc.setTextColor(85);
           doc.text(user?.email || "", MARGIN, cy + 8);
+          const advPhoneC = formatAdvisorPhone(user?.phone);
+          if (advPhoneC) {
+            doc.setTextColor(0, 100, 160);
+            doc.text(advPhoneC.display, MARGIN, cy + 12);
+            const pwC = doc.getTextWidth(advPhoneC.display);
+            doc.link(MARGIN, cy + 9, pwC, 4.5, { url: "tel:" + advPhoneC.tel });
+            doc.setTextColor(85);
+          }
         }
         if (bilimeviLogo) {
           try {
@@ -1334,7 +1365,7 @@ export default function FiyatTeklifi() {
         cy += 6;
 
         // Satır çizici: sol etiket + her okul için değer
-        const money2 = (n) => Number(n||0).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const money2 = (n) => roundHalf(n).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const checkPageC = () => { if (cy > 270) { doc.addPage(); cy = 24; } };
         const row = (label, valueFn, opts = {}) => {
           checkPageC();
@@ -1750,7 +1781,7 @@ export default function FiyatTeklifi() {
                               {pkg.includes_tr && <div style={{ fontSize:11, color:"#64748b", marginTop:5, lineHeight:1.5 }}>Dahil: {pkg.includes_tr}</div>}
                             </div>
                             <div style={{ textAlign:"right", flexShrink:0, marginLeft:12 }}>
-                              <div style={{ fontWeight:700, fontSize:16, color: sel ? CYAN : "#0f172a" }}>{curSym}{Number(pkg.package_price).toLocaleString("tr-TR")}</div>
+                              <div style={{ fontWeight:700, fontSize:16, color: sel ? CYAN : "#0f172a" }}>{curSym}{roundHalf(pkg.package_price).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                               <div style={{ fontSize:11, color:"#94a3b8" }}>{pkg.weeks} hafta</div>
                             </div>
                           </div>
@@ -1778,7 +1809,7 @@ export default function FiyatTeklifi() {
                   )}
                 </>);
               })()}
-              {cur.isOnline && cur.course && (<div style={{ padding:"14px 16px", background:"#f0fdff", border:`1.5px solid ${CYAN}`, borderRadius:12 }}><strong>{isStaff ? courseWithLang(cur.course, "orig") : courseWithLang(cur.course, "tr")}</strong>{cur.course.hours > 0 ? ` — ${cur.course.hours} saat/hafta` : ""}<br/><span style={{ fontSize:12, color:"#64748b" }}>{cur.weeks} hafta · €{getPrice(cur.course, cur.weeks).toLocaleString("tr-TR")}</span></div>)}
+              {cur.isOnline && cur.course && (<div style={{ padding:"14px 16px", background:"#f0fdff", border:`1.5px solid ${CYAN}`, borderRadius:12 }}><strong>{isStaff ? courseWithLang(cur.course, "orig") : courseWithLang(cur.course, "tr")}</strong>{cur.course.hours > 0 ? ` — ${cur.course.hours} saat/hafta` : ""}<br/><span style={{ fontSize:12, color:"#64748b" }}>{cur.weeks} hafta · €{roundHalf(getPrice(cur.course, cur.weeks)).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>)}
             </div>
           )}
 
@@ -1837,13 +1868,13 @@ export default function FiyatTeklifi() {
                         return (<div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a, noAccommodation:false}))}>
                           <div>
                             <div style={{ fontWeight:600 }}>{a.name}</div>
-                            <div style={{ fontSize:12, color: sel?"inherit":"#0d9488", marginTop:2, fontWeight:500 }}>{a.room} · {a.board} · {a.distance}</div>
+                            <div style={{ fontSize:12, color: sel?"inherit":"#0d9488", marginTop:2, fontWeight:500 }}>{[a.room, a.bathroom, a.board, a.distance].filter(Boolean).join(" · ")}</div>
                             {hsActive && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>⚠️ Yüksek sezon fiyatı geçerli</div>}
                             {a.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{a.notes}</div>}
                           </div>
                           <div style={{ textAlign:"right", flexShrink:0 }}>
                             <div style={{ fontWeight:700, color: hsActive ? "#f59e0b" : "inherit" }}>{a.currency} {hsActive ? a.hs_price : a.price}/h</div>
-                            <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>{cur.accWeeks || cur.weeks}h: {a.currency} {((hsActive ? a.hs_price : a.price) * (cur.accWeeks || cur.weeks)).toLocaleString("tr-TR")}</div>
+                            <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>{cur.accWeeks || cur.weeks}h: {a.currency} {roundHalf((hsActive ? a.hs_price : a.price) * (cur.accWeeks || cur.weeks)).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                           </div>
                         </div>);
                       })}
@@ -1879,7 +1910,7 @@ export default function FiyatTeklifi() {
                     <div style={{ marginBottom:20 }}>
                       <p style={S.slbl}>Zorunlu Ücretler</p>
                       <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                        {compulsory.map((f,i) => (<div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", background:"#f8fafc", borderRadius:10, border:"1px solid #e2e8f0", fontSize:13 }}><span style={{ fontWeight:600 }}>{f.name}</span><span style={{ fontWeight:600, color:"#64748b" }}>{f.currency} {Number(f.amount).toLocaleString("tr-TR")}</span></div>))}
+                        {compulsory.map((f,i) => (<div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", background:"#f8fafc", borderRadius:10, border:"1px solid #e2e8f0", fontSize:13 }}><span style={{ fontWeight:600 }}>{f.name}</span><span style={{ fontWeight:600, color:"#64748b" }}>{f.currency} {roundHalf(f.amount).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>))}
                       </div>
                     </div>
                   )}
@@ -1898,7 +1929,7 @@ export default function FiyatTeklifi() {
                               {f.addon_type === "supplement" && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>Ek ücret</div>}
                             </div>
                             <div style={{ textAlign:"right", flexShrink:0 }}>
-                              <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{f.currency} {Number(amt).toLocaleString("tr-TR")}</div>
+                              <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{f.currency} {roundHalf(amt).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                               {f.calc_type === "per_week" && <div style={{ fontSize:11, color:"#94a3b8" }}>{f.amount}/h × {cur.weeks}h</div>}
                             </div>
                           </div>);
@@ -1926,7 +1957,7 @@ export default function FiyatTeklifi() {
                           {t.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{t.notes}</div>}
                         </div>
                         <div style={{ textAlign:"right", flexShrink:0 }}>
-                          <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{t.currency} {Number(t.one_way).toLocaleString("tr-TR")}</div>
+                          <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{t.currency} {roundHalf(t.one_way).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                           <div style={{ fontSize:11, color:"#94a3b8" }}>Tek yön</div>
                         </div>
                       </div>);
@@ -1974,7 +2005,7 @@ export default function FiyatTeklifi() {
                     {d.acc && !d.isOnline && d.selectedPackage?.package_type !== "with_accommodation" && (
                       <div style={{ marginBottom:10 }}>
                         <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{d.acc.name} · {d.acc.board} ({d.accWeeks || d.weeks} hafta)</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span>}</div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{[d.acc.name, d.acc.bathroom, d.acc.board].filter(Boolean).join(" · ")} ({d.accWeeks || d.weeks} hafta)</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span>}</div>
                         {d.accHsAmount > 0 && (<>
                           <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span>}</div>
 
