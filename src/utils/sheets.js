@@ -90,7 +90,7 @@ export async function loginWithCredentials(username, password) {
   
   };
 
-  return {
+    return {
     success: true,
     user: {
       name:    user["Ad Soyad"],
@@ -99,6 +99,7 @@ export async function loginWithCredentials(username, password) {
       branch:  user["Şube"],
       title:   (user["title"] || user["Title"] || "staff").toLowerCase(),
       rol:     (user["title"] || user["Title"] || "staff").toLowerCase(),
+      phone:   json.phone || "",        // YENİ: Apps Script'ten gelen telefon (wa.me formatında)
       modules,
     }
   };
