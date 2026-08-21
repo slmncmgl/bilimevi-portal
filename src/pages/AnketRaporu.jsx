@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.25";
+const VERSION = "v1.26";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -282,6 +282,35 @@ async function generateExternalReport(data) {
     y += 6;
   });
 
+  // Yorumlar istendiyse: 1. sayfaya bilgi notu + ayrı sayfada yorum listesi
+  if (data.includeComments && data.comments && data.comments.length > 0) {
+    y += 6;
+    y = checkPageBreak(doc, y, 10);
+    doc.setFont("DejaVuSans", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text("Katılımcı yorumları 2. sayfada yer almaktadır.", margin, y);
+
+    doc.addPage();
+    doc.setFont("DejaVuSans", "bold");
+    let cy = 20;
+    doc.setFontSize(14);
+    doc.setTextColor(30, 60, 114);
+    doc.text("Yorumlar", margin, cy);
+    cy += 9;
+
+    data.comments.forEach(c => {
+      const text = c.name ? `${c.name}: ${c.text}` : c.text;
+      const lines = doc.splitTextToSize(text, 210 - margin * 2);
+      cy = checkPageBreak(doc, cy, lines.length * 4.8 + 5);
+      doc.setFont("DejaVuSans", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(45, 45, 45);
+      doc.text(lines, margin, cy);
+      cy += lines.length * 4.8 + 5;
+    });
+  }
+
   doc.save(`${data.groupName.replace(/[^a-zA-Z0-9ığüşöçİĞÜŞÖÇ]/g, "_")}_Okul_Paylasim_Raporu.pdf`);
 }
 
@@ -415,6 +444,7 @@ export default function AnketRaporu() {
   const [view, setView] = useState("results"); // "results" | "compare"
   const [pdfLoading, setPdfLoading] = useState(null); // "external" | "internal" | null
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showCommentChoice, setShowCommentChoice] = useState(false);
   const [showInfoPopup, setShowInfoPopup] = useState(() => {
     try {
       const session = getSession();
@@ -760,10 +790,11 @@ export default function AnketRaporu() {
 
   const reportDate = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 
-  async function handleExternalPdf() {
+  async function handleExternalPdf(includeComments) {
+    setShowCommentChoice(false);
     setPdfLoading("external");
     try {
-      await generateExternalReport({ groupName: activeTab, rosterCount, total, genderCounts, ageRange, questionAverages, topCategories, reportDate });
+      await generateExternalReport({ groupName: activeTab, rosterCount, total, genderCounts, ageRange, questionAverages, topCategories, reportDate, includeComments, comments });
     } catch (e) {
       alert("PDF oluşturulamadı: " + e.message);
     } finally {
@@ -1024,7 +1055,7 @@ export default function AnketRaporu() {
                       </div>
                     </div>
                   )}
-                  <button onClick={handleExternalPdf} disabled={pdfLoading !== null} className="ar-pdf-btn" style={{ ...styles.pdfBtn, opacity: pdfLoading !== null ? 0.6 : 1 }}>
+                  <button onClick={() => setShowCommentChoice(true)} disabled={pdfLoading !== null} className="ar-pdf-btn" style={{ ...styles.pdfBtn, opacity: pdfLoading !== null ? 0.6 : 1 }}>
                     {pdfLoading === "external" ? "Oluşturuluyor..." : "📄 Okul Paylaşım Raporu"}
                   </button>
                 </div>
@@ -1058,6 +1089,37 @@ export default function AnketRaporu() {
           </>
         )}
       </main>
+
+      {/* Yorum Seçim Popup'ı */}
+      {showCommentChoice && (
+        <div onClick={() => setShowCommentChoice(false)} style={styles.popupOverlay}>
+          <div onClick={e => e.stopPropagation()} style={styles.popupCard} className="ar-popup-card">
+            <div style={styles.popupHeader}>
+              <h3 style={styles.popupTitle}>Yorumlar eklensin mi?</h3>
+              <span style={styles.popupCount}>
+                {comments.length > 0
+                  ? `Bu grupta ${comments.length} yorum var. Eklenirse rapora ayrı bir sayfa olarak eklenir.`
+                  : "Bu grupta yorum bulunmuyor."}
+              </span>
+            </div>
+            <div style={styles.choiceBtnGroup}>
+              <button
+                onClick={() => handleExternalPdf(true)}
+                disabled={comments.length === 0}
+                style={{ ...styles.popupCloseBtnPrimary, opacity: comments.length === 0 ? 0.5 : 1, cursor: comments.length === 0 ? "default" : "pointer" }}
+              >
+                Yorumlarla İndir
+              </button>
+              <button onClick={() => handleExternalPdf(false)} style={styles.popupCloseBtn}>
+                Yorumsuz İndir
+              </button>
+              <button onClick={() => setShowCommentChoice(false)} style={styles.cancelBtn}>
+                İptal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bilgi Popup'ı */}
       {showInfoPopup && (
@@ -1185,5 +1247,7 @@ const styles = {
   popupCloseBtn: { width: "100%", padding: "10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#64748b", fontFamily: "inherit" },
   popupCloseBtnPrimary: { width: "100%", padding: "10px", background: "#4338ca", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "700", color: "#fff", fontFamily: "inherit" },
   infoList: { margin: "0 0 18px", paddingLeft: "18px", display: "flex", flexDirection: "column", gap: "10px" },
+  choiceBtnGroup: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" },
+  cancelBtn: { width: "100%", padding: "10px", background: "transparent", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#94a3b8", fontFamily: "inherit" },
   infoListItem: { fontSize: "13px", color: "#334155", lineHeight: 1.6 },
 };
