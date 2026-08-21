@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.26";
+const VERSION = "v1.27";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -300,14 +300,44 @@ async function generateExternalReport(data) {
     cy += 9;
 
     data.comments.forEach(c => {
-      const text = c.name ? `${c.name}: ${c.text}` : c.text;
-      const lines = doc.splitTextToSize(text, 210 - margin * 2);
-      cy = checkPageBreak(doc, cy, lines.length * 4.8 + 5);
-      doc.setFont("DejaVuSans", "normal");
+      const contentWidth = 210 - margin * 2;
       doc.setFontSize(9.5);
-      doc.setTextColor(45, 45, 45);
-      doc.text(lines, margin, cy);
-      cy += lines.length * 4.8 + 5;
+
+      if (c.name) {
+        doc.setFont("DejaVuSans", "bold");
+        const namePrefix = `${c.name}: `;
+        const nameWidth = doc.getTextWidth(namePrefix);
+
+        // İlk satır ismin yanından devam eder, kalan satırlar tam genişlikte akar
+        doc.setFont("DejaVuSans", "normal");
+        const firstLineText = doc.splitTextToSize(c.text, contentWidth - nameWidth)[0] || "";
+        const restText = c.text.slice(firstLineText.length).trim();
+        const restLines = restText ? doc.splitTextToSize(restText, contentWidth) : [];
+
+        cy = checkPageBreak(doc, cy, (1 + restLines.length) * 4.8 + 5);
+
+        doc.setFont("DejaVuSans", "bold");
+        doc.setTextColor(20, 20, 20);
+        doc.text(namePrefix, margin, cy);
+
+        doc.setFont("DejaVuSans", "normal");
+        doc.setTextColor(45, 45, 45);
+        doc.text(firstLineText, margin + nameWidth, cy);
+        cy += 4.8;
+
+        if (restLines.length > 0) {
+          doc.text(restLines, margin, cy);
+          cy += restLines.length * 4.8;
+        }
+        cy += 5;
+      } else {
+        const lines = doc.splitTextToSize(c.text, contentWidth);
+        cy = checkPageBreak(doc, cy, lines.length * 4.8 + 5);
+        doc.setFont("DejaVuSans", "normal");
+        doc.setTextColor(45, 45, 45);
+        doc.text(lines, margin, cy);
+        cy += lines.length * 4.8 + 5;
+      }
     });
   }
 
