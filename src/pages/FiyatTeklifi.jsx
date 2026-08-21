@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v80-konaklama-turkce-2026-08-20";
+const BFT_BUILD_VERSION = "v81-konaklama-2satir-transfer-ciftyon-2026-08-21";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -570,23 +570,36 @@ function boardTR(val) {
   if (m) return `${m[1]} Öğün/hafta`;
   return v;
 }
-// Konaklama gösterim etiketi.
-// mode "orig" → sheet'teki ham değerler (staff ekranı)
-// mode "tr"   → Türkçe (customer ekranı + TÜM PDF'ler)
-// place_name yalnızca konaklama tipi Homestay/Aile Yanı DEĞİLSE gösterilir.
-function accLabel(acc, mode) {
-  if (!acc) return "";
+// Konaklama gösterim etiketi — İKİ SATIR halinde döner.
+// line1: "Paylaşımlı Daire - Comfort Student Shared"  (place_name yalnızca Homestay DEĞİLSE)
+// line2: "Çift Kişilik · Özel Banyo (Mutfak Kullanımlı)"
+// mode "orig" → ham değerler (staff ekranı) | mode "tr" → Türkçe (customer ekranı + TÜM PDF'ler)
+function accLabelParts(acc, mode) {
+  if (!acc) return { line1: "", line2: "" };
   const tr = mode === "tr";
   const type = tr ? trMap(ACC_TYPE_TR, acc.type) : (acc.type || "");
   const room = tr ? trMap(ROOM_TR, acc.room) : (acc.room || "");
   const bath = tr ? trMap(BATH_TR, acc.bathroom) : (acc.bathroom || "");
   const board = tr ? boardTR(acc.board) : (acc.board || "");
   const isHomestay = /homestay|host family|aile yanı/i.test(acc.type || "");
-  const head = [type, (!isHomestay && acc.name) ? acc.name : null].filter(Boolean).join(" - ");
-  const roomBath = [room, bath].filter(Boolean).join(" · ");
-  let out = [head, roomBath].filter(Boolean).join(" - ");
-  if (board) out += ` (${board})`;
-  return out || (acc.name || "");
+  const line1 = [type, (!isHomestay && acc.name) ? acc.name : null].filter(Boolean).join(" - ") || (acc.name || "");
+  let line2 = [room, bath].filter(Boolean).join(" · ");
+  if (board) line2 += (line2 ? " " : "") + `(${board})`;
+  return { line1, line2 };
+}
+// Tek satır gerektiğinde (kısa alanlar için)
+function accLabel(acc, mode) {
+  const p = accLabelParts(acc, mode);
+  return [p.line1, p.line2].filter(Boolean).join(" - ");
+}
+
+// Transfer tutarı: çift yön seçiliyse sheet'teki price_two_way kullanılır,
+// o boşsa tek yön fiyatının 2 katı alınır.
+function transferPrice(dest) {
+  const t = dest?.transfer;
+  if (!t) return 0;
+  if (!dest.transferRoundTrip) return t.one_way || 0;
+  return (t.two_way && t.two_way > 0) ? t.two_way : (t.one_way || 0) * 2;
 }
 
 function calcFees(fees, weeks, age, accType, accWeeks) {
@@ -693,7 +706,7 @@ function getDestinationTotals(d, fees) {
   const accTotal = d.accTotalPrice || 0;
   const feesTotal = fees?.total || 0;
   const addonsCost = (d.addons || []).reduce((s, a) => s + (a.totalAmount || 0), 0);
-  const transferCost = d.transfer?.one_way || 0;
+  const transferCost = transferPrice(d);
   // Paket: oncelikle dogrudan secili paket (cur.selectedPackage), yoksa otomatik eslesme
   const fixedPackage = d.isOnline ? null : (d.selectedPackage || findFixedPackage(d.cityData?.discounts, d.course, d.weeks, d.startDate));
   if (fixedPackage) {
@@ -719,7 +732,7 @@ const fmt = (n, cur) => `${cur || ""} ${roundHalf(n).toLocaleString("tr-TR", { m
 const emptyDest = (sd = "2026-07-06", w = 4) => ({
   lang: "", country: "", city: "", brand: "", course: null, weeks: w, accWeeks: w, accWeeksTouched: false, acc: null, startDate: sd,
   isOnline: false, cityData: null, cityLoading: false, addons: [], transfer: null,
-  selectedPackage: null, noAccommodation: false,
+  selectedPackage: null, noAccommodation: false, transferRoundTrip: false,
   courseBasePrice: 0, courseHsAmount: 0, courseTotalPrice: 0, courseHsActive: false,
   accBasePrice: 0, accHsAmount: 0, accTotalPrice: 0, accHsActive: false,
 });
@@ -845,7 +858,7 @@ export default function FiyatTeklifi() {
   const courseTotal = coursePriceData.totalPrice;
   const accTotal = accPriceData.totalPrice;
   const addonsCost = (cur.addons||[]).reduce((s,a) => s+(a.totalAmount||0), 0);
-  const transferCost = cur.transfer?.one_way || 0;
+  const transferCost = transferPrice(cur);
   const currentTotal = courseTotal + accTotal + (feesData.total || 0) + addonsCost + transferCost;
 
   // with_accommodation paketi secildiyse Konaklama adimi cikar (pakete dahil)
@@ -1225,9 +1238,11 @@ export default function FiyatTeklifi() {
         if (d.acc && !d.isOnline && d.selectedPackage?.package_type !== "with_accommodation") {
           doc.setFontSize(10); doc.setTextColor(17);
           doc.text("Konaklama", MARGIN, y);
-          doc.text(accLabel(d.acc, "tr"), MARGIN + 32, y);   // PDF her zaman Türkçe
+          const accP = accLabelParts(d.acc, "tr");   // PDF her zaman Türkçe
+          doc.text(accP.line1, MARGIN + 32, y);
           doc.text(money(d.accBasePrice), PAGE_W - MARGIN, y, { align:"right" });
           y += 5;
+          if (accP.line2) { doc.setFontSize(9); doc.text(accP.line2, MARGIN + 32, y); y += 4.5; }
           doc.setFontSize(8); doc.setTextColor(85);
           doc.text(`Konaklama Süresi: ${d.accWeeks || d.weeks} hafta`, MARGIN + 32, y);
           y += 4;
@@ -1279,8 +1294,8 @@ export default function FiyatTeklifi() {
         if (d.transfer) {
           doc.setFontSize(9); doc.setTextColor(17);
           doc.text("Transfer", MARGIN, y);
-          doc.text(`${d.transfer.airport}${d.transfer.code?.trim() ? ` (${d.transfer.code.trim()})` : ""}`, MARGIN + 32, y);
-          doc.text(`${d.transfer.currency} ${money(d.transfer.one_way)}`, PAGE_W - MARGIN, y, { align:"right" });
+          doc.text(`${d.transfer.airport}${d.transfer.code?.trim() ? ` (${d.transfer.code.trim()})` : ""} — ${d.transferRoundTrip ? "çift yön" : "tek yön"}`, MARGIN + 32, y);
+          doc.text(`${d.transfer.currency} ${money(transferPrice(d))}`, PAGE_W - MARGIN, y, { align:"right" });
           y += 5;
         }
 
@@ -1465,7 +1480,7 @@ export default function FiyatTeklifi() {
         });
         // Transfer
         if (cols.some(c => c.d.transfer)) {
-          row("Transfer", c => c.d.transfer ? `${c.d.transfer.currency} ${money2(c.d.transfer.one_way)}` : "");
+          row("Transfer", c => c.d.transfer ? `${c.d.transfer.currency} ${money2(transferPrice(c.d))}${c.d.transferRoundTrip ? " (çift yön)" : ""}` : "");
         }
         // İndirim
         if (cols.some(c => !c.dt.isPackage && c.dt.discountsTotal > 0)) {
@@ -1880,7 +1895,7 @@ export default function FiyatTeklifi() {
                 const types = [...new Set(accs.map(a => a.type))];
                 return (<>
                   <div style={S.g3}>
-                    {types.map(t => (<div key={t} style={accType===t ? S.selActive : S.sel} onClick={() => { setAccType(t); setCur(p => ({...p, acc:null, noAccommodation:false, accWeeks: p.accWeeksTouched ? Math.min(p.accWeeks || p.weeks, p.weeks) : p.weeks})); }}>{t}</div>))}
+                    {types.map(t => (<div key={t} style={accType===t ? S.selActive : S.sel} onClick={() => { setAccType(t); setCur(p => ({...p, acc:null, noAccommodation:false, accWeeks: p.accWeeksTouched ? Math.min(p.accWeeks || p.weeks, p.weeks) : p.weeks})); }}>{isStaff ? t : trMap(ACC_TYPE_TR, t)}</div>))}
                     {/* Konaklama Talep Etmiyorum — tip butonlarinin saginda, gorsel ozellikleri pastel sari */}
                     <div onClick={() => { setAccType(""); setCur(p => ({...p, acc:null, noAccommodation:true})); }}
                       style={{ padding:12, borderRadius:12, cursor:"pointer", textAlign:"center", fontWeight:600, fontSize:13,
@@ -1921,7 +1936,10 @@ export default function FiyatTeklifi() {
                         const hsActive = getAccommodationHighSeasonSupplement(a, cur.accWeeks || cur.weeks, cur.startDate).isActive;
                         return (<div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a, noAccommodation:false}))}>
                           <div>
-                            <div style={{ fontWeight:600 }}>{isStaff ? accLabel(a, "orig") : accLabel(a, "tr")}</div>
+                            {(() => { const ap = accLabelParts(a, isStaff ? "orig" : "tr"); return (<>
+                              <div style={{ fontWeight:600 }}>{ap.line1}</div>
+                              {ap.line2 && <div style={{ fontSize:12.5, color: sel?"inherit":"#0f172a", marginTop:2, fontWeight:600 }}>{ap.line2}</div>}
+                            </>); })()}
                             <div style={{ fontSize:12, color: sel?"inherit":"#0d9488", marginTop:2, fontWeight:500 }}>{a.distance ? `Okula ${a.distance}` : ""}</div>
                             {hsActive && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>⚠️ Yüksek sezon fiyatı geçerli</div>}
                             {a.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{a.notes}</div>}
@@ -2010,9 +2028,18 @@ export default function FiyatTeklifi() {
                           <div style={{ fontWeight:600, fontSize:13, color: sel ? CYAN : "#0f172a" }}>{t.airport}{t.code?.trim() ? ` (${t.code.trim()})` : ""}</div>
                           {t.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{t.notes}</div>}
                         </div>
-                        <div style={{ textAlign:"right", flexShrink:0 }}>
-                          <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{t.currency} {roundHalf(t.one_way).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                          <div style={{ fontSize:11, color:"#94a3b8" }}>Tek yön</div>
+                        <div style={{ textAlign:"right", flexShrink:0, display:"flex", alignItems:"center", gap:14 }}>
+                          <div>
+                            <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{t.currency} {roundHalf(sel && cur.transferRoundTrip ? ((t.two_way && t.two_way > 0) ? t.two_way : t.one_way * 2) : t.one_way).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                            <div style={{ fontSize:11, color:"#94a3b8" }}>{sel && cur.transferRoundTrip ? "Çift yön" : "Tek yön"}</div>
+                          </div>
+                          <label onClick={e => e.stopPropagation()}
+                            style={{ display:"flex", alignItems:"center", gap:6, cursor: sel ? "pointer" : "not-allowed", opacity: sel ? 1 : 0.45, fontSize:12, color: sel ? "#0f172a" : "#94a3b8", userSelect:"none", whiteSpace:"nowrap" }}>
+                            <input type="checkbox" disabled={!sel} checked={!!(sel && cur.transferRoundTrip)}
+                              onChange={e => setCur(p => ({ ...p, transferRoundTrip: e.target.checked }))}
+                              style={{ width:16, height:16, accentColor:CYAN, cursor: sel ? "pointer" : "not-allowed", flexShrink:0 }} />
+                            Çift yön
+                          </label>
                         </div>
                       </div>);
                     })}
@@ -2059,7 +2086,16 @@ export default function FiyatTeklifi() {
                     {d.acc && !d.isOnline && d.selectedPackage?.package_type !== "with_accommodation" && (
                       <div style={{ marginBottom:10 }}>
                         <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{(isStaff ? accLabel(d.acc, "orig") : accLabel(d.acc, "tr"))} ({d.accWeeks || d.weeks} hafta)</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span>}</div>
+                        {(() => { const ap = accLabelParts(d.acc, isStaff ? "orig" : "tr"); return (
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, gap:12 }}>
+                            <span style={{ fontWeight:600 }}>
+                              {ap.line1}
+                              {ap.line2 && <><br/>{ap.line2}</>}
+                              <br/><span style={{ fontWeight:500, color:"#64748b", fontSize:12 }}>{d.accWeeks || d.weeks} hafta</span>
+                            </span>
+                            {isStaff && <span style={{ fontWeight:600, color:CYAN, whiteSpace:"nowrap" }}>{fmt(d.accBasePrice, cur2)}</span>}
+                          </div>
+                        ); })()}
                         {d.accHsAmount > 0 && (<>
                           <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span>}</div>
 
@@ -2069,7 +2105,7 @@ export default function FiyatTeklifi() {
                     )}
                     {!d.selectedPackage && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}><span style={{ color:"#64748b" }}>Kayıt + Materyal</span>{isStaff && <span style={{ fontWeight:600 }}>{fmt(f.total, cur2)}</span>}</div>}
                     {(d.addons||[]).map((a,ai) => (<div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>{a.name}</span>{isStaff && <span>{fmt(a.totalAmount, cur2)}</span>}</div>))}
-                    {d.transfer && (<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport})</span>{isStaff && <span>{fmt(d.transfer.one_way, d.transfer.currency)}</span>}</div>)}
+                    {d.transfer && (<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport}{d.transferRoundTrip ? " · çift yön" : " · tek yön"})</span>{isStaff && <span>{fmt(transferPrice(d), d.transfer.currency)}</span>}</div>)}
                     {(() => { const _dt = getDestinationTotals(d, f); return (<>
                     {!_dt.isPackage && _dt.appliedDiscounts.map((disc, di) => (
                       <div key={di} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#16a34a", fontWeight:500 }}>
