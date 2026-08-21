@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.27";
+const VERSION = "v1.28";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -300,44 +300,13 @@ async function generateExternalReport(data) {
     cy += 9;
 
     data.comments.forEach(c => {
-      const contentWidth = 210 - margin * 2;
+      const lines = doc.splitTextToSize(c.text, 210 - margin * 2);
+      cy = checkPageBreak(doc, cy, lines.length * 4.8 + 5);
+      doc.setFont("DejaVuSans", "normal");
       doc.setFontSize(9.5);
-
-      if (c.name) {
-        doc.setFont("DejaVuSans", "bold");
-        const namePrefix = `${c.name}: `;
-        const nameWidth = doc.getTextWidth(namePrefix);
-
-        // İlk satır ismin yanından devam eder, kalan satırlar tam genişlikte akar
-        doc.setFont("DejaVuSans", "normal");
-        const firstLineText = doc.splitTextToSize(c.text, contentWidth - nameWidth)[0] || "";
-        const restText = c.text.slice(firstLineText.length).trim();
-        const restLines = restText ? doc.splitTextToSize(restText, contentWidth) : [];
-
-        cy = checkPageBreak(doc, cy, (1 + restLines.length) * 4.8 + 5);
-
-        doc.setFont("DejaVuSans", "bold");
-        doc.setTextColor(20, 20, 20);
-        doc.text(namePrefix, margin, cy);
-
-        doc.setFont("DejaVuSans", "normal");
-        doc.setTextColor(45, 45, 45);
-        doc.text(firstLineText, margin + nameWidth, cy);
-        cy += 4.8;
-
-        if (restLines.length > 0) {
-          doc.text(restLines, margin, cy);
-          cy += restLines.length * 4.8;
-        }
-        cy += 5;
-      } else {
-        const lines = doc.splitTextToSize(c.text, contentWidth);
-        cy = checkPageBreak(doc, cy, lines.length * 4.8 + 5);
-        doc.setFont("DejaVuSans", "normal");
-        doc.setTextColor(45, 45, 45);
-        doc.text(lines, margin, cy);
-        cy += lines.length * 4.8 + 5;
-      }
+      doc.setTextColor(45, 45, 45);
+      doc.text(lines, margin, cy);
+      cy += lines.length * 4.8 + 5;
     });
   }
 
@@ -475,6 +444,7 @@ export default function AnketRaporu() {
   const [pdfLoading, setPdfLoading] = useState(null); // "external" | "internal" | null
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showCommentChoice, setShowCommentChoice] = useState(false);
+  const [selectedComments, setSelectedComments] = useState([]);
   const [showInfoPopup, setShowInfoPopup] = useState(() => {
     try {
       const session = getSession();
@@ -820,16 +790,27 @@ export default function AnketRaporu() {
 
   const reportDate = new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 
-  async function handleExternalPdf(includeComments) {
+  async function handleExternalPdf(includeComments, commentList) {
     setShowCommentChoice(false);
+    setView("results");
     setPdfLoading("external");
     try {
-      await generateExternalReport({ groupName: activeTab, rosterCount, total, genderCounts, ageRange, questionAverages, topCategories, reportDate, includeComments, comments });
+      await generateExternalReport({ groupName: activeTab, rosterCount, total, genderCounts, ageRange, questionAverages, topCategories, reportDate, includeComments, comments: commentList || [] });
     } catch (e) {
       alert("PDF oluşturulamadı: " + e.message);
     } finally {
       setPdfLoading(null);
     }
+  }
+
+  function openCommentPicker() {
+    setSelectedComments(comments.map((_, i) => i)); // varsayılan: hepsi seçili
+    setShowCommentChoice(false);
+    setView("comment-picker");
+  }
+
+  function toggleComment(i) {
+    setSelectedComments(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
   }
 
   async function handleInternalPdf() {
@@ -929,7 +910,63 @@ export default function AnketRaporu() {
       </header>
 
       <main style={styles.main} className="ar-main">
-        {view === "compare" ? (
+        {view === "comment-picker" ? (
+          <div>
+            <button onClick={() => setView("results")} style={styles.backToResultsBtn}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+                <line x1="19" y1="12" x2="5" y2="12"/>
+                <polyline points="12 19 5 12 12 5"/>
+              </svg>
+              Vazgeç
+            </button>
+            <h2 style={styles.commentsTitle}>Rapora Eklenecek Yorumları Seçin</h2>
+            <p style={styles.pickerHint}>
+              Kırmızı <strong style={styles.negativeWarning}>!</strong> işaretli yorumlar, düşük memnuniyet puanı veren katılımcılara aittir.
+            </p>
+            <div style={styles.pickerToolbar}>
+              <button
+                onClick={() => setSelectedComments(selectedComments.length === comments.length ? [] : comments.map((_, i) => i))}
+                style={styles.pickerToolbarBtn}
+              >
+                {selectedComments.length === comments.length ? "Tümünü Kaldır" : "Tümünü Seç"}
+              </button>
+              <span style={styles.pickerCount}>{selectedComments.length} / {comments.length} seçili</span>
+            </div>
+            <div style={styles.commentsList}>
+              {comments.map((c, i) => (
+                <div
+                  key={i}
+                  onClick={() => toggleComment(i)}
+                  style={{
+                    ...styles.pickerRow,
+                    ...(c.negative ? styles.commentCardNegative : {}),
+                    ...(selectedComments.includes(i) ? styles.pickerRowSelected : {}),
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedComments.includes(i)}
+                    onChange={() => toggleComment(i)}
+                    onClick={e => e.stopPropagation()}
+                    style={styles.pickerCheckbox}
+                  />
+                  <span style={styles.commentText}>
+                    {c.negative && <strong style={styles.negativeWarning}>! </strong>}
+                    {c.name && <strong style={styles.commentName}>{c.name}: </strong>}
+                    {c.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => handleExternalPdf(true, selectedComments.map(i => comments[i]))}
+              disabled={selectedComments.length === 0 || pdfLoading !== null}
+              style={{ ...styles.pickerDownloadBtn, opacity: selectedComments.length === 0 || pdfLoading !== null ? 0.5 : 1 }}
+            >
+              {pdfLoading === "external" ? "Oluşturuluyor..." : `Seçilen ${selectedComments.length} Yorumla PDF İndir`}
+            </button>
+          </div>
+        ) : view === "compare" ? (
           <div>
             <button onClick={() => setView("results")} style={styles.backToResultsBtn}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
@@ -1134,13 +1171,13 @@ export default function AnketRaporu() {
             </div>
             <div style={styles.choiceBtnGroup}>
               <button
-                onClick={() => handleExternalPdf(true)}
+                onClick={openCommentPicker}
                 disabled={comments.length === 0}
                 style={{ ...styles.popupCloseBtnPrimary, opacity: comments.length === 0 ? 0.5 : 1, cursor: comments.length === 0 ? "default" : "pointer" }}
               >
-                Yorumlarla İndir
+                Yorumları Seç ve İndir
               </button>
-              <button onClick={() => handleExternalPdf(false)} style={styles.popupCloseBtn}>
+              <button onClick={() => handleExternalPdf(false, [])} style={styles.popupCloseBtn}>
                 Yorumsuz İndir
               </button>
               <button onClick={() => setShowCommentChoice(false)} style={styles.cancelBtn}>
@@ -1279,5 +1316,13 @@ const styles = {
   infoList: { margin: "0 0 18px", paddingLeft: "18px", display: "flex", flexDirection: "column", gap: "10px" },
   choiceBtnGroup: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" },
   cancelBtn: { width: "100%", padding: "10px", background: "transparent", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#94a3b8", fontFamily: "inherit" },
+  pickerHint: { fontSize: "12.5px", color: "#64748b", marginBottom: "14px", lineHeight: 1.6 },
+  pickerToolbar: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "14px", flexWrap: "wrap" },
+  pickerToolbarBtn: { padding: "8px 14px", background: "#eef2ff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "12.5px", fontWeight: "700", color: "#4338ca", fontFamily: "inherit" },
+  pickerCount: { fontSize: "12.5px", color: "#94a3b8", fontWeight: "600" },
+  pickerRow: { display: "flex", alignItems: "flex-start", gap: "12px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", padding: "14px 18px", cursor: "pointer" },
+  pickerRowSelected: { borderColor: "#4338ca", background: "#fbfaff" },
+  pickerCheckbox: { marginTop: "3px", width: "17px", height: "17px", accentColor: "#4338ca", cursor: "pointer", flexShrink: 0 },
+  pickerDownloadBtn: { width: "100%", marginTop: "20px", padding: "14px", background: "#4338ca", color: "#fff", border: "none", borderRadius: "12px", cursor: "pointer", fontSize: "14px", fontWeight: "700", fontFamily: "inherit" },
   infoListItem: { fontSize: "13px", color: "#334155", lineHeight: 1.6 },
 };
