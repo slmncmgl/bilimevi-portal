@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v82-ulke-siralama-bayrak-2026-08-21";
+const BFT_BUILD_VERSION = "v83-ulke-ceviri-bayrak-2026-08-21";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -210,7 +210,16 @@ async function fetchNav(isStaff) {
       if (brand && city && desc) descriptions[`${brand}__${city}`] = desc;
     });
   } catch (e) { console.warn("[BFT] city_description okunamadı:", e); }
-  const countryTR = { "UK":"İngiltere","Ireland":"İrlanda","Malta":"Malta","South Africa":"Güney Afrika","Canada":"Kanada","USA":"ABD","UAE":"BAE" };
+  const countryTR = {
+    "UK":"İngiltere","England":"İngiltere","United Kingdom":"İngiltere",
+    "Ireland":"İrlanda","Malta":"Malta","South Africa":"Güney Afrika",
+    "Canada":"Kanada","USA":"ABD","United States":"ABD","UAE":"BAE","Dubai":"Dubai",
+    "Australia":"Avustralya","New Zealand":"Yeni Zelanda","Cyprus":"Kıbrıs",
+    "Germany":"Almanya","Spain":"İspanya","France":"Fransa","Italy":"İtalya",
+    "Austria":"Avusturya","Switzerland":"İsviçre","Netherlands":"Hollanda",
+    "Belgium":"Belçika","Portugal":"Portekiz","Japan":"Japonya",
+    "South Korea":"Güney Kore","Singapore":"Singapur","Online":"Online",
+  };
   const languages = new Set();
   const countries = {};
   const citiesByLang = {};
@@ -604,17 +613,30 @@ function transferPrice(dest) {
 
 // Ülke seçim ekranı: bayrak + tercih sırası (en çok tercih edilen başta)
 const COUNTRY_FLAG = {
+  // Türkçe adlar (ekranda görünen)
   "İngiltere": "🇬🇧", "Malta": "🇲🇹", "İrlanda": "🇮🇪", "Kanada": "🇨🇦", "ABD": "🇺🇸",
   "Avustralya": "🇦🇺", "Yeni Zelanda": "🇳🇿", "Güney Afrika": "🇿🇦", "BAE": "🇦🇪",
   "Dubai": "🇦🇪", "İspanya": "🇪🇸", "Almanya": "🇩🇪", "Fransa": "🇫🇷", "İtalya": "🇮🇹",
   "Avusturya": "🇦🇹", "İsviçre": "🇨🇭", "Hollanda": "🇳🇱", "Belçika": "🇧🇪", "Portekiz": "🇵🇹",
   "Kıbrıs": "🇨🇾", "Japonya": "🇯🇵", "Güney Kore": "🇰🇷", "Singapur": "🇸🇬", "Türkiye": "🇹🇷",
+  "Online": "🌐",
+  // İngilizce karşılıklar (çeviri haritasında yoksa da bayrak çıksın diye)
+  "UK": "🇬🇧", "England": "🇬🇧", "United Kingdom": "🇬🇧", "Ireland": "🇮🇪", "Canada": "🇨🇦",
+  "USA": "🇺🇸", "United States": "🇺🇸", "Australia": "🇦🇺", "New Zealand": "🇳🇿",
+  "South Africa": "🇿🇦", "UAE": "🇦🇪", "Spain": "🇪🇸", "Germany": "🇩🇪", "France": "🇫🇷",
+  "Italy": "🇮🇹", "Austria": "🇦🇹", "Switzerland": "🇨🇭", "Netherlands": "🇳🇱",
+  "Belgium": "🇧🇪", "Portugal": "🇵🇹", "Cyprus": "🇨🇾", "Japan": "🇯🇵",
+  "South Korea": "🇰🇷", "Singapore": "🇸🇬",
 };
 const COUNTRY_ORDER = ["İngiltere","Malta","İrlanda","Kanada","ABD","Avustralya","Yeni Zelanda","Güney Afrika","BAE","Dubai","İspanya"];
 // Tercih sırasına göre dizer; listede olmayanlar sona alfabetik eklenir.
 function sortCountries(list) {
   const arr = [...(list || [])];
   return arr.sort((a, b) => {
+    // "Online" gerçek bir ülke değil — her zaman en sonda
+    const oa = /^online$/i.test(a), ob = /^online$/i.test(b);
+    if (oa && !ob) return 1;
+    if (ob && !oa) return -1;
     const ia = COUNTRY_ORDER.indexOf(a), ib = COUNTRY_ORDER.indexOf(b);
     if (ia !== -1 && ib !== -1) return ia - ib;
     if (ia !== -1) return -1;
