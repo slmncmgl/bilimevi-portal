@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v79-pdf-danisman-tel-2026-08-20";
+const BFT_BUILD_VERSION = "v80-konaklama-turkce-2026-08-20";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -533,6 +533,60 @@ function formatAdvisorPhone(raw) {
     ? `+90 ${d.slice(2,5)} ${d.slice(5,8)} ${d.slice(8,10)} ${d.slice(10,12)}`
     : tel;
   return { display, tel };
+}
+
+// ─── KONAKLAMA GÖSTERİM ETİKETİ ───
+// Sheet'teki İngilizce değerler → Türkçe. Bilinmeyen değer olduğu gibi bırakılır.
+const ACC_TYPE_TR = {
+  "homestay": "Aile Yanı", "host family": "Aile Yanı", "residence": "Öğrenci Yurdu",
+  "student residence": "Öğrenci Yurdu", "student house": "Öğrenci Evi",
+  "student apartment": "Öğrenci Apartmanı", "shared apartment": "Paylaşımlı Daire",
+  "apartment": "Daire", "hotel": "Otel", "hostel": "Hostel", "guesthouse": "Misafirhane",
+};
+const ROOM_TR = {
+  "single": "Tek Kişilik", "twin": "İki Kişilik", "double": "Çift Kişilik",
+  "triple": "Üç Kişilik", "quad": "Dört Kişilik", "studio": "Stüdyo",
+  "shared": "Paylaşımlı Oda", "private": "Özel Oda", "single ensuite": "Tek Kişilik (Banyolu)",
+  "twin ensuite": "İki Kişilik (Banyolu)", "single room": "Tek Kişilik", "double room": "Çift Kişilik",
+};
+const BATH_TR = { "shared": "Paylaşımlı Banyo", "private": "Özel Banyo", "ensuite": "Özel Banyo", "en-suite": "Özel Banyo" };
+const BOARD_TR = {
+  "half board": "Yarım Pansiyon", "full board": "Tam Pansiyon", "breakfast": "Kahvaltı",
+  "bed & breakfast": "Oda + Kahvaltı", "b&b": "Oda + Kahvaltı", "self-catering": "Mutfak Kullanımlı",
+  "self catering": "Mutfak Kullanımlı", "no meals": "Öğün Yok", "bed only": "Sadece Konaklama",
+};
+const trMap = (map, val) => {
+  const v = (val || "").trim();
+  if (!v) return "";
+  return map[v.toLowerCase()] || v;
+};
+// "14 Meals/wk" → "14 Öğün/hafta" gibi kalıpları da çevirir
+function boardTR(val) {
+  const v = (val || "").trim();
+  if (!v) return "";
+  const direct = BOARD_TR[v.toLowerCase()];
+  if (direct) return direct;
+  const m = v.match(/^(\d+)\s*meals?\s*\/?\s*(wk|week|hafta)$/i);
+  if (m) return `${m[1]} Öğün/hafta`;
+  return v;
+}
+// Konaklama gösterim etiketi.
+// mode "orig" → sheet'teki ham değerler (staff ekranı)
+// mode "tr"   → Türkçe (customer ekranı + TÜM PDF'ler)
+// place_name yalnızca konaklama tipi Homestay/Aile Yanı DEĞİLSE gösterilir.
+function accLabel(acc, mode) {
+  if (!acc) return "";
+  const tr = mode === "tr";
+  const type = tr ? trMap(ACC_TYPE_TR, acc.type) : (acc.type || "");
+  const room = tr ? trMap(ROOM_TR, acc.room) : (acc.room || "");
+  const bath = tr ? trMap(BATH_TR, acc.bathroom) : (acc.bathroom || "");
+  const board = tr ? boardTR(acc.board) : (acc.board || "");
+  const isHomestay = /homestay|host family|aile yanı/i.test(acc.type || "");
+  const head = [type, (!isHomestay && acc.name) ? acc.name : null].filter(Boolean).join(" - ");
+  const roomBath = [room, bath].filter(Boolean).join(" · ");
+  let out = [head, roomBath].filter(Boolean).join(" - ");
+  if (board) out += ` (${board})`;
+  return out || (acc.name || "");
 }
 
 function calcFees(fees, weeks, age, accType, accWeeks) {
@@ -1171,7 +1225,7 @@ export default function FiyatTeklifi() {
         if (d.acc && !d.isOnline && d.selectedPackage?.package_type !== "with_accommodation") {
           doc.setFontSize(10); doc.setTextColor(17);
           doc.text("Konaklama", MARGIN, y);
-          doc.text(`${d.acc.name} (${d.acc.board})`, MARGIN + 32, y);
+          doc.text(accLabel(d.acc, "tr"), MARGIN + 32, y);   // PDF her zaman Türkçe
           doc.text(money(d.accBasePrice), PAGE_W - MARGIN, y, { align:"right" });
           y += 5;
           doc.setFontSize(8); doc.setTextColor(85);
@@ -1180,7 +1234,7 @@ export default function FiyatTeklifi() {
           doc.text(`Giriş: ${fmtDate(accStartD)}  |  Çıkış: ${fmtDate(accEndD)}`, MARGIN + 32, y);
           y += 4;
           doc.setTextColor(120);
-          doc.text([d.acc.room, d.acc.bathroom, d.acc.distance ? `Okula ${d.acc.distance}` : ""].filter(Boolean).join(" · "), MARGIN + 32, y);
+          doc.text(d.acc.distance ? `Okula ${d.acc.distance}` : "", MARGIN + 32, y);
           y += 4;
           doc.setDrawColor(221); doc.line(MARGIN, y, PAGE_W - MARGIN, y); y += 5;
 
@@ -1867,8 +1921,8 @@ export default function FiyatTeklifi() {
                         const hsActive = getAccommodationHighSeasonSupplement(a, cur.accWeeks || cur.weeks, cur.startDate).isActive;
                         return (<div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a, noAccommodation:false}))}>
                           <div>
-                            <div style={{ fontWeight:600 }}>{a.name}</div>
-                            <div style={{ fontSize:12, color: sel?"inherit":"#0d9488", marginTop:2, fontWeight:500 }}>{[a.room, a.bathroom, a.board, a.distance].filter(Boolean).join(" · ")}</div>
+                            <div style={{ fontWeight:600 }}>{isStaff ? accLabel(a, "orig") : accLabel(a, "tr")}</div>
+                            <div style={{ fontSize:12, color: sel?"inherit":"#0d9488", marginTop:2, fontWeight:500 }}>{a.distance ? `Okula ${a.distance}` : ""}</div>
                             {hsActive && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>⚠️ Yüksek sezon fiyatı geçerli</div>}
                             {a.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{a.notes}</div>}
                           </div>
@@ -2005,7 +2059,7 @@ export default function FiyatTeklifi() {
                     {d.acc && !d.isOnline && d.selectedPackage?.package_type !== "with_accommodation" && (
                       <div style={{ marginBottom:10 }}>
                         <div style={{ fontSize:11, fontWeight:600, color:"#94a3b8", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Konaklama</div>
-                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{[d.acc.name, d.acc.bathroom, d.acc.board].filter(Boolean).join(" · ")} ({d.accWeeks || d.weeks} hafta)</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span>}</div>
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}><span style={{ fontWeight:600 }}>{(isStaff ? accLabel(d.acc, "orig") : accLabel(d.acc, "tr"))} ({d.accWeeks || d.weeks} hafta)</span>{isStaff && <span style={{ fontWeight:600, color:CYAN }}>{fmt(d.accBasePrice, cur2)}</span>}</div>
                         {d.accHsAmount > 0 && (<>
                           <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span>}</div>
 
