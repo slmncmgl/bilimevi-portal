@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v83-ulke-ceviri-bayrak-2026-08-21";
+const BFT_BUILD_VERSION = "v84-ulke-normalizasyon-2026-08-21";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -145,6 +145,42 @@ function filterDialList(query) {
 const MASTER_ID = import.meta.env.VITE_MASTER_ID;
 const CYAN = "#00C1DE";
 
+// Ülke adı normalizasyonu — sheet'lerde aynı ülke farklı yazılabiliyor
+// (courses'ta "United Kingdom", discounts'ta "UK" gibi). Karşılaştırmalar
+// bu fonksiyondan geçirilir, böylece yazım farkı yüzünden indirim/eşleşme kaçmaz.
+const COUNTRY_ALIAS_NORM = {
+  "uk": "UK", "united kingdom": "UK", "england": "UK", "gb": "UK", "great britain": "UK",
+  "britain": "UK", "ingiltere": "UK", "i̇ngiltere": "UK",
+  "usa": "USA", "us": "USA", "united states": "USA", "united states of america": "USA",
+  "america": "USA", "abd": "USA",
+  "ireland": "Ireland", "republic of ireland": "Ireland", "irlanda": "Ireland", "i̇rlanda": "Ireland",
+  "malta": "Malta",
+  "canada": "Canada", "kanada": "Canada",
+  "uae": "UAE", "united arab emirates": "UAE", "dubai": "UAE", "bae": "UAE",
+  "south africa": "South Africa", "guney afrika": "South Africa", "güney afrika": "South Africa",
+  "australia": "Australia", "avustralya": "Australia",
+  "new zealand": "New Zealand", "yeni zelanda": "New Zealand",
+  "germany": "Germany", "almanya": "Germany", "deutschland": "Germany",
+  "spain": "Spain", "ispanya": "Spain", "i̇spanya": "Spain",
+  "france": "France", "fransa": "France",
+  "italy": "Italy", "italya": "Italy", "i̇talya": "Italy",
+  "cyprus": "Cyprus", "kibris": "Cyprus", "kıbrıs": "Cyprus",
+  "austria": "Austria", "avusturya": "Austria",
+  "switzerland": "Switzerland", "isvicre": "Switzerland", "i̇sviçre": "Switzerland",
+  "netherlands": "Netherlands", "hollanda": "Netherlands",
+};
+function normCountry(c) {
+  const k = (c || "").trim().toLowerCase();
+  if (!k) return "";
+  return COUNTRY_ALIAS_NORM[k] || (c || "").trim();
+}
+// İki ülke adı aynı ülkeyi mi gösteriyor?
+function sameCountry(a, b) {
+  const na = normCountry(a), nb = normCountry(b);
+  if (!na || !nb) return true;              // biri boşsa kısıt uygulanmaz
+  return na.toLowerCase() === nb.toLowerCase();
+}
+
 function parseCSV(csv) {
   const lines = csv.trim().split("\n");
   const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
@@ -229,7 +265,7 @@ async function fetchNav(isStaff) {
     if (row.parse_status !== "approved") return;
     const { city, school_brand: brand, drive_link = "" } = row;
     const langRaw = row.language || "İngilizce";
-    const countryTRName = countryTR[row.country] || row.country;
+    const countryTRName = countryTR[normCountry(row.country)] || countryTR[row.country] || row.country;
     // Staff: sheetId'yi drive_link'ten çıkar (doğrudan gviz için).
     // Customer: sheetId React'e HİÇ gelmez; sadece brand ismi tutulur (proxy alias çözer).
     if (brand && !schoolSheets[brand]) {
@@ -321,7 +357,7 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
       const cityList = (r.city || "").split(",").map(s => s.trim());
       const cityMatch = !r.city || r.city === "all" || cityList.includes(city);
       if (!cityMatch) return false;
-      if (r.city === "all" && r.country && r.country !== "all" && cityCountry && r.country !== cityCountry) return false;
+      if (r.city === "all" && r.country && r.country !== "all" && cityCountry && !sameCountry(r.country, cityCountry)) return false;
       return true;
     }).map(r => ({
       discount_type: (r.discount_type || "").trim(),
