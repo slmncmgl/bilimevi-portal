@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v81-konaklama-2satir-transfer-ciftyon-2026-08-21";
+const BFT_BUILD_VERSION = "v82-ulke-siralama-bayrak-2026-08-21";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -600,6 +600,27 @@ function transferPrice(dest) {
   if (!t) return 0;
   if (!dest.transferRoundTrip) return t.one_way || 0;
   return (t.two_way && t.two_way > 0) ? t.two_way : (t.one_way || 0) * 2;
+}
+
+// Ülke seçim ekranı: bayrak + tercih sırası (en çok tercih edilen başta)
+const COUNTRY_FLAG = {
+  "İngiltere": "🇬🇧", "Malta": "🇲🇹", "İrlanda": "🇮🇪", "Kanada": "🇨🇦", "ABD": "🇺🇸",
+  "Avustralya": "🇦🇺", "Yeni Zelanda": "🇳🇿", "Güney Afrika": "🇿🇦", "BAE": "🇦🇪",
+  "Dubai": "🇦🇪", "İspanya": "🇪🇸", "Almanya": "🇩🇪", "Fransa": "🇫🇷", "İtalya": "🇮🇹",
+  "Avusturya": "🇦🇹", "İsviçre": "🇨🇭", "Hollanda": "🇳🇱", "Belçika": "🇧🇪", "Portekiz": "🇵🇹",
+  "Kıbrıs": "🇨🇾", "Japonya": "🇯🇵", "Güney Kore": "🇰🇷", "Singapur": "🇸🇬", "Türkiye": "🇹🇷",
+};
+const COUNTRY_ORDER = ["İngiltere","Malta","İrlanda","Kanada","ABD","Avustralya","Yeni Zelanda","Güney Afrika","BAE","Dubai","İspanya"];
+// Tercih sırasına göre dizer; listede olmayanlar sona alfabetik eklenir.
+function sortCountries(list) {
+  const arr = [...(list || [])];
+  return arr.sort((a, b) => {
+    const ia = COUNTRY_ORDER.indexOf(a), ib = COUNTRY_ORDER.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b, "tr");
+  });
 }
 
 function calcFees(fees, weeks, age, accType, accWeeks) {
@@ -1792,7 +1813,7 @@ export default function FiyatTeklifi() {
                 {nav.languages.filter(l => isStaff || l === "İngilizce").map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
                 <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
               </div>
-              {(isStaff || !FIXED_COUNTRY) && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{(nav.countries[cur.lang]||[]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{c}</div>))}</div></>}
+              {(isStaff || !FIXED_COUNTRY) && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{sortCountries(nav.countries[cur.lang]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{COUNTRY_FLAG[c] ? <span style={{ marginRight:6, fontSize:16 }}>{COUNTRY_FLAG[c]}</span> : null}{c}</div>))}</div></>}
               {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
               {!cur.isOnline && cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
               {cur.isOnline && <>
