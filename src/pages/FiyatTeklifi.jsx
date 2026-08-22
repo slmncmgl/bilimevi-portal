@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v84-ulke-normalizasyon-2026-08-21";
+const BFT_BUILD_VERSION = "v85-latin-amerika-bayrak-2026-08-21";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -168,6 +168,14 @@ const COUNTRY_ALIAS_NORM = {
   "austria": "Austria", "avusturya": "Austria",
   "switzerland": "Switzerland", "isvicre": "Switzerland", "i̇sviçre": "Switzerland",
   "netherlands": "Netherlands", "hollanda": "Netherlands",
+  "argentina": "Argentina", "arjantin": "Argentina",
+  "chile": "Chile", "sili": "Chile", "şili": "Chile",
+  "colombia": "Colombia", "kolombiya": "Colombia",
+  "costa rica": "Costa Rica", "kosta rika": "Costa Rica",
+  "dominican republic": "Dominican Republic", "dominik cumhuriyeti": "Dominican Republic",
+  "ecuador": "Ecuador", "ekvador": "Ecuador",
+  "guatemala": "Guatemala", "mexico": "Mexico", "meksika": "Mexico",
+  "peru": "Peru", "uruguay": "Uruguay", "brazil": "Brazil", "brezilya": "Brazil",
 };
 function normCountry(c) {
   const k = (c || "").trim().toLowerCase();
@@ -255,6 +263,9 @@ async function fetchNav(isStaff) {
     "Austria":"Avusturya","Switzerland":"İsviçre","Netherlands":"Hollanda",
     "Belgium":"Belçika","Portugal":"Portekiz","Japan":"Japonya",
     "South Korea":"Güney Kore","Singapore":"Singapur","Online":"Online",
+    "Argentina":"Arjantin","Chile":"Şili","Colombia":"Kolombiya","Costa Rica":"Kosta Rika",
+    "Dominican Republic":"Dominik Cumhuriyeti","Ecuador":"Ekvador","Guatemala":"Guatemala",
+    "Mexico":"Meksika","Peru":"Peru","Uruguay":"Uruguay","Brazil":"Brezilya",
   };
   const languages = new Set();
   const countries = {};
@@ -663,6 +674,13 @@ const COUNTRY_FLAG = {
   "Italy": "🇮🇹", "Austria": "🇦🇹", "Switzerland": "🇨🇭", "Netherlands": "🇳🇱",
   "Belgium": "🇧🇪", "Portugal": "🇵🇹", "Cyprus": "🇨🇾", "Japan": "🇯🇵",
   "South Korea": "🇰🇷", "Singapore": "🇸🇬",
+  // Latin Amerika
+  "Argentina": "🇦🇷", "Arjantin": "🇦🇷", "Chile": "🇨🇱", "Şili": "🇨🇱",
+  "Colombia": "🇨🇴", "Kolombiya": "🇨🇴", "Costa Rica": "🇨🇷", "Kosta Rika": "🇨🇷",
+  "Dominican Republic": "🇩🇴", "Dominik Cumhuriyeti": "🇩🇴",
+  "Ecuador": "🇪🇨", "Ekvador": "🇪🇨", "Guatemala": "🇬🇹",
+  "Mexico": "🇲🇽", "Meksika": "🇲🇽", "Peru": "🇵🇪",
+  "Uruguay": "🇺🇾", "Brazil": "🇧🇷", "Brezilya": "🇧🇷",
 };
 const COUNTRY_ORDER = ["İngiltere","Malta","İrlanda","Kanada","ABD","Avustralya","Yeni Zelanda","Güney Afrika","BAE","Dubai","İspanya"];
 // Tercih sırasına göre dizer; listede olmayanlar sona alfabetik eklenir.
