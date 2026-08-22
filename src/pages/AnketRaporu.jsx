@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.29";
+const VERSION = "v1.30";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -445,6 +445,7 @@ export default function AnketRaporu() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showCommentChoice, setShowCommentChoice] = useState(false);
   const [selectedComments, setSelectedComments] = useState([]);
+  const [showNegativeInfo, setShowNegativeInfo] = useState(false);
   const [showInfoPopup, setShowInfoPopup] = useState(() => {
     try {
       const session = getSession();
@@ -807,6 +808,7 @@ export default function AnketRaporu() {
     setSelectedComments(comments.map((_, i) => i)); // varsayılan: hepsi seçili
     setShowCommentChoice(false);
     setView("comment-picker");
+    if (comments.some(c => c.negative)) setShowNegativeInfo(true);
   }
 
   function toggleComment(i) {
@@ -920,9 +922,6 @@ export default function AnketRaporu() {
               Vazgeç
             </button>
             <h2 style={styles.commentsTitle}>Rapora Eklenecek Yorumları Seçin</h2>
-            <p style={styles.pickerHint} className="ar-picker-hint">
-              Genel anket puanı 5 üzerinden 3'ün altında olan yorumlar <em>tahmini olarak</em> olumsuz olarak işaretlenmiştir.
-            </p>
             <div style={styles.pickerToolbar}>
               <button
                 onClick={() => setSelectedComments(selectedComments.length === comments.length ? [] : comments.map((_, i) => i))}
@@ -952,7 +951,6 @@ export default function AnketRaporu() {
                   />
                   <span style={styles.commentText}>
                     {c.negative && <strong style={styles.negativeWarning}>! </strong>}
-                    {c.name && <strong style={styles.commentName}>{c.name}: </strong>}
                     {c.text}
                   </span>
                 </div>
@@ -1157,6 +1155,23 @@ export default function AnketRaporu() {
         )}
       </main>
 
+      {/* Olumsuz Yorum Bilgi Popup'ı */}
+      {showNegativeInfo && (
+        <div onClick={() => setShowNegativeInfo(false)} style={styles.popupOverlay}>
+          <div onClick={e => e.stopPropagation()} style={styles.popupCard} className="ar-popup-card">
+            <div style={styles.popupHeader}>
+              <h3 style={styles.popupTitle}>Bilgilendirme</h3>
+            </div>
+            <p style={styles.infoListItem}>
+              Genel anket puanı 5 üzerinden 3'ün altında olan yorumlar <em>tahmini olarak</em> olumsuz olarak işaretlenmiştir.
+            </p>
+            <button onClick={() => setShowNegativeInfo(false)} style={{ ...styles.popupCloseBtnPrimary, marginTop: "18px" }}>
+              Tamam
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Yorum Seçim Popup'ı */}
       {showCommentChoice && (
         <div onClick={() => setShowCommentChoice(false)} style={styles.popupOverlay}>
@@ -1240,14 +1255,6 @@ export default function AnketRaporu() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         * { box-sizing: border-box; }
-        @keyframes arSoftFlash {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.45; }
-        }
-        .ar-picker-hint { animation: arSoftFlash 2.2s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) {
-          .ar-picker-hint { animation: none; }
-        }
         @media (max-width: 640px) {
           .ar-header-inner { padding: 12px 16px !important; }
           .ar-main { padding: 20px 12px 48px !important; }
@@ -1324,7 +1331,6 @@ const styles = {
   infoList: { margin: "0 0 18px", paddingLeft: "18px", display: "flex", flexDirection: "column", gap: "10px" },
   choiceBtnGroup: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" },
   cancelBtn: { width: "100%", padding: "10px", background: "transparent", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#94a3b8", fontFamily: "inherit" },
-  pickerHint: { fontSize: "12.5px", color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "10px 14px", marginBottom: "14px", lineHeight: 1.6 },
   pickerToolbar: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "14px", flexWrap: "wrap" },
   pickerToolbarBtn: { padding: "8px 14px", background: "#eef2ff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "12.5px", fontWeight: "700", color: "#4338ca", fontFamily: "inherit" },
   pickerCount: { fontSize: "12.5px", color: "#94a3b8", fontWeight: "600" },
