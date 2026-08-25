@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v87-drive-arsiv-2026-08-22";
+const BFT_BUILD_VERSION = "v89-gecmis-teklifler-butonu-2026-08-25";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -910,6 +910,8 @@ export default function FiyatTeklifi() {
   const [pdfLoading, setPdfLoading] = useState(false);
   // Özel onay modalı: { title, message, hint, confirmLabel, danger, onConfirm } | null
   const [confirmModal, setConfirmModal] = useState(null);
+  // Danışmanın Drive arşiv klasörü URL'i (sadece staff). null = yok/henüz bilinmiyor.
+  const [arsivUrl, setArsivUrl] = useState(null);
   const [preselectDone, setPreselectDone] = useState(false); // URL okul+şehir bir kez işlendi mi
   const [urlWarning, setUrlWarning] = useState(""); // eşleşmezse üst banner uyarısı
 
@@ -920,6 +922,20 @@ export default function FiyatTeklifi() {
       if (!isStaff) setNavError(err.rateLimited ? err.message : "Veri yüklenemedi, bir süre sonra tekrar deneyiniz.");
     });
   }, []);
+
+  // Danışmanın Drive arşiv klasörü URL'i — SADECE STAFF.
+  // Tıklama anında istek atarsak tarayıcı yeni sekmeyi engelliyor, o yüzden önceden alınır.
+  // Klasör yoksa (hiç teklif oluşturulmamışsa) buton hiç görünmez.
+  useEffect(() => {
+    if (!isStaff || !TEKLIF_ARSIV_URL || !user?.name) return;
+    fetch(TEKLIF_ARSIV_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "klasorUrl", advisorName: user.name, advisorEmail: user.email || "" }),
+    })
+      .then(r => r.json())
+      .then(j => { if (j?.success && j.exists && j.url) setArsivUrl(j.url); })
+      .catch(e => console.warn("[BFT] Arşiv klasörü sorgulanamadı:", e));
+  }, [isStaff, user?.name, user?.email]);
 
   // Customer modunda dil varsayilan İngilizce (Almanca/Fransızca gizli); ulke FIXED_COUNTRY ile sabit
   useEffect(() => {
@@ -1642,18 +1658,17 @@ export default function FiyatTeklifi() {
       // PDF zaten inmiş durumda. Tarayıcı kapatılırsa o teklif arşivlenmez (kabul edilen davranış).
       if (isStaff && TEKLIF_ARSIV_URL && user?.name) {
         try {
-          // Drive dosya adı: öğrenci adı YOK — okul-şehir çiftleri + tarih/saat
+          // Drive dosya adı: öğrenci adı YOK — okul-şehir çiftleri + ay/yıl
           const okullar = destinations
             .map(d => `${d.brand || ""}-${d.city || ""}`.replace(/^-|-$/g, ""))
             .filter(Boolean).join("_") || "Teklif";
           const now = new Date();
-          const p2 = n => String(n).padStart(2, "0");
-          const stamp = `${now.getFullYear()}-${p2(now.getMonth()+1)}-${p2(now.getDate())}_${p2(now.getHours())}-${p2(now.getMinutes())}`;
+          const stamp = `${MONTHS[now.getMonth()]}-${now.getFullYear()}`;   // örn. Ağustos-2026
           const driveName = `${okullar}_${stamp}.pdf`.replace(/\s+/g, "-");
           const b64 = doc.output("datauristring").split(",")[1];
           fetch(TEKLIF_ARSIV_URL, {
             method: "POST",
-            body: JSON.stringify({ action: "teklifKaydet", advisorName: user.name, fileName: driveName, pdfBase64: b64 }),
+            body: JSON.stringify({ action: "teklifKaydet", advisorName: user.name, advisorEmail: user.email || "", fileName: driveName, pdfBase64: b64 }),
           })
             .then(r => r.json()).then(j => console.log("[BFT] Drive arşiv:", j))
             .catch(e => console.warn("[BFT] Drive arşivlenemedi (PDF yine de indi):", e));
@@ -1927,7 +1942,14 @@ export default function FiyatTeklifi() {
                   {["Erkek","Kadın"].map(g => (<div key={g} style={{ ...S.cinsiyetBtn, ...(student.gender===g ? S.cinsiyetBtnActive : {}) }} onClick={() => setStudent(p => ({...p, gender:g}))}>{g}</div>))}
                 </div>
               </div>
-              <div style={{ display:"flex", justifyContent:"flex-end", marginTop:24 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:24, gap:12, flexWrap:"wrap" }}>
+                {/* Geçmiş Teklifler — SADECE staff, klasör varsa. Customer'da hiç render edilmez. */}
+                {isStaff && arsivUrl ? (
+                  <a href={arsivUrl} target="_blank" rel="noopener noreferrer"
+                    style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:10, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, fontWeight:600, fontSize:14, textDecoration:"none", fontFamily:"inherit" }}>
+                    📁 Geçmiş Teklifler
+                  </a>
+                ) : <span />}
                 <button onClick={next} disabled={!canNext} style={{ ...S.btnNext, opacity: !canNext ? 0.5 : 1, cursor: !canNext ? "not-allowed" : "pointer" }}>İleri →</button>
               </div>
             </div>
