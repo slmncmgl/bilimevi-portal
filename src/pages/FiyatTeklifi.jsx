@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v89-gecmis-teklifler-butonu-2026-08-25";
+const BFT_BUILD_VERSION = "v90-arsiv-buton-hizlandirma-2026-08-25";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -910,8 +910,10 @@ export default function FiyatTeklifi() {
   const [pdfLoading, setPdfLoading] = useState(false);
   // Özel onay modalı: { title, message, hint, confirmLabel, danger, onConfirm } | null
   const [confirmModal, setConfirmModal] = useState(null);
-  // Danışmanın Drive arşiv klasörü URL'i (sadece staff). null = yok/henüz bilinmiyor.
+  // Danışmanın Drive arşiv klasörü (sadece staff).
+  // durum: "loading" (buton pasif görünür) | "ready" (aktif link) | "none" (buton gizli)
   const [arsivUrl, setArsivUrl] = useState(null);
+  const [arsivDurum, setArsivDurum] = useState("loading");
   const [preselectDone, setPreselectDone] = useState(false); // URL okul+şehir bir kez işlendi mi
   const [urlWarning, setUrlWarning] = useState(""); // eşleşmezse üst banner uyarısı
 
@@ -925,16 +927,30 @@ export default function FiyatTeklifi() {
 
   // Danışmanın Drive arşiv klasörü URL'i — SADECE STAFF.
   // Tıklama anında istek atarsak tarayıcı yeni sekmeyi engelliyor, o yüzden önceden alınır.
-  // Klasör yoksa (hiç teklif oluşturulmamışsa) buton hiç görünmez.
+  // Sonuç sessionStorage'a yazılır: aynı oturumda tekrar girildiğinde buton ANINDA gelir.
   useEffect(() => {
     if (!isStaff || !TEKLIF_ARSIV_URL || !user?.name) return;
+    const cacheKey = "bft_arsiv_url_" + user.name;
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached !== null) {                       // cache var → istek atma
+        if (cached) { setArsivUrl(cached); setArsivDurum("ready"); }
+        else setArsivDurum("none");
+        return;
+      }
+    } catch (e) { /* sessionStorage kapalıysa normal akış */ }
     fetch(TEKLIF_ARSIV_URL, {
       method: "POST",
       body: JSON.stringify({ action: "klasorUrl", advisorName: user.name, advisorEmail: user.email || "" }),
     })
       .then(r => r.json())
-      .then(j => { if (j?.success && j.exists && j.url) setArsivUrl(j.url); })
-      .catch(e => console.warn("[BFT] Arşiv klasörü sorgulanamadı:", e));
+      .then(j => {
+        const url = (j?.success && j.exists && j.url) ? j.url : "";
+        try { sessionStorage.setItem(cacheKey, url); } catch (e) {}
+        if (url) { setArsivUrl(url); setArsivDurum("ready"); }
+        else setArsivDurum("none");
+      })
+      .catch(e => { console.warn("[BFT] Arşiv klasörü sorgulanamadı:", e); setArsivDurum("none"); });
   }, [isStaff, user?.name, user?.email]);
 
   // Customer modunda dil varsayilan İngilizce (Almanca/Fransızca gizli); ulke FIXED_COUNTRY ile sabit
@@ -1943,12 +1959,19 @@ export default function FiyatTeklifi() {
                 </div>
               </div>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:24, gap:12, flexWrap:"wrap" }}>
-                {/* Geçmiş Teklifler — SADECE staff, klasör varsa. Customer'da hiç render edilmez. */}
-                {isStaff && arsivUrl ? (
-                  <a href={arsivUrl} target="_blank" rel="noopener noreferrer"
-                    style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:10, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, fontWeight:600, fontSize:14, textDecoration:"none", fontFamily:"inherit" }}>
-                    📁 Geçmiş Teklifler
-                  </a>
+                {/* Geçmiş Teklifler — SADECE staff. loading: pasif görünür (layout zıplamasın),
+                    ready: aktif link, none: hiç gösterilmez. Customer'da hiç render edilmez. */}
+                {isStaff && TEKLIF_ARSIV_URL && arsivDurum !== "none" ? (
+                  arsivDurum === "ready" ? (
+                    <a href={arsivUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:10, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, fontWeight:600, fontSize:14, textDecoration:"none", fontFamily:"inherit" }}>
+                      📁 Geçmiş Teklifler
+                    </a>
+                  ) : (
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:10, border:"1.5px solid #e2e8f0", background:"#f8fafc", color:"#94a3b8", fontWeight:600, fontSize:14, cursor:"default", userSelect:"none" }}>
+                      📁 Geçmiş Teklifler
+                    </span>
+                  )
                 ) : <span />}
                 <button onClick={next} disabled={!canNext} style={{ ...S.btnNext, opacity: !canNext ? 0.5 : 1, cursor: !canNext ? "not-allowed" : "pointer" }}>İleri →</button>
               </div>
