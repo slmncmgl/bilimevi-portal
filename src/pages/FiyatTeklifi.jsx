@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v85-latin-amerika-bayrak-2026-08-21";
+const BFT_BUILD_VERSION = "v87-drive-arsiv-2026-08-22";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -143,6 +143,9 @@ function filterDialList(query) {
 // Customer (WordPress): env yok → undefined → ama proxy kullanıldığı için MASTER_ID hiç çağrılmaz.
 // Literal ID YOK — hiçbir build'de kaynak koda sızmaz.
 const MASTER_ID = import.meta.env.VITE_MASTER_ID;
+// Teklif arşivleme (Drive) Apps Script URL'i — sadece staff (Vercel) ortamında tanımlı.
+// Customer/WordPress build'inde undefined kalır, arşivleme hiç çalışmaz.
+const TEKLIF_ARSIV_URL = import.meta.env.VITE_TEKLIF_ARSIV_URL;
 const CYAN = "#00C1DE";
 
 // Ülke adı normalizasyonu — sheet'lerde aynı ülke farklı yazılabiliyor
@@ -319,11 +322,23 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
   const getTab = (tab) => isStaff
     ? fetchCSVStaff(sheetId, tab)
     : fetchCSVProxy({ sheet: "school", brand, tab });
+  // Kritik sekmeler için tek seferlik yeniden deneme.
+  // Google gviz / proxy ara sıra yavaş yanıtlıyor veya rate-limit uyguluyor;
+  // tek denemede düşünce kurs listesi sessizce boş kalıyordu.
+  const getTabRetry = async (tab) => {
+    try {
+      return await getTab(tab);
+    } catch (e) {
+      console.warn(`[BFT] ${tab} ilk denemede alınamadı, tekrar deneniyor...`, e);
+      await new Promise(r => setTimeout(r, 600));
+      return await getTab(tab);   // başarısız olursa hata yukarı fırlar
+    }
+  };
   try {
     const [courseRows, accRows, feeRows, transferRows, discountRows] = await Promise.all([
-      getTab("courses"),
-      getTab("accommodation"),
-      getTab("fees"),
+      getTabRetry("courses"),
+      getTabRetry("accommodation"),
+      getTabRetry("fees"),
       getTab("transfers").catch(() => []),
       getTab("discounts").catch(() => []),
     ]);
@@ -389,7 +404,10 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
     return result;
   } catch (e) {
     console.error("fetchCityData error:", e);
-    return { courses: [], acc: [], fees: [], transfers: [], discounts: [] };
+    // ÖNEMLİ: boş veri DÖNDÜRÜLMEZ. Boş dönerse cityData "dolu" sayılıp
+    // yükleme efekti bir daha çalışmıyor ve kurs listesi kalıcı boş kalıyordu.
+    // Hatayı yukarı fırlatınca cityData null kalır → tekrar denenebilir.
+    throw e;
   }
 }
 
@@ -699,7 +717,13 @@ function sortCountries(list) {
   });
 }
 
-function calcFees(fees, weeks, age, accType, accWeeks) {
+// Ücret adı konaklamaya mı bağlı? (konaklama seçilmediyse bunlar eklenmez)
+function isAccommodationFee(name) {
+  const n = (name || "").toLowerCase();
+  return /accommodation|homestay|host family|residence|student apartment|konaklama/.test(n);
+}
+
+function calcFees(fees, weeks, age, accType, accWeeks, hasAcc = true) {
   const currency = fees?.[0]?.currency || "GBP";
   const items = [];
   let total = 0;
@@ -711,6 +735,8 @@ function calcFees(fees, weeks, age, accType, accWeeks) {
          n.includes("material") || n.includes("materyal") || n.includes("administration") ||
          n.includes("booking") || n.includes("pel protection") || n.includes("protection of enrolled"));
     if (!isCompulsory) return;
+    // Konaklama seçilmediyse konaklamaya bağlı ücretler (yerleştirme/ayarlama vb.) atlanır
+    if (!hasAcc && isAccommodationFee(f.name)) return;
     const hasTier = f.tier_min || f.tier_max;
     if (hasTier) {
       const inRange = (!f.tier_min || weeks >= f.tier_min) && (!f.tier_max || weeks <= f.tier_max);
@@ -941,7 +967,8 @@ export default function FiyatTeklifi() {
       .catch(err => {
         console.error("[BFT] Şehir verisi yüklenemedi:", err);
         setCur(p => ({ ...p, cityLoading: false }));
-        if (!isStaff) setNavError(err.rateLimited ? err.message : "Veri yüklenemedi, bir süre sonra tekrar deneyiniz.");
+        // Staff'ta da göster: sessiz boş liste yerine açık hata + yeniden dene
+        setNavError(err.rateLimited ? err.message : "Okul verileri yüklenemedi. Lütfen tekrar deneyiniz.");
       });
   }, [cur.city, cur.brand, nav.schoolSheets, cur.isOnline, cur.cityData]);
 
@@ -949,7 +976,7 @@ export default function FiyatTeklifi() {
   const accs = cur.cityData?.acc || [];
   const feesData = cur.isOnline
     ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-    : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks);
+    : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks, !!cur.acc);
   const coursePriceData = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
   const accPriceData = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.accWeeks || cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
   const courseTotal = coursePriceData.totalPrice;
@@ -1166,7 +1193,7 @@ export default function FiyatTeklifi() {
         if (idx > 0) doc.addPage();
         const f = d.isOnline
           ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-          : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
+          : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"GBP", EUR:"EUR", USD:"USD", CAD:"CAD" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
@@ -1498,7 +1525,7 @@ export default function FiyatTeklifi() {
         const cols = destinations.map(d => {
           const f = d.isOnline
             ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-            : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
+            : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
           const dt = getDestinationTotals(d, f);
           const cur = d.course?.currency || f.currency || "GBP";
           return { d, f, dt, cur };
@@ -1609,6 +1636,31 @@ export default function FiyatTeklifi() {
       const filename = `Bilimevi_Teklif_${(leadForm.name || student.name || "Teklif").replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.pdf`;
       doc.save(filename);
       console.log("[BFT] PDF kaydedildi:", filename);
+
+      // ─── Drive arşivi (sadece staff) ───
+      // Ghost istek: await YOK, sonucu beklenmiyor. Başarısız olursa kullanıcı etkilenmez,
+      // PDF zaten inmiş durumda. Tarayıcı kapatılırsa o teklif arşivlenmez (kabul edilen davranış).
+      if (isStaff && TEKLIF_ARSIV_URL && user?.name) {
+        try {
+          // Drive dosya adı: öğrenci adı YOK — okul-şehir çiftleri + tarih/saat
+          const okullar = destinations
+            .map(d => `${d.brand || ""}-${d.city || ""}`.replace(/^-|-$/g, ""))
+            .filter(Boolean).join("_") || "Teklif";
+          const now = new Date();
+          const p2 = n => String(n).padStart(2, "0");
+          const stamp = `${now.getFullYear()}-${p2(now.getMonth()+1)}-${p2(now.getDate())}_${p2(now.getHours())}-${p2(now.getMinutes())}`;
+          const driveName = `${okullar}_${stamp}.pdf`.replace(/\s+/g, "-");
+          const b64 = doc.output("datauristring").split(",")[1];
+          fetch(TEKLIF_ARSIV_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "teklifKaydet", advisorName: user.name, fileName: driveName, pdfBase64: b64 }),
+          })
+            .then(r => r.json()).then(j => console.log("[BFT] Drive arşiv:", j))
+            .catch(e => console.warn("[BFT] Drive arşivlenemedi (PDF yine de indi):", e));
+        } catch (e) {
+          console.warn("[BFT] Drive arşiv hazırlanamadı:", e);
+        }
+      }
     } catch (err) {
       console.error("[BFT] PDF HATASI:", err);
       const msg = err?.message || err?.toString?.() || "Bilinmeyen hata";
@@ -1654,7 +1706,7 @@ export default function FiyatTeklifi() {
             consentAdvisor: !!leadForm.consentAdvisor,
             subSource: SUB_SOURCE,
             destinations: destinations.map(d => {
-              const _f = d.isOnline ? { items:[], total:65 } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
+              const _f = d.isOnline ? { items:[], total:65 } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
               const _dt = getDestinationTotals(d, _f);
               return { city: d.city, brand: d.brand, weeks: d.weeks,
                 course: d.course?.name, total: _dt.grandTotal, currency: d.course?.currency || _f.currency || "GBP" };
@@ -1681,7 +1733,7 @@ export default function FiyatTeklifi() {
         <button onClick={() => setUrlWarning("")} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:"#92400e", lineHeight:1, padding:"0 4px" }}>×</button>
       </div>
     )}
-    {navError && !isStaff && (
+    {navError && (
       <div style={{ position:"fixed", inset:0, background:"rgba(255,255,255,0.96)", zIndex:99998, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:24, textAlign:"center" }}>
         <p style={{ fontSize:16, fontWeight:600, color:"#0f172a", marginBottom:8 }}>{navError}</p>
         <button onClick={() => { setNavError(""); window.location.reload(); }}
@@ -2061,7 +2113,7 @@ export default function FiyatTeklifi() {
                 const allFees = cur.cityData?.fees || [];
                 const age = parseInt(student.age) || 0;
                 const startD = cur.startDate ? new Date(cur.startDate) : null;
-                const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks).items;
+                const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks, !!cur.acc).items;
                 const optional = allFees.filter(f => {
                   if (!["optional_service","supplement","upgrade","course_addon","post_departure"].includes(f.addon_type)) return false;
                   if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
@@ -2156,7 +2208,7 @@ export default function FiyatTeklifi() {
               <h2 style={S.ttl}>Teklif Özeti</h2>
               {destinations.length === 0 && <p style={{ color:"#94a3b8" }}>Henüz destinasyon eklenmedi.</p>}
               {destinations.map((d,i) => {
-                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
+                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
                 const cur2 = d.course?.currency || f.currency;
                 const sD = d.startDate ? new Date(d.startDate) : null;
                 const eD = sD ? addWeeksToDate(sD, d.weeks) : null;
@@ -2281,7 +2333,7 @@ function PdfTemplate({ destinations, student, user, logoSrc }) {
   return (
     <div id="pdf-area" style={{ display:"none", fontFamily:"Arial, Helvetica, sans-serif", background:"#fff" }}>
       {destinations.map((d, idx) => {
-        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks);
+        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
