@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v90-arsiv-buton-hizlandirma-2026-08-25";
+const BFT_BUILD_VERSION = "v91-arsiv-cache-fix-2026-08-25";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -945,12 +945,23 @@ export default function FiyatTeklifi() {
     })
       .then(r => r.json())
       .then(j => {
-        const url = (j?.success && j.exists && j.url) ? j.url : "";
+        console.log("[BFT] Arşiv klasörü yanıtı:", j);
+        if (!j || j.success !== true) {
+          // Hata/bilinmeyen yanıt: CACHE'E YAZMA — geçici sorun kalıcı hale gelmesin
+          console.warn("[BFT] Arşiv sorgusu başarısız, cache yazılmadı:", j?.msg || j);
+          setArsivDurum("none");
+          return;
+        }
+        const url = (j.exists && j.url) ? j.url : "";
         try { sessionStorage.setItem(cacheKey, url); } catch (e) {}
         if (url) { setArsivUrl(url); setArsivDurum("ready"); }
         else setArsivDurum("none");
       })
-      .catch(e => { console.warn("[BFT] Arşiv klasörü sorgulanamadı:", e); setArsivDurum("none"); });
+      .catch(e => {
+        // Ağ hatası: cache yazma, sadece gizle
+        console.warn("[BFT] Arşiv klasörü sorgulanamadı:", e);
+        setArsivDurum("none");
+      });
   }, [isStaff, user?.name, user?.email]);
 
   // Customer modunda dil varsayilan İngilizce (Almanca/Fransızca gizli); ulke FIXED_COUNTRY ile sabit
