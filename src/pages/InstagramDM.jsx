@@ -1,3 +1,19 @@
+/**
+ * InstagramDM.jsx
+ * CODE_VERSION: v1.0
+ *
+ * V1.0: - Kylas ve Gemini API çağrıları backend proxy'ye taşındı (/api/kylas, /api/gemini)
+ *         Frontend'de API key kalmadı, key'ler Vercel env variable'dan okunuyor
+ *       - Gemini model seçimi backend'e taşındı (api/gemini.js DEFAULT_MODEL)
+ *       - Danışman listesi Sheets'ten (Personel + ID) çekiliyor, şirkete göre filtreleniyor
+ *       - Danışman dropdown'ı Türkçe alfabetik sıralı (localeCompare 'tr')
+ *       - Personel sheet'inde email sabit index yerine "@" içeren hücreden bulunuyor
+ *         (kolon kayması sorununa karşı kalıcı çözüm)
+ *       - Telefon: dialCode/countryCode ayrı parse ediliyor, TR dışı numaralar bozulmuyor
+ *       - "Yurtdışı Lise" checkbox → subSource: "Yurtdisilise"
+ *       - Mobil responsive (grid + telefon/email alt alta)
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets"; 
@@ -79,7 +95,8 @@ export default function InstagramDM() {
       persRows.forEach(row => {
         const name = (row[0] || '').trim();
         const company = (row[1] || '').trim();
-        const email = (row[7] || '').toLowerCase().trim();
+        // Email'i sabit index yerine "@" içeren ilk hücreden bul (kolon kayması sorununa karşı)
+        const email = (row.find(c => (c || '').includes('@')) || '').toLowerCase().trim();
         const ownerId = emailToId[email];
         if (name && company && ownerId) ownerList.push({ name, company, email, ownerId });
       });
