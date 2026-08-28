@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v91-arsiv-cache-fix-2026-08-25";
+const BFT_BUILD_VERSION = "v92-portal-id-preselect-2026-08-26";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -275,11 +275,15 @@ async function fetchNav(isStaff) {
   const citiesByLang = {};
   const brandsByCity = {};
   const schoolSheets = {};
+  const portalIds = {};   // portal_id → { brand, city, country } (URL preselect için)
   rows.forEach(row => {
     if (row.parse_status !== "approved") return;
     const { city, school_brand: brand, drive_link = "" } = row;
     const langRaw = row.language || "İngilizce";
     const countryTRName = countryTR[normCountry(row.country)] || countryTR[row.country] || row.country;
+    // portal_id: URL ile doğrudan okul+şehir seçimi için (?id=3)
+    const pid = (row.portal_id || "").toString().trim();
+    if (pid && brand && city) portalIds[pid] = { brand, city, country: countryTRName };
     // Staff: sheetId'yi drive_link'ten çıkar (doğrudan gviz için).
     // Customer: sheetId React'e HİÇ gelmez; sadece brand ismi tutulur (proxy alias çözer).
     if (brand && !schoolSheets[brand]) {
@@ -310,6 +314,7 @@ async function fetchNav(isStaff) {
     citiesByLang: Object.fromEntries(Object.entries(citiesByLang).map(([l,cm]) => [l, Object.fromEntries(Object.entries(cm).map(([c,s]) => [c,[...s].sort()]))])),
     brandsByCity: Object.fromEntries(Object.entries(brandsByCity).map(([c,s]) => [c,[...s]])),
     schoolSheets,
+    portalIds,
     descriptions,
   };
 }
@@ -977,21 +982,32 @@ export default function FiyatTeklifi() {
     if (isStaff || preselectDone) return;
     if (!nav.brandsByCity || !Object.keys(nav.brandsByCity).length) return; // nav henüz yok
     const params = new URLSearchParams(window.location.search);
+    const pid = (params.get("id") || params.get("portal_id") || "").trim();
     const okul = (params.get("okul") || "").trim();
     const sehir = (params.get("sehir") || "").trim();
-    if (!okul && !sehir) { setPreselectDone(true); return; } // parametre yok, normal akış
-    // master_index'te bu şehir + okul var mı? (brandsByCity: { "London": ["Kaplan", ...] })
-    let matchedCity = null, matchedBrand = null;
-    Object.entries(nav.brandsByCity).forEach(([cityKey, brands]) => {
-      if (cityKey.toLowerCase() === sehir.toLowerCase()) {
-        const brandList = Array.isArray(brands) ? brands : Array.from(brands);
-        const b = brandList.find(x => x.toLowerCase() === okul.toLowerCase());
-        if (b) { matchedCity = cityKey; matchedBrand = b; }
-      }
-    });
+    if (!pid && !okul && !sehir) { setPreselectDone(true); return; } // parametre yok, normal akış
+
+    let matchedCity = null, matchedBrand = null, matchedCountry = null;
+
+    // 1) portal_id ile doğrudan eşleşme (?id=3) — öncelikli yöntem
+    if (pid) {
+      const hit = nav.portalIds?.[pid];
+      if (hit) { matchedCity = hit.city; matchedBrand = hit.brand; matchedCountry = hit.country; }
+    }
+    // 2) Eski format (?okul=Kaplan&sehir=London) — mevcut linkler kırılmasın
+    if (!matchedBrand && (okul || sehir)) {
+      Object.entries(nav.brandsByCity).forEach(([cityKey, brands]) => {
+        if (cityKey.toLowerCase() === sehir.toLowerCase()) {
+          const brandList = Array.isArray(brands) ? brands : Array.from(brands);
+          const b = brandList.find(x => x.toLowerCase() === okul.toLowerCase());
+          if (b) { matchedCity = cityKey; matchedBrand = b; }
+        }
+      });
+    }
+
     if (matchedCity && matchedBrand) {
       // Eşleşti: dil/ülke/şehir/okul set. Genel Bilgi'den sonra Destinasyon atlanıp Kurs'a geçilecek.
-      setCur(p => ({ ...p, lang: "İngilizce", country: FIXED_COUNTRY || "İngiltere", city: matchedCity, brand: matchedBrand }));
+      setCur(p => ({ ...p, lang: "İngilizce", country: FIXED_COUNTRY || matchedCountry || "İngiltere", city: matchedCity, brand: matchedBrand }));
     } else {
       setUrlWarning("Şehir ve okulu tekrar seçin.");
     }
