@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v92-portal-id-preselect-2026-08-26";
+const BFT_BUILD_VERSION = "v93-30plus-filtre-2026-08-26";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -728,6 +728,9 @@ function isAccommodationFee(name) {
   return /accommodation|homestay|host family|residence|student apartment|konaklama/.test(n);
 }
 
+// Şehir adı "30+" programını mı gösteriyor? (sheet yazımı: "London 30+")
+const is30Plus = (c) => /\s30\s*\+/.test(c || "");
+
 function calcFees(fees, weeks, age, accType, accWeeks, hasAcc = true) {
   const currency = fees?.[0]?.currency || "GBP";
   const items = [];
@@ -890,6 +893,8 @@ export default function FiyatTeklifi() {
   const [nav, setNav] = useState({ languages:[], countries:{}, citiesByLang:{}, brandsByCity:{}, schoolSheets:{} });
   const [navError, setNavError] = useState("");
   const [accType, setAccType] = useState("");
+  // "30+" programlı şehir filtresi — kapalıyken 30+ şehirler gizli, açıkken SADECE onlar görünür
+  const [only30, setOnly30] = useState(false);
   const [leadModal, setLeadModal] = useState(false);
   const [phoneValid, setPhoneValid] = useState(null); // null=bilinmiyor/boş, true/false=validasyon
   const [phoneExample, setPhoneExample] = useState(""); // seçili ülke örnek numarası (placeholder)
@@ -2007,14 +2012,25 @@ export default function FiyatTeklifi() {
 
           {stepName === "Destinasyon" && (
             <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>Destinasyon Seçimi</h2>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:12, flexWrap:"wrap", marginBottom:20 }}>
+                <h2 style={{ ...S.ttl, marginBottom:0 }}>Destinasyon Seçimi</h2>
+                {/* 30+ programı filtresi: kapalı=normal şehirler, açık=SADECE 30+ şehirler */}
+                <label style={{ display:"inline-flex", alignItems:"center", gap:8, cursor:"pointer", userSelect:"none", fontSize:13, fontWeight:600, color: only30 ? CYAN : "#64748b" }}>
+                  <span
+                    onClick={() => { setOnly30(v => !v); setCur(p => ({ ...p, city:"", brand:"", course:null, acc:null, cityData:null })); }}
+                    style={{ width:42, height:24, borderRadius:12, background: only30 ? CYAN : "#e2e8f0", position:"relative", transition:"background 0.2s", flexShrink:0, display:"inline-block" }}>
+                    <span style={{ position:"absolute", top:3, left: only30 ? 21 : 3, width:18, height:18, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }} />
+                  </span>
+                  30+
+                </label>
+              </div>
               <p style={S.slbl}>DİL</p>
               <div style={S.g3}>
                 {nav.languages.filter(l => isStaff || l === "İngilizce").map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
                 <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
               </div>
               {(isStaff || !FIXED_COUNTRY) && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{sortCountries(nav.countries[cur.lang]).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{COUNTRY_FLAG[c] ? <span style={{ marginRight:6, fontSize:16 }}>{COUNTRY_FLAG[c]}</span> : null}{c}</div>))}</div></>}
-              {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
+              {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).filter(c => only30 ? is30Plus(c) : !is30Plus(c)).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
               {!cur.isOnline && cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
               {cur.isOnline && <>
                 <p style={S.slbl}>PAKET SEÇİMİ</p>
