@@ -71,7 +71,7 @@ function Toast({ toast }) {
       color: isSuccess ? "#166534" : "#991b1b",
       padding: "14px 24px", borderRadius: "14px", fontSize: "13px", fontWeight: "600",
       boxShadow: "0 4px 24px rgba(30,58,95,0.13)", display: "flex", alignItems: "center",
-      gap: "10px", fontFamily: "'Inter', sans-serif", zIndex: 9999, pointerEvents: "none",
+      gap: "10px", fontFamily: "'Sora', sans-serif", zIndex: 9999, pointerEvents: "none",
     }}>
       {isSuccess ? "✓" : "✕"} {toast.msg}
     </div>
@@ -98,7 +98,7 @@ function FieldInput({ label, value, onChange, taksitSayisi }) {
   const baseStyle = {
     width: "100%", padding: "9px 12px",
     border: `1.5px solid ${isReadonly ? "#f1f5f9" : "#e2e8f0"}`,
-    borderRadius: "10px", fontSize: "13px", fontFamily: "'Inter', sans-serif",
+    borderRadius: "10px", fontSize: "13px", fontFamily: "'Sora', sans-serif",
     color: isReadonly ? "#94a3b8" : "#0f172a",
     background: isReadonly ? "#f8fafc" : "#fff",
     outline: "none", boxSizing: "border-box",
@@ -158,7 +158,7 @@ export default function KayitGuncelle() {
   useEffect(() => {
     if (!user?.name) return;
     setOgrencilerLoading(true);
-    fetch(`${FETCH_URL}?danisman=${encodeURIComponent(user.name)}`)
+    fetch(`${FETCH_URL}?danisman=${encodeURIComponent(user.name)}&_t=${Date.now()}`, { cache: "no-store" })
       .then(r => r.json())
       .then(json => { if (json.found && json.list) setOgrencilerim(json.list); })
       .catch(() => {})
@@ -178,7 +178,7 @@ export default function KayitGuncelle() {
     if (tcParam) setTc(targetTC);
     setLoading(true);
     try {
-      const res = await fetch(`${FETCH_URL}?tc=${targetTC}`);
+      const res = await fetch(`${FETCH_URL}?tc=${targetTC}&_t=${Date.now()}`, { cache: "no-store" });
       const json = await res.json();
       if (!json.found) return showToast("Bu TC ile kayıt bulunamadı", "error");
       setData(json.data);
@@ -205,6 +205,7 @@ export default function KayitGuncelle() {
   async function gonder() {
     if (!data) return;
 
+    // Aktif taksit satırlarında boş alan kontrolü
     const taksitSayisi = parseInt(data["Taksit Sayısı"], 10) || 0;
     for (let i = 1; i <= taksitSayisi; i++) {
       const donem = data[`${i}. Taksit Dönemi`];
@@ -214,6 +215,7 @@ export default function KayitGuncelle() {
       }
     }
 
+    // Taksit toplamı kontrolü
     const toplamUcret = parseFloat(data["Toplam Program Ücreti"]) || 0;
     if (toplamUcret > 0 && taksitSayisi > 0) {
       const taksitToplam = Array.from({ length: taksitSayisi }, (_, i) =>
@@ -426,7 +428,7 @@ export default function KayitGuncelle() {
 }
 
 const s = {
-  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative" },
+  root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: -1, pointerEvents: "none" },
   bgGlow: { position: "fixed", top: "-10%", right: "-5%", width: "500px", height: "500px", background: "radial-gradient(circle, #cffafe44 0%, transparent 70%)", zIndex: -1, pointerEvents: "none" },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 100 },
