@@ -153,7 +153,11 @@ export default function KayitGuncelle() {
   const [ogrencilerim, setOgrencilerim] = useState([]);
   const [ogrencilerLoading, setOgrencilerLoading] = useState(false);
   const [sayfa, setSayfa] = useState(1);
+  const [sozlesmeModal, setSozlesmeModal] = useState(null);
+  const [gonderOnay, setGonderOnay] = useState(null);
+  const [gonderilenTC, setGonderilenTC] = useState(null);
   const SAYFA_BOYUTU = 10;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
   useEffect(() => {
     if (!user?.name) return;
@@ -202,24 +206,25 @@ export default function KayitGuncelle() {
     });
   }
 
-  async function gonder() {
-    if (!data) return;
+  async function gonder(kayit) {
+    const kayitData = kayit || data;
+    if (!kayitData) return;
 
     // Aktif taksit satırlarında boş alan kontrolü
-    const taksitSayisi = parseInt(data["Taksit Sayısı"], 10) || 0;
+    const taksitSayisi = parseInt(kayitData["Taksit Sayısı"], 10) || 0;
     for (let i = 1; i <= taksitSayisi; i++) {
-      const donem = data[`${i}. Taksit Dönemi`];
-      const tutar = data[`${i}. Taksit Tutarı`];
+      const donem = kayitData[`${i}. Taksit Dönemi`];
+      const tutar = kayitData[`${i}. Taksit Tutarı`];
       if (!donem || !tutar) {
         return showToast(`${i}. taksit için eksik alan var, lütfen doldurun`, "error");
       }
     }
 
     // Taksit toplamı kontrolü
-    const toplamUcret = parseFloat(data["Toplam Program Ücreti"]) || 0;
+    const toplamUcret = parseFloat(kayitData["Toplam Program Ücreti"]) || 0;
     if (toplamUcret > 0 && taksitSayisi > 0) {
       const taksitToplam = Array.from({ length: taksitSayisi }, (_, i) =>
-        parseFloat(data[`${i + 1}. Taksit Tutarı`]) || 0
+        parseFloat(kayitData[`${i + 1}. Taksit Tutarı`]) || 0
       ).reduce((a, b) => a + b, 0);
       if (Math.abs(taksitToplam - toplamUcret) > 0.01) {
         return showToast(`Taksit toplamı (${taksitToplam}) Toplam Program Ücreti (${toplamUcret}) ile eşleşmiyor`, "error");
@@ -247,7 +252,7 @@ export default function KayitGuncelle() {
       const fields = [
         { label: "Öğrenci Kayıt Formu Otomatik Gönderilsin Mi?", value: "evet" },
         { label: "Sözleşme İmza Tarihi", value: new Date().toISOString().split("T")[0] },
-        ...Object.entries(data)
+        ...Object.entries(kayitData)
           .filter(([k]) => !HIDDEN_FIELDS.includes(k) && k !== "row_number")
           .map(([label, value]) => ({ label: LABEL_MAP[label] || label, value: value ?? "" })),
       ];
@@ -257,7 +262,7 @@ export default function KayitGuncelle() {
         createdAt: new Date().toISOString(),
         data: {
           formId: "RGRV0p",
-          submissionId: data["Tally Submission ID"] || "",
+          submissionId: kayitData["Tally Submission ID"] || "",
           formName: "Kayıt Güncelle",
           fields,
         },
@@ -351,7 +356,22 @@ export default function KayitGuncelle() {
                       }}>{ogr["Onay Durumu"] || "Bekliyor"}</span>
                     </td>
                     <td style={{ ...s.td, textAlign: "right" }}>
-                      <button onClick={() => sorgula(ogr["TC Kimlik No"])} style={s.editBtn}>Düzenle</button>
+                      <div style={{
+                        display: "flex", gap: "6px", justifyContent: "flex-end",
+                        flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center",
+                      }}>
+                        <button onClick={() => sorgula(ogr["TC Kimlik No"])} style={s.editBtn}>Düzenle</button>
+                        <button
+                          onClick={() => setSozlesmeModal(ogr["Sözleşme Onay Linki"])}
+                          disabled={!ogr["Sözleşme Onay Linki"]}
+                          style={{ ...s.viewBtn, opacity: ogr["Sözleşme Onay Linki"] ? 1 : 0.4, cursor: ogr["Sözleşme Onay Linki"] ? "pointer" : "not-allowed" }}
+                        >Sözleşmeyi Gör</button>
+                        <button
+                          onClick={() => setGonderOnay(ogr)}
+                          disabled={submitting}
+                          style={s.sendBtn}
+                        >{gonderilenTC === ogr["TC Kimlik No"] ? "Gönderildi ✓" : "Sözleşmeyi Gönder"}</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -414,12 +434,57 @@ export default function KayitGuncelle() {
 
       <Toast toast={toast} />
 
+      {sozlesmeModal && (
+        <div style={s.modalOverlay} onClick={() => setSozlesmeModal(null)}>
+          <div style={{
+            background: "#fff", borderRadius: "16px", width: "95%", maxWidth: "900px",
+            height: "85vh", display: "flex", flexDirection: "column", overflow: "hidden",
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              padding: "12px 16px", borderBottom: "1px solid #e2e8f0",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+            }}>
+              <strong style={{ fontSize: "14px" }}>Sözleşme</strong>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <a href={sozlesmeModal} target="_blank" rel="noreferrer" style={{ ...s.editBtn, textDecoration: "none" }}>Yeni Sekmede Aç</a>
+                <button onClick={() => setSozlesmeModal(null)} style={s.editBtn}>Kapat</button>
+              </div>
+            </div>
+            <iframe src={sozlesmeModal} style={{ flex: 1, border: "none", width: "100%" }} title="Sözleşme" />
+          </div>
+        </div>
+      )}
+
+      {gonderOnay && (
+        <div style={s.modalOverlay}>
+          <div style={s.modal}>
+            <h3 style={{ margin: "0 0 10px" }}>Sözleşme Gönderilsin mi?</h3>
+            <p style={{ fontSize: "13px", color: "#475569" }}>
+              <strong>{gonderOnay["Öğrenci Adı Soyadı"]}</strong> için sözleşme e-postası gönderilecek.
+            </p>
+            <div style={{ display: "flex", gap: "10px", marginTop: "15px" }}>
+              <button onClick={() => setGonderOnay(null)} style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: 0 }}>Vazgeç</button>
+              <button
+                onClick={async () => {
+                  const kayit = gonderOnay;
+                  setGonderOnay(null);
+                  await gonder(kayit);
+                  setGonderilenTC(kayit["TC Kimlik No"]);
+                }}
+                disabled={submitting}
+                style={{ ...s.modalBtn, marginTop: 0 }}
+              >{submitting ? "Gönderiliyor..." : "Gönder"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {successModal && (
         <div style={s.modalOverlay}>
           <div style={s.modal}>
             <h3>Başarılı!</h3>
             <p>Sözleşme tekrar gönderildi.</p>
-            <button onClick={() => { setSuccessModal(false); setData(null); setTc(""); }} style={s.modalBtn}>Tamam</button>
+            <button onClick={() => { setSuccessModal(false); if (data) { setData(null); setTc(""); } }} style={s.modalBtn}>Tamam</button>
           </div>
         </div>
       )}
@@ -450,7 +515,9 @@ const s = {
   td: { padding: "12px 12px", fontSize: "13px", color: "#0f172a" },
   pagination: { display: "flex", gap: "6px", justifyContent: "center", marginTop: "16px" },
   pageBtn: { width: "32px", height: "32px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px" },
-  editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer" },
+  editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
+  viewBtn: { padding: "5px 12px", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", whiteSpace: "nowrap" },
+  sendBtn: { padding: "5px 12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   infoCard: { background: "#ecfeff", border: "1px solid #a5f3fc", padding: "12px", borderRadius: "10px", marginBottom: "15px", fontSize: "13px" },
   tabBar: { display: "flex", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0" },
   tabBtn: { flex: 1, padding: "12px", border: "none", background: "none", cursor: "pointer", fontSize: "13px" },
