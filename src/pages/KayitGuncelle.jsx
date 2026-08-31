@@ -176,8 +176,8 @@ export default function KayitGuncelle() {
 
   async function sorgula(tcParam) {
     const targetTC = String(tcParam || tc).trim().replace(/\D/g, "");
-    if (targetTC.length !== 11) {
-      return showToast("Geçerli bir TC Kimlik No girin (11 hane)", "error");
+    if (!targetTC) {
+      return showToast("TC Kimlik No girin", "error");
     }
     if (tcParam) setTc(targetTC);
     setLoading(true);
@@ -309,10 +309,10 @@ export default function KayitGuncelle() {
           <div style={s.searchLabel}>TC Kimlik No ile Sorgula</div>
           <div style={s.searchRow}>
             <input
-              type="text" maxLength={11} value={tc}
+              type="text" maxLength={20} value={tc}
               onChange={e => setTc(e.target.value.replace(/\D/g, ""))}
               onKeyDown={e => e.key === "Enter" && sorgula()}
-              placeholder="11 haneli TC No"
+              placeholder="TC Kimlik No"
               style={s.searchInput}
             />
             <button onClick={() => sorgula()} disabled={loading} style={s.searchBtn}>
@@ -455,13 +455,26 @@ export default function KayitGuncelle() {
         </div>
       )}
 
-      {gonderOnay && (
+      {gonderOnay && (() => {
+        const isYetiskin = String(gonderOnay["Sözleşme Türü"] || "").toLowerCase().indexOf("yetişkin") > -1;
+        const mail = isYetiskin
+          ? gonderOnay["Mail Adresi"]
+          : (gonderOnay["İmzalayacak Ebeveyn"] === "Baba" ? gonderOnay["Baba Mail"] : gonderOnay["Anne Mail"]) || gonderOnay["Mail Adresi"];
+        return (
         <div style={s.modalOverlay}>
           <div style={s.modal}>
             <h3 style={{ margin: "0 0 10px" }}>Sözleşme Gönderilsin mi?</h3>
-            <p style={{ fontSize: "13px", color: "#475569" }}>
+            <p style={{ fontSize: "13px", color: "#475569", margin: "0 0 10px" }}>
               <strong>{gonderOnay["Öğrenci Adı Soyadı"]}</strong> için sözleşme e-postası gönderilecek.
             </p>
+            <div style={{
+              background: mail ? "#ecfeff" : "#fef2f2",
+              border: `1px solid ${mail ? "#a5f3fc" : "#fca5a5"}`,
+              borderRadius: "10px", padding: "10px", fontSize: "13px",
+              color: mail ? "#0e7490" : "#991b1b", wordBreak: "break-all",
+            }}>
+              {mail || "Mail adresi bulunamadı"}
+            </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "15px" }}>
               <button onClick={() => setGonderOnay(null)} style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: 0 }}>Vazgeç</button>
               <button
@@ -477,7 +490,8 @@ export default function KayitGuncelle() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {successModal && (
         <div style={s.modalOverlay}>
