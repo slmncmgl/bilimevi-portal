@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v94-30plus-ulke-filtre-2026-08-26";
+const BFT_BUILD_VERSION = "v97-ozet-duzenle-2026-08-27";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -730,6 +730,13 @@ function isAccommodationFee(name) {
 
 // Şehir adı "30+" programını mı gösteriyor? (sheet yazımı: "London 30+")
 const is30Plus = (c) => /\s30\s*\+/.test(c || "");
+// Bu dilde, seçili moda (30+ / normal) uygun en az bir şehir var mı?
+function langHasMode(citiesByLang, lang, only30) {
+  const byCountry = citiesByLang?.[lang] || {};
+  return Object.values(byCountry).some(cities =>
+    (cities || []).some(c => only30 ? is30Plus(c) : !is30Plus(c))
+  );
+}
 
 function calcFees(fees, weeks, age, accType, accWeeks, hasAcc = true) {
   const currency = fees?.[0]?.currency || "GBP";
@@ -895,6 +902,8 @@ export default function FiyatTeklifi() {
   const [accType, setAccType] = useState("");
   // "30+" programlı şehir filtresi — kapalıyken 30+ şehirler gizli, açıkken SADECE onlar görünür
   const [only30, setOnly30] = useState(false);
+  // Özetten düzenlemeye alınan destinasyonun listedeki eski sırası (null = yeni ekleme)
+  const [editIndex, setEditIndex] = useState(null);
   const [leadModal, setLeadModal] = useState(false);
   const [phoneValid, setPhoneValid] = useState(null); // null=bilinmiyor/boş, true/false=validasyon
   const [phoneExample, setPhoneExample] = useState(""); // seçili ülke örnek numarası (placeholder)
@@ -1092,10 +1101,11 @@ export default function FiyatTeklifi() {
     if (isLastBeforeSummary) {
       const coursePrice = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
       const accPrice = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.accWeeks || cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
-      const isDup = destinations.some(d => d.city === cur.city && d.course?.name === cur.course?.name && d.acc?.name === cur.acc?.name && d.selectedPackage?.package_price === cur.selectedPackage?.package_price);
+      // Düzenleme modunda kopya kontrolü yapılmaz (kayıt zaten listeden çıkarılmıştı)
+      const isDup = editIndex === null && destinations.some(d => d.city === cur.city && d.course?.name === cur.course?.name && d.acc?.name === cur.acc?.name && d.selectedPackage?.package_price === cur.selectedPackage?.package_price);
       if (!isDup) {
         const cityDesc = nav.descriptions?.[`${cur.brand}__${cur.city}`] || "";
-        setDestinations(p => [...p, { ...cur,
+        const yeni = { ...cur,
           cityDescription: cityDesc,
           courseBasePrice: coursePrice.basePrice, courseHsAmount: coursePrice.hsAmount,
           courseTotalPrice: coursePrice.totalPrice, courseHsActive: coursePrice.hsActive,
@@ -1104,8 +1114,16 @@ export default function FiyatTeklifi() {
           accTotalPrice: accPrice.totalPrice, accHsActive: accPrice.hsActive,
           accHsPerWeek: accPrice.hsPerWeek, accHsStart: accPrice.hsStart, accHsEnd: accPrice.hsEnd,
           selectedPackage: cur.selectedPackage || null, noAccommodation: cur.noAccommodation || false,
-        }]);
+        };
+        // Düzenlemeden geliyorsa eski sırasına geri koy, yoksa sona ekle
+        setDestinations(p => {
+          if (editIndex === null) return [...p, yeni];
+          const kopya = [...p];
+          kopya.splice(Math.min(editIndex, kopya.length), 0, yeni);
+          return kopya;
+        });
       }
+      setEditIndex(null);
       setStep(summaryIdx);
     } else {
       // URL'den okul+şehir preselect edildiyse: Genel Bilgi(0) sonrası Destinasyon(1) atlanır, Kurs(2)'a geçilir
@@ -1126,6 +1144,23 @@ export default function FiyatTeklifi() {
   };
 
   const addNew = () => { if (destinations.length >= 3) return; setCur(emptyDest(cur.startDate, cur.weeks)); setStep(1); };
+  // Özetteki bir destinasyonu düzenlemeye al: listeden çıkarılır, Kurs adımına dönülür.
+  // "Özete Geç" denince eski sırasına geri konur (editIndex).
+  const editDestination = (i) => {
+    const d = destinations[i];
+    if (!d) return;
+    setCur({ ...d });                                   // cityData dahil taşınır → veri yeniden çekilmez
+    setAccType(d.acc?.type || "");
+    setEditIndex(i);
+    setDestinations(p => p.filter((_, idx) => idx !== i));
+    const kursIdx = STEPS.indexOf("Kurs");
+    setStep(kursIdx >= 0 ? kursIdx : 2);
+    setTimeout(() => {
+      const r = document.getElementById("bft-root");
+      if (r) window.scrollTo({ top: r.getBoundingClientRect().top + window.pageYOffset - 20, behavior: "smooth" });
+    }, 100);
+  };
+
   const removeDestination = (i) => {
     const d = destinations[i];
     const ad = d ? `${d.brand || ""} ${d.city || ""}`.trim() : "bu okul";
@@ -2002,6 +2037,7 @@ export default function FiyatTeklifi() {
                   ) : (
                     <span style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 20px", borderRadius:10, border:"1.5px solid #e2e8f0", background:"#f8fafc", color:"#94a3b8", fontWeight:600, fontSize:14, cursor:"default", userSelect:"none" }}>
                       📁 Geçmiş Teklifler
+                      <span style={{ display:"inline-block", width:13, height:13, border:"2px solid #cbd5e1", borderTopColor:"#94a3b8", borderRadius:"50%", animation:"bftSpin 0.7s linear infinite", flexShrink:0 }} />
                     </span>
                   )
                 ) : <span />}
@@ -2017,7 +2053,7 @@ export default function FiyatTeklifi() {
                 {/* 30+ programı filtresi: kapalı=normal şehirler, açık=SADECE 30+ şehirler */}
                 <label style={{ display:"inline-flex", alignItems:"center", gap:8, cursor:"pointer", userSelect:"none", fontSize:13, fontWeight:600, color: only30 ? CYAN : "#64748b" }}>
                   <span
-                    onClick={() => { setOnly30(v => !v); setCur(p => ({ ...p, country: (!isStaff && FIXED_COUNTRY) ? p.country : "", city:"", brand:"", course:null, acc:null, cityData:null })); }}
+                    onClick={() => { setOnly30(v => !v); setCur(p => ({ ...p, lang: isStaff ? "" : p.lang, country: (!isStaff && FIXED_COUNTRY) ? p.country : "", city:"", brand:"", course:null, acc:null, cityData:null })); }}
                     style={{ width:42, height:24, borderRadius:12, background: only30 ? CYAN : "#e2e8f0", position:"relative", transition:"background 0.2s", flexShrink:0, display:"inline-block" }}>
                     <span style={{ position:"absolute", top:3, left: only30 ? 21 : 3, width:18, height:18, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }} />
                   </span>
@@ -2026,7 +2062,7 @@ export default function FiyatTeklifi() {
               </div>
               <p style={S.slbl}>DİL</p>
               <div style={S.g3}>
-                {nav.languages.filter(l => isStaff || l === "İngilizce").map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
+                {nav.languages.filter(l => (isStaff || l === "İngilizce") && langHasMode(nav.citiesByLang, l, only30)).map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
                 <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
               </div>
               {(isStaff || !FIXED_COUNTRY) && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{sortCountries(nav.countries[cur.lang]).filter(ctry => {
@@ -2360,6 +2396,11 @@ export default function FiyatTeklifi() {
                     }
                     </>); })()}
 
+                    {/* Düzenle: bu destinasyonu Kurs adımına geri yükler, eski sırasına döner */}
+                    <button onClick={() => editDestination(i)}
+                      style={{ width:"100%", marginTop:12, padding:"9px 0", background:"#f8fafc", border:"1.5px solid #e2e8f0", borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:600, color:"#475569", fontFamily:"inherit" }}>
+                      ✏️ Düzenle
+                    </button>
                   </div>
                 );
               })}
