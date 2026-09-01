@@ -298,7 +298,7 @@ export default function KayitGuncelle() {
             {data ? "← Listeye Dön" : "Geri"}
           </button>
           <div style={s.headerTitle}>
-            <div style={s.headerTitleText}>Kayıt Güncelle</div>
+            <div style={s.headerTitleText}>Sözleşme Güncelle</div>
             <div style={s.headerSub}>{user?.name} | Bilimevi</div>
           </div>
         </div>
