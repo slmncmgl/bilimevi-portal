@@ -78,7 +78,7 @@ function Toast({ toast }) {
   );
 }
 
-function FieldInput({ label, value, onChange, taksitSayisi }) {
+function FieldInput({ label, value, onChange, taksitSayisi, vurgulu }) {
   const isDropdown = !!DROPDOWN_OPTIONS[label];
 
   const taksitIndex = (() => {
@@ -97,11 +97,12 @@ function FieldInput({ label, value, onChange, taksitSayisi }) {
 
   const baseStyle = {
     width: "100%", padding: "9px 12px",
-    border: `1.5px solid ${isReadonly ? "#f1f5f9" : "#e2e8f0"}`,
+    border: vurgulu ? "2px solid #ef4444" : `1.5px solid ${isReadonly ? "#f1f5f9" : "#e2e8f0"}`,
     borderRadius: "10px", fontSize: "13px", fontFamily: "'Sora', sans-serif",
     color: isReadonly ? "#94a3b8" : "#0f172a",
-    background: isReadonly ? "#f8fafc" : "#fff",
+    background: vurgulu ? "#fef2f2" : (isReadonly ? "#f8fafc" : "#fff"),
     outline: "none", boxSizing: "border-box",
+    transition: "border-color 0.3s, background 0.3s",
   };
 
   if (isDropdown && !isReadonly) {
@@ -125,6 +126,7 @@ function FieldInput({ label, value, onChange, taksitSayisi }) {
 
   return (
     <input
+      ref={el => { if (el && vurgulu) { el.focus(); el.select(); } }}
       type={isDate ? "date" : isEmail ? "email" : "text"}
       value={value || ""}
       onChange={e => {
@@ -156,8 +158,24 @@ export default function KayitGuncelle() {
   const [sozlesmeModal, setSozlesmeModal] = useState(null);
   const [gonderOnay, setGonderOnay] = useState(null);
   const [gonderilenTC, setGonderilenTC] = useState(null);
+  const [taksitOneri, setTaksitOneri] = useState(null);
+  const [vurgulananAlan, setVurgulananAlan] = useState(null);
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+
+  // Bir kaydın taksit toplamı ile program ücreti uyuşuyor mu?
+  function taksitFarki(kayit) {
+    const adet = parseInt(kayit["Taksit Sayısı"], 10) || 0;
+    const toplamUcret = parseFloat(kayit["Toplam Program Ücreti"]) || 0;
+    if (!adet || !toplamUcret) return null;
+    const toplam = Array.from({ length: adet }, (_, i) =>
+      parseFloat(kayit[`${i + 1}. Taksit Tutarı`]) || 0
+    ).reduce((a, b) => a + b, 0);
+    const fark = toplam - toplamUcret;
+    if (Math.abs(fark) < 0.01) return null;
+    const sonTaksit = parseFloat(kayit[`${adet}. Taksit Tutarı`]) || 0;
+    return { adet, toplam, toplamUcret, fark, sonTaksit, yeniSonTaksit: sonTaksit - fark };
+  }
 
   useEffect(() => {
     if (!user?.name) return;
@@ -206,7 +224,7 @@ export default function KayitGuncelle() {
     });
   }
 
-  async function gonder(kayit) {
+  async function gonder(kayit, sozlesmeGonder = true) {
     const kayitData = kayit || data;
     if (!kayitData) return;
 
@@ -250,7 +268,7 @@ export default function KayitGuncelle() {
       };
 
       const fields = [
-        { label: "Öğrenci Kayıt Formu Otomatik Gönderilsin Mi?", value: "evet" },
+        { label: "Öğrenci Kayıt Formu Otomatik Gönderilsin Mi?", value: sozlesmeGonder ? "evet" : "hayır" },
         { label: "Sözleşme İmza Tarihi", value: new Date().toISOString().split("T")[0] },
         ...Object.entries(kayitData)
           .filter(([k]) => !HIDDEN_FIELDS.includes(k) && k !== "row_number")
@@ -278,7 +296,13 @@ export default function KayitGuncelle() {
       ]);
 
       if (!res.ok) throw new Error("Hata");
-      setSuccessModal(true);
+      if (sozlesmeGonder) {
+        setSuccessModal(true);
+      } else {
+        setData(null);
+        setTc("");
+        showToast("Kayıt güncellendi");
+      }
     } catch {
       showToast("Gönderim başarısız", "error");
     } finally {
@@ -298,7 +322,7 @@ export default function KayitGuncelle() {
             {data ? "← Listeye Dön" : "Geri"}
           </button>
           <div style={s.headerTitle}>
-            <div style={s.headerTitleText}>Sözleşme Güncelle</div>
+            <div style={s.headerTitleText}>Kayıt Güncelle</div>
             <div style={s.headerSub}>{user?.name} | Bilimevi</div>
           </div>
         </div>
@@ -361,6 +385,13 @@ export default function KayitGuncelle() {
                         flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center",
                       }}>
                         <button onClick={() => sorgula(ogr["TC Kimlik No"])} style={s.editBtn}>Düzenle</button>
+                        {taksitFarki(ogr) && (
+                          <button
+                            onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
+                            title="Taksit toplamı program ücreti ile eşleşmiyor"
+                            style={s.warnBtn}
+                          >⚠️</button>
+                        )}
                         <button
                           onClick={() => setSozlesmeModal(ogr["Sözleşme Onay Linki"])}
                           disabled={!ogr["Sözleşme Onay Linki"]}
@@ -409,13 +440,13 @@ export default function KayitGuncelle() {
                 {TAB_FIELDS[activeTab]?.map(key => (
                   <div key={key} style={key === "Adres" ? { gridColumn: "1 / -1" } : {}}>
                     <label style={s.fieldLabel}>{key}</label>
-                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} />
+                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} />
                   </div>
                 ))}
               </div>
             </div>
             <div style={s.submitRow}>
-              <button onClick={gonder} disabled={submitting} style={s.submitBtn}>
+              <button onClick={() => gonder(null, false)} disabled={submitting} style={s.submitBtn}>
                 {submitting ? (
                   <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <span style={{
@@ -423,9 +454,9 @@ export default function KayitGuncelle() {
                       borderTop: "2px solid #fff", borderRadius: "50%",
                       animation: "spin 0.8s linear infinite", display: "inline-block"
                     }} />
-                    Gönderiliyor...
+                    Güncelleniyor...
                   </span>
-                ) : "Düzelt ve Sözleşmeyi Gönder"}
+                ) : "Güncelle"}
               </button>
             </div>
           </>
@@ -433,6 +464,44 @@ export default function KayitGuncelle() {
       </main>
 
       <Toast toast={toast} />
+
+      {taksitOneri && (
+        <div style={s.modalOverlay}>
+          <div style={{ ...s.modal, textAlign: "left", maxWidth: "440px" }}>
+            <h3 style={{ margin: "0 0 12px", textAlign: "center" }}>Taksit Tutarı Uyuşmuyor</h3>
+            <div style={{ fontSize: "13px", color: "#475569", lineHeight: "1.9" }}>
+              <div>Taksitler toplamı: <strong>{taksitOneri.toplam}</strong></div>
+              <div>Toplam Program Ücreti: <strong>{taksitOneri.toplamUcret}</strong></div>
+              <div style={{ color: "#dc2626" }}>
+                Fark: <strong>{taksitOneri.fark > 0 ? "+" : ""}{Math.round(taksitOneri.fark * 100) / 100}</strong>
+              </div>
+            </div>
+            <div style={{
+              background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "10px",
+              padding: "12px", marginTop: "12px", fontSize: "13px", color: "#0e7490",
+            }}>
+              <strong>Öneri:</strong> {taksitOneri.adet}. taksiti <strong>{taksitOneri.sonTaksit}</strong> yerine{" "}
+              <strong>{Math.round(taksitOneri.yeniSonTaksit * 100) / 100}</strong> yaparsak toplam eşitlenir.
+            </div>
+            <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+              <button onClick={() => setTaksitOneri(null)} style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: 0 }}>İptal</button>
+              <button
+                onClick={async () => {
+                  const o = taksitOneri;
+                  setTaksitOneri(null);
+                  await sorgula(o.kayit["TC Kimlik No"]);
+                  const alan = `${o.adet}. Taksit Tutarı`;
+                  setData(prev => prev ? { ...prev, [alan]: String(Math.round(o.yeniSonTaksit * 100) / 100) } : prev);
+                  setActiveTab("Taksit");
+                  setVurgulananAlan(alan);
+                  setTimeout(() => setVurgulananAlan(null), 4000);
+                }}
+                style={{ ...s.modalBtn, marginTop: 0 }}
+              >Öneriyi Kabul Ediyorum</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {sozlesmeModal && (
         <div style={s.modalOverlay} onClick={() => setSozlesmeModal(null)}>
@@ -530,6 +599,7 @@ const s = {
   pagination: { display: "flex", gap: "6px", justifyContent: "center", marginTop: "16px" },
   pageBtn: { width: "32px", height: "32px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px" },
   editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
+  warnBtn: { padding: "5px 8px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "6px", cursor: "pointer", fontSize: "12px", lineHeight: 1 },
   viewBtn: { padding: "5px 12px", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", whiteSpace: "nowrap" },
   sendBtn: { padding: "5px 12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   infoCard: { background: "#ecfeff", border: "1px solid #a5f3fc", padding: "12px", borderRadius: "10px", marginBottom: "15px", fontSize: "13px" },
