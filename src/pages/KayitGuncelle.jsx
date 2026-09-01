@@ -384,7 +384,16 @@ export default function KayitGuncelle() {
                         display: "flex", gap: "6px", justifyContent: "flex-end",
                         flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center",
                       }}>
-                        <button onClick={() => sorgula(ogr["TC Kimlik No"])} style={s.editBtn}>Düzenle</button>
+                        <button
+                          onClick={() => sorgula(ogr["TC Kimlik No"])}
+                          disabled={!ogr["Danışman Adı"]}
+                          title={!ogr["Danışman Adı"] ? "Danışman atanmamış kayıtlar düzenlenemez" : ""}
+                          style={{
+                            ...s.editBtn,
+                            opacity: ogr["Danışman Adı"] ? 1 : 0.4,
+                            cursor: ogr["Danışman Adı"] ? "pointer" : "not-allowed",
+                          }}
+                        >Düzenle</button>
                         {taksitFarki(ogr) && (
                           <button
                             onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
@@ -399,8 +408,13 @@ export default function KayitGuncelle() {
                         >Sözleşmeyi Gör</button>
                         <button
                           onClick={() => setGonderOnay(ogr)}
-                          disabled={submitting}
-                          style={s.sendBtn}
+                          disabled={submitting || !ogr["Danışman Adı"]}
+                          title={!ogr["Danışman Adı"] ? "Danışman atanmamış kayıtlar için sözleşme gönderilemez" : ""}
+                          style={{
+                            ...s.sendBtn,
+                            opacity: ogr["Danışman Adı"] ? 1 : 0.4,
+                            cursor: ogr["Danışman Adı"] ? "pointer" : "not-allowed",
+                          }}
                         >{gonderilenTC === ogr["TC Kimlik No"] ? "Gönderildi ✓" : "Sözleşmeyi Gönder"}</button>
                       </div>
                     </td>
@@ -425,7 +439,10 @@ export default function KayitGuncelle() {
 
         {data && (
           <>
-            <div style={s.infoCard}><strong>{data["Öğrenci Adı Soyadı"]}</strong> kaydı düzenleniyor.</div>
+            <div style={s.infoCard}>
+              <strong>{data["Öğrenci Adı Soyadı"]}</strong> kaydı düzenleniyor.
+              {data["Okul Adı"] && <span style={{ color: "#0e7490" }}> — {data["Okul Adı"]}</span>}
+            </div>
             <div style={s.tabBar}>
               {TABS.map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
