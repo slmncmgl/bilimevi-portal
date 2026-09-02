@@ -174,7 +174,14 @@ export default function KayitGuncelle() {
     const fark = toplam - toplamUcret;
     if (Math.abs(fark) < 0.01) return null;
     const sonTaksit = parseFloat(kayit[`${adet}. Taksit Tutarı`]) || 0;
-    return { adet, toplam, toplamUcret, fark, sonTaksit, yeniSonTaksit: sonTaksit - fark };
+    const programUcreti = parseFloat(kayit["Program Ücreti"]) || 0;
+    const konaklamaUcreti = parseFloat(kayit["Konaklama Ücreti"]) || 0;
+    return {
+      adet, toplam, toplamUcret, fark, sonTaksit,
+      yeniSonTaksit: sonTaksit - fark,
+      programUcreti,
+      yeniProgramUcreti: toplam - konaklamaUcreti,
+    };
   }
 
   useEffect(() => {
@@ -310,6 +317,18 @@ export default function KayitGuncelle() {
     }
   }
 
+  // Sıralama: önce taksit uyarısı olanlar, sonra onay bekleyenler
+  const siraliOgrenciler = [...ogrencilerim].sort((a, b) => {
+    const uyariA = taksitFarki(a) ? 0 : 1;
+    const uyariB = taksitFarki(b) ? 0 : 1;
+    if (uyariA !== uyariB) return uyariA - uyariB;
+    const bekliyor = k => {
+      const d = String(k["Onay Durumu"] || "").toLocaleLowerCase("tr-TR");
+      return (!d || d.indexOf("bekl") > -1) ? 0 : 1;
+    };
+    return bekliyor(a) - bekliyor(b);
+  });
+
   return (
     <div style={s.root}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -368,7 +387,7 @@ export default function KayitGuncelle() {
                 </tr>
               </thead>
               <tbody>
-                {ogrencilerim.slice((sayfa - 1) * SAYFA_BOYUTU, sayfa * SAYFA_BOYUTU).map((ogr, i) => (
+                {siraliOgrenciler.slice((sayfa - 1) * SAYFA_BOYUTU, sayfa * SAYFA_BOYUTU).map((ogr, i) => (
                   <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
                     <td style={s.td}>{ogr["Öğrenci Adı Soyadı"]}</td>
                     <td style={s.td}>{ogr["TC Kimlik No"]}</td>
@@ -494,14 +513,42 @@ export default function KayitGuncelle() {
               </div>
             </div>
             <div style={{
-              background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "10px",
-              padding: "12px", marginTop: "12px", fontSize: "13px", color: "#0e7490",
+              background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px",
+              padding: "12px", marginTop: "12px", fontSize: "13px", color: "#334155",
             }}>
-              <strong>Öneri:</strong> {taksitOneri.adet}. taksiti <strong>{taksitOneri.sonTaksit}</strong> yerine{" "}
-              <strong>{Math.round(taksitOneri.yeniSonTaksit * 100) / 100}</strong> yaparsak toplam eşitlenir.
+              <strong style={{ color: "#0e7490" }}>Öneri 1 — Program Ücretini Düzelt</strong>
+              <div style={{ marginTop: "5px" }}>
+                Program Ücreti <strong>{taksitOneri.programUcreti}</strong> yerine{" "}
+                <strong>{Math.round(taksitOneri.yeniProgramUcreti * 100) / 100}</strong> olsun.
+                Toplam <strong>{taksitOneri.toplam}</strong> olur, taksitlerle eşitlenir.
+              </div>
+              <button
+                onClick={async () => {
+                  const o = taksitOneri;
+                  setTaksitOneri(null);
+                  await sorgula(o.kayit["TC Kimlik No"]);
+                  setData(prev => prev ? {
+                    ...prev,
+                    "Program Ücreti": String(Math.round(o.yeniProgramUcreti * 100) / 100),
+                    "Toplam Program Ücreti": String(Math.round(o.toplam * 100) / 100),
+                  } : prev);
+                  setActiveTab("Taksit");
+                  setVurgulananAlan("Program Ücreti");
+                  setTimeout(() => setVurgulananAlan(null), 4000);
+                }}
+                style={{ ...s.modalBtn, marginTop: "10px", padding: "9px" }}
+              >Öneri 1'i Uygula</button>
             </div>
-            <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
-              <button onClick={() => setTaksitOneri(null)} style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: 0 }}>İptal</button>
+
+            <div style={{
+              background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px",
+              padding: "12px", marginTop: "10px", fontSize: "13px", color: "#334155",
+            }}>
+              <strong style={{ color: "#0e7490" }}>Öneri 2 — Son Taksiti Düzelt</strong>
+              <div style={{ marginTop: "5px" }}>
+                {taksitOneri.adet}. taksit <strong>{taksitOneri.sonTaksit}</strong> yerine{" "}
+                <strong>{Math.round(taksitOneri.yeniSonTaksit * 100) / 100}</strong> olsun.
+              </div>
               <button
                 onClick={async () => {
                   const o = taksitOneri;
@@ -513,9 +560,11 @@ export default function KayitGuncelle() {
                   setVurgulananAlan(alan);
                   setTimeout(() => setVurgulananAlan(null), 4000);
                 }}
-                style={{ ...s.modalBtn, marginTop: 0 }}
-              >Öneriyi Kabul Ediyorum</button>
+                style={{ ...s.modalBtn, marginTop: "10px", padding: "9px" }}
+              >Öneri 2'yi Uygula</button>
             </div>
+
+            <button onClick={() => setTaksitOneri(null)} style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: "12px" }}>İptal</button>
           </div>
         </div>
       )}
