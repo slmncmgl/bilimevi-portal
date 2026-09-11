@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v97-ozet-duzenle-2026-08-27";
+const BFT_BUILD_VERSION = "v99-admin-fee-ayri-2026-08-28";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -458,7 +458,7 @@ const FEE_NAME_MAP = {
   "Registration Fee": "Kayıt Ücreti",
   "Course Registration": "Kayıt Ücreti",
   "Course Registration Fee": "Kayıt Ücreti",
-  "Administration Fee": "Kayıt Ücreti",
+  "Administration Fee": "Yönetim / İşlem Ücreti",
   "Application Fee": "Kayıt Ücreti",
   "Enrolment Fee": "Kayıt Ücreti",
   "Accommodation Booking Fee": "Konaklama Ayarlama Ücreti",
@@ -1102,7 +1102,27 @@ export default function FiyatTeklifi() {
       const coursePrice = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
       const accPrice = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.accWeeks || cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
       // Düzenleme modunda kopya kontrolü yapılmaz (kayıt zaten listeden çıkarılmıştı)
-      const isDup = editIndex === null && destinations.some(d => d.city === cur.city && d.course?.name === cur.course?.name && d.acc?.name === cur.acc?.name && d.selectedPackage?.package_price === cur.selectedPackage?.package_price);
+      // Kopya kontrolü: yalnızca BİREBİR aynı seçim engellenir.
+      // Aynı okul/şehirde farklı oda tipi, pansiyon, süre veya tarih => AYRI destinasyon sayılır.
+      const ayniAcc = (a, b) => {
+        if (!a && !b) return true;
+        if (!a || !b) return false;
+        return a.name === b.name && a.room === b.room && a.board === b.board
+          && a.bathroom === b.bathroom && a.price === b.price;
+      };
+      const isDup = editIndex === null && destinations.some(d =>
+        d.brand === cur.brand &&
+        d.city === cur.city &&
+        d.course?.name === cur.course?.name &&
+        d.weeks === cur.weeks &&
+        d.startDate === cur.startDate &&
+        (d.accWeeks || d.weeks) === (cur.accWeeks || cur.weeks) &&
+        d.noAccommodation === cur.noAccommodation &&
+        ayniAcc(d.acc, cur.acc) &&
+        d.selectedPackage?.package_price === cur.selectedPackage?.package_price &&
+        d.transfer?.airport === cur.transfer?.airport &&
+        !!d.transferRoundTrip === !!cur.transferRoundTrip
+      );
       if (!isDup) {
         const cityDesc = nav.descriptions?.[`${cur.brand}__${cur.city}`] || "";
         const yeni = { ...cur,
