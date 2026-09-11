@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v102-supplement-liste-duzelt-2026-08-28";
+const BFT_BUILD_VERSION = "v103-tatil-takvim-2026-08-28";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1437,7 +1437,7 @@ export default function FiyatTeklifi() {
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"GBP", EUR:"EUR", USD:"USD", CAD:"CAD" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
-        const endD = addWeeksToDate(startD, d.weeks);
+        const endD = addWeeksToDate(startD, d.weeks + (d.holidayWeeks || 0));   // tatil haftası takvime dahil
         const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
         // Konaklama bitişi kendi süresine göre (kurs süresinden farklı olabilir)
         const accEndBase = addWeeksToDate(startD, (d.accWeeks || d.weeks) + (d.holidayWeeks || 0));
@@ -1553,7 +1553,7 @@ export default function FiyatTeklifi() {
           doc.text(money(d.selectedPackage.package_price), PAGE_W - MARGIN, y, { align:"right" });
           y += 5;
           doc.setFontSize(8); doc.setTextColor(85);
-          doc.text(`Başlangıç: ${fmtDate(startD)}  |  Bitiş: ${fmtDate(endD)}`, MARGIN + 32, y);
+          doc.text(`Başlangıç: ${fmtDate(startD)}  |  Bitiş: ${fmtDate(endD)}${d.holidayWeeks ? `  (${d.holidayWeeks} hafta okul tatili dahil)` : ""}`, MARGIN + 32, y);
           y += 4;
           doc.setTextColor(16,150,80);
           doc.text(d.selectedPackage.package_type === "with_accommodation" ? "Konaklama dahil paket" : "Konaklama hariç paket", MARGIN + 32, y);
@@ -1571,7 +1571,7 @@ export default function FiyatTeklifi() {
         doc.text(money(d.courseBasePrice), PAGE_W - MARGIN, y, { align:"right" });
         y += 5;
         doc.setFontSize(8); doc.setTextColor(85);
-        doc.text(`Başlangıç: ${fmtDate(startD)}  |  Bitiş: ${fmtDate(endD)}`, MARGIN + 32, y);
+        doc.text(`Başlangıç: ${fmtDate(startD)}  |  Bitiş: ${fmtDate(endD)}${d.holidayWeeks ? `  (${d.holidayWeeks} hafta okul tatili dahil)` : ""}`, MARGIN + 32, y);
         y += 4;
         if (d.course?.lessons > 0) {
           doc.setTextColor(120);
@@ -2518,7 +2518,7 @@ export default function FiyatTeklifi() {
                 const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
                 const cur2 = d.course?.currency || f.currency;
                 const sD = d.startDate ? new Date(d.startDate) : null;
-                const eD = sD ? addWeeksToDate(sD, d.weeks) : null;
+                const eD = sD ? addWeeksToDate(sD, d.weeks + (d.holidayWeeks || 0)) : null;
                 const accSD = sD ? (() => { const x = new Date(sD); x.setDate(sD.getDate() - 1); return x; })() : null;
                 const accED = eD ? (() => { const x = new Date(eD); x.setDate(eD.getDate() + 2); return x; })() : null;
                 return (
@@ -2649,7 +2649,7 @@ function PdfTemplate({ destinations, student, user, logoSrc }) {
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
-        const endD = addWeeksToDate(startD, d.weeks);
+        const endD = addWeeksToDate(startD, d.weeks + (d.holidayWeeks || 0));   // tatil haftası takvime dahil
         const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
         // Konaklama bitişi kendi süresine göre (kurs süresinden farklı olabilir)
         const accEndBase = addWeeksToDate(startD, (d.accWeeks || d.weeks) + (d.holidayWeeks || 0));
