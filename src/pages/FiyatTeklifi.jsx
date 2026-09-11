@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v104-takvim-gun-duzelt-2026-08-28";
+const BFT_BUILD_VERSION = "v106-pdf-renk-secici-2026-08-28";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1034,6 +1034,15 @@ export default function FiyatTeklifi() {
   // durum: "loading" (buton pasif görünür) | "ready" (aktif link) | "none" (buton gizli)
   const [arsivUrl, setArsivUrl] = useState(null);
   const [arsivDurum, setArsivDurum] = useState("loading");
+  // PDF'teki okul/şehir başlığı rengi (yalnızca staff seçer, tarayıcıda hatırlanır)
+  const PDF_RENKLER = [
+    { ad: "Turkuaz",  hex: "#00C1DE", rgb: [0, 193, 222] },
+    { ad: "Bordo",    hex: "#9B1B30", rgb: [155, 27, 48] },
+    { ad: "Antrasit", hex: "#334155", rgb: [51, 65, 85] },
+  ];
+  const [pdfRenk, setPdfRenk] = useState(() => {
+    try { return localStorage.getItem("bft_pdf_renk") || "Turkuaz"; } catch (e) { return "Turkuaz"; }
+  });
   const [preselectDone, setPreselectDone] = useState(false); // URL okul+şehir bir kez işlendi mi
   const [urlWarning, setUrlWarning] = useState(""); // eşleşmezse üst banner uyarısı
 
@@ -1203,21 +1212,21 @@ export default function FiyatTeklifi() {
 
   // with_accommodation paketi secildiyse Konaklama adimi cikar (pakete dahil)
   const skipAccommodation = cur.selectedPackage?.package_type === "with_accommodation" || cur.isOnline;
-  // "Ek Hizmetler" adimi: pakette gizli (paket her sey dahil), online'da gizli.
+  // "Ek Ücretler" adimi: pakette gizli (paket her sey dahil), online'da gizli.
   // Staff'ta zorunlu ucret/opsiyonel gosterilir; customer'da opsiyonel gizli oldugu icin genelde bos -> yine de zorunlu ucret varsa gosterilebilir ama customer'da bu adim gizlenir.
   const skipAddons = !!cur.selectedPackage || cur.isOnline || !isStaff;
   // "Transfer" adimi: transfer verisi varsa VE paket transfer icermiyorsa gosterilir
   const hasTransfers = (cur.cityData?.transfers?.length > 0) && !packageIncludesTransfer(cur.selectedPackage) && !cur.isOnline;
-  const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Hizmetler","Transfer","Özet"].filter(s => {
+  const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Ücretler","Transfer","Özet"].filter(s => {
     if (s === "Konaklama" && skipAccommodation) return false;
-    if (s === "Ek Hizmetler" && skipAddons) return false;
+    if (s === "Ek Ücretler" && skipAddons) return false;
     if (s === "Transfer" && !hasTransfers) return false;
     return true;
   });
   const stepName = STEPS[step];
   const lastStepIdx = STEPS.length - 1;          // Özet'in index'i
   const summaryIdx = STEPS.indexOf("Özet");
-  const addonsIdx = STEPS.indexOf("Ek Hizmetler");
+  const addonsIdx = STEPS.indexOf("Ek Ücretler");
 
   const canNextMap = {
     "Genel Bilgi": !!(student.name && student.gender && student.age),
@@ -1225,7 +1234,7 @@ export default function FiyatTeklifi() {
     "Kurs": (!!cur.selectedPackage || (!!cur.course && isCourseValid(cur.course, cur.weeks))) && !cur.cityLoading,
     // Konaklama: secili oda VEYA "konaklama istemiyorum" VEYA online VEYA paket(with_acc)
     "Konaklama": !!cur.acc || cur.noAccommodation || cur.isOnline,
-    "Ek Hizmetler": true,
+    "Ek Ücretler": true,
     "Transfer": true,
     "Özet": true,
   };
@@ -1239,7 +1248,7 @@ export default function FiyatTeklifi() {
   };
 
   const next = () => {
-    // Özet'ten hemen onceki adim her zaman ozete gecisi tetikler (Ek Hizmetler atlanmis olabilir)
+    // Özet'ten hemen onceki adim her zaman ozete gecisi tetikler (Ek Ücretler atlanmis olabilir)
     const isLastBeforeSummary = step === STEPS.indexOf("Özet") - 1;
     if (isLastBeforeSummary) {
       const coursePrice = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
@@ -1439,6 +1448,8 @@ export default function FiyatTeklifi() {
       const siteLogo = (!isStaff) ? await loadLogo(SITE_LOGO, "__bft_site_logo") : null;
 
       const CYAN_RGB = [0, 193, 222];
+      // Okul/şehir başlığı rengi — staff seçebilir, customer'da sabit turkuaz
+      const BASLIK_RGB = isStaff ? (PDF_RENKLER.find(r => r.ad === pdfRenk)?.rgb || CYAN_RGB) : CYAN_RGB;
       const PAGE_W = 210, MARGIN = 18;
       const CW = PAGE_W - MARGIN * 2;
       // Her sayfa altına: önemli not (bold, büyük harf) + site adresi
@@ -1507,7 +1518,7 @@ export default function FiyatTeklifi() {
         y += 18;
 
         // Şehir başlığı — "Okul, Şehir" (marka 7 karakterden uzunsa şehir alt satıra)
-        doc.setFontSize(40); doc.setTextColor(...CYAN_RGB);
+        doc.setFontSize(40); doc.setTextColor(...BASLIK_RGB);
         if (!d.isOnline && d.brand) {
           if (d.brand.length > 7) {
             // İki satır: "Okul," üstte, "Şehir" altta
@@ -1663,13 +1674,16 @@ export default function FiyatTeklifi() {
           });
         }
 
-        // Ek hizmetler
+        // Ek ücretler (otomatik dönemsel supplement'ler + elle eklenenler)
         if ((d.addons||[]).length > 0) {
           d.addons.forEach((a, i) => {
-            doc.setFontSize(9); doc.setTextColor(17);
-            if (i === 0) doc.text("Ek Hizmetler", MARGIN, y);
-            doc.text(a.name + (a.notes ? ` — ${a.notes}` : ""), MARGIN + 32, y);
+            doc.setFont(FONT, "bold");
+            doc.setFontSize(9); doc.setTextColor(13, 148, 136);   // teal — HS amber / indirim yeşilinden ayrışır
+            if (i === 0) doc.text("Ek Ücretler", MARGIN, y);
+            const not = a.auto && a.weeks ? ` (${a.weeks} hafta)` : (a.notes ? ` — ${a.notes}` : "");
+            doc.text(a.name + not, MARGIN + 32, y);
             doc.text(money(a.totalAmount), PAGE_W - MARGIN, y, { align:"right" });
+            doc.setFont(FONT, "normal");
             y += 5;
           });
         }
@@ -2403,9 +2417,9 @@ export default function FiyatTeklifi() {
             </div>
           )}
 
-          {stepName === "Ek Hizmetler" && (
+          {stepName === "Ek Ücretler" && (
             <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>Ek Hizmetler — {cur.brand} {cur.city}</h2>
+              <h2 style={S.ttl}>Ek Ücretler — {cur.brand} {cur.city}</h2>
               {(() => {
                 const allFees = cur.cityData?.fees || [];
                 const age = parseInt(student.age) || 0;
@@ -2581,7 +2595,7 @@ export default function FiyatTeklifi() {
                       </div>
                     )}
                     {!d.selectedPackage && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}><span style={{ color:"#64748b" }}>Kayıt + Materyal</span>{isStaff && <span style={{ fontWeight:600 }}>{fmt(f.total, cur2)}</span>}</div>}
-                    {(d.addons||[]).map((a,ai) => (<div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>{a.name}</span>{isStaff && <span>{fmt(a.totalAmount, cur2)}</span>}</div>))}
+                    {(d.addons||[]).map((a,ai) => (<div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#0d9488", fontWeight:600 }}><span>{a.name}{a.auto && a.weeks ? ` (${a.weeks} hafta)` : ""}</span>{isStaff && <span>{fmt(a.totalAmount, cur2)}</span>}</div>))}
                     {d.transfer && (<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport}{d.transferRoundTrip ? " · çift yön" : " · tek yön"})</span>{isStaff && <span>{fmt(transferPrice(d), d.transfer.currency)}</span>}</div>)}
                     {(() => { const _dt = getDestinationTotals(d, f); return (<>
                     {!_dt.isPackage && _dt.appliedDiscounts.map((disc, di) => (
@@ -2621,7 +2635,19 @@ export default function FiyatTeklifi() {
           <div style={S.navBox}>
             {stepName !== "Genel Bilgi" && stepName !== "Özet" && <button onClick={() => { setStep(s => s-1); setTimeout(() => { const r = document.getElementById("bft-root"); if (r) { const t = r.getBoundingClientRect().top + window.pageYOffset - 20; window.scrollTo({ top:t, behavior:"smooth" }); } else window.scrollTo({ top:0, behavior:"smooth" }); }, 100); }} style={S.btnBack}>← Geri</button>}
             {stepName !== "Özet" && stepName !== "Genel Bilgi" && (<button style={{ ...S.btnNext, opacity: !canNext ? 0.5 : 1, cursor: !canNext ? "not-allowed" : "pointer" }} disabled={!canNext} onClick={next}>{step === STEPS.indexOf("Özet") - 1 ? "Özete Geç →" : "İleri →"}</button>)}
-            {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft:"auto" }} className={isStaff ? "bft-pdf-btn-mobile" : ""}>📄 PDF Oluştur</button>)}
+            {stepName === "Özet" && destinations.length > 0 && isStaff && (
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginRight:"auto", flexWrap:"wrap" }}>
+                <span style={{ fontSize:12, color:"#64748b", fontWeight:500 }}>PDF okul adı rengi:</span>
+                {PDF_RENKLER.map(r => (
+                  <span key={r.ad} title={r.ad}
+                    onClick={() => { setPdfRenk(r.ad); try { localStorage.setItem("bft_pdf_renk", r.ad); } catch (e) {} }}
+                    style={{ width:26, height:26, borderRadius:"50%", background:r.hex, cursor:"pointer", display:"inline-block",
+                      border: pdfRenk === r.ad ? "3px solid #0f172a" : "2px solid #e2e8f0",
+                      boxShadow: pdfRenk === r.ad ? "0 0 0 2px #fff inset" : "none", transition:"border 0.15s" }} />
+                ))}
+              </div>
+            )}
+            {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={{ ...S.btnNext, marginLeft: isStaff ? 0 : "auto" }} className={isStaff ? "bft-pdf-btn-mobile" : ""}>📄 PDF Oluştur</button>)}
           </div>
         </main>
 
@@ -2644,7 +2670,6 @@ export default function FiyatTeklifi() {
             )}
           </div>
           {destinations.length > 0 && destinations.map((d,i) => (<div key={i} style={{ fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" }}><strong>{d.brand || d.city}</strong>{d.brand && d.city ? ` · ${d.city}` : ""} · {d.weeks}h · {courseWithLang(d.course, "orig")?.slice(0,24)}</div>))}
-          {stepName === "Özet" && destinations.length > 0 && (<button onClick={() => isStaff ? generatePDF() : (setLeadForm(p => ({...p, name: student.name || p.name})), setLeadModal(true))} style={S.pdfBtn}>📄 PDF Oluştur</button>)}
         </aside>}
       </div>
     </div>
@@ -2754,7 +2779,7 @@ function PdfTemplate({ destinations, student, user, logoSrc }) {
                 {/* EK HİZMETLER — border yok, sıkı padding */}
                 {(d.addons||[]).length > 0 && (d.addons||[]).map((a, ai) => (
                   <tr key={ai} style={{ pageBreakInside:"avoid" }}>
-                    <td style={{ padding:"1mm 2mm 1mm 0", fontWeight: ai===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: ai===0 ? "inherit" : "9pt" }}>{ai === 0 ? "Ek Hizmetler" : ""}</td>
+                    <td style={{ padding:"1mm 2mm 1mm 0", fontWeight: ai===0 ? "bold" : "normal", verticalAlign:"top", color:"#111", fontSize: ai===0 ? "inherit" : "9pt" }}>{ai === 0 ? "Ek Ücretler" : ""}</td>
                     <td style={{ padding:"1mm 2mm", verticalAlign:"top", fontSize:"9pt" }}>{a.name}{a.notes ? ` — ${a.notes}` : ""}</td>
                     <td style={{ padding:"1mm 0 1mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap" }}>{Number(a.totalAmount||0).toLocaleString("tr-TR")},00</td>
                   </tr>
