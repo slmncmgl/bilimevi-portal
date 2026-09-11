@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v107-renk-kapsam-2026-08-29";
+const BFT_BUILD_VERSION = "v108-renk-etiket-2026-08-29";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -2648,7 +2648,7 @@ export default function FiyatTeklifi() {
             {stepName !== "Özet" && stepName !== "Genel Bilgi" && (<button style={{ ...S.btnNext, opacity: !canNext ? 0.5 : 1, cursor: !canNext ? "not-allowed" : "pointer" }} disabled={!canNext} onClick={next}>{step === STEPS.indexOf("Özet") - 1 ? "Özete Geç →" : "İleri →"}</button>)}
             {stepName === "Özet" && destinations.length > 0 && isStaff && (
               <div style={{ display:"flex", alignItems:"center", gap:10, marginRight:"auto", flexWrap:"wrap" }}>
-                <span style={{ fontSize:12, color:"#64748b", fontWeight:500 }}>PDF okul adı rengi:</span>
+                <span style={{ fontSize:12, color:"#64748b", fontWeight:500 }}>PDF Ana Renk:</span>
                 {PDF_RENKLER.map(r => (
                   <span key={r.ad} title={r.ad}
                     onClick={() => { setPdfRenk(r.ad); try { localStorage.setItem("bft_pdf_renk", r.ad); } catch (e) {} }}
