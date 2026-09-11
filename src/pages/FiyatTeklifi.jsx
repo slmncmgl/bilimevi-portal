@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v99-admin-fee-ayri-2026-08-28";
+const BFT_BUILD_VERSION = "v100-fee-tarih-kesisim-2026-08-28";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -2267,8 +2267,15 @@ export default function FiyatTeklifi() {
                   if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
                   if (f.min_age && age < f.min_age) return false;
                   if (f.max_age && age > f.max_age) return false;
-                  if (f.date_start && startD && new Date(f.date_start) > startD) return false;
-                  if (f.date_end && startD && new Date(f.date_end) < startD) return false;
+                  // Tarih kontrolü: ücretin aralığı, öğrencinin KALIŞ aralığıyla kesişiyor mu?
+                  // (Eskiden yalnızca başlangıç gününe bakılıyordu; kurs ortasına denk gelen
+                  //  Christmas/Peak Season gibi ücretler bu yüzden hiç görünmüyordu.)
+                  if ((f.date_start || f.date_end) && startD) {
+                    const kalisHafta = Math.max(cur.weeks || 0, cur.accWeeks || 0) || (cur.weeks || 1);
+                    const bitisD = addWeeksToDate(startD, kalisHafta);
+                    if (f.date_start && new Date(f.date_start) > bitisD) return false;
+                    if (f.date_end && new Date(f.date_end) < startD) return false;
+                  }
                   return true;
                 });
                 // Paket secildiyse zorunlu ucret + opsiyonel gizli (paket her sey dahil) — sadece Transfer gosterilir
