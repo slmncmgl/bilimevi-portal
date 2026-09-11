@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v106-pdf-renk-secici-2026-08-28";
+const BFT_BUILD_VERSION = "v107-renk-kapsam-2026-08-29";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -968,7 +968,18 @@ function getDestinationTotals(d, fees) {
 // Örn: 1.347,948 → 1.348,00 | 1.347,47 → 1.347,50 | 1.347,20 → 1.347,00
 const roundHalf = (n) => Math.round((Number(n) || 0) * 2) / 2;
 const fmt = (n, cur) => `${cur || ""} ${roundHalf(n).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const emptyDest = (sd = "2026-07-06", w = 4) => ({
+// Varsayılan kurs başlangıcı: bugünden 2 hafta sonra, ileriye doğru en yakın PAZARTESİ.
+// (Kayıt/vize hazırlığı için en az 14 gün payı bırakır.)
+function varsayilanBaslangic() {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);              // saat dilimi kayması olmasın
+  d.setDate(d.getDate() + 14);
+  const gun = d.getDay();               // 0=Paz, 1=Pzt
+  if (gun !== 1) d.setDate(d.getDate() + ((8 - gun) % 7 || 7));
+  return d.toISOString().split("T")[0];
+}
+
+const emptyDest = (sd = varsayilanBaslangic(), w = 4) => ({
   lang: "", country: "", city: "", brand: "", course: null, weeks: w, accWeeks: w, accWeeksTouched: false, acc: null, startDate: sd,
   isOnline: false, cityData: null, cityLoading: false, addons: [], transfer: null,
   selectedPackage: null, noAccommodation: false, transferRoundTrip: false, holidayWeeks: 0,
@@ -1547,7 +1558,7 @@ export default function FiyatTeklifi() {
         doc.setFontSize(10); doc.setTextColor(17);
         doc.text("Teklifinize neler dahil?", MARGIN, y);
         y += 5;
-        doc.setTextColor(...CYAN_RGB);
+        doc.setTextColor(...BASLIK_RGB);
         doc.text(`Hafta Sayısı: ${d.weeks}`, MARGIN, y);
         y += 2;
         doc.setDrawColor(17); doc.setLineWidth(0.6);
@@ -1736,7 +1747,7 @@ export default function FiyatTeklifi() {
           const waPhone = (user?.phone || "905419189177").replace(/\D/g, "");
           const waUrl = `https://wa.me/${waPhone}`;
           const btnX = PAGE_W/2 - 45, btnY = y, btnW = 90, btnH = 10;
-          doc.setFillColor(...CYAN_RGB);
+          doc.setFillColor(...BASLIK_RGB);
           doc.roundedRect(btnX, btnY, btnW, btnH, 5, 5, "F");
           doc.setFontSize(10); doc.setTextColor(255);
           doc.text("Eğitim Danışmanınıza Şimdi Ulaşın", PAGE_W/2, y + 6.5, { align:"center" });
@@ -1807,7 +1818,7 @@ export default function FiyatTeklifi() {
 
         // Başlık satırı: okul adları (her kelime alt alta, büyük+turkuaz, dikey ortalı)
         doc.setFont(FONT, "bold");
-        doc.setFontSize(14); doc.setTextColor(...CYAN_RGB);
+        doc.setFontSize(14); doc.setTextColor(...BASLIK_RGB);
         const LH = 6.5; // satır yüksekliği
         // Önce her okulun kelimelerini ve maxWords'ü hesapla
         const headWords = cols.map((c, i) => String(c.d.brand || c.d.city || `Okul ${i+1}`).split(/\s+/).filter(Boolean));
