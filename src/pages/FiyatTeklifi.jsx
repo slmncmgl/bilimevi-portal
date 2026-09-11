@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v100-fee-tarih-kesisim-2026-08-28";
+const BFT_BUILD_VERSION = "v101-otomatik-supplement-2026-08-28";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -738,6 +738,85 @@ function langHasMode(citiesByLang, lang, only30) {
   );
 }
 
+// ─── TARİHLİ SUPPLEMENT (sezon zammı / yılbaşı tatili) ───
+// Ücretin tarih aralığı ile öğrencinin kalış aralığının KESİŞTİĞİ hafta sayısı.
+// per_week ücretler bu sayıyla çarpılır (kurs haftasıyla değil).
+function kesisenHafta(feeStart, feeEnd, kalisStart, kalisEnd) {
+  if (!kalisStart || !kalisEnd) return 0;
+  const fs = feeStart ? new Date(feeStart) : kalisStart;
+  const fe = feeEnd ? new Date(feeEnd) : kalisEnd;
+  const bas = new Date(Math.max(fs.getTime(), kalisStart.getTime()));
+  const bit = new Date(Math.min(fe.getTime(), kalisEnd.getTime()));
+  if (bit < bas) return 0;
+  const gun = (bit - bas) / 86400000;
+  return Math.max(1, Math.ceil(gun / 7));
+}
+// A tipi: okulun KAPALI olduğu tatil dönemi → konaklama süresi uzar
+function isTatilSupplement(name) {
+  return /end of year|christmas|xmas|new year|yılbaşı|yilbasi/i.test(name || "");
+}
+// B tipi: okul açık, yalnızca dönemsel fiyat zammı
+function isSezonSupplement(name) {
+  return /peak season|high season|summer|yüksek sezon|yuksek sezon/i.test(name || "");
+}
+// Ücret hangi kaleme bağlı? konaklama tipine göre eşleşmeli.
+// "homestay/host family" → aile yanı, "residence/apartment" → yurt/apart, "tuition/course" → her zaman
+function supplementHedefUyuyor(name, accType) {
+  const n = (name || "").toLowerCase();
+  const t = (accType || "").toLowerCase();
+  if (/homestay|host family/.test(n)) return /homestay|host family|aile/.test(t);
+  if (/residence|apartment|apart/.test(n)) return /residence|apartment|apart|yurt|rezidans/.test(t);
+  return true;   // tuition/course ve diğerleri: konaklamadan bağımsız
+}
+// Otomatik eklenecek mi? Sadece addon_type=supplement + tarihli + isim kalıbı tutan ücretler.
+// course_addon / optional_service / upgrade ASLA otomatik eklenmez (elle seçilir).
+function otomatikSupplementMi(f) {
+  return f.addon_type === "supplement"
+    && (f.date_start || f.date_end)
+    && (isTatilSupplement(f.name) || isSezonSupplement(f.name));
+}
+
+// Bir destinasyon için otomatik eklenecek supplement'leri hesaplar.
+// Dönen: { items:[{name,amount,currency,weeks,auto:true}], tatilHafta, tatilAdi }
+// tatilHafta > 0 ise konaklama o kadar hafta UZATILMALIDIR (okul kapalı, öğrenci yerinde).
+function hesaplaOtoSupplements(fees, startDate, weeks, accWeeks, accType, hasAcc) {
+  const bos = { items: [], tatilHafta: 0, tatilAdi: "" };
+  if (!fees?.length || !startDate || !weeks) return bos;
+  const startD = new Date(startDate);
+  const kursBitis = addWeeksToDate(startD, weeks);
+  const accBitis = hasAcc ? addWeeksToDate(startD, accWeeks || weeks) : kursBitis;
+  const items = [];
+  let tatilHafta = 0, tatilAdi = "";
+
+  fees.forEach(f => {
+    if (!otomatikSupplementMi(f)) return;
+    const konaklamaya_bagli = /homestay|host family|residence|apartment|apart/i.test(f.name || "");
+    if (konaklamaya_bagli && !hasAcc) return;                       // konaklama yoksa atla
+    if (!supplementHedefUyuyor(f.name, accType)) return;            // tipi tutmuyorsa atla
+    // Kurs ücretleri kurs aralığına, konaklama ücretleri konaklama aralığına bakar
+    const bitis = konaklamaya_bagli ? accBitis : kursBitis;
+    const hafta = kesisenHafta(f.date_start, f.date_end, startD, bitis);
+    if (hafta <= 0) return;
+    const tutar = f.calc_type === "per_week" ? f.amount * hafta : f.amount;
+    if (!tutar) return;
+    items.push({ name: f.name, amount: tutar, currency: f.currency, weeks: hafta, auto: true, totalAmount: tutar });
+    // Yılbaşı tatili: okul kapalı → konaklama bu kadar hafta uzamalı
+    if (isTatilSupplement(f.name) && hafta > tatilHafta) { tatilHafta = hafta; tatilAdi = f.name; }
+  });
+
+  // Tatil kontrolü konaklamadan bağımsız da yapılmalı: yurt/apartta "End of Year" ücreti
+  // olmayabilir ama okul yine kapalıdır → konaklama yine uzar.
+  if (hasAcc && !tatilHafta) {
+    fees.forEach(f => {
+      if (f.addon_type !== "supplement" || !isTatilSupplement(f.name)) return;
+      if (!f.date_start && !f.date_end) return;
+      const h = kesisenHafta(f.date_start, f.date_end, startD, kursBitis);
+      if (h > tatilHafta) { tatilHafta = h; tatilAdi = f.name; }
+    });
+  }
+  return { items, tatilHafta, tatilAdi };
+}
+
 function calcFees(fees, weeks, age, accType, accWeeks, hasAcc = true) {
   const currency = fees?.[0]?.currency || "GBP";
   const items = [];
@@ -870,7 +949,7 @@ const fmt = (n, cur) => `${cur || ""} ${roundHalf(n).toLocaleString("tr-TR", { m
 const emptyDest = (sd = "2026-07-06", w = 4) => ({
   lang: "", country: "", city: "", brand: "", course: null, weeks: w, accWeeks: w, accWeeksTouched: false, acc: null, startDate: sd,
   isOnline: false, cityData: null, cityLoading: false, addons: [], transfer: null,
-  selectedPackage: null, noAccommodation: false, transferRoundTrip: false,
+  selectedPackage: null, noAccommodation: false, transferRoundTrip: false, holidayWeeks: 0,
   courseBasePrice: 0, courseHsAmount: 0, courseTotalPrice: 0, courseHsActive: false,
   accBasePrice: 0, accHsAmount: 0, accTotalPrice: 0, accHsActive: false,
 });
@@ -1047,11 +1126,53 @@ export default function FiyatTeklifi() {
 
   const courses = cur.cityData?.courses || [];
   const accs = cur.cityData?.acc || [];
+  // Tarihli supplement'leri (yılbaşı tatili / sezon zammı) otomatik ekler.
+  // Yılbaşı tatilinde okul kapalı olduğu için konaklama süresi de uzatılır.
+  useEffect(() => {
+    if (cur.isOnline || !cur.cityData?.fees?.length || !cur.course || !cur.startDate) return;
+    const hasAcc = !!cur.acc;
+    const oto = hesaplaOtoSupplements(
+      cur.cityData.fees, cur.startDate, cur.weeks,
+      cur.accWeeks || cur.weeks, cur.acc?.type, hasAcc
+    );
+    setCur(p => {
+      const elle = (p.addons || []).filter(a => !a.auto);        // danışmanın elle seçtikleri korunur
+      const yeni = [...elle, ...oto.items];
+      const ayni = JSON.stringify((p.addons || []).map(a => [a.name, a.totalAmount, !!a.auto]))
+                === JSON.stringify(yeni.map(a => [a.name, a.totalAmount, !!a.auto]));
+      // Tatil varsa konaklama, kurs süresi + tatil kadar olmalı (vize istisnası)
+      let accW = p.accWeeks;
+      const hedefAcc = (p.weeks || 0) + (oto.tatilHafta || 0);
+      if (hasAcc && oto.tatilHafta > 0 && !p.accWeeksTouched && p.accWeeks !== hedefAcc) accW = hedefAcc;
+      if (ayni && accW === p.accWeeks && p.tatilHafta === oto.tatilHafta) return p;
+      return { ...p, addons: yeni, accWeeks: accW, tatilHafta: oto.tatilHafta, tatilAdi: oto.tatilAdi };
+    });
+  }, [cur.cityData, cur.course?.name, cur.startDate, cur.weeks, cur.acc?.name, cur.acc?.type, cur.acc?.room]);
+
+  // ─── OTOMATİK TARİHLİ SUPPLEMENT'LER ───
+  // Kalış aralığına denk gelen supplement'ler (yılbaşı tatili / yüksek sezon) otomatik eklenir.
+  // Ücret AYRI SATIR olarak görünür (haftalık fiyata gömülmez).
+  // Tatil (A tipi) ayrıca konaklama süresini uzatır: okul kapalı ama öğrenci yerinde.
+  useEffect(() => {
+    if (cur.isOnline || !cur.cityData || !cur.course) return;
+    const r = hesaplaOtoSupplements(
+      cur.cityData.fees, cur.startDate, cur.weeks,
+      cur.accWeeks || cur.weeks, cur.acc?.type, !!cur.acc
+    );
+    setCur(p => {
+      const manuel = (p.addons || []).filter(a => !a.auto);
+      const yeni = [...manuel, ...r.items];
+      const imza = (l) => JSON.stringify((l || []).map(a => [a.name, a.totalAmount]));
+      if (imza(yeni) === imza(p.addons) && (p.holidayWeeks || 0) === r.tatilHafta) return p;
+      return { ...p, addons: yeni, holidayWeeks: r.tatilHafta };
+    });
+  }, [cur.cityData, cur.course, cur.acc, cur.startDate, cur.weeks, cur.accWeeks, cur.isOnline]);
+
   const feesData = cur.isOnline
     ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
     : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks, !!cur.acc);
   const coursePriceData = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
-  const accPriceData = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.accWeeks || cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
+  const accPriceData = cur.acc ? getTotalAccommodationPrice(cur.acc, (cur.accWeeks || cur.weeks) + (cur.holidayWeeks || 0), cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
   const courseTotal = coursePriceData.totalPrice;
   const accTotal = accPriceData.totalPrice;
   const addonsCost = (cur.addons||[]).reduce((s,a) => s+(a.totalAmount||0), 0);
@@ -1100,7 +1221,7 @@ export default function FiyatTeklifi() {
     const isLastBeforeSummary = step === STEPS.indexOf("Özet") - 1;
     if (isLastBeforeSummary) {
       const coursePrice = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
-      const accPrice = cur.acc ? getTotalAccommodationPrice(cur.acc, cur.accWeeks || cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
+      const accPrice = cur.acc ? getTotalAccommodationPrice(cur.acc, (cur.accWeeks || cur.weeks) + (cur.holidayWeeks || 0), cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
       // Düzenleme modunda kopya kontrolü yapılmaz (kayıt zaten listeden çıkarılmıştı)
       // Kopya kontrolü: yalnızca BİREBİR aynı seçim engellenir.
       // Aynı okul/şehirde farklı oda tipi, pansiyon, süre veya tarih => AYRI destinasyon sayılır.
@@ -1319,7 +1440,7 @@ export default function FiyatTeklifi() {
         const endD = addWeeksToDate(startD, d.weeks);
         const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
         // Konaklama bitişi kendi süresine göre (kurs süresinden farklı olabilir)
-        const accEndBase = addWeeksToDate(startD, d.accWeeks || d.weeks);
+        const accEndBase = addWeeksToDate(startD, (d.accWeeks || d.weeks) + (d.holidayWeeks || 0));
         const accEndD = new Date(accEndBase); accEndD.setDate(accEndBase.getDate() + 2);
 
         let y = 20;
@@ -1487,7 +1608,7 @@ export default function FiyatTeklifi() {
           y += 5;
           if (accP.line2) { doc.setFontSize(9); doc.text(accP.line2, MARGIN + 32, y); y += 4.5; }
           doc.setFontSize(8); doc.setTextColor(85);
-          doc.text(`Konaklama Süresi: ${d.accWeeks || d.weeks} hafta`, MARGIN + 32, y);
+          doc.text(`Konaklama Süresi: ${(d.accWeeks || d.weeks) + (d.holidayWeeks || 0)} hafta${d.holidayWeeks ? " (tatil nedeniyle +" + d.holidayWeeks + ")" : ""}`, MARGIN + 32, y);
           y += 4;
           doc.text(`Giriş: ${fmtDate(accStartD)}  |  Çıkış: ${fmtDate(accEndD)}`, MARGIN + 32, y);
           y += 4;
@@ -2204,13 +2325,16 @@ export default function FiyatTeklifi() {
                     <div style={{ marginTop:16 }}>
                       <div style={{ ...S.fld, maxWidth:220, marginBottom:0 }}>
                         <label style={S.lbl}>Konaklama Süresi (Hafta)</label>
-                        <input style={S.fti} type="number" min={1} max={cur.weeks}
+                        <input style={S.fti} type="number" min={1} max={cur.weeks + (cur.tatilHafta || 0)}
                           value={accWeeksInput !== null ? accWeeksInput : (cur.accWeeks || cur.weeks)}
                           onChange={e => {
                             const raw = e.target.value;
                             const n = parseInt(raw, 10);
                             if (raw !== "" && !isNaN(n) && n >= 1) {
-                              const v = Math.min(n, cur.weeks);   // vize kuralı: kurs süresini aşamaz
+                              // Vize kuralı: kurs süresini aşamaz. İSTİSNA: okulun kapalı olduğu
+                              // yılbaşı tatili kadar uzayabilir (öğrenci o hafta da konaklıyor).
+                              const ustSinir = cur.weeks + (cur.tatilHafta || 0);
+                              const v = Math.min(n, ustSinir);
                               setAccWeeksInput(String(v));        // aşan değer ekranda da kısılır
                               setCur(p => ({...p, accWeeks: v, accWeeksTouched: true}));
                             } else {
@@ -2219,6 +2343,11 @@ export default function FiyatTeklifi() {
                           }}
                           onBlur={() => setAccWeeksInput(null)} />
                       </div>
+                      {cur.holidayWeeks > 0 && (
+                        <div style={{ marginTop:10, padding:"10px 12px", background:"#eff6ff", border:"1px solid #93c5fd", borderRadius:8, fontSize:12, color:"#1e40af", fontWeight:600 }}>
+                          🎄 Kurs tatili nedeniyle konaklama {cur.holidayWeeks} hafta uzatıldı (toplam {(cur.accWeeks || cur.weeks) + cur.holidayWeeks} hafta). Okul kapalı olduğu dönemde konaklama devam eder.
+                        </div>
+                      )}
                       {cur.accWeeks && cur.accWeeks !== cur.weeks && (
                         <div style={{ marginTop:10, padding:"10px 12px", background:"#fef3c7", border:"1px solid #fbbf24", borderRadius:8, fontSize:12, color:"#92400e", fontWeight:600 }}>
                           ⚠️ Kurs süresi ile konaklama süresi farklı! (Kurs: {cur.weeks} hafta · Konaklama: {cur.accWeeks} hafta)
@@ -2296,7 +2425,11 @@ export default function FiyatTeklifi() {
                       <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                         {optional.map((f,i) => {
                           const sel = cur.addons?.some(a => a.name === f.name);
-                          const amt = f.calc_type === "per_week" ? f.amount * cur.weeks : f.amount;
+                          const _kalisH = Math.max(cur.weeks || 0, cur.accWeeks || 0) || (cur.weeks || 1);
+                          const _hafta = (f.date_start || f.date_end) && startD
+                            ? kesisenHafta(f.date_start, f.date_end, startD, addWeeksToDate(startD, _kalisH))
+                            : cur.weeks;
+                          const amt = f.calc_type === "per_week" ? f.amount * (_hafta || 1) : f.amount;
                           return (<div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${sel ? CYAN : "#e2e8f0"}`, background: sel ? "#f0fdff" : "#fff", cursor:"pointer" }}
                             onClick={() => setCur(p => ({ ...p, addons: sel ? (p.addons||[]).filter(a => a.name !== f.name) : [...(p.addons||[]), { ...f, totalAmount: amt }] }))}>
                             <div>
@@ -2395,7 +2528,7 @@ export default function FiyatTeklifi() {
                             <span style={{ fontWeight:600 }}>
                               {ap.line1}
                               {ap.line2 && <><br/>{ap.line2}</>}
-                              <br/><span style={{ fontWeight:500, color:"#64748b", fontSize:12 }}>{d.accWeeks || d.weeks} hafta</span>
+                              <br/><span style={{ fontWeight:500, color:"#64748b", fontSize:12 }}>{(d.accWeeks || d.weeks) + (d.holidayWeeks || 0)} hafta{d.holidayWeeks ? ` (tatil +${d.holidayWeeks})` : ""}</span>
                             </span>
                             {isStaff && <span style={{ fontWeight:600, color:CYAN, whiteSpace:"nowrap" }}>{fmt(d.accBasePrice, cur2)}</span>}
                           </div>
@@ -2500,7 +2633,7 @@ function PdfTemplate({ destinations, student, user, logoSrc }) {
         const endD = addWeeksToDate(startD, d.weeks);
         const accStartD = new Date(startD); accStartD.setDate(startD.getDate() - 1);
         // Konaklama bitişi kendi süresine göre (kurs süresinden farklı olabilir)
-        const accEndBase = addWeeksToDate(startD, d.accWeeks || d.weeks);
+        const accEndBase = addWeeksToDate(startD, (d.accWeeks || d.weeks) + (d.holidayWeeks || 0));
         const accEndD = new Date(accEndBase); accEndD.setDate(accEndBase.getDate() + 2);
         const notes = [];
         if (d.course?.morning) notes.push("Sabah garantisi mevcut (ek ücret uygulanabilir)");
