@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v101-otomatik-supplement-2026-08-28";
+const BFT_BUILD_VERSION = "v102-supplement-liste-duzelt-2026-08-28";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -2393,6 +2393,9 @@ export default function FiyatTeklifi() {
                 const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks, !!cur.acc).items;
                 const optional = allFees.filter(f => {
                   if (!["optional_service","supplement","upgrade","course_addon","post_departure"].includes(f.addon_type)) return false;
+                  // Otomatik eklenenler (yılbaşı/sezon supplement'leri) listede GÖSTERİLMEZ —
+                  // zaten teklife dahil; burada durursa danışman ikinci kez ekleyebilir.
+                  if (otomatikSupplementMi(f)) return false;
                   if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
                   if (f.min_age && age < f.min_age) return false;
                   if (f.max_age && age > f.max_age) return false;
@@ -2409,8 +2412,24 @@ export default function FiyatTeklifi() {
                 });
                 // Paket secildiyse zorunlu ucret + opsiyonel gizli (paket her sey dahil) — sadece Transfer gosterilir
                 if (cur.selectedPackage) return <p style={{ color:"#64748b", fontSize:13 }}>🎁 Paket programında kurs ücretleri dahildir. Aşağıdan dilerseniz transfer ekleyebilirsiniz.</p>;
-                if (compulsory.length === 0 && (isStaff ? optional.length === 0 : true)) return <p style={{ color:"#94a3b8", fontSize:13 }}>Bu kurs ve tarih için eklenebilecek add-on bulunmuyor.</p>;
+                if (compulsory.length === 0 && (cur.addons || []).filter(a => a.auto).length === 0 && (isStaff ? optional.length === 0 : true)) return <p style={{ color:"#94a3b8", fontSize:13 }}>Bu kurs ve tarih için eklenebilecek add-on bulunmuyor.</p>;
                 return (<>
+                  {(cur.addons || []).filter(a => a.auto).length > 0 && (
+                    <div style={{ marginBottom:20 }}>
+                      <p style={S.slbl}>Otomatik Eklendi (dönemsel)</p>
+                      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                        {(cur.addons || []).filter(a => a.auto).map((a,i) => (
+                          <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", background:"#eff6ff", borderRadius:10, border:"1px solid #bfdbfe", fontSize:13 }}>
+                            <span>
+                              <span style={{ fontWeight:600, color:"#1e40af" }}>{a.name}</span>
+                              <span style={{ display:"block", fontSize:11, color:"#3b82f6", marginTop:2 }}>Tarih aralığına denk geldi · {a.weeks} hafta</span>
+                            </span>
+                            <span style={{ fontWeight:700, color:"#1e40af", whiteSpace:"nowrap" }}>{a.currency} {roundHalf(a.totalAmount).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {compulsory.length > 0 && (
                     <div style={{ marginBottom:20 }}>
                       <p style={S.slbl}>Zorunlu Ücretler</p>
@@ -2439,7 +2458,7 @@ export default function FiyatTeklifi() {
                             </div>
                             <div style={{ textAlign:"right", flexShrink:0 }}>
                               <div style={{ fontWeight:700, color: sel ? CYAN : "#0f172a" }}>{f.currency} {roundHalf(amt).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                              {f.calc_type === "per_week" && <div style={{ fontSize:11, color:"#94a3b8" }}>{f.amount}/h × {cur.weeks}h</div>}
+                              {f.calc_type === "per_week" && <div style={{ fontSize:11, color:"#94a3b8" }}>{f.amount}/h × {_hafta || 1}h</div>}
                             </div>
                           </div>);
                         })}
