@@ -91,6 +91,7 @@ export default function AuthCallback() {
             katalogparse:  moduller?.["Katalog Parse"]?.toLowerCase() === "evet",
             performansanalizi: moduller?.["Performans Analizi"]?.toLowerCase() === "evet",
             anketraporu: moduller?.["Anket Raporu"]?.toLowerCase() === "evet",
+            kayitformlinkleri: moduller?.["Kayıt Form Linkleri"]?.toLowerCase() === "evet",
           },
         };
         saveSession(user);
