@@ -2,9 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.0";
+const VERSION = "v1.1";
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
+
+// Her satıra sırayla atanan pastel renk paleti (liste uzarsa başa döner)
+const ROW_PALETTE = [
+  { bg: "#eff6fc", border: "#cfe1f2", text: "#2e6da4" }, // mavi
+  { bg: "#f0fdf9", border: "#c3ece0", text: "#0f766e" }, // yeşil-teal
+  { bg: "#fdf4ff", border: "#eed6f5", text: "#86198f" }, // mor-lila
+  { bg: "#fff8ed", border: "#fae0bd", text: "#b45309" }, // amber
+  { bg: "#fdf2f5", border: "#f7d4de", text: "#be123c" }, // gül
+  { bg: "#f4f6fd", border: "#d9dff5", text: "#4338ca" }, // indigo
+];
 
 // Tırnak içindeki virgülleri koruyan CSV ayrıştırıcı
 function parseCSV(csv) {
@@ -128,14 +138,25 @@ export default function KayitFormLinkleri() {
               <div style={styles.stateBox}>Aramanıza uygun link bulunamadı.</div>
             ) : (
               <div style={styles.list}>
-                {filtered.map((link, i) => (
-                  <div style={styles.row} className="kfl-row" key={i}>
-                    <span style={styles.title}>{link.title}</span>
-                    <button onClick={() => copyUrl(link.url)} style={styles.copyBtn} className="kfl-copy-btn">
-                      {copiedUrl === link.url ? "Kopyalandı" : "Linki Kopyala"}
-                    </button>
-                  </div>
-                ))}
+                {filtered.map((link, i) => {
+                  const c = ROW_PALETTE[i % ROW_PALETTE.length];
+                  return (
+                    <div
+                      style={{ ...styles.row, background: c.bg, borderColor: c.border }}
+                      className="kfl-row"
+                      key={i}
+                    >
+                      <span style={styles.title}>{link.title}</span>
+                      <button
+                        onClick={() => copyUrl(link.url)}
+                        style={{ ...styles.copyBtn, color: c.text, borderColor: c.border }}
+                        className="kfl-copy-btn"
+                      >
+                        {copiedUrl === link.url ? "Kopyalandı" : "Linki Kopyala"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
@@ -170,7 +191,7 @@ const styles = {
   searchInput: { width: "100%", padding: "11px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", fontSize: "14px", color: "#0f172a", fontFamily: "inherit", marginBottom: "10px" },
   countText: { fontSize: "12px", color: "#94a3b8", fontWeight: "600", marginBottom: "16px" },
   list: { display: "flex", flexDirection: "column", gap: "10px" },
-  row: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", background: "#eff6fc", border: "1.5px solid #cfe1f2", borderRadius: "12px", padding: "16px 20px" },
+  row: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", border: "1.5px solid", borderRadius: "12px", padding: "16px 20px" },
   title: { fontSize: "14px", fontWeight: "600", color: "#0f172a", lineHeight: 1.5 },
-  copyBtn: { flexShrink: 0, padding: "9px 16px", borderRadius: "8px", border: "1.5px solid #bcd6ee", background: "#fff", color: "#2e6da4", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+  copyBtn: { flexShrink: 0, padding: "9px 16px", borderRadius: "8px", border: "1.5px solid", background: "#fff", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
 };
