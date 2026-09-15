@@ -166,6 +166,23 @@ const MODULE_CONFIG = [
     bg: "#eef2ff",
     border: "#c7d2fe",
   },
+  {
+    key: "kayitformlinkleri",
+    title: "Kayıt Form Linkleri",
+    titleEn: "Registration Form Links",
+    desc: "Aktif kayıt formlarının bağlantı arşivi",
+    descEn: "Archive of active registration form links",
+    path: "/kayit-form-linkleri",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+      </svg>
+    ),
+    color: "#0d9488",
+    bg: "#f0fdfa",
+    border: "#99f6e4",
+  },
 ];
 
 export default function Dashboard() {
