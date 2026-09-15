@@ -87,6 +87,7 @@ export async function loginWithCredentials(username, password) {
     katalogparse:  modulRow?.["Katalog Parse"]?.toLowerCase() === "evet",
     performansanalizi: modulRow?.["Performans Analizi"]?.toLowerCase() === "evet",
     anketraporu: modulRow?.["Anket Raporu"]?.toLowerCase() === "evet",
+    kayitformlinkleri: modulRow?.["Kayıt Form Linkleri"]?.toLowerCase() === "evet",
   
   };
 
