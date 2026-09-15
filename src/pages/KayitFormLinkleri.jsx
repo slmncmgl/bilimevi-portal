@@ -170,7 +170,7 @@ const styles = {
   searchInput: { width: "100%", padding: "11px 14px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", fontSize: "14px", color: "#0f172a", fontFamily: "inherit", marginBottom: "10px" },
   countText: { fontSize: "12px", color: "#94a3b8", fontWeight: "600", marginBottom: "16px" },
   list: { display: "flex", flexDirection: "column", gap: "10px" },
-  row: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", padding: "16px 20px" },
+  row: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", background: "#eff6fc", border: "1.5px solid #cfe1f2", borderRadius: "12px", padding: "16px 20px" },
   title: { fontSize: "14px", fontWeight: "600", color: "#0f172a", lineHeight: 1.5 },
-  copyBtn: { flexShrink: 0, padding: "9px 16px", borderRadius: "8px", border: "1.5px solid #99f6e4", background: "#f0fdfa", color: "#0d9488", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+  copyBtn: { flexShrink: 0, padding: "9px 16px", borderRadius: "8px", border: "1.5px solid #bcd6ee", background: "#fff", color: "#2e6da4", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
 };
