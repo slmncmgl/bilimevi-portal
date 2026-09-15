@@ -12,6 +12,7 @@ import FiyatTeklifi from "./pages/FiyatTeklifi";
 import KatalogParse from "./pages/KatalogParse";
 import PerformansAnalizi from './pages/PerformansAnalizi';
 import AnketRaporu from './pages/AnketRaporu';
+import KayitFormLinkleri from './pages/KayitFormLinkleri';
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/performans-analizi" element={<PerformansAnalizi />} />
         <Route path="/anket-raporu" element={<AnketRaporu />} />
+        <Route path="/kayit-form-linkleri" element={<KayitFormLinkleri />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
