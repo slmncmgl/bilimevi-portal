@@ -2,19 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.1";
+const VERSION = "v1.2";
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
 
-// Her satıra sırayla atanan pastel renk paleti (liste uzarsa başa döner)
+// Öğrenci formlarına sırayla atanan pastel renk paleti (liste uzarsa başa döner)
 const ROW_PALETTE = [
-  { bg: "#eff6fc", border: "#cfe1f2", text: "#2e6da4" }, // mavi
   { bg: "#f0fdf9", border: "#c3ece0", text: "#0f766e" }, // yeşil-teal
-  { bg: "#fdf4ff", border: "#eed6f5", text: "#86198f" }, // mor-lila
   { bg: "#fff8ed", border: "#fae0bd", text: "#b45309" }, // amber
-  { bg: "#fdf2f5", border: "#f7d4de", text: "#be123c" }, // gül
   { bg: "#f4f6fd", border: "#d9dff5", text: "#4338ca" }, // indigo
 ];
+
+// Danışman formu için sabit mavi
+const ADVISOR_COLOR = { bg: "#eff6fc", border: "#cfe1f2", text: "#2e6da4" };
 
 // Tırnak içindeki virgülleri koruyan CSV ayrıştırıcı
 function parseCSV(csv) {
@@ -46,6 +46,7 @@ export default function KayitFormLinkleri() {
   const [error, setError] = useState(null);
   const [copiedUrl, setCopiedUrl] = useState(null);
   const [search, setSearch] = useState("");
+  const [showUsage, setShowUsage] = useState(false);
 
   useEffect(() => {
     const session = getSession();
@@ -95,6 +96,41 @@ export default function KayitFormLinkleri() {
     ? links.filter(l => l.title.toLocaleLowerCase("tr-TR").includes(search.trim().toLocaleLowerCase("tr-TR")))
     : links;
 
+  const advisorLinks = filtered.filter(l => l.title.toLocaleLowerCase("tr-TR").includes("danışman"));
+  const studentLinks = filtered.filter(l => !l.title.toLocaleLowerCase("tr-TR").includes("danışman"));
+
+  function renderRow(link, colors, withOpenBtn) {
+    return (
+      <div
+        style={{ ...styles.row, background: colors.bg, borderColor: colors.border }}
+        className="kfl-row"
+        key={link.title + link.url}
+      >
+        <span style={styles.title}>{link.title}</span>
+        <div style={styles.btnGroup} className="kfl-btn-group">
+          {withOpenBtn && (
+            <a
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ ...styles.copyBtn, background: colors.text, color: "#fff", borderColor: colors.text, textDecoration: "none", display: "inline-block" }}
+              className="kfl-copy-btn"
+            >
+              Formu Aç
+            </a>
+          )}
+          <button
+            onClick={() => copyUrl(link.url)}
+            style={{ ...styles.copyBtn, color: colors.text, borderColor: colors.border }}
+            className="kfl-copy-btn"
+          >
+            {copiedUrl === link.url ? "Kopyalandı" : "Linki Kopyala"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.root}>
       <header style={styles.header}>
@@ -125,6 +161,10 @@ export default function KayitFormLinkleri() {
           <div style={styles.stateBox}>Henüz aktif link bulunmuyor.</div>
         ) : (
           <>
+            <button onClick={() => setShowUsage(true)} style={styles.usageBtn} className="kfl-usage-btn">
+              Linklerin kullanımı
+            </button>
+
             <input
               type="text"
               value={search}
@@ -137,40 +177,86 @@ export default function KayitFormLinkleri() {
             {filtered.length === 0 ? (
               <div style={styles.stateBox}>Aramanıza uygun link bulunamadı.</div>
             ) : (
-              <div style={styles.list}>
-                {filtered.map((link, i) => {
-                  const c = ROW_PALETTE[i % ROW_PALETTE.length];
-                  return (
-                    <div
-                      style={{ ...styles.row, background: c.bg, borderColor: c.border }}
-                      className="kfl-row"
-                      key={i}
-                    >
-                      <span style={styles.title}>{link.title}</span>
-                      <button
-                        onClick={() => copyUrl(link.url)}
-                        style={{ ...styles.copyBtn, color: c.text, borderColor: c.border }}
-                        className="kfl-copy-btn"
-                      >
-                        {copiedUrl === link.url ? "Kopyalandı" : "Linki Kopyala"}
-                      </button>
+              <>
+                {advisorLinks.length > 0 && (
+                  <div style={styles.list}>
+                    {advisorLinks.map(link => renderRow(link, ADVISOR_COLOR, true))}
+                  </div>
+                )}
+
+                {studentLinks.length > 0 && (
+                  <>
+                    <h2 style={styles.groupTitle}>Öğrenci Formları</h2>
+                    <div style={styles.list}>
+                      {studentLinks.map((link, i) => renderRow(link, ROW_PALETTE[i % ROW_PALETTE.length], false))}
                     </div>
-                  );
-                })}
-              </div>
+                  </>
+                )}
+              </>
             )}
           </>
         )}
       </main>
 
+      {showUsage && (
+        <div onClick={() => setShowUsage(false)} style={styles.popupOverlay}>
+          <div onClick={e => e.stopPropagation()} style={styles.popupCard} className="kfl-popup-card">
+            <h3 style={styles.popupTitle}>Linklerin kullanım sırası</h3>
+
+            <div style={styles.stepList}>
+              <div style={styles.step}>
+                <span style={styles.stepNum}>1</span>
+                <div>
+                  <strong style={styles.stepTitle}>Öğrenci formu</strong>
+                  <p style={styles.stepText}>Öncelikle öğrenci/veli ile ilgili kayıt formu paylaşılır ve doldurması sağlanır.</p>
+                </div>
+              </div>
+
+              <div style={styles.step}>
+                <span style={styles.stepNum}>2</span>
+                <div>
+                  <strong style={styles.stepTitle}>Danışman formu</strong>
+                  <p style={styles.stepText}>Öğrencinin formu tamamlandıktan sonra danışman kendi sözleşme gönderme formunu doldurur.</p>
+                </div>
+              </div>
+
+              <div style={styles.step}>
+                <span style={styles.stepNum}>3</span>
+                <div>
+                  <strong style={styles.stepTitle}>Otomatik gönderim</strong>
+                  <p style={styles.stepText}>Bu iki adım tamamlandığında dijital sözleşme onay linki öğrenci/veliye e-posta ve WhatsApp üzerinden otomatik olarak iletilir.</p>
+                </div>
+              </div>
+            </div>
+
+            <p style={styles.popupWarning}>
+              Sıralamaya dikkat edilmesi önemlidir; danışman formu, öğrenci formu doldurulmadan gönderilirse sözleşme oluşturulamaz.
+            </p>
+
+            <button onClick={() => setShowUsage(false)} style={styles.popupCloseBtn}>Tamam</button>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         * { box-sizing: border-box; }
+        @keyframes kflPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.55; }
+        }
+        .kfl-usage-btn { animation: kflPulse 1.8s ease-in-out infinite; }
+        .kfl-usage-btn:hover { animation: none; }
+        @media (prefers-reduced-motion: reduce) {
+          .kfl-usage-btn { animation: none; }
+        }
         @media (max-width: 640px) {
           .kfl-header-inner { padding: 12px 16px !important; }
           .kfl-main { padding: 20px 12px 48px !important; }
           .kfl-row { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
-          .kfl-copy-btn { width: 100% !important; }
+          .kfl-btn-group { flex-direction: column !important; }
+          .kfl-copy-btn { width: 100% !important; text-align: center !important; }
+          .kfl-popup-card { margin: 0 12px !important; }
         }
       `}</style>
     </div>
@@ -194,4 +280,17 @@ const styles = {
   row: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", border: "1.5px solid", borderRadius: "12px", padding: "16px 20px" },
   title: { fontSize: "14px", fontWeight: "600", color: "#0f172a", lineHeight: 1.5 },
   copyBtn: { flexShrink: 0, padding: "9px 16px", borderRadius: "8px", border: "1.5px solid", background: "#fff", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+  btnGroup: { display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 },
+  groupTitle: { fontSize: "13px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.4px", margin: "28px 0 12px" },
+  usageBtn: { width: "100%", padding: "13px", marginBottom: "18px", background: "#0d9488", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "700", fontFamily: "inherit" },
+  popupOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
+  popupCard: { background: "#fff", borderRadius: "20px", padding: "28px", maxWidth: "460px", width: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" },
+  popupTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a", marginBottom: "20px" },
+  stepList: { display: "flex", flexDirection: "column", gap: "18px" },
+  step: { display: "flex", gap: "12px", alignItems: "flex-start" },
+  stepNum: { flexShrink: 0, width: "24px", height: "24px", borderRadius: "50%", background: "#0d9488", color: "#fff", fontSize: "12.5px", fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center" },
+  stepTitle: { fontSize: "13.5px", fontWeight: "700", color: "#0f172a", display: "block", marginBottom: "3px" },
+  stepText: { fontSize: "13px", color: "#475569", lineHeight: 1.6 },
+  popupWarning: { fontSize: "12.5px", color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "11px 14px", margin: "20px 0", lineHeight: 1.6 },
+  popupCloseBtn: { width: "100%", padding: "11px", background: "#0d9488", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "13px", fontWeight: "700", fontFamily: "inherit" },
 };
