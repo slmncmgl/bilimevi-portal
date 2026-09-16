@@ -88,7 +88,7 @@ const MODULE_CONFIG = [
   },
   {
     key: "kayitguncelle",
-    title: "Sözleşme Güncelle",
+    title: "Doldurulan Kayıt Formları",
     desc: "Öğrenci kaydını düzelt ve sözleşmeyi yeniden gönder",
     path: "/kayit-guncelle",
     icon: (
