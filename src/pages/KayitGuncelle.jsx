@@ -200,10 +200,14 @@ export default function KayitGuncelle() {
   }
 
   async function sorgula(tcParam) {
-    const targetTC = String(tcParam || tc).trim().replace(/\D/g, "");
-    if (!targetTC) {
-      return showToast("TC Kimlik No girin", "error");
+    const ham = String(tcParam || tc).trim();
+    const targetTC = ham.replace(/\D/g, "");
+    if (!ham) {
+      return showToast("Ad Soyad veya TC Kimlik No girin", "error");
     }
+    // Harf içeriyorsa listede filtreleme yapılır, sorgu atılmaz
+    if (!tcParam && /[^\d\s]/.test(ham)) return;
+    if (!targetTC) return;
     if (tcParam) setTc(targetTC);
     setLoading(true);
     try {
@@ -317,8 +321,22 @@ export default function KayitGuncelle() {
     }
   }
 
+  // Türkçe karakterleri normalize ederek arama
+  const normalize = str => String(str || "")
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u")
+    .replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c");
+
+  const aramaTerimi = normalize(tc).trim();
+  const filtreliOgrenciler = aramaTerimi
+    ? ogrencilerim.filter(o =>
+        normalize(o["Öğrenci Adı Soyadı"]).includes(aramaTerimi) ||
+        String(o["TC Kimlik No"] || "").includes(aramaTerimi)
+      )
+    : ogrencilerim;
+
   // Sıralama: önce taksit uyarısı olanlar, sonra onay bekleyenler
-  const siraliOgrenciler = [...ogrencilerim].sort((a, b) => {
+  const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) => {
     const uyariA = taksitFarki(a) ? 0 : 1;
     const uyariB = taksitFarki(b) ? 0 : 1;
     if (uyariA !== uyariB) return uyariA - uyariB;
@@ -349,13 +367,13 @@ export default function KayitGuncelle() {
 
       <main style={s.main}>
         <div style={s.searchCard}>
-          <div style={s.searchLabel}>TC Kimlik No ile Sorgula</div>
+          <div style={s.searchLabel}>Ad Soyad / TC Kimlik No ile Sorgula</div>
           <div style={s.searchRow}>
             <input
-              type="text" maxLength={20} value={tc}
-              onChange={e => setTc(e.target.value.replace(/\D/g, ""))}
+              type="text" value={tc}
+              onChange={e => { setTc(e.target.value); setSayfa(1); }}
               onKeyDown={e => e.key === "Enter" && sorgula()}
-              placeholder="TC Kimlik No"
+              placeholder="Ad Soyad veya TC Kimlik No"
               style={s.searchInput}
             />
             <button onClick={() => sorgula()} disabled={loading} style={s.searchBtn}>
@@ -376,7 +394,7 @@ export default function KayitGuncelle() {
 
         {!data && !ogrencilerLoading && ogrencilerim.length > 0 && (
           <div style={s.listCard}>
-            <div style={s.listHeader}>Öğrencilerim ({ogrencilerim.length})</div>
+            <div style={s.listHeader}>Öğrencilerim ({siraliOgrenciler.length}{aramaTerimi ? ` / ${ogrencilerim.length}` : ""})</div>
             <table style={s.table}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
@@ -441,9 +459,14 @@ export default function KayitGuncelle() {
                 ))}
               </tbody>
             </table>
-            {ogrencilerim.length > SAYFA_BOYUTU && (
+            {siraliOgrenciler.length === 0 && (
+              <div style={{ textAlign: "center", padding: "24px", color: "#94a3b8", fontSize: "13px" }}>
+                Aramanızla eşleşen kayıt bulunamadı.
+              </div>
+            )}
+            {siraliOgrenciler.length > SAYFA_BOYUTU && (
               <div style={s.pagination}>
-                {Array.from({ length: Math.ceil(ogrencilerim.length / SAYFA_BOYUTU) }, (_, i) => i + 1).map(p => (
+                {Array.from({ length: Math.ceil(siraliOgrenciler.length / SAYFA_BOYUTU) }, (_, i) => i + 1).map(p => (
                   <button key={p} onClick={() => setSayfa(p)} style={{
                     ...s.pageBtn,
                     background: sayfa === p ? "#0891b2" : "#f1f5f9",
