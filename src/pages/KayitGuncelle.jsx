@@ -78,7 +78,7 @@ function Toast({ toast }) {
   );
 }
 
-function FieldInput({ label, value, onChange, taksitSayisi, vurgulu }) {
+function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur }) {
   const isDropdown = !!DROPDOWN_OPTIONS[label];
 
   const taksitIndex = (() => {
@@ -88,7 +88,7 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu }) {
   const isTaksitField = taksitIndex !== null;
   const taksitPasif = isTaksitField && taksitIndex > (parseInt(taksitSayisi, 10) || 0);
 
-  const isReadonly = READONLY_FIELDS.includes(label) || taksitPasif;
+  const isReadonly = saltOkunur || READONLY_FIELDS.includes(label) || taksitPasif;
   const isOnlyLetters = ONLY_LETTERS.includes(label);
   const isOnlyNumbers = ONLY_NUMBERS.includes(label) || TAKSIT_TUTAR.includes(label);
   const isDate = ["Doğum Tarihi", "Program Başlangıç Tarihi", "Program Bitiş Tarihi"].includes(label) || TAKSIT_DONEM.includes(label);
@@ -160,6 +160,7 @@ export default function KayitGuncelle() {
   const [gonderilenTC, setGonderilenTC] = useState(null);
   const [taksitOneri, setTaksitOneri] = useState(null);
   const [vurgulananAlan, setVurgulananAlan] = useState(null);
+  const [saltOkunur, setSaltOkunur] = useState(false);
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
@@ -199,7 +200,7 @@ export default function KayitGuncelle() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  async function sorgula(tcParam) {
+  async function sorgula(tcParam, viewOnly = false) {
     const ham = String(tcParam || tc).trim();
     const targetTC = ham.replace(/\D/g, "");
     if (!ham) {
@@ -214,6 +215,7 @@ export default function KayitGuncelle() {
       const res = await fetch(`${FETCH_URL}?tc=${targetTC}&_t=${Date.now()}`, { cache: "no-store" });
       const json = await res.json();
       if (!json.found) return showToast("Bu TC ile kayıt bulunamadı", "error");
+      setSaltOkunur(viewOnly);
       setData(json.data);
       setActiveTab("Öğrenci");
     } catch {
@@ -312,6 +314,7 @@ export default function KayitGuncelle() {
       } else {
         setData(null);
         setTc("");
+        setSaltOkunur(false);
         showToast("Kayıt güncellendi");
       }
     } catch {
@@ -355,7 +358,7 @@ export default function KayitGuncelle() {
 
       <header style={s.header}>
         <div style={s.headerInner}>
-          <button onClick={() => data ? (setData(null), setTc("")) : navigate("/dashboard")} style={s.backBtn}>
+          <button onClick={() => data ? (setData(null), setTc(""), setSaltOkunur(false)) : navigate("/dashboard")} style={s.backBtn}>
             {data ? "← Listeye Dön" : "Geri"}
           </button>
           <div style={s.headerTitle}>
@@ -431,6 +434,12 @@ export default function KayitGuncelle() {
                             cursor: ogr["Danışman Adı"] ? "pointer" : "not-allowed",
                           }}
                         >Düzenle</button>
+                        {!ogr["Danışman Adı"] && (
+                          <button
+                            onClick={() => sorgula(ogr["TC Kimlik No"], true)}
+                            style={s.editBtn}
+                          >Görüntüle</button>
+                        )}
                         {taksitFarki(ogr) && (
                           <button
                             onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
@@ -481,8 +490,8 @@ export default function KayitGuncelle() {
 
         {data && (
           <>
-            <div style={s.infoCard}>
-              <strong>{data["Öğrenci Adı Soyadı"]}</strong> kaydı düzenleniyor.
+            <div style={{ ...s.infoCard, ...(saltOkunur ? { background: "#f8fafc", borderColor: "#e2e8f0" } : {}) }}>
+              <strong>{data["Öğrenci Adı Soyadı"]}</strong> {saltOkunur ? "kaydı görüntüleniyor (salt okunur)" : "kaydı düzenleniyor"}.
               {data["Okul Adı"] && <span style={{ color: "#0e7490" }}> — {data["Okul Adı"]}</span>}
             </div>
             <div style={s.tabBar}>
@@ -499,11 +508,12 @@ export default function KayitGuncelle() {
                 {TAB_FIELDS[activeTab]?.map(key => (
                   <div key={key} style={key === "Adres" ? { gridColumn: "1 / -1" } : {}}>
                     <label style={s.fieldLabel}>{key}</label>
-                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} />
+                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} saltOkunur={saltOkunur} />
                   </div>
                 ))}
               </div>
             </div>
+            {!saltOkunur && (
             <div style={s.submitRow}>
               <button onClick={() => gonder(null, false)} disabled={submitting} style={s.submitBtn}>
                 {submitting ? (
@@ -518,6 +528,7 @@ export default function KayitGuncelle() {
                 ) : "Güncelle"}
               </button>
             </div>
+            )}
           </>
         )}
       </main>
