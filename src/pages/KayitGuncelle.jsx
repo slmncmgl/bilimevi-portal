@@ -4,6 +4,7 @@ import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
+const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
 
 const TABS = ["Öğrenci", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
 
@@ -161,6 +162,8 @@ export default function KayitGuncelle() {
   const [taksitOneri, setTaksitOneri] = useState(null);
   const [vurgulananAlan, setVurgulananAlan] = useState(null);
   const [saltOkunur, setSaltOkunur] = useState(false);
+  const [formFiltre, setFormFiltre] = useState("");
+  const [kopyaModal, setKopyaModal] = useState(null);
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
@@ -330,13 +333,18 @@ export default function KayitGuncelle() {
     .replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u")
     .replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c");
 
+  // Kaynak Form Adı seçenekleri (veriden türetilir)
+  const formSecenekleri = [...new Set(
+    ogrencilerim.map(o => o["Kaynak Form Adı"]).filter(Boolean)
+  )].sort();
+
   const aramaTerimi = normalize(tc).trim();
-  const filtreliOgrenciler = aramaTerimi
-    ? ogrencilerim.filter(o =>
-        normalize(o["Öğrenci Adı Soyadı"]).includes(aramaTerimi) ||
-        String(o["TC Kimlik No"] || "").includes(aramaTerimi)
-      )
-    : ogrencilerim;
+  const filtreliOgrenciler = ogrencilerim.filter(o => {
+    if (formFiltre && o["Kaynak Form Adı"] !== formFiltre) return false;
+    if (!aramaTerimi) return true;
+    return normalize(o["Öğrenci Adı Soyadı"]).includes(aramaTerimi) ||
+           String(o["TC Kimlik No"] || "").includes(aramaTerimi);
+  });
 
   // Sıralama: önce taksit uyarısı olanlar, sonra onay bekleyenler
   const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) => {
@@ -383,6 +391,24 @@ export default function KayitGuncelle() {
               {loading ? "..." : "Sorgula"}
             </button>
           </div>
+          {!data && formSecenekleri.length > 0 && (
+            <div style={{ marginTop: "12px" }}>
+              <div style={{ ...s.searchLabel, marginBottom: "6px" }}>Kaynak Form Adı</div>
+              <select
+                value={formFiltre}
+                onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
+                style={{
+                  width: "100%", padding: "10px", borderRadius: "10px",
+                  border: "1px solid #e2e8f0", outline: "none", cursor: "pointer",
+                  fontSize: "13px", fontFamily: "'Sora', sans-serif",
+                  background: "#fff", color: "#0f172a", boxSizing: "border-box",
+                }}
+              >
+                <option value="">Tüm Formlar</option>
+                {formSecenekleri.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+          )}
         </div>
 
         {!data && ogrencilerLoading && (
@@ -434,6 +460,23 @@ export default function KayitGuncelle() {
                             cursor: ogr["Danışman Adı"] ? "pointer" : "not-allowed",
                           }}
                         >Düzenle</button>
+                        <button
+                          onClick={async () => {
+                            const tcNo = String(ogr["TC Kimlik No"] || "");
+                            try {
+                              await navigator.clipboard.writeText(tcNo);
+                            } catch {
+                              const ta = document.createElement("textarea");
+                              ta.value = tcNo;
+                              document.body.appendChild(ta);
+                              ta.select();
+                              document.execCommand("copy");
+                              document.body.removeChild(ta);
+                            }
+                            setKopyaModal({ tc: tcNo, ad: ogr["Öğrenci Adı Soyadı"] });
+                          }}
+                          style={s.formBtn}
+                        >Danışman Formuna Git</button>
                         {!ogr["Danışman Adı"] && (
                           <button
                             onClick={() => sorgula(ogr["TC Kimlik No"], true)}
@@ -534,6 +577,34 @@ export default function KayitGuncelle() {
       </main>
 
       <Toast toast={toast} />
+
+      {kopyaModal && (
+        <div style={s.modalOverlay}>
+          <div style={{ ...s.modal, maxWidth: "420px" }}>
+            <div style={{ fontSize: "32px", marginBottom: "8px" }}>📋</div>
+            <h3 style={{ margin: "0 0 10px" }}>TC Kimlik No Kopyalandı</h3>
+            <p style={{ fontSize: "13px", color: "#475569", margin: "0 0 12px" }}>
+              <strong>{kopyaModal.ad}</strong> için TC numarası panoya kopyalandı.
+              Formda ilgili alana yapıştırabilirsin.
+            </p>
+            <div style={{
+              background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "10px",
+              padding: "12px", fontSize: "16px", fontWeight: "700",
+              color: "#0e7490", letterSpacing: "1px",
+            }}>{kopyaModal.tc}</div>
+            <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+              <button onClick={() => setKopyaModal(null)} style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: 0 }}>Kapat</button>
+              <a
+                href={DANISMAN_FORM_URL}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setKopyaModal(null)}
+                style={{ ...s.modalBtn, marginTop: 0, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >Formu Aç</a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {taksitOneri && (
         <div style={s.modalOverlay}>
@@ -699,6 +770,7 @@ const s = {
   pagination: { display: "flex", gap: "6px", justifyContent: "center", marginTop: "16px" },
   pageBtn: { width: "32px", height: "32px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px" },
   editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
+  formBtn: { padding: "5px 12px", background: "#fffbeb", color: "#92400e", border: "1px solid #fcd34d", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   warnBtn: { padding: "5px 8px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "6px", cursor: "pointer", fontSize: "12px", lineHeight: 1 },
   viewBtn: { padding: "5px 12px", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", whiteSpace: "nowrap" },
   sendBtn: { padding: "5px 12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
