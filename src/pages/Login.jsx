@@ -189,14 +189,14 @@ export default function Login() {
     return slowQueueRef.current.shift();
   }
 
-  // 5. saniyeden sonra 3 saniyede bir mesaj değiştir
+  // 1. saniyeden sonra her saniye mesaj değiştir
   function baslatSlowMesajlar() {
     durdurSlowMesajlar();
     const ilk = setTimeout(() => {
       setSlowMessage(siradakiSlowMesaj());
-      const tekrar = setInterval(() => setSlowMessage(siradakiSlowMesaj()), 3000);
+      const tekrar = setInterval(() => setSlowMessage(siradakiSlowMesaj()), 1000);
       slowTimersRef.current.push(tekrar);
-    }, 5000);
+    }, 1000);
     slowTimersRef.current.push(ilk);
   }
 
