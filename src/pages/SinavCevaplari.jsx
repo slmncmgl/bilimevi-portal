@@ -1,15 +1,16 @@
+// v1.1 — Eğitim Kayıtları sekmesi eklendi (iki sekmeli yapı, yıl seçici, video linkleri)
 // v1.0 — Gemini çağrısı /api/gemini proxy'sine taşındı, key ve model artık backend'de yönetiliyor
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQ2X2Vh9vxF1RO3D5o3UVWj0DHgxDdWHyYdLThI32i6kwcR0MUKswcfeVjpOXL6bZC/exec";
-// SİL: KEYS_SHEET_URL ve GEMINI_MODEL sabitleri kaldırıldı (key artık frontend'e hiç gelmiyor)
+// v1.1 — Okul Eğitimleri sheet'ine gömülü script'in web app URL'i (deploy sonrası buraya yapıştır)
+const EGITIM_SCRIPT_URL = "BURAYA_YENI_DEPLOY_URL";
 
 export default function SinavCevaplari() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  // SİL: apiKey state kaldırıldı (key artık backend proxy'de, frontend'e hiç gelmiyor)
 
   const [quizTitle, setQuizTitle] = useState("");
   const [right, setRight] = useState("");
@@ -25,16 +26,61 @@ export default function SinavCevaplari() {
   const [status, setStatus] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // v1.1 — Eğitim Kayıtları sekmesi state'leri
+  const [activeTab, setActiveTab] = useState("giris");
+  const [egLoading, setEgLoading] = useState(false);
+  const [egLoaded, setEgLoaded] = useState(false);
+  const [egError, setEgError] = useState(null);
+  const [years, setYears] = useState([]);
+  const [rowsByYear, setRowsByYear] = useState({});
+  const [year, setYear] = useState("");
+  const [q, setQ] = useState("");
+
   const dropRef = useRef(null);
 
   useEffect(() => {
     const session = getSession();
     if (!session) { navigate("/"); return; }
     setUser(session);
-    // SİL: fetchApiKey() çağrısı kaldırıldı
   }, []);
 
+  // v1.1 — Eğitim sekmesine ilk girişte veriyi çek
+  useEffect(() => {
+    if (activeTab === "egitimler" && !egLoaded && !egLoading) loadEgitimler();
+  }, [activeTab]);
+
+  async function loadEgitimler() {
+    setEgLoading(true); setEgError(null);
+    try {
+      const res = await fetch(`${EGITIM_SCRIPT_URL}?action=okulEgitimleri`);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "hata");
+      const ys = data.years || [];
+      setYears(ys);
+      setRowsByYear(data.rows || {});
+      const now = String(new Date().getFullYear());
+      setYear(ys.includes(now) ? now : (ys[0] || ""));
+      setEgLoaded(true);
+    } catch (_) {
+      setEgError("Eğitim kayıtları yüklenemedi. Lütfen tekrar deneyin.");
+    }
+    setEgLoading(false);
+  }
+
+  const egList = useMemo(() => {
+    const src = rowsByYear[year] || [];
+    const term = q.trim().toLocaleLowerCase("tr");
+    const filtered = term ? src.filter(r => r.kurum.toLocaleLowerCase("tr").includes(term)) : src;
+    return [...filtered].sort((a, b) => {
+      if (a.iso && b.iso) return b.iso.localeCompare(a.iso);
+      if (a.iso) return -1;
+      if (b.iso) return 1;
+      return 0;
+    });
+  }, [rowsByYear, year, q]);
+
   function handlePaste(e) {
+    if (activeTab !== "giris") return; // v1.1 — Ctrl+V sadece Sınav Girişi sekmesinde
     const items = (e.nativeEvent || e).clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
@@ -47,8 +93,6 @@ export default function SinavCevaplari() {
       }
     }
   }
-
-  // SİL: fetchApiKey() fonksiyonu komple kaldırıldı (Sheets'ten key çekme mantığı artık yok)
 
   function calcAccuracy(r, t) {
     const rv = Number(r), tv = Number(t);
@@ -73,7 +117,6 @@ export default function SinavCevaplari() {
 
   async function processImage(base64, mimeType = "image/png") {
     setImageBase64(base64);
-    // SİL: apiKey kontrolü kaldırıldı (backend proxy key yönetimini kendi yapıyor)
     setAiLoading(true);
     setStatus({ type: "info", msg: "AI verileri analiz ediyor..." });
     try {
@@ -168,7 +211,21 @@ export default function SinavCevaplari() {
       </header>
 
       <main style={s.main}>
+        {/* v1.1 — Sekme barı */}
+        <div className="sc-tabs">
+          <button onClick={() => setActiveTab("giris")}
+            className={activeTab === "giris" ? "sc-tab sc-tab-on" : "sc-tab"}>
+            Sınav Girişi
+          </button>
+          <button onClick={() => setActiveTab("egitimler")}
+            className={activeTab === "egitimler" ? "sc-tab sc-tab-on" : "sc-tab"}>
+            Eğitim Kayıtları
+          </button>
+        </div>
+
         <div style={s.card}>
+
+          {activeTab === "giris" && (<>
 
           {/* AI Görsel Yükleme */}
           <div style={s.section}>
@@ -283,15 +340,113 @@ export default function SinavCevaplari() {
                 </>
             }
           </button>
+
+          </>)}
+
+          {/* v1.1 — Eğitim Kayıtları sekmesi */}
+          {activeTab === "egitimler" && (<>
+            <div className="sc-filters">
+              <select value={year} onChange={e => setYear(e.target.value)} style={s.select}>
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <input value={q} onChange={e => setQ(e.target.value)}
+                placeholder="Kurum ara..." style={s.input} />
+            </div>
+
+            <div style={s.countRow}>
+              {egLoading ? "Yükleniyor..." : `${egList.length} eğitim kaydı`}
+            </div>
+
+            {egLoading && (
+              <div style={s.listWrap}>
+                {[0,1,2,3,4].map(i => <div key={i} style={s.skeleton} />)}
+              </div>
+            )}
+
+            {!egLoading && egError && (
+              <div style={{ ...s.statusBox, background: "#fef2f2", border: "1.5px solid #fecaca", color: "#dc2626" }}>
+                <span>✕</span>
+                <span style={{ fontSize: "13px", fontWeight: "600" }}>{egError}</span>
+              </div>
+            )}
+
+            {!egLoading && !egError && egList.length === 0 && (
+              <div style={s.emptyBox}>
+                {q ? "Aramanla eşleşen kayıt bulunamadı." : "Bu yıl için kayıtlı eğitim videosu bulunamadı."}
+              </div>
+            )}
+
+            {!egLoading && !egError && egList.length > 0 && (
+              <div style={s.listWrap}>
+                {egList.map((r, i) => (
+                  <div key={i} className="sc-row">
+                    <div className="sc-info">
+                      <span className="sc-date">{r.tarih || "—"}</span>
+                      <span className="sc-kurum">{r.kurum}</span>
+                    </div>
+                    <a href={r.videoUrl} target="_blank" rel="noopener noreferrer" className="sc-watch">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                      </svg>
+                      Eğitim Kaydını İzle
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>)}
         </div>
       </main>
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+        /* v1.1 — Sekme barı */
+        .sc-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+        .sc-tab {
+          flex: 1; padding: 11px 16px; border: 1.5px solid #e2e8f0; border-radius: 12px;
+          background: #fff; color: #64748b; font-size: 13px; font-weight: 700;
+          font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.2s;
+        }
+        .sc-tab:hover { border-color: #cbd5e1; color: #475569; }
+        .sc-tab-on { background: #0f172a; border-color: #0f172a; color: #fff; }
+        .sc-tab-on:hover { background: #1e293b; border-color: #1e293b; color: #fff; }
+
+        .sc-filters { display: flex; gap: 12px; align-items: center; }
+
+        .sc-row {
+          display: flex; align-items: center; justify-content: space-between; gap: 16px;
+          padding: 14px 16px; border: 1.5px solid #e2e8f0; border-radius: 12px;
+          background: #fff; transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .sc-row:hover { border-color: #bfdbfe; box-shadow: 0 2px 10px rgba(37,99,235,0.07); }
+        .sc-info { display: flex; align-items: center; gap: 14px; min-width: 0; }
+        .sc-date {
+          flex-shrink: 0; font-size: 12px; font-weight: 700; color: #64748b;
+          background: #f1f5f9; padding: 5px 10px; border-radius: 7px;
+          font-variant-numeric: tabular-nums;
+        }
+        .sc-kurum { font-size: 14px; font-weight: 600; color: #0f172a; word-break: break-word; }
+        .sc-watch {
+          display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+          flex-shrink: 0; padding: 9px 16px; background: #0f172a; color: #fff;
+          border-radius: 10px; font-size: 13px; font-weight: 700;
+          text-decoration: none; font-family: 'Inter', sans-serif; transition: background 0.2s;
+        }
+        .sc-watch:hover { background: #1e293b; }
+
+        @media (max-width: 640px) {
+          .sc-filters { flex-direction: column; align-items: stretch; }
+          .sc-row { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; }
+          .sc-info { flex-direction: column; align-items: flex-start; gap: 6px; }
+          .sc-watch { width: 100%; padding: 13px 16px; min-height: 46px; font-size: 14px; }
+          .sc-tab { padding: 12px 10px; min-height: 46px; font-size: 13px; }
+        }
       `}</style>
     </div>
   );
@@ -326,4 +481,10 @@ const s = {
   bottomGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" },
   statusBox: { display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", borderRadius: "10px" },
   submitBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "13px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "700", fontFamily: "'Inter', sans-serif", transition: "all 0.2s" },
+  // v1.1 — Eğitim Kayıtları sekmesi
+  select: { padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontWeight: "700", color: "#0f172a", background: "#fff", fontFamily: "'Inter', sans-serif", outline: "none", cursor: "pointer", minWidth: "110px" },
+  countRow: { fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" },
+  listWrap: { display: "flex", flexDirection: "column", gap: "10px" },
+  skeleton: { height: "62px", borderRadius: "12px", background: "#f1f5f9", animation: "pulse 1.2s ease-in-out infinite" },
+  emptyBox: { padding: "32px 16px", textAlign: "center", fontSize: "13px", fontWeight: "600", color: "#94a3b8", background: "#f8fafc", border: "1.5px dashed #e2e8f0", borderRadius: "12px" },
 };
