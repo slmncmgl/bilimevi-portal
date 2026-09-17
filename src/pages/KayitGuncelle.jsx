@@ -6,7 +6,7 @@ const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
 
-const TABS = ["Öğrenci", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
+const TABS = ["Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
 
 const DROPDOWN_OPTIONS = {
   "İmzalayacak Ebeveyn": ["Anne", "Baba"],
@@ -16,6 +16,10 @@ const DROPDOWN_OPTIONS = {
   "Öğle Yemeği": ["Dahil", "Hariç"],
   "Konaklama Tipi": ["Öğrenci Yurdu", "Aile Yanı"],
   "Para Birimi": ["USD", "GBP", "EUR", "TL", "CAD", "AUD"],
+  "Öğrencinin Cinsiyeti": ["Kız", "Erkek"],
+  "Pasaportu Var Mı": ["Evet", "Hayır"],
+  "Konaklama Talebi": ["Evet", "Hayır"],
+  "Konsolosluğa verilecek mail kime ait": ["Anne", "Baba", "Öğrenci"],
   "Şube Adı": [
     "Bilimevi - Taksim", "Bilimevi - Ankara", "Bilimevi - Kadıköy",
     "Bilimevi - İzmir", "Bilimevi - Bahçeşehir",
@@ -32,32 +36,47 @@ const HIDDEN_FIELDS = [
 ];
 
 const TAB_FIELDS = {
-  "Öğrenci": ["TC Kimlik No", "Öğrenci Adı Soyadı", "Doğum Tarihi", "Adres"],
+  "Öğrenci": [
+    "TC Kimlik No", "Öğrenci Adı Soyadı", "Öğrenci Doğum Tarihi", "Öğrencinin Cinsiyeti",
+    "Öğrenci Mail Adresi", "Öğrenci Cep Telefonu",
+    "Pasaportu Var Mı", "Pasaport Türü",
+    "Türkiye'de Eğitim Aldığı Okul", "Sınıfı-Şubesi",
+    "İkamet Adresi", "Yaşadığı Adres",
+  ],
+  "Sağlık": ["Alerji durumu", "Sürekli kullanılan ilaç", "Kronik hastalık"],
   "Ebeveyn": [
     "Anne Adı Soyadı", "Anne TC", "Anne Telefon", "Anne Mail",
     "Baba Adı Soyadı", "Baba TC", "Baba Telefon", "Baba Mail",
     "İmzalayacak Ebeveyn", "Ödeme Velisi",
+    "Formu Dolduran Ebeveynin Adı", "Konsolosluğa verilecek mail kime ait",
   ],
   "Okul": [
     "Okul Adı", "Eğitim Dili", "Kalkış Şehri", "Öğrenci Hangi Gruba Kayıtlı",
     "Hedef Ülke", "Okul Lokasyonu", "Program Adı",
     "Program Başlangıç Tarihi", "Program Bitiş Tarihi",
-    "Haftalık Ders Saati",
+    "Haftalık Ders Saati", "Hangi Ek Program",
+    "Hizmete Dahil Olacak Ek Hizmetler",
   ],
-  "Konaklama": ["Konaklama Tipi", "Oda Tipi", "Öğle Yemeği", "Vize Harcı Dahil Mi?"],
+  "Konaklama": [
+    "Konaklama Talebi", "Konaklama Tipi", "Oda Tipi",
+    "Konaklama Süresi (Accommodation Duration)", "Yemek Planı",
+    "Öğle Yemeği", "Vize Harcı Dahil Mi?",
+  ],
   "Taksit": [
     "Depozito Miktarı", "Para Birimi", "Program Ücreti", "Konaklama Ücreti",
     "Toplam Program Ücreti", "Taksit Sayısı",
+    "Taksit Dönemi Tercihi", "Tercih Edilen Bankalar",
     ...Array.from({ length: 11 }, (_, i) => [`${i + 1}. Taksit Dönemi`, `${i + 1}. Taksit Tutarı`]).flat(),
   ],
   "Diğer": [
     "Şube Adı", "Danışman Adı", "Şirket Adı", "Sözleşme Türü",
     "Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi",
+    "Miles & Smiles Üyelik Numarası", "Eklemek İstedikleriniz",
   ],
 };
 
-const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı", "Okul Lokasyonu"];
-const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi", "Haftalık Ders Saati"];
+const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı", "Okul Lokasyonu", "Formu Dolduran Ebeveynin Adı"];
+const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi", "Haftalık Ders Saati", "Öğrenci Cep Telefonu", "Konaklama Süresi (Accommodation Duration)"];
 const TAKSIT_TUTAR = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Tutarı`);
 const TAKSIT_DONEM = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Dönemi`);
 
@@ -92,9 +111,9 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
   const isReadonly = saltOkunur || READONLY_FIELDS.includes(label) || taksitPasif;
   const isOnlyLetters = ONLY_LETTERS.includes(label);
   const isOnlyNumbers = ONLY_NUMBERS.includes(label) || TAKSIT_TUTAR.includes(label);
-  const isDate = ["Doğum Tarihi", "Program Başlangıç Tarihi", "Program Bitiş Tarihi"].includes(label) || TAKSIT_DONEM.includes(label);
+  const isDate = ["Öğrenci Doğum Tarihi", "Program Başlangıç Tarihi", "Program Bitiş Tarihi"].includes(label) || TAKSIT_DONEM.includes(label);
   const isEmail = label.includes("Mail");
-  const isTextarea = label === "Adres";
+  const isTextarea = ["İkamet Adresi", "Yaşadığı Adres", "Alerji durumu", "Sürekli kullanılan ilaç", "Kronik hastalık", "Hizmete Dahil Olacak Ek Hizmetler", "Eklemek İstedikleriniz"].includes(label);
 
   const baseStyle = {
     width: "100%", padding: "9px 12px",
@@ -370,7 +389,7 @@ export default function KayitGuncelle() {
             {data ? "← Listeye Dön" : "Geri"}
           </button>
           <div style={s.headerTitle}>
-            <div style={s.headerTitleText}>Kayıt Güncelle</div>
+            <div style={s.headerTitleText}>Doldurulan Kayıt Formları</div>
             <div style={s.headerSub}>{user?.name} | Bilimevi</div>
           </div>
         </div>
@@ -549,7 +568,7 @@ export default function KayitGuncelle() {
             <div style={s.formCard}>
               <div style={s.fieldGrid}>
                 {TAB_FIELDS[activeTab]?.map(key => (
-                  <div key={key} style={key === "Adres" ? { gridColumn: "1 / -1" } : {}}>
+                  <div key={key} style={["İkamet Adresi", "Yaşadığı Adres", "Alerji durumu", "Sürekli kullanılan ilaç", "Kronik hastalık", "Hizmete Dahil Olacak Ek Hizmetler", "Eklemek İstedikleriniz"].includes(key) ? { gridColumn: "1 / -1" } : {}}>
                     <label style={s.fieldLabel}>{key}</label>
                     <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} saltOkunur={saltOkunur} />
                   </div>
@@ -698,8 +717,8 @@ export default function KayitGuncelle() {
       {gonderOnay && (() => {
         const isYetiskin = String(gonderOnay["Sözleşme Türü"] || "").toLowerCase().indexOf("yetişkin") > -1;
         const mail = isYetiskin
-          ? gonderOnay["Mail Adresi"]
-          : (gonderOnay["İmzalayacak Ebeveyn"] === "Baba" ? gonderOnay["Baba Mail"] : gonderOnay["Anne Mail"]) || gonderOnay["Mail Adresi"];
+          ? gonderOnay["Öğrenci Mail Adresi"]
+          : (gonderOnay["İmzalayacak Ebeveyn"] === "Baba" ? gonderOnay["Baba Mail"] : gonderOnay["Anne Mail"]) || gonderOnay["Öğrenci Mail Adresi"];
         return (
         <div style={s.modalOverlay}>
           <div style={s.modal}>
@@ -775,10 +794,10 @@ const s = {
   viewBtn: { padding: "5px 12px", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", whiteSpace: "nowrap" },
   sendBtn: { padding: "5px 12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   infoCard: { background: "#ecfeff", border: "1px solid #a5f3fc", padding: "12px", borderRadius: "10px", marginBottom: "15px", fontSize: "13px" },
-  tabBar: { display: "flex", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0" },
-  tabBtn: { flex: 1, padding: "12px", border: "none", background: "none", cursor: "pointer", fontSize: "13px" },
+  tabBar: { display: "flex", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0", overflowX: "auto", WebkitOverflowScrolling: "touch" },
+  tabBtn: { flex: "1 0 auto", padding: "12px 14px", border: "none", background: "none", cursor: "pointer", fontSize: "13px", whiteSpace: "nowrap" },
   formCard: { background: "#fff", border: "1px solid #e2e8f0", padding: "20px", borderRadius: "0 0 15px 15px" },
-  fieldGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "15px" },
+  fieldGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "15px" },
   fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "5px" },
   submitRow: { marginTop: "20px", display: "flex", justifyContent: "flex-end" },
   submitBtn: { padding: "15px 30px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer" },
