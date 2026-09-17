@@ -6,7 +6,7 @@ import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQ2X2Vh9vxF1RO3D5o3UVWj0DHgxDdWHyYdLThI32i6kwcR0MUKswcfeVjpOXL6bZC/exec";
 // v1.1 — Okul Eğitimleri sheet'ine gömülü script'in web app URL'i (deploy sonrası buraya yapıştır)
-const EGITIM_SCRIPT_URL = "BURAYA_YENI_DEPLOY_URL";
+const EGITIM_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyy-3jnGux0jLVaKpc4R5WHjxyvTgvXFBwh2xlmRlnuh-XFiCDHBmGS2wfCZjLx3YoH/exec";
 
 export default function SinavCevaplari() {
   const navigate = useNavigate();
