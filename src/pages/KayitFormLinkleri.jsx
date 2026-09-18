@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.2";
+const VERSION = "v1.3";
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
 
@@ -15,6 +15,17 @@ const ROW_PALETTE = [
 
 // Danışman formu için sabit mavi
 const ADVISOR_COLOR = { bg: "#eff6fc", border: "#cfe1f2", text: "#2e6da4" };
+
+// "Öğrenci Formları" grubunda, bu sırayla üstte kalacak formlar
+const STUDENT_FORM_TITLES = [
+  "Grup Yaz Okulu Bilgi Formu",
+  "Bireysel Yaz Okulu Bilgi Formu",
+  "Yetişkin Dil Okulu Bilgi Formu",
+];
+
+function norm(s) {
+  return (s || "").trim().toLocaleLowerCase("tr-TR");
+}
 
 // Tırnak içindeki virgülleri koruyan CSV ayrıştırıcı
 function parseCSV(csv) {
@@ -96,8 +107,17 @@ export default function KayitFormLinkleri() {
     ? links.filter(l => l.title.toLocaleLowerCase("tr-TR").includes(search.trim().toLocaleLowerCase("tr-TR")))
     : links;
 
-  const advisorLinks = filtered.filter(l => l.title.toLocaleLowerCase("tr-TR").includes("danışman"));
-  const studentLinks = filtered.filter(l => !l.title.toLocaleLowerCase("tr-TR").includes("danışman"));
+  const advisorLinks = filtered.filter(l => norm(l.title).includes("danışman"));
+
+  const nonAdvisor = filtered.filter(l => !norm(l.title).includes("danışman"));
+
+  // Sabit üç form, STUDENT_FORM_TITLES sırasıyla üstte
+  const studentLinks = STUDENT_FORM_TITLES
+    .map(t => nonAdvisor.find(l => norm(l.title) === norm(t)))
+    .filter(Boolean);
+
+  // Geri kalan her şey okul kayıt formları
+  const schoolLinks = nonAdvisor.filter(l => !studentLinks.includes(l));
 
   function renderRow(link, colors, withOpenBtn) {
     return (
@@ -189,6 +209,15 @@ export default function KayitFormLinkleri() {
                     <h2 style={styles.groupTitle}>Öğrenci Formları</h2>
                     <div style={styles.list}>
                       {studentLinks.map((link, i) => renderRow(link, ROW_PALETTE[i % ROW_PALETTE.length], false))}
+                    </div>
+                  </>
+                )}
+
+                {schoolLinks.length > 0 && (
+                  <>
+                    <h2 style={styles.groupTitle}>Okul Kayıt Formları</h2>
+                    <div style={styles.list}>
+                      {schoolLinks.map((link, i) => renderRow(link, ROW_PALETTE[(i + studentLinks.length) % ROW_PALETTE.length], false))}
                     </div>
                   </>
                 )}
