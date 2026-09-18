@@ -44,7 +44,7 @@ const MODULE_CONFIG = [
   },
   {
     key: "quiz",
-    title: "Sınav Cevapları",
+    title: "Eğitim Videoları ve Sınav Cevapları",
     desc: "Sınav sonuçları ve raporlama",
     path: "/sinav-cevaplari",
     icon: (
