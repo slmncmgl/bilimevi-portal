@@ -5,8 +5,6 @@ import { getSession } from "../utils/sheets";
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
-// Bu tarihten önce eklenen kayıtlar listede gösterilmez
-const BASLANGIC_TARIHI = new Date("2026-08-15T00:00:00").getTime();
 
 const TABS = ["Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
 
@@ -186,6 +184,7 @@ export default function KayitGuncelle() {
   const [formFiltre, setFormFiltre] = useState("");
   const [kopyaModal, setKopyaModal] = useState(null);
   const [sadeceBenim, setSadeceBenim] = useState(false);
+  const [tarihFiltre, setTarihFiltre] = useState("");
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
@@ -360,16 +359,39 @@ export default function KayitGuncelle() {
     ogrencilerim.map(o => o["Kaynak Form Adı"]).filter(Boolean)
   )].sort();
 
-  // Eklenme tarihini parse et (sıralama ve alt sınır için)
+  // Eklenme tarihini parse et - farklı formatları destekler
   const eklenmeZamani = k => {
-    const t = Date.parse(k["Eklenme Tarihi"]);
-    return isNaN(t) ? 0 : t;
+    const ham = String(k["Eklenme Tarihi"] || "").trim();
+    if (!ham) return 0;
+
+    // Önce GG.AA.YYYY / GG-AA-YYYY / GG/AA/YYYY, opsiyonel SS:dd(:ss)
+    // (Date.parse bunu Amerikan formatı sanıp yanlış okuyor, o yüzden önce burada yakalıyoruz)
+    const m = ham.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})(?:[\sT]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) {
+      const [, g, a, y, sa = 0, dk = 0, sn = 0] = m;
+      return new Date(+y, +a - 1, +g, +sa, +dk, +sn).getTime();
+    }
+
+    // YYYY.AA.GG / YYYY/AA/GG (tire hali ISO olduğu için aşağıda yakalanır)
+    const m2 = ham.match(/^(\d{4})[./](\d{1,2})[./](\d{1,2})(?:[\sT]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m2) {
+      const [, y, a, g, sa = 0, dk = 0, sn = 0] = m2;
+      return new Date(+y, +a - 1, +g, +sa, +dk, +sn).getTime();
+    }
+
+    // ISO: 2026-08-31T11:00:36.740Z veya 2026-08-31
+    const iso = Date.parse(ham);
+    if (!isNaN(iso)) return iso;
+
+    return 0;
   };
+
+  const tarihSiniri = tarihFiltre ? new Date(`${tarihFiltre}T00:00:00`).getTime() : null;
 
   const aramaTerimi = normalize(tc).trim();
   const filtreliOgrenciler = ogrencilerim.filter(o => {
-    if (eklenmeZamani(o) < BASLANGIC_TARIHI) return false;
-    if (sadeceBenim && o["Danışman Adı"] !== user?.name) return false;
+    if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
+    if (sadeceBenim && normalize(o["Danışman Adı"]).trim() !== normalize(user?.name).trim()) return false;
     if (formFiltre && o["Kaynak Form Adı"] !== formFiltre) return false;
     if (!aramaTerimi) return true;
     return normalize(o["Öğrenci Adı Soyadı"]).includes(aramaTerimi) ||
@@ -413,18 +435,48 @@ export default function KayitGuncelle() {
             </button>
           </div>
           {!data && (
-            <label style={{
-              display: "flex", alignItems: "center", gap: "8px", marginTop: "12px",
-              fontSize: "13px", color: "#334155", cursor: "pointer", userSelect: "none",
+            <div style={{
+              display: "flex", gap: "14px", marginTop: "12px",
+              flexDirection: isMobile ? "column" : "row",
+              alignItems: isMobile ? "stretch" : "center", flexWrap: "wrap",
             }}>
-              <input
-                type="checkbox"
-                checked={sadeceBenim}
-                onChange={e => { setSadeceBenim(e.target.checked); setSayfa(1); }}
-                style={{ width: "16px", height: "16px", accentColor: "#0891b2", cursor: "pointer" }}
-              />
-              Sadece Kendi Öğrencilerimi Göster
-            </label>
+              <label style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                fontSize: "13px", color: "#334155", cursor: "pointer", userSelect: "none",
+              }}>
+                <input
+                  type="checkbox"
+                  checked={sadeceBenim}
+                  onChange={e => { setSadeceBenim(e.target.checked); setSayfa(1); }}
+                  style={{ width: "16px", height: "16px", accentColor: "#0891b2", cursor: "pointer" }}
+                />
+                Sadece Kendi Öğrencilerimi Göster
+              </label>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: isMobile ? "none" : 1 }}>
+                <span style={{ fontSize: "13px", color: "#334155", whiteSpace: "nowrap" }}>Şu tarihten sonrası:</span>
+                <input
+                  type="date"
+                  value={tarihFiltre}
+                  onChange={e => { setTarihFiltre(e.target.value); setSayfa(1); }}
+                  style={{
+                    padding: "7px 10px", borderRadius: "8px", border: "1px solid #e2e8f0",
+                    outline: "none", fontSize: "13px", fontFamily: "'Sora', sans-serif",
+                    color: "#0f172a", background: "#fff", cursor: "pointer",
+                  }}
+                />
+                {tarihFiltre && (
+                  <button
+                    onClick={() => { setTarihFiltre(""); setSayfa(1); }}
+                    title="Tarih filtresini temizle"
+                    style={{
+                      padding: "6px 10px", borderRadius: "8px", border: "1px solid #e2e8f0",
+                      background: "#f8fafc", color: "#64748b", cursor: "pointer", fontSize: "12px",
+                    }}
+                  >Temizle</button>
+                )}
+              </div>
+            </div>
           )}
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "12px" }}>
