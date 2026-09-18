@@ -357,10 +357,6 @@ export default function KayitGuncelle() {
     .replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c");
 
   // Kaynak Form Adı seçenekleri (veriden türetilir)
-  const formSecenekleri = [...new Set(
-    ogrencilerim.map(o => o["Kaynak Form Adı"]).filter(Boolean)
-  )].sort();
-
   // Eklenme tarihini parse et - farklı formatları destekler
   const eklenmeZamani = k => {
     const ham = String(k["Eklenme Tarihi"] || "").trim();
@@ -393,15 +389,33 @@ export default function KayitGuncelle() {
   const onayliMi = k => String(k["Onay Durumu"] || "").toLocaleLowerCase("tr-TR").indexOf("onayland") > -1;
 
   const aramaTerimi = normalize(tc).trim();
-  const filtreliOgrenciler = ogrencilerim.filter(o => {
+
+  // Form filtresi dışındaki tüm filtreler
+  const onFiltreli = ogrencilerim.filter(o => {
     if (onayliGizle && onayliMi(o)) return false;
     if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     if (sadeceBenim && normalize(o["Danışman Adı"]).trim() !== normalize(user?.name).trim()) return false;
-    if (formFiltre && o["Kaynak Form Adı"] !== formFiltre) return false;
     if (!aramaTerimi) return true;
     return normalize(o["Öğrenci Adı Soyadı"]).includes(aramaTerimi) ||
            String(o["TC Kimlik No"] || "").includes(aramaTerimi);
   });
+
+  // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir
+  const formSecenekleri = [...new Set(
+    onFiltreli.map(o => o["Kaynak Form Adı"]).filter(Boolean)
+  )].sort();
+
+  const filtreliOgrenciler = formFiltre
+    ? onFiltreli.filter(o => o["Kaynak Form Adı"] === formFiltre)
+    : onFiltreli;
+
+  // Seçili form yeni filtrelerde kalmadıysa seçimi bırak
+  useEffect(() => {
+    if (formFiltre && !formSecenekleri.includes(formFiltre)) {
+      setFormFiltre("");
+      setSayfa(1);
+    }
+  }, [formFiltre, formSecenekleri.join("|")]);
 
   // En yeni kayıt en üstte
   const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) => eklenmeZamani(b) - eklenmeZamani(a));
