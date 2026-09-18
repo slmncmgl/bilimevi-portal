@@ -1,3 +1,4 @@
+// v1.0 — modules objesine "kayittakip" (Kayıt Takip) eklendi
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveSession } from "../utils/sheets";
@@ -92,6 +93,7 @@ export default function AuthCallback() {
             performansanalizi: moduller?.["Performans Analizi"]?.toLowerCase() === "evet",
             anketraporu: moduller?.["Anket Raporu"]?.toLowerCase() === "evet",
             kayitformlinkleri: moduller?.["Kayıt Form Linkleri"]?.toLowerCase() === "evet",
+            kayittakip: moduller?.["Kayıt Takip"]?.toLowerCase() === "evet",
           },
         };
         saveSession(user);
