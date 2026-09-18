@@ -1,3 +1,4 @@
+// v1.5 — Sayfa başına kayıt 10'dan 5'e düşürüldü
 // v1.4 — Başlık "Eğitim Videoları ve Sınav Cevapları" olarak güncellendi
 // v1.3 — Eğitim Kayıtları sekmesi sola alındı ve varsayılan oldu, pastel lacivert tema
 // v1.3 — Eğitim Kayıtları sekmesi sola alındı ve varsayılan oldu, pastel lacivert tema, 10'lu sayfalama
@@ -38,7 +39,7 @@ export default function SinavCevaplari() {
   const [year, setYear] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1); // v1.3 — sayfalama
-  const PER_PAGE = 10;
+  const PER_PAGE = 5; // v1.5
 
   const dropRef = useRef(null);
 
