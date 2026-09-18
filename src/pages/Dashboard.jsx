@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 import { IZIN_YONETIM_SCRIPT_URL } from "../config";
-// SİL: yerel const SCRIPT_URL tanımı kaldırıldı (eski/ölü deployment ID kullanıyordu)
+// SİL: yerel const SCRIPT_URL tanımı kaldırıldı (eski/ölü deployment ID kullanıyordu) 
 
 const MODULE_CONFIG = [
   {
