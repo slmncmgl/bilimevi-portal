@@ -185,6 +185,7 @@ export default function KayitGuncelle() {
   const [kopyaModal, setKopyaModal] = useState(null);
   const [sadeceBenim, setSadeceBenim] = useState(false);
   const [tarihFiltre, setTarihFiltre] = useState("");
+  const [onayliGoster, setOnayliGoster] = useState(false);
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
@@ -388,8 +389,11 @@ export default function KayitGuncelle() {
 
   const tarihSiniri = tarihFiltre ? new Date(`${tarihFiltre}T00:00:00`).getTime() : null;
 
+  const onayliMi = k => String(k["Onay Durumu"] || "").toLocaleLowerCase("tr-TR").indexOf("onayland") > -1;
+
   const aramaTerimi = normalize(tc).trim();
   const filtreliOgrenciler = ogrencilerim.filter(o => {
+    if (!onayliGoster && onayliMi(o)) return false;
     if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     if (sadeceBenim && normalize(o["Danışman Adı"]).trim() !== normalize(user?.name).trim()) return false;
     if (formFiltre && o["Kaynak Form Adı"] !== formFiltre) return false;
@@ -436,25 +440,35 @@ export default function KayitGuncelle() {
           </div>
           {!data && (
             <div style={{
-              display: "flex", gap: "14px", marginTop: "12px",
+              display: "flex", gap: "18px", marginTop: "14px",
               flexDirection: isMobile ? "column" : "row",
               alignItems: isMobile ? "stretch" : "center", flexWrap: "wrap",
             }}>
-              <label style={{
-                display: "flex", alignItems: "center", gap: "8px",
-                fontSize: "13px", color: "#334155", cursor: "pointer", userSelect: "none",
-              }}>
+              <label style={s.filtreLabel}>
                 <input
                   type="checkbox"
                   checked={sadeceBenim}
                   onChange={e => { setSadeceBenim(e.target.checked); setSayfa(1); }}
-                  style={{ width: "16px", height: "16px", accentColor: "#0891b2", cursor: "pointer" }}
+                  style={s.checkbox}
                 />
                 Sadece Kendi Öğrencilerimi Göster
               </label>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: isMobile ? "none" : 1 }}>
-                <span style={{ fontSize: "13px", color: "#334155", whiteSpace: "nowrap" }}>Şu tarihten sonrası:</span>
+              <label style={s.filtreLabel}>
+                <input
+                  type="checkbox"
+                  checked={onayliGoster}
+                  onChange={e => { setOnayliGoster(e.target.checked); setSayfa(1); }}
+                  style={s.checkbox}
+                />
+                Onaylı Sözleşmeleri Göster
+              </label>
+
+              <div style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                marginLeft: isMobile ? 0 : "auto",
+              }}>
+                <span style={s.filtreMetin}>Şu Tarihten Sonrası:</span>
                 <input
                   type="date"
                   value={tarihFiltre}
@@ -462,7 +476,7 @@ export default function KayitGuncelle() {
                   style={{
                     padding: "7px 10px", borderRadius: "8px", border: "1px solid #e2e8f0",
                     outline: "none", fontSize: "13px", fontFamily: "'Sora', sans-serif",
-                    color: "#0f172a", background: "#fff", cursor: "pointer",
+                    color: "#1e3a5f", background: "#fff", cursor: "pointer", fontWeight: "600",
                   }}
                 />
                 {tarihFiltre && (
@@ -480,7 +494,7 @@ export default function KayitGuncelle() {
           )}
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "12px" }}>
-              <div style={{ ...s.searchLabel, marginBottom: "6px" }}>Kaynak Form Adı</div>
+              <div style={{ ...s.filtreMetin, marginBottom: "6px" }}>Kaynak Form Adı</div>
               <select
                 value={formFiltre}
                 onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
@@ -607,18 +621,48 @@ export default function KayitGuncelle() {
                 Filtrelerinizle eşleşen kayıt bulunamadı.
               </div>
             )}
-            {siraliOgrenciler.length > SAYFA_BOYUTU && (
-              <div style={s.pagination}>
-                {Array.from({ length: Math.ceil(siraliOgrenciler.length / SAYFA_BOYUTU) }, (_, i) => i + 1).map(p => (
-                  <button key={p} onClick={() => setSayfa(p)} style={{
-                    ...s.pageBtn,
-                    background: sayfa === p ? "#0891b2" : "#f1f5f9",
-                    color: sayfa === p ? "#fff" : "#475569",
-                    fontWeight: sayfa === p ? "700" : "400",
-                  }}>{p}</button>
-                ))}
-              </div>
-            )}
+            {siraliOgrenciler.length > SAYFA_BOYUTU && (() => {
+              const toplamSayfa = Math.ceil(siraliOgrenciler.length / SAYFA_BOYUTU);
+              // Aktif sayfanın etrafında pencere, başta ve sonda kısayol
+              const pencere = new Set([1, toplamSayfa, sayfa]);
+              for (let i = sayfa - 1; i <= sayfa + 1; i++) {
+                if (i > 1 && i < toplamSayfa) pencere.add(i);
+              }
+              const sayfalar = [...pencere].sort((a, b) => a - b);
+              const parcalar = [];
+              sayfalar.forEach((p, i) => {
+                if (i > 0 && p - sayfalar[i - 1] > 1) parcalar.push("...");
+                parcalar.push(p);
+              });
+
+              return (
+                <div style={s.pagination}>
+                  <button
+                    onClick={() => setSayfa(sayfa - 1)}
+                    disabled={sayfa === 1}
+                    style={{ ...s.pageNav, opacity: sayfa === 1 ? 0.35 : 1, cursor: sayfa === 1 ? "default" : "pointer" }}
+                  >‹ Önceki</button>
+
+                  {parcalar.map((p, i) => p === "..." ? (
+                    <span key={`e${i}`} style={s.pageDots}>…</span>
+                  ) : (
+                    <button key={p} onClick={() => setSayfa(p)} style={{
+                      ...s.pageBtn,
+                      background: sayfa === p ? "#1e3a5f" : "transparent",
+                      color: sayfa === p ? "#fff" : "#1e3a5f",
+                      fontWeight: sayfa === p ? "700" : "500",
+                      border: sayfa === p ? "none" : "1px solid #e2e8f0",
+                    }}>{p}</button>
+                  ))}
+
+                  <button
+                    onClick={() => setSayfa(sayfa + 1)}
+                    disabled={sayfa === toplamSayfa}
+                    style={{ ...s.pageNav, opacity: sayfa === toplamSayfa ? 0.35 : 1, cursor: sayfa === toplamSayfa ? "default" : "pointer" }}
+                  >Sonraki ›</button>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -858,8 +902,13 @@ const s = {
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
   th: { padding: "10px 12px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" },
   td: { padding: "12px 12px", fontSize: "13px", color: "#0f172a" },
-  pagination: { display: "flex", gap: "6px", justifyContent: "center", marginTop: "16px" },
-  pageBtn: { width: "32px", height: "32px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "13px" },
+  pagination: { display: "flex", gap: "6px", justifyContent: "center", alignItems: "center", marginTop: "18px", flexWrap: "wrap" },
+  pageBtn: { minWidth: "34px", height: "34px", padding: "0 8px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontFamily: "'Sora', sans-serif", background: "transparent" },
+  pageNav: { height: "34px", padding: "0 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", color: "#1e3a5f", fontSize: "13px", fontWeight: "600", fontFamily: "'Sora', sans-serif" },
+  pageDots: { minWidth: "20px", textAlign: "center", color: "#94a3b8", fontSize: "13px", userSelect: "none" },
+  filtreLabel: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "600", color: "#1e3a5f", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" },
+  filtreMetin: { fontSize: "13px", fontWeight: "600", color: "#1e3a5f", whiteSpace: "nowrap" },
+  checkbox: { width: "16px", height: "16px", accentColor: "#1e3a5f", cursor: "pointer" },
   editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   formBtn: { padding: "5px 12px", background: "#fffbeb", color: "#92400e", border: "1px solid #fcd34d", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   warnBtn: { padding: "5px 8px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "6px", cursor: "pointer", fontSize: "12px", lineHeight: 1 },
