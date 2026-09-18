@@ -117,9 +117,9 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
 
   const baseStyle = {
     width: "100%", padding: "9px 12px",
-    border: vurgulu ? "2px solid #ef4444" : `1.5px solid ${isReadonly ? "#f1f5f9" : "#e2e8f0"}`,
+    border: vurgulu ? "2px solid #ef4444" : `1.5px solid ${isReadonly ? "#e8edf3" : "#e2e8f0"}`,
     borderRadius: "10px", fontSize: "13px", fontFamily: "'Sora', sans-serif",
-    color: isReadonly ? "#94a3b8" : "#0f172a",
+    color: "#0f172a",
     background: vurgulu ? "#fef2f2" : (isReadonly ? "#f8fafc" : "#fff"),
     outline: "none", boxSizing: "border-box",
     transition: "border-color 0.3s, background 0.3s",
@@ -588,15 +588,9 @@ export default function KayitGuncelle() {
                         flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center",
                       }}>
                         <button
-                          onClick={() => sorgula(ogr["TC Kimlik No"])}
-                          disabled={!ogr["Danışman Adı"]}
-                          title={!ogr["Danışman Adı"] ? "Danışman atanmamış kayıtlar düzenlenemez" : ""}
-                          style={{
-                            ...s.editBtn,
-                            opacity: ogr["Danışman Adı"] ? 1 : 0.4,
-                            cursor: ogr["Danışman Adı"] ? "pointer" : "not-allowed",
-                          }}
-                        >Düzenle</button>
+                          onClick={() => sorgula(ogr["TC Kimlik No"], !ogr["Danışman Adı"])}
+                          style={s.editBtn}
+                        >{ogr["Danışman Adı"] ? "Düzenle" : "Görüntüle"}</button>
                         <button
                           onClick={async () => {
                             const tcNo = String(ogr["TC Kimlik No"] || "");
@@ -614,12 +608,6 @@ export default function KayitGuncelle() {
                           }}
                           style={s.formBtn}
                         >Danışman Formuna Git</button>
-                        {!ogr["Danışman Adı"] && (
-                          <button
-                            onClick={() => sorgula(ogr["TC Kimlik No"], true)}
-                            style={s.editBtn}
-                          >Görüntüle</button>
-                        )}
                         {taksitFarki(ogr) && (
                           <button
                             onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
