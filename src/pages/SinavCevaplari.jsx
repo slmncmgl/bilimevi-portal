@@ -1,3 +1,5 @@
+// v1.3 — Eğitim Kayıtları sekmesi sola alındı ve varsayılan oldu, pastel lacivert tema
+// v1.3 — Eğitim Kayıtları sekmesi sola alındı ve varsayılan oldu, pastel lacivert tema, 10'lu sayfalama
 // v1.2 — Eğitim verisi Sınav Cevapları script'ine taşındı, ayrı URL sabiti kaldırıldı
 // v1.1 — Eğitim Kayıtları sekmesi eklendi (iki sekmeli yapı, yıl seçici, video linkleri)
 // v1.0 — Gemini çağrısı /api/gemini proxy'sine taşındı, key ve model artık backend'de yönetiliyor
@@ -26,7 +28,7 @@ export default function SinavCevaplari() {
   const [submitting, setSubmitting] = useState(false);
 
   // v1.1 — Eğitim Kayıtları sekmesi state'leri
-  const [activeTab, setActiveTab] = useState("giris");
+  const [activeTab, setActiveTab] = useState("egitimler");
   const [egLoading, setEgLoading] = useState(false);
   const [egLoaded, setEgLoaded] = useState(false);
   const [egError, setEgError] = useState(null);
@@ -34,6 +36,8 @@ export default function SinavCevaplari() {
   const [rowsByYear, setRowsByYear] = useState({});
   const [year, setYear] = useState("");
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1); // v1.3 — sayfalama
+  const PER_PAGE = 10;
 
   const dropRef = useRef(null);
 
@@ -77,6 +81,13 @@ export default function SinavCevaplari() {
       return 0;
     });
   }, [rowsByYear, year, q]);
+
+  // v1.3 — yıl veya arama değişince ilk sayfaya dön
+  useEffect(() => { setPage(1); }, [year, q]);
+
+  const totalPages = Math.max(1, Math.ceil(egList.length / PER_PAGE));
+  const pageSafe = Math.min(page, totalPages);
+  const egPage = egList.slice((pageSafe - 1) * PER_PAGE, pageSafe * PER_PAGE);
 
   function handlePaste(e) {
     if (activeTab !== "giris") return; // v1.1 — Ctrl+V sadece Sınav Girişi sekmesinde
@@ -212,13 +223,13 @@ export default function SinavCevaplari() {
       <main style={s.main}>
         {/* v1.1 — Sekme barı */}
         <div className="sc-tabs">
-          <button onClick={() => setActiveTab("giris")}
-            className={activeTab === "giris" ? "sc-tab sc-tab-on" : "sc-tab"}>
-            Sınav Girişi
-          </button>
           <button onClick={() => setActiveTab("egitimler")}
             className={activeTab === "egitimler" ? "sc-tab sc-tab-on" : "sc-tab"}>
             Eğitim Kayıtları
+          </button>
+          <button onClick={() => setActiveTab("giris")}
+            className={activeTab === "giris" ? "sc-tab sc-tab-on" : "sc-tab"}>
+            Sınav Girişi
           </button>
         </div>
 
@@ -377,7 +388,7 @@ export default function SinavCevaplari() {
 
             {!egLoading && !egError && egList.length > 0 && (
               <div style={s.listWrap}>
-                {egList.map((r, i) => (
+                {egPage.map((r, i) => (
                   <div key={i} className="sc-row">
                     <div className="sc-info">
                       <span className="sc-date">{r.tarih || "—"}</span>
@@ -391,6 +402,23 @@ export default function SinavCevaplari() {
                     </a>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* v1.3 — Sayfalama */}
+            {!egLoading && !egError && totalPages > 1 && (
+              <div className="sc-pager">
+                <button className="sc-pbtn" disabled={pageSafe === 1}
+                  onClick={() => setPage(pageSafe - 1)}>Önceki</button>
+                <div className="sc-pnums">
+                  {Array.from({ length: totalPages }, (_, n) => n + 1).map(n => (
+                    <button key={n}
+                      className={n === pageSafe ? "sc-pnum sc-pnum-on" : "sc-pnum"}
+                      onClick={() => setPage(n)}>{n}</button>
+                  ))}
+                </div>
+                <button className="sc-pbtn" disabled={pageSafe === totalPages}
+                  onClick={() => setPage(pageSafe + 1)}>Sonraki</button>
               </div>
             )}
           </>)}
@@ -413,8 +441,8 @@ export default function SinavCevaplari() {
           font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.2s;
         }
         .sc-tab:hover { border-color: #cbd5e1; color: #475569; }
-        .sc-tab-on { background: #0f172a; border-color: #0f172a; color: #fff; }
-        .sc-tab-on:hover { background: #1e293b; border-color: #1e293b; color: #fff; }
+        .sc-tab-on { background: #e8ecfb; border-color: #b9c4ef; color: #3f4f9e; }
+        .sc-tab-on:hover { background: #dee4f8; border-color: #b9c4ef; color: #3f4f9e; }
 
         .sc-filters { display: flex; gap: 12px; align-items: center; }
 
@@ -423,21 +451,39 @@ export default function SinavCevaplari() {
           padding: 14px 16px; border: 1.5px solid #e2e8f0; border-radius: 12px;
           background: #fff; transition: border-color 0.2s, box-shadow 0.2s;
         }
-        .sc-row:hover { border-color: #bfdbfe; box-shadow: 0 2px 10px rgba(37,99,235,0.07); }
+        .sc-row:hover { border-color: #b9c4ef; box-shadow: 0 2px 10px rgba(123,137,204,0.14); }
         .sc-info { display: flex; align-items: center; gap: 14px; min-width: 0; }
         .sc-date {
-          flex-shrink: 0; font-size: 12px; font-weight: 700; color: #64748b;
-          background: #f1f5f9; padding: 5px 10px; border-radius: 7px;
+          flex-shrink: 0; font-size: 12px; font-weight: 700; color: #5768ae;
+          background: #eef1fb; padding: 5px 10px; border-radius: 7px;
           font-variant-numeric: tabular-nums;
         }
         .sc-kurum { font-size: 14px; font-weight: 600; color: #0f172a; word-break: break-word; }
         .sc-watch {
           display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-          flex-shrink: 0; padding: 9px 16px; background: #0f172a; color: #fff;
+          flex-shrink: 0; padding: 9px 16px; background: #7b89cc; color: #fff;
           border-radius: 10px; font-size: 13px; font-weight: 700;
           text-decoration: none; font-family: 'Inter', sans-serif; transition: background 0.2s;
         }
-        .sc-watch:hover { background: #1e293b; }
+        .sc-watch:hover { background: #6b7ac2; }
+
+        /* v1.3 — Sayfalama */
+        .sc-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .sc-pnums { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+        .sc-pbtn {
+          padding: 9px 16px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+          background: #fff; color: #5768ae; font-size: 13px; font-weight: 700;
+          font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.2s;
+        }
+        .sc-pbtn:hover:not(:disabled) { border-color: #b9c4ef; background: #f7f8fe; }
+        .sc-pbtn:disabled { color: #cbd5e1; cursor: not-allowed; }
+        .sc-pnum {
+          min-width: 36px; padding: 9px 10px; border: 1.5px solid #e2e8f0; border-radius: 10px;
+          background: #fff; color: #64748b; font-size: 13px; font-weight: 700;
+          font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.2s;
+        }
+        .sc-pnum:hover { border-color: #b9c4ef; color: #5768ae; }
+        .sc-pnum-on { background: #e8ecfb; border-color: #b9c4ef; color: #3f4f9e; }
 
         @media (max-width: 640px) {
           .sc-filters { flex-direction: column; align-items: stretch; }
@@ -445,6 +491,10 @@ export default function SinavCevaplari() {
           .sc-info { flex-direction: column; align-items: flex-start; gap: 6px; }
           .sc-watch { width: 100%; padding: 13px 16px; min-height: 46px; font-size: 14px; }
           .sc-tab { padding: 12px 10px; min-height: 46px; font-size: 13px; }
+          .sc-pager { flex-wrap: wrap; }
+          .sc-pbtn { flex: 1; min-height: 44px; }
+          .sc-pnums { order: 3; width: 100%; }
+          .sc-pnum { min-height: 44px; min-width: 44px; }
         }
       `}</style>
     </div>
@@ -479,7 +529,7 @@ const s = {
   scoreInput: { width: "100%", padding: "12px 8px", border: "1.5px solid", borderRadius: "10px", fontSize: "18px", fontWeight: "700", textAlign: "center", fontFamily: "'Inter', sans-serif", outline: "none", background: "#fff" },
   bottomGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" },
   statusBox: { display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", borderRadius: "10px" },
-  submitBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "13px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "700", fontFamily: "'Inter', sans-serif", transition: "all 0.2s" },
+  submitBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", width: "100%", padding: "13px", background: "#7b89cc", color: "#fff", border: "none", borderRadius: "12px", fontSize: "14px", fontWeight: "700", fontFamily: "'Inter', sans-serif", transition: "all 0.2s" }, // v1.3 — pastel lacivert
   // v1.1 — Eğitim Kayıtları sekmesi
   select: { padding: "10px 14px", border: "1.5px solid #e2e8f0", borderRadius: "10px", fontSize: "14px", fontWeight: "700", color: "#0f172a", background: "#fff", fontFamily: "'Inter', sans-serif", outline: "none", cursor: "pointer", minWidth: "110px" },
   countRow: { fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px" },
