@@ -5,6 +5,8 @@ import { getSession } from "../utils/sheets";
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
+// Bu tarihten önce eklenen kayıtlar listede gösterilmez
+const BASLANGIC_TARIHI = new Date("2026-08-15T00:00:00").getTime();
 
 const TABS = ["Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
 
@@ -183,6 +185,7 @@ export default function KayitGuncelle() {
   const [saltOkunur, setSaltOkunur] = useState(false);
   const [formFiltre, setFormFiltre] = useState("");
   const [kopyaModal, setKopyaModal] = useState(null);
+  const [sadeceBenim, setSadeceBenim] = useState(false);
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
@@ -357,25 +360,24 @@ export default function KayitGuncelle() {
     ogrencilerim.map(o => o["Kaynak Form Adı"]).filter(Boolean)
   )].sort();
 
+  // Eklenme tarihini parse et (sıralama ve alt sınır için)
+  const eklenmeZamani = k => {
+    const t = Date.parse(k["Eklenme Tarihi"]);
+    return isNaN(t) ? 0 : t;
+  };
+
   const aramaTerimi = normalize(tc).trim();
   const filtreliOgrenciler = ogrencilerim.filter(o => {
+    if (eklenmeZamani(o) < BASLANGIC_TARIHI) return false;
+    if (sadeceBenim && o["Danışman Adı"] !== user?.name) return false;
     if (formFiltre && o["Kaynak Form Adı"] !== formFiltre) return false;
     if (!aramaTerimi) return true;
     return normalize(o["Öğrenci Adı Soyadı"]).includes(aramaTerimi) ||
            String(o["TC Kimlik No"] || "").includes(aramaTerimi);
   });
 
-  // Sıralama: önce taksit uyarısı olanlar, sonra onay bekleyenler
-  const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) => {
-    const uyariA = taksitFarki(a) ? 0 : 1;
-    const uyariB = taksitFarki(b) ? 0 : 1;
-    if (uyariA !== uyariB) return uyariA - uyariB;
-    const bekliyor = k => {
-      const d = String(k["Onay Durumu"] || "").toLocaleLowerCase("tr-TR");
-      return (!d || d.indexOf("bekl") > -1) ? 0 : 1;
-    };
-    return bekliyor(a) - bekliyor(b);
-  });
+  // En yeni kayıt en üstte
+  const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) => eklenmeZamani(b) - eklenmeZamani(a));
 
   return (
     <div style={s.root}>
@@ -410,6 +412,20 @@ export default function KayitGuncelle() {
               {loading ? "..." : "Sorgula"}
             </button>
           </div>
+          {!data && (
+            <label style={{
+              display: "flex", alignItems: "center", gap: "8px", marginTop: "12px",
+              fontSize: "13px", color: "#334155", cursor: "pointer", userSelect: "none",
+            }}>
+              <input
+                type="checkbox"
+                checked={sadeceBenim}
+                onChange={e => { setSadeceBenim(e.target.checked); setSayfa(1); }}
+                style={{ width: "16px", height: "16px", accentColor: "#0891b2", cursor: "pointer" }}
+              />
+              Sadece Kendi Öğrencilerimi Göster
+            </label>
+          )}
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "12px" }}>
               <div style={{ ...s.searchLabel, marginBottom: "6px" }}>Kaynak Form Adı</div>
@@ -442,12 +458,13 @@ export default function KayitGuncelle() {
 
         {!data && !ogrencilerLoading && ogrencilerim.length > 0 && (
           <div style={s.listCard}>
-            <div style={s.listHeader}>Öğrencilerim ({siraliOgrenciler.length}{aramaTerimi ? ` / ${ogrencilerim.length}` : ""})</div>
+            <div style={s.listHeader}>Kayıt Formları ({siraliOgrenciler.length})</div>
             <table style={s.table}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                   <th style={s.th}>Öğrenci Adı Soyadı</th>
                   <th style={s.th}>TC Kimlik No</th>
+                  <th style={s.th}>Danışman</th>
                   <th style={s.th}>Sözleşme Durumu</th>
                   <th style={s.th}></th>
                 </tr>
@@ -457,6 +474,9 @@ export default function KayitGuncelle() {
                   <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
                     <td style={s.td}>{ogr["Öğrenci Adı Soyadı"]}</td>
                     <td style={s.td}>{ogr["TC Kimlik No"]}</td>
+                    <td style={{ ...s.td, color: ogr["Danışman Adı"] ? "#0f172a" : "#94a3b8" }}>
+                      {ogr["Danışman Adı"] || "Atanmamış"}
+                    </td>
                     <td style={s.td}>
                       <span style={{
                         padding: "3px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600",
@@ -532,7 +552,7 @@ export default function KayitGuncelle() {
             </table>
             {siraliOgrenciler.length === 0 && (
               <div style={{ textAlign: "center", padding: "24px", color: "#94a3b8", fontSize: "13px" }}>
-                Aramanızla eşleşen kayıt bulunamadı.
+                Filtrelerinizle eşleşen kayıt bulunamadı.
               </div>
             )}
             {siraliOgrenciler.length > SAYFA_BOYUTU && (
