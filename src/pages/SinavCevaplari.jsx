@@ -1,3 +1,4 @@
+// v1.2 — Eğitim verisi Sınav Cevapları script'ine taşındı, ayrı URL sabiti kaldırıldı
 // v1.1 — Eğitim Kayıtları sekmesi eklendi (iki sekmeli yapı, yıl seçici, video linkleri)
 // v1.0 — Gemini çağrısı /api/gemini proxy'sine taşındı, key ve model artık backend'de yönetiliyor
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -5,8 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwQ2X2Vh9vxF1RO3D5o3UVWj0DHgxDdWHyYdLThI32i6kwcR0MUKswcfeVjpOXL6bZC/exec";
-// v1.1 — Okul Eğitimleri sheet'ine gömülü script'in web app URL'i (deploy sonrası buraya yapıştır)
-const EGITIM_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyy-3jnGux0jLVaKpc4R5WHjxyvTgvXFBwh2xlmRlnuh-XFiCDHBmGS2wfCZjLx3YoH/exec";
 
 export default function SinavCevaplari() {
   const navigate = useNavigate();
@@ -52,7 +51,7 @@ export default function SinavCevaplari() {
   async function loadEgitimler() {
     setEgLoading(true); setEgError(null);
     try {
-      const res = await fetch(`${EGITIM_SCRIPT_URL}?action=okulEgitimleri`);
+      const res = await fetch(`${SCRIPT_URL}?action=okulEgitimleri`);
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "hata");
       const ys = data.years || [];
