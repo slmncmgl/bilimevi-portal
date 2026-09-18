@@ -1,3 +1,4 @@
+// v1.4 — Başlık "Eğitim Videoları ve Sınav Cevapları" olarak güncellendi
 // v1.3 — Eğitim Kayıtları sekmesi sola alındı ve varsayılan oldu, pastel lacivert tema
 // v1.3 — Eğitim Kayıtları sekmesi sola alındı ve varsayılan oldu, pastel lacivert tema, 10'lu sayfalama
 // v1.2 — Eğitim verisi Sınav Cevapları script'ine taşındı, ayrı URL sabiti kaldırıldı
@@ -208,7 +209,7 @@ export default function SinavCevaplari() {
               Dashboard
             </button>
             <span style={s.headerSep}>·</span>
-            <span style={s.headerTitle}>Sınav Cevapları</span>
+            <span style={s.headerTitle}>Eğitim Videoları ve Sınav Cevapları</span>
           </div>
           <div style={s.headerRight}>
             <div style={s.userChip}>
