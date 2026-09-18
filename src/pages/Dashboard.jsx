@@ -1,3 +1,4 @@
+// v1.1 — MODULE_CONFIG'e "kayittakip" (Kayıt Takip) kartı eklendi
 // v1.0 — SCRIPT_URL merkezi config.js'e taşındı (eski deployment ID yerine güncel olan kullanılıyor)
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -182,6 +183,25 @@ const MODULE_CONFIG = [
     color: "#0d9488",
     bg: "#f0fdfa",
     border: "#99f6e4",
+  },
+  {
+    key: "kayittakip",
+    title: "Kayıt Takip",
+    titleEn: "Registration Tracking",
+    desc: "Yeni öğrenci kaydı gir ve takip listesine ekle",
+    descEn: "Add a new student registration to the tracking list",
+    path: "/kayit-takip",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/>
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+        <line x1="9" y1="12" x2="15" y2="12"/>
+        <line x1="9" y1="16" x2="13" y2="16"/>
+      </svg>
+    ),
+    color: "#e11d48",
+    bg: "#fff1f2",
+    border: "#fecdd3",
   },
 ];
 
