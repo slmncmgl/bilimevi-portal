@@ -1,3 +1,4 @@
+// v1.0 — modules objesine "kayittakip" (Kayıt Takip) eklendi
 import { LOGIN_SCRIPT_URL } from "../config";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -88,6 +89,7 @@ export async function loginWithCredentials(username, password) {
     performansanalizi: modulRow?.["Performans Analizi"]?.toLowerCase() === "evet",
     anketraporu: modulRow?.["Anket Raporu"]?.toLowerCase() === "evet",
     kayitformlinkleri: modulRow?.["Kayıt Form Linkleri"]?.toLowerCase() === "evet",
+    kayittakip: modulRow?.["Kayıt Takip"]?.toLowerCase() === "evet",
   
   };
 
