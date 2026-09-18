@@ -388,6 +388,17 @@ export default function KayitGuncelle() {
 
   const onayliMi = k => String(k["Onay Durumu"] || "").toLocaleLowerCase("tr-TR").indexOf("onayland") > -1;
 
+  // Bu formlarda dropdown değeri olarak form adı yerine okul adı kullanılır
+  const OKUL_BAZLI_FORMLAR = ["Junior Kayıt Formu", "Grup Yaz Okulu Bilgi Formu"];
+  const formEtiketi = k => {
+    const form = String(k["Kaynak Form Adı"] || "").trim();
+    if (OKUL_BAZLI_FORMLAR.includes(form)) {
+      const okul = String(k["Okul Adı"] || "").trim();
+      if (okul) return okul;
+    }
+    return form;
+  };
+
   const aramaTerimi = normalize(tc).trim();
 
   // Form filtresi dışındaki tüm filtreler
@@ -402,11 +413,11 @@ export default function KayitGuncelle() {
 
   // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir
   const formSecenekleri = [...new Set(
-    onFiltreli.map(o => o["Kaynak Form Adı"]).filter(Boolean)
+    onFiltreli.map(formEtiketi).filter(Boolean)
   )].sort();
 
   const filtreliOgrenciler = formFiltre
-    ? onFiltreli.filter(o => o["Kaynak Form Adı"] === formFiltre)
+    ? onFiltreli.filter(o => formEtiketi(o) === formFiltre)
     : onFiltreli;
 
   // Seçili form yeni filtrelerde kalmadıysa seçimi bırak
@@ -527,7 +538,7 @@ export default function KayitGuncelle() {
           )}
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "12px" }}>
-              <div style={{ ...s.filtreMetin, marginBottom: "6px" }}>Kaynak Form Adı</div>
+              <div style={{ ...s.filtreMetin, marginBottom: "6px" }}>Form / Okul</div>
               <select
                 value={formFiltre}
                 onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
@@ -538,7 +549,7 @@ export default function KayitGuncelle() {
                   background: "#fff", color: "#0f172a", boxSizing: "border-box",
                 }}
               >
-                <option value="">Tüm Formlar</option>
+                <option value="">Tümü</option>
                 {formSecenekleri.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
