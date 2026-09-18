@@ -168,7 +168,7 @@ const MODULE_CONFIG = [
   },
   {
     key: "kayitformlinkleri",
-    title: "Kayıt Form Linkleri",
+    title: "Kayıt Formu Linkleri",
     titleEn: "Registration Form Links",
     desc: "Aktif kayıt formlarının bağlantı arşivi",
     descEn: "Archive of active registration form links",
