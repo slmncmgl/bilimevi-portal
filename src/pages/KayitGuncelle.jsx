@@ -185,7 +185,8 @@ export default function KayitGuncelle() {
   const [kopyaModal, setKopyaModal] = useState(null);
   const [sadeceBenim, setSadeceBenim] = useState(false);
   const [tarihFiltre, setTarihFiltre] = useState("");
-  const [onayliGoster, setOnayliGoster] = useState(false);
+  const [onayliGizle, setOnayliGizle] = useState(false);
+  const [listeFlash, setListeFlash] = useState(false);
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
@@ -393,7 +394,7 @@ export default function KayitGuncelle() {
 
   const aramaTerimi = normalize(tc).trim();
   const filtreliOgrenciler = ogrencilerim.filter(o => {
-    if (!onayliGoster && onayliMi(o)) return false;
+    if (onayliGizle && onayliMi(o)) return false;
     if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     if (sadeceBenim && normalize(o["Danışman Adı"]).trim() !== normalize(user?.name).trim()) return false;
     if (formFiltre && o["Kaynak Form Adı"] !== formFiltre) return false;
@@ -407,7 +408,15 @@ export default function KayitGuncelle() {
 
   return (
     <div style={s.root}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes listFlash {
+          0%   { background: #cffafe; transform: scale(1); }
+          12%  { background: #a5f3fc; transform: scale(1.03); }
+          30%  { background: #cffafe; transform: scale(1); }
+          100% { background: transparent; transform: scale(1); }
+        }
+      `}</style>
       <div style={s.bgGrid} />
       <div style={s.bgGlow} />
 
@@ -457,11 +466,11 @@ export default function KayitGuncelle() {
               <label style={s.filtreLabel}>
                 <input
                   type="checkbox"
-                  checked={onayliGoster}
-                  onChange={e => { setOnayliGoster(e.target.checked); setSayfa(1); }}
+                  checked={onayliGizle}
+                  onChange={e => { setOnayliGizle(e.target.checked); setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Onaylı Sözleşmeleri Göster
+                Onaylı Sözleşmeleri Gizle
               </label>
 
               <div style={{
@@ -472,7 +481,12 @@ export default function KayitGuncelle() {
                 <input
                   type="date"
                   value={tarihFiltre}
-                  onChange={e => { setTarihFiltre(e.target.value); setSayfa(1); }}
+                  onChange={e => {
+                    setTarihFiltre(e.target.value);
+                    setSayfa(1);
+                    setListeFlash(true);
+                    setTimeout(() => setListeFlash(false), 2000);
+                  }}
                   style={{
                     padding: "7px 10px", borderRadius: "8px", border: "1px solid #e2e8f0",
                     outline: "none", fontSize: "13px", fontFamily: "'Sora', sans-serif",
@@ -481,7 +495,12 @@ export default function KayitGuncelle() {
                 />
                 {tarihFiltre && (
                   <button
-                    onClick={() => { setTarihFiltre(""); setSayfa(1); }}
+                    onClick={() => {
+                      setTarihFiltre("");
+                      setSayfa(1);
+                      setListeFlash(true);
+                      setTimeout(() => setListeFlash(false), 2000);
+                    }}
                     title="Tarih filtresini temizle"
                     style={{
                       padding: "6px 10px", borderRadius: "8px", border: "1px solid #e2e8f0",
@@ -524,7 +543,20 @@ export default function KayitGuncelle() {
 
         {!data && !ogrencilerLoading && ogrencilerim.length > 0 && (
           <div style={s.listCard}>
-            <div style={s.listHeader}>Kayıt Formları ({siraliOgrenciler.length})</div>
+            <div style={{
+              ...s.listHeader,
+              display: "flex", alignItems: "center", gap: "10px",
+              animation: listeFlash ? "listFlash 2s ease-out" : "none",
+              borderRadius: "8px", padding: "6px 10px", margin: "-6px -10px 12px",
+            }}>
+              Kayıt Formları
+              <span style={{
+                background: listeFlash ? "#0891b2" : "#f1f5f9",
+                color: listeFlash ? "#fff" : "#475569",
+                padding: "2px 10px", borderRadius: "20px", fontSize: "12px",
+                transition: "background 0.4s, color 0.4s",
+              }}>{siraliOgrenciler.length}</span>
+            </div>
             <table style={s.table}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
