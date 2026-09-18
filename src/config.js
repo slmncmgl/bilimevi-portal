@@ -1,6 +1,7 @@
-// v1.1
+// v1.2
 // Her sabit, hangi Apps Script deployment'ına ait olduğunu isminden belli eder.
 // Yeni deployment yapıldığında SADECE ilgili satırı güncelle.
 export const IZIN_YONETIM_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxseCtKe77TrSuQRmWE635YMGHgeRiWNxXcusertZo62sjA_9aBC400e7mHsJUZ6UfJ/exec";
 export const KATALOG_PARSE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2u8MvmPux34VaT8c1S45LYq8KLY9K6pKyBXYydi03SNAW8tPJgp_lB_tMkWj5zpC3/exec";
 export const LOGIN_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxpCmFYJvi5iZJ3AVufzjCfLyLywvfCkqLkf5eqCPDFexIWFXIRzb1G_WtOoWfygnIC/exec";
+export const KAYIT_TAKIP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwiNUT7P5VBwqih0bVvfpGgxZmdiYS6EtgAhQ1Wc-vq0dBeLB2uwQAasDURnA3QspRD9A/exec";
