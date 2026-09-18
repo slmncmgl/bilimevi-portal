@@ -1,3 +1,4 @@
+// v1.0 — /kayit-takip route'u ve KayitTakip import'u eklendi
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -13,6 +14,7 @@ import KatalogParse from "./pages/KatalogParse";
 import PerformansAnalizi from './pages/PerformansAnalizi';
 import AnketRaporu from './pages/AnketRaporu';
 import KayitFormLinkleri from './pages/KayitFormLinkleri';
+import KayitTakip from './pages/KayitTakip';
 
 export default function App() {
   return (
@@ -32,6 +34,7 @@ export default function App() {
         <Route path="/performans-analizi" element={<PerformansAnalizi />} />
         <Route path="/anket-raporu" element={<AnketRaporu />} />
         <Route path="/kayit-form-linkleri" element={<KayitFormLinkleri />} />
+        <Route path="/kayit-takip" element={<KayitTakip />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
