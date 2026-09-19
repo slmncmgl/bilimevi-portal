@@ -1,4 +1,7 @@
-// KayitTakip.jsx — v1.0
+// KayitTakip.jsx — v1.1
+// v1.1 — Danışman listesi sadece Bilimevi personeli; Kayıt Referansı yarım boy
+// v1.0 — İlk sürüm.
+//
 // Kayıt Takip modülü: yeni öğrenci kaydını "Aylık Rapor" sekmesine ekler.
 // Danışman listesi ve şube eşleşmesi Personel sekmesinden (gviz CSV) okunur.
 // Yazma işlemi KAYIT_TAKIP_SCRIPT_URL üzerinden GET + encoded JSON ile yapılır.
@@ -134,7 +137,7 @@ export default function KayitTakip() {
     setUser(session);
   }, []);
 
-  // Personel sekmesinden danışman listesi + şube eşleşmesi
+  // Personel sekmesinden danışman listesi + şube eşleşmesi (sadece Bilimevi)
   useEffect(() => {
     (async () => {
       try {
@@ -146,6 +149,8 @@ export default function KayitTakip() {
         rows.forEach(r => {
           const ad = (r["Ad Soyad"] || "").trim();
           if (!ad) return;
+          const sirket = (r["Şirket"] || "").trim().toLowerCase();
+          if (sirket !== "bilimevi") return; // sadece Bilimevi personeli
           isimler.push(ad);
           map[ad] = (r["Şube"] || "").trim();
         });
@@ -426,7 +431,7 @@ export default function KayitTakip() {
             </div>
 
             {/* Kayıt referansı */}
-            <div style={{ ...styles.field, ...styles.fieldFull }} className="kt-full">
+            <div style={styles.field}>
               <label style={styles.label}>Kayıt Referansı</label>
               <input
                 type="text"
