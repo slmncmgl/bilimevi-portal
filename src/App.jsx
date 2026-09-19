@@ -16,6 +16,7 @@ import AnketRaporu from './pages/AnketRaporu';
 import KayitFormLinkleri from './pages/KayitFormLinkleri';
 import KayitTakip from './pages/KayitTakip';
 
+
 export default function App() {
   return (
     <BrowserRouter>
