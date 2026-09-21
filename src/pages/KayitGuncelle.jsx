@@ -6,7 +6,7 @@ const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
 
-const TABS = ["Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
+const TABS = ["Özet", "Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
 
 const DROPDOWN_OPTIONS = {
   "İmzalayacak Ebeveyn": ["Anne", "Baba"],
@@ -40,6 +40,7 @@ const TAB_FIELDS = {
     "TC Kimlik No", "Öğrenci Adı Soyadı", "Öğrenci Doğum Tarihi", "Öğrencinin Cinsiyeti",
     "Öğrenci Mail Adresi", "Öğrenci Cep Telefonu",
     "Pasaportu Var Mı", "Pasaport Türü",
+    "Pasaport Fotoğrafı", "TC Kimlik Fotoğrafı",
     "Türkiye'de Eğitim Aldığı Okul", "Sınıfı-Şubesi",
     "İkamet Adresi", "Yaşadığı Adres",
   ],
@@ -77,6 +78,7 @@ const TAB_FIELDS = {
 
 const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı", "Okul Lokasyonu", "Formu Dolduran Ebeveynin Adı"];
 const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi", "Haftalık Ders Saati", "Öğrenci Cep Telefonu", "Konaklama Süresi (Accommodation Duration)"];
+const FOTO_FIELDS = ["Pasaport Fotoğrafı", "TC Kimlik Fotoğrafı"];
 const TAKSIT_TUTAR = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Tutarı`);
 const TAKSIT_DONEM = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Dönemi`);
 
@@ -125,6 +127,26 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
     transition: "border-color 0.3s, background 0.3s",
   };
 
+  // Fotoğraf alanları: değer bir dosya linki, metin kutusu yerine açma butonu
+  if (FOTO_FIELDS.includes(label)) {
+    const link = String(value || "").trim();
+    if (!link) {
+      return (
+        <div style={{ ...baseStyle, color: "#94a3b8", background: "#f8fafc" }}>Yüklenmemiş</div>
+      );
+    }
+    return (
+      <a
+        href={link} target="_blank" rel="noreferrer"
+        style={{
+          ...baseStyle, display: "flex", alignItems: "center", justifyContent: "center",
+          gap: "8px", textDecoration: "none", fontWeight: "600",
+          color: "#0e7490", background: "#ecfeff", border: "1.5px solid #a5f3fc", cursor: "pointer",
+        }}
+      >Fotoğrafı Aç</a>
+    );
+  }
+
   if (isDropdown && !isReadonly) {
     return (
       <select value={DROPDOWN_OPTIONS[label].includes(value) ? value : ""} onChange={e => onChange(e.target.value)} style={{ ...baseStyle, cursor: "pointer" }}>
@@ -161,6 +183,80 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
   );
 }
 
+// Özet sekmesi: salt okunur, hızlı bakış için düzenlenmiş bilgi kartları
+function OzetSatir({ etiket, deger, tip }) {
+  const bos = !String(deger || "").trim();
+  const govde = bos
+    ? <span style={{ color: "#cbd5e1" }}>—</span>
+    : tip === "tel"
+      ? <a href={`tel:${String(deger).replace(/[^\d+]/g, "")}`} style={{ color: "#0e7490", textDecoration: "none" }}>{deger}</a>
+      : tip === "mail"
+        ? <a href={`mailto:${deger}`} style={{ color: "#0e7490", textDecoration: "none", wordBreak: "break-all" }}>{deger}</a>
+        : deger;
+
+  return (
+    <div style={{ display: "flex", gap: "10px", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
+      <div style={{ minWidth: "130px", flexShrink: 0, fontSize: "12px", color: "#64748b" }}>{etiket}</div>
+      <div style={{ fontSize: "13px", color: "#0f172a", fontWeight: "500" }}>{govde}</div>
+    </div>
+  );
+}
+
+function OzetKart({ baslik, children }) {
+  return (
+    <div style={{
+      background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px",
+      padding: "14px 16px",
+    }}>
+      <div style={{
+        fontSize: "12px", fontWeight: "700", color: "#1e3a5f",
+        textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px",
+      }}>{baslik}</div>
+      {children}
+    </div>
+  );
+}
+
+function OzetPaneli({ data }) {
+  // Sözleşmede kullanılan adres alanı
+  const adres = data["Adres"] || data["İkamet Adresi"] || data["Yaşadığı Adres"];
+  const okul = data["Türkiye'de Eğitim Aldığı Okul"] || data["Okulu"];
+  const sinif = data["Sınıfı-Şubesi"] || data["Sınıfı"];
+
+  return (
+    <div style={{
+      display: "grid", gap: "14px",
+      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    }}>
+      <OzetKart baslik="Öğrenci">
+        <OzetSatir etiket="Ad Soyad" deger={data["Öğrenci Adı Soyadı"]} />
+        <OzetSatir etiket="Telefon" deger={data["Öğrenci Cep Telefonu"] || data["Cep Telefonu"]} tip="tel" />
+        <OzetSatir etiket="Mail" deger={data["Öğrenci Mail Adresi"] || data["Mail Adresi"]} tip="mail" />
+        {okul && <OzetSatir etiket="Okuduğu Okul" deger={okul} />}
+        {sinif && <OzetSatir etiket="Sınıfı" deger={sinif} />}
+      </OzetKart>
+
+      <OzetKart baslik="Anne">
+        <OzetSatir etiket="Ad Soyad" deger={data["Anne Adı Soyadı"]} />
+        <OzetSatir etiket="Telefon" deger={data["Anne Telefon"]} tip="tel" />
+      </OzetKart>
+
+      <OzetKart baslik="Baba">
+        <OzetSatir etiket="Ad Soyad" deger={data["Baba Adı Soyadı"]} />
+        <OzetSatir etiket="Telefon" deger={data["Baba Telefon"]} tip="tel" />
+      </OzetKart>
+
+      <div style={{ gridColumn: "1 / -1" }}>
+        <OzetKart baslik="Adres">
+          <div style={{ fontSize: "13px", color: adres ? "#0f172a" : "#cbd5e1", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+            {adres || "—"}
+          </div>
+        </OzetKart>
+      </div>
+    </div>
+  );
+}
+
 export default function KayitGuncelle() {
   const navigate = useNavigate();
   const user = getSession();
@@ -169,7 +265,7 @@ export default function KayitGuncelle() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState(null);
-  const [activeTab, setActiveTab] = useState("Öğrenci");
+  const [activeTab, setActiveTab] = useState("Özet");
   const [toast, setToast] = useState(null);
   const [successModal, setSuccessModal] = useState(false);
   const [ogrencilerim, setOgrencilerim] = useState([]);
@@ -243,7 +339,7 @@ export default function KayitGuncelle() {
       if (!json.found) return showToast("Bu TC ile kayıt bulunamadı", "error");
       setSaltOkunur(viewOnly);
       setData(json.data);
-      setActiveTab("Öğrenci");
+      setActiveTab("Özet");
     } catch {
       showToast("Bağlantı hatası", "error");
     } finally {
@@ -727,6 +823,7 @@ export default function KayitGuncelle() {
               ))}
             </div>
             <div style={s.formCard}>
+              {activeTab === "Özet" ? <OzetPaneli data={data} /> : (
               <div style={s.fieldGrid}>
                 {TAB_FIELDS[activeTab]?.map(key => (
                   <div key={key} style={["İkamet Adresi", "Yaşadığı Adres", "Alerji durumu", "Sürekli kullanılan ilaç", "Kronik hastalık", "Hizmete Dahil Olacak Ek Hizmetler", "Eklemek İstedikleriniz"].includes(key) ? { gridColumn: "1 / -1" } : {}}>
@@ -735,6 +832,7 @@ export default function KayitGuncelle() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
             {!saltOkunur && (
             <div style={s.submitRow}>
