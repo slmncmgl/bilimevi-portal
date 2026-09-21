@@ -79,6 +79,14 @@ const TAB_FIELDS = {
 const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı", "Okul Lokasyonu", "Formu Dolduran Ebeveynin Adı"];
 const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi", "Haftalık Ders Saati", "Öğrenci Cep Telefonu", "Konaklama Süresi (Accommodation Duration)"];
 const FOTO_FIELDS = ["Pasaport Fotoğrafı", "TC Kimlik Fotoğrafı"];
+
+// Boş, "-", "yok" gibi doldurulmamış değerleri link saymaz
+function gecerliLink(deger) {
+  const v = String(deger || "").trim();
+  if (!v || v === "-" || v === "—") return "";
+  if (v.toLocaleLowerCase("tr-TR") === "yok") return "";
+  return /^https?:\/\//i.test(v) ? v : "";
+}
 const TAKSIT_TUTAR = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Tutarı`);
 const TAKSIT_DONEM = Array.from({ length: 11 }, (_, i) => `${i + 1}. Taksit Dönemi`);
 
@@ -129,7 +137,7 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
 
   // Fotoğraf alanları: değer bir dosya linki, metin kutusu yerine açma butonu
   if (FOTO_FIELDS.includes(label)) {
-    const link = String(value || "").trim();
+    const link = gecerliLink(value);
     if (!link) {
       return (
         <div style={{ ...baseStyle, color: "#94a3b8", background: "#f8fafc" }}>Yüklenmemiş</div>
@@ -217,6 +225,27 @@ function OzetKart({ baslik, children }) {
   );
 }
 
+function BelgeButonu({ etiket, link }) {
+  const url = gecerliLink(link);
+  const ortak = {
+    padding: "8px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: "600",
+    fontFamily: "'Sora', sans-serif", textDecoration: "none", display: "inline-block",
+  };
+  if (!url) {
+    return (
+      <span style={{ ...ortak, background: "#f8fafc", color: "#cbd5e1", border: "1px solid #e8edf3" }}>
+        {etiket} · Yok
+      </span>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer"
+      style={{ ...ortak, background: "#ecfeff", color: "#0e7490", border: "1px solid #a5f3fc", cursor: "pointer" }}>
+      {etiket} · Aç
+    </a>
+  );
+}
+
 function OzetPaneli({ data }) {
   // Sözleşmede kullanılan adres alanı
   const adres = data["Adres"] || data["İkamet Adresi"] || data["Yaşadığı Adres"];
@@ -226,7 +255,7 @@ function OzetPaneli({ data }) {
   return (
     <div style={{
       display: "grid", gap: "14px",
-      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+      gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
     }}>
       <OzetKart baslik="Öğrenci">
         <OzetSatir etiket="Ad Soyad" deger={data["Öğrenci Adı Soyadı"]} />
@@ -244,6 +273,13 @@ function OzetPaneli({ data }) {
       <OzetKart baslik="Baba">
         <OzetSatir etiket="Ad Soyad" deger={data["Baba Adı Soyadı"]} />
         <OzetSatir etiket="Telefon" deger={data["Baba Telefon"]} tip="tel" />
+      </OzetKart>
+
+      <OzetKart baslik="Belgeler">
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", paddingTop: "4px" }}>
+          <BelgeButonu etiket="TC Kimlik" link={data["TC Kimlik Fotoğrafı"]} />
+          <BelgeButonu etiket="Pasaport" link={data["Pasaport Fotoğrafı"]} />
+        </div>
       </OzetKart>
 
       <div style={{ gridColumn: "1 / -1" }}>
@@ -1061,7 +1097,7 @@ const s = {
   tabBar: { display: "flex", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0", overflowX: "auto", WebkitOverflowScrolling: "touch" },
   tabBtn: { flex: "1 0 auto", padding: "12px 14px", border: "none", background: "none", cursor: "pointer", fontSize: "13px", whiteSpace: "nowrap" },
   formCard: { background: "#fff", border: "1px solid #e2e8f0", padding: "20px", borderRadius: "0 0 15px 15px" },
-  fieldGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "15px" },
+  fieldGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: "15px" },
   fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "5px" },
   submitRow: { marginTop: "20px", display: "flex", justifyContent: "flex-end" },
   submitBtn: { padding: "15px 30px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer" },
