@@ -265,9 +265,11 @@ function OzetPaneli({ data }) {
         {sinif && <OzetSatir etiket="Sınıfı" deger={sinif} />}
       </OzetKart>
 
-      <OzetKart baslik="Anne">
-        <OzetSatir etiket="Ad Soyad" deger={data["Anne Adı Soyadı"]} />
-        <OzetSatir etiket="Telefon" deger={data["Anne Telefon"]} tip="tel" />
+      <OzetKart baslik="Belgeler">
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", paddingTop: "4px" }}>
+          <BelgeButonu etiket="TC Kimlik" link={data["TC Kimlik Fotoğrafı"]} />
+          <BelgeButonu etiket="Pasaport" link={data["Pasaport Fotoğrafı"]} />
+        </div>
       </OzetKart>
 
       <OzetKart baslik="Baba">
@@ -275,11 +277,9 @@ function OzetPaneli({ data }) {
         <OzetSatir etiket="Telefon" deger={data["Baba Telefon"]} tip="tel" />
       </OzetKart>
 
-      <OzetKart baslik="Belgeler">
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", paddingTop: "4px" }}>
-          <BelgeButonu etiket="TC Kimlik" link={data["TC Kimlik Fotoğrafı"]} />
-          <BelgeButonu etiket="Pasaport" link={data["Pasaport Fotoğrafı"]} />
-        </div>
+      <OzetKart baslik="Anne">
+        <OzetSatir etiket="Ad Soyad" deger={data["Anne Adı Soyadı"]} />
+        <OzetSatir etiket="Telefon" deger={data["Anne Telefon"]} tip="tel" />
       </OzetKart>
 
       <div style={{ gridColumn: "1 / -1" }}>
