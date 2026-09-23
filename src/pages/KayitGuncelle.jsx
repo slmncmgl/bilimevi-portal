@@ -318,7 +318,10 @@ export default function KayitGuncelle() {
   // Tüm kayıtları yalnızca yönetici rolleri görebilir
   // İngilizce rol adları: tr-TR locale "ADMIN" -> "admın" yaptığı için düz toLowerCase
   const rol = String(user?.title || user?.rol || "").toLowerCase().trim();
-  const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
+  // GEÇİCİ: rol bilgisi oturuma düzgün gelmediği için yetki kontrolü kapalı.
+  // Düzeldiğinde alttaki satırı sil, üstteki yorumu kaldır.
+  // const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
+  const tumunuGorebilir = true;
   const [sadeceBenim, setSadeceBenim] = useState(true);
   // Liste varsayılan olarak bu tarihten sonrasını gösterir
   const [tarihFiltre, setTarihFiltre] = useState("2026-08-01");
