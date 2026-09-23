@@ -315,8 +315,12 @@ export default function KayitGuncelle() {
   const [saltOkunur, setSaltOkunur] = useState(false);
   const [formFiltre, setFormFiltre] = useState("");
   const [kopyaModal, setKopyaModal] = useState(null);
-  const [sadeceBenim, setSadeceBenim] = useState(false);
-  const [tarihFiltre, setTarihFiltre] = useState("");
+  // Tüm kayıtları yalnızca yönetici rolleri görebilir
+  const rol = String(user?.title || user?.rol || "").toLocaleLowerCase("tr-TR").trim();
+  const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
+  const [sadeceBenim, setSadeceBenim] = useState(true);
+  // Liste varsayılan olarak bu tarihten sonrasını gösterir
+  const [tarihFiltre, setTarihFiltre] = useState("2026-08-01");
   const [onayliGizle, setOnayliGizle] = useState(false);
   const [listeFlash, setListeFlash] = useState(false);
   const SAYFA_BOYUTU = 10;
@@ -537,7 +541,7 @@ export default function KayitGuncelle() {
   const onFiltreli = ogrencilerim.filter(o => {
     if (onayliGizle && onayliMi(o)) return false;
     if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
-    if (sadeceBenim && normalize(o["Danışman Adı"]).trim() !== normalize(user?.name).trim()) return false;
+    if ((sadeceBenim || !tumunuGorebilir) && normalize(o["Danışman Adı"]).trim() !== normalize(user?.name).trim()) return false;
     if (!aramaTerimi) return true;
     return normalize(o["Öğrenci Adı Soyadı"]).includes(aramaTerimi) ||
            String(o["TC Kimlik No"] || "").includes(aramaTerimi);
@@ -610,12 +614,20 @@ export default function KayitGuncelle() {
               flexDirection: isMobile ? "column" : "row",
               alignItems: isMobile ? "stretch" : "center", flexWrap: "wrap",
             }}>
-              <label style={s.filtreLabel}>
+              <label
+                style={{
+                  ...s.filtreLabel,
+                  opacity: tumunuGorebilir ? 1 : 0.55,
+                  cursor: tumunuGorebilir ? "pointer" : "not-allowed",
+                }}
+                title={tumunuGorebilir ? "" : "Tüm kayıtları görüntüleme yetkiniz yok"}
+              >
                 <input
                   type="checkbox"
-                  checked={sadeceBenim}
+                  checked={sadeceBenim || !tumunuGorebilir}
+                  disabled={!tumunuGorebilir}
                   onChange={e => { setSadeceBenim(e.target.checked); setSayfa(1); }}
-                  style={s.checkbox}
+                  style={{ ...s.checkbox, cursor: tumunuGorebilir ? "pointer" : "not-allowed" }}
                 />
                 Sadece Kendi Öğrencilerimi Göster
               </label>
