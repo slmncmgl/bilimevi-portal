@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v108-renk-etiket-2026-08-29";
+const BFT_BUILD_VERSION = "v109-ec-kaldirildi-2026-09-23";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -987,11 +987,9 @@ const emptyDest = (sd = varsayilanBaslangic(), w = 4) => ({
   accBasePrice: 0, accHsAmount: 0, accTotalPrice: 0, accHsActive: false,
 });
 
-const EC_LIVE = [
-  { name:"EC Live Premium (5 gün/hafta)", hours:7.5, tiers:[{min:1,max:11,price:115},{min:12,max:23,price:100},{min:24,max:null,price:85}], currency:"EUR" },
-  { name:"EC Live Standard (2 gün/hafta)", hours:3, tiers:[{min:1,max:11,price:55},{min:12,max:23,price:45},{min:24,max:null,price:35}], currency:"EUR" },
-  { name:"EC Live English for Work", hours:3, tiers:[{min:1,max:11,price:80},{min:12,max:23,price:70},{min:24,max:null,price:60}], currency:"EUR" },
-];
+// v109: EC Live hardcode paketleri kaldirildi (EC dil okulu kapandi).
+// Online kurslar artik sheet'ten geliyor: ulke listesinde "Online" kaydi.
+const isOnlineUlke = (c) => /^online$/i.test((c || "").trim());
 
 const MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
 const fmtDate = (d) => d ? `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : "—";
@@ -1221,13 +1219,15 @@ export default function FiyatTeklifi() {
   const transferCost = transferPrice(cur);
   const currentTotal = courseTotal + accTotal + (feesData.total || 0) + addonsCost + transferCost;
 
+  // v109: ulke "Online" ise konaklama/transfer adimlari gosterilmez
+  const onlineDest = isOnlineUlke(cur.country);
   // with_accommodation paketi secildiyse Konaklama adimi cikar (pakete dahil)
-  const skipAccommodation = cur.selectedPackage?.package_type === "with_accommodation" || cur.isOnline;
+  const skipAccommodation = cur.selectedPackage?.package_type === "with_accommodation" || cur.isOnline || onlineDest;
   // "Ek Ücretler" adimi: pakette gizli (paket her sey dahil), online'da gizli.
   // Staff'ta zorunlu ucret/opsiyonel gosterilir; customer'da opsiyonel gizli oldugu icin genelde bos -> yine de zorunlu ucret varsa gosterilebilir ama customer'da bu adim gizlenir.
   const skipAddons = !!cur.selectedPackage || cur.isOnline || !isStaff;
   // "Transfer" adimi: transfer verisi varsa VE paket transfer icermiyorsa gosterilir
-  const hasTransfers = (cur.cityData?.transfers?.length > 0) && !packageIncludesTransfer(cur.selectedPackage) && !cur.isOnline;
+  const hasTransfers = (cur.cityData?.transfers?.length > 0) && !packageIncludesTransfer(cur.selectedPackage) && !cur.isOnline && !onlineDest;
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Ücretler","Transfer","Özet"].filter(s => {
     if (s === "Konaklama" && skipAccommodation) return false;
     if (s === "Ek Ücretler" && skipAddons) return false;
@@ -1241,10 +1241,10 @@ export default function FiyatTeklifi() {
 
   const canNextMap = {
     "Genel Bilgi": !!(student.name && student.gender && student.age),
-    "Destinasyon": (cur.isOnline && cur.course) || !!(cur.brand && cur.city),
+    "Destinasyon": !!(cur.brand && cur.city),
     "Kurs": (!!cur.selectedPackage || (!!cur.course && isCourseValid(cur.course, cur.weeks))) && !cur.cityLoading,
     // Konaklama: secili oda VEYA "konaklama istemiyorum" VEYA online VEYA paket(with_acc)
-    "Konaklama": !!cur.acc || cur.noAccommodation || cur.isOnline,
+    "Konaklama": !!cur.acc || cur.noAccommodation || cur.isOnline || onlineDest,
     "Ek Ücretler": true,
     "Transfer": true,
     "Özet": true,
@@ -2248,29 +2248,22 @@ export default function FiyatTeklifi() {
               </div>
               <p style={S.slbl}>DİL</p>
               <div style={S.g3}>
-                {nav.languages.filter(l => (isStaff || l === "İngilizce") && langHasMode(nav.citiesByLang, l, only30)).map(l => (<div key={l} style={cur.lang===l && !cur.isOnline ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
-                <div style={cur.isOnline ? S.selOnlineActive : S.selOnline} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), isOnline:true, brand:"EC", city:"EC Live", lang:"İngilizce", course:null})}>🌐 Online Kurs</div>
+                {nav.languages.filter(l => (isStaff || l === "İngilizce") && langHasMode(nav.citiesByLang, l, only30)).map(l => (<div key={l} style={cur.lang===l ? S.selActive : S.sel} onClick={() => setCur({...emptyDest(cur.startDate, cur.weeks), lang:l, country: (!isStaff && FIXED_COUNTRY) ? FIXED_COUNTRY : ""})}>{l}</div>))}
               </div>
-              {(isStaff || !FIXED_COUNTRY) && !cur.isOnline && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{sortCountries(nav.countries[cur.lang]).filter(ctry => {
+              {(isStaff || !FIXED_COUNTRY) && cur.lang && <><p style={S.slbl}>ÜLKE</p><div style={S.g3}>{sortCountries(nav.countries[cur.lang]).filter(ctry => {
                 // Seçili moda uygun şehri olmayan ülkeyi hiç gösterme (boş liste çıkmasın)
                 const cities = nav.citiesByLang[cur.lang]?.[ctry] || [];
                 return only30 ? cities.some(is30Plus) : cities.some(c => !is30Plus(c));
               }).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{COUNTRY_FLAG[c] ? <span style={{ marginRight:6, fontSize:16 }}>{COUNTRY_FLAG[c]}</span> : null}{c}</div>))}</div></>}
-              {!cur.isOnline && cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).filter(c => only30 ? is30Plus(c) : !is30Plus(c)).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
-              {!cur.isOnline && cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
-              {cur.isOnline && <>
-                <p style={S.slbl}>PAKET SEÇİMİ</p>
-                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                  {EC_LIVE.map((c,i) => (<div key={i} style={cur.course?.name===c.name ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, course:c}))}><strong>{c.name}</strong><span style={{ marginLeft:8, color:"#64748b", fontSize:12 }}>{c.hours > 0 ? `${c.hours} saat/hafta · ` : ""}€{c.tiers[0].price}/haftadan</span></div>))}
-                </div>
-                {cur.course && <div style={{ marginTop:10, padding:"8px 12px", background:"#f0fdff", border:`1px solid ${CYAN}`, borderRadius:8, fontSize:12, color:CYAN }}>✓ Online kurs seçildi — konaklama adımı atlanacak</div>}
-              </>}
+              {cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).filter(c => only30 ? is30Plus(c) : !is30Plus(c)).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
+              {cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
+              {isOnlineUlke(cur.country) && cur.brand && <div style={{ marginTop:10, padding:"8px 12px", background:"#f0fdff", border:`1px solid ${CYAN}`, borderRadius:8, fontSize:12, color:CYAN }}>✓ Online kurs seçildi — konaklama ve transfer adımları atlanacak</div>}
             </div>
           )}
 
           {stepName === "Kurs" && (
             <div style={{ animation:"fadeUp 0.3s" }}>
-              <h2 style={S.ttl}>{cur.isOnline ? "Kurs Detayı — EC Live" : `Kurs Seçimi — ${cur.brand} ${cur.city}`}{cur.cityLoading && <span style={{ display:"inline-flex", alignItems:"center", gap:8, marginLeft:12, verticalAlign:"middle" }}><span style={{ display:"inline-block", width:16, height:16, border:`2.5px solid ${CYAN}`, borderTopColor:"transparent", borderRadius:"50%", animation:"bftSpin 0.7s linear infinite" }} /><span style={{ fontSize:14, color:CYAN, fontWeight:600 }}>Programlar Yükleniyor...</span></span>}</h2>
+              <h2 style={S.ttl}>{`Kurs Seçimi — ${cur.brand} ${cur.city}`}{cur.cityLoading && <span style={{ display:"inline-flex", alignItems:"center", gap:8, marginLeft:12, verticalAlign:"middle" }}><span style={{ display:"inline-block", width:16, height:16, border:`2.5px solid ${CYAN}`, borderTopColor:"transparent", borderRadius:"50%", animation:"bftSpin 0.7s linear infinite" }} /><span style={{ fontSize:14, color:CYAN, fontWeight:600 }}>Programlar Yükleniyor...</span></span>}</h2>
               <div style={S.r2} className="bft-r2">
                 <div style={S.fld}><label style={S.lbl}>Başlangıç Tarihi (Pazartesi)</label><input type="date" style={S.fti} value={cur.startDate} min={new Date().toISOString().split("T")[0]} onChange={e => handleDateChange(e.target.value)} /></div>
                 <div style={S.fld}><label style={S.lbl}>Süre (Hafta)</label><input style={S.fti} type="number" min={1} max={52} value={weeksInput !== null ? weeksInput : cur.weeks} onChange={e => {
@@ -2341,7 +2334,6 @@ export default function FiyatTeklifi() {
                   )}
                 </>);
               })()}
-              {cur.isOnline && cur.course && (<div style={{ padding:"14px 16px", background:"#f0fdff", border:`1.5px solid ${CYAN}`, borderRadius:12 }}><strong>{isStaff ? courseWithLang(cur.course, "orig") : courseWithLang(cur.course, "tr")}</strong>{cur.course.hours > 0 ? ` — ${cur.course.hours} saat/hafta` : ""}<br/><span style={{ fontSize:12, color:"#64748b" }}>{cur.weeks} hafta · €{roundHalf(getPrice(cur.course, cur.weeks)).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>)}
             </div>
           )}
 
@@ -2845,8 +2837,6 @@ const S = {
   sel: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, background:"#fff" },
   selActive: { padding:12, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
   selDisabled: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"not-allowed", fontSize:13, background:"#f8fafc", opacity:0.5, color:"#94a3b8" },
-  selOnline: { padding:12, border:"1.5px solid #3b82f6", color:"#3b82f6", borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13 },
-  selOnlineActive: { padding:12, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, textAlign:"center", cursor:"pointer", fontSize:13, fontWeight:600 },
   acc: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:14, border:"1.5px solid #e2e8f0", borderRadius:12, cursor:"pointer", fontSize:13, background:"#fff" },
   accActive: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:14, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, cursor:"pointer", fontSize:13 },
   navBox: { marginTop:36, display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:20, borderTop:"1px solid #f1f5f9" },
