@@ -316,7 +316,8 @@ export default function KayitGuncelle() {
   const [formFiltre, setFormFiltre] = useState("");
   const [kopyaModal, setKopyaModal] = useState(null);
   // Tüm kayıtları yalnızca yönetici rolleri görebilir
-  const rol = String(user?.title || user?.rol || "").toLocaleLowerCase("tr-TR").trim();
+  // İngilizce rol adları: tr-TR locale "ADMIN" -> "admın" yaptığı için düz toLowerCase
+  const rol = String(user?.title || user?.rol || "").toLowerCase().trim();
   const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
   const [sadeceBenim, setSadeceBenim] = useState(true);
   // Liste varsayılan olarak bu tarihten sonrasını gösterir
