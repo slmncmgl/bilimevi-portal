@@ -551,10 +551,13 @@ export default function KayitGuncelle() {
            String(o["TC Kimlik No"] || "").includes(aramaTerimi);
   });
 
-  // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir
-  const formSecenekleri = [...new Set(
-    onFiltreli.map(formEtiketi).filter(Boolean)
-  )].sort();
+  // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir, kayıt sayısıyla birlikte
+  const formSayaci = onFiltreli.reduce((acc, o) => {
+    const ad = formEtiketi(o);
+    if (ad) acc[ad] = (acc[ad] || 0) + 1;
+    return acc;
+  }, {});
+  const formSecenekleri = Object.keys(formSayaci).sort((a, b) => a.localeCompare(b, "tr"));
 
   const filtreliOgrenciler = formFiltre
     ? onFiltreli.filter(o => formEtiketi(o) === formFiltre)
