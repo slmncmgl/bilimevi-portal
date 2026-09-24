@@ -5,6 +5,27 @@ import { getSession } from "../utils/sheets";
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
+const NOT_URL = "https://n8n.bilimevi.cloud/webhook/not-guncelle";
+
+// Not satırlarını ayırıp gösterim için temizler
+function notSatirlari(metin) {
+  return String(metin || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+}
+
+// Minimal not ikonu: dolu = not var, çizgi = not yok
+function NotIkonu({ dolu }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M5 4h10l4 4v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"
+        fill={dolu ? "#fde68a" : "none"} stroke={dolu ? "#b45309" : "#94a3b8"}
+        strokeWidth="1.8" strokeLinejoin="round"
+      />
+      <path d="M15 4v4h4" stroke={dolu ? "#b45309" : "#94a3b8"} strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M8 12h7M8 15.5h5" stroke={dolu ? "#b45309" : "#94a3b8"} strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 const TABS = ["Özet", "Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
 
@@ -315,6 +336,47 @@ export default function KayitGuncelle() {
   const [saltOkunur, setSaltOkunur] = useState(false);
   const [formFiltre, setFormFiltre] = useState("");
   const [kopyaModal, setKopyaModal] = useState(null);
+  const [notModal, setNotModal] = useState(null); // { ogr, mevcut, yeni }
+  const [notKaydediliyor, setNotKaydediliyor] = useState(false);
+  const [notHover, setNotHover] = useState(null); // hover edilen satırın anahtarı
+
+  // Satırı benzersiz tanımlayan anahtar (not eşleştirmesi ve hover için)
+  const satirAnahtari = k => String(k["Tally Submission ID"] || "").trim() ||
+    `${String(k["TC Kimlik No"] || "").trim()}|${String(k["Öğrenci Adı Soyadı"] || "").trim()}`;
+
+  async function notKaydet() {
+    if (!notModal) return;
+    const { ogr, mevcut, yeni } = notModal;
+    const bugun = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const eklenecek = yeni.trim() ? `${user?.name || "Bilinmeyen"}: ${yeni.trim().replace(/\s*\n\s*/g, " ")}, ${bugun}` : "";
+    const sonNot = [mevcut.trim(), eklenecek].filter(Boolean).join("\n");
+
+    setNotKaydediliyor(true);
+    try {
+      const res = await fetch(NOT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tallySubmissionId: String(ogr["Tally Submission ID"] || "").trim(),
+          tc: String(ogr["TC Kimlik No"] || "").trim(),
+          ogrenciAdi: String(ogr["Öğrenci Adı Soyadı"] || "").trim(),
+          not: sonNot,
+        }),
+      });
+      if (!res.ok) throw new Error("Hata");
+
+      // Listeyi yeniden çekmeden, aynı kayda ait tüm satırlarda notu güncelle
+      const anahtar = satirAnahtari(ogr);
+      setOgrencilerim(prev => prev.map(o => satirAnahtari(o) === anahtar ? { ...o, Notlar: sonNot } : o));
+      setData(prev => prev && satirAnahtari(prev) === anahtar ? { ...prev, Notlar: sonNot } : prev);
+      setNotModal(null);
+      showToast("Not kaydedildi");
+    } catch {
+      showToast("Not kaydedilemedi", "error");
+    } finally {
+      setNotKaydediliyor(false);
+    }
+  }
   // Tüm kayıtları yalnızca yönetici rolleri görebilir
   // İngilizce rol adları: tr-TR locale "ADMIN" -> "admın" yaptığı için düz toLowerCase
   const rol = String(user?.title || user?.rol || "").toLowerCase().trim();
@@ -616,6 +678,10 @@ export default function KayitGuncelle() {
     <div style={s.root}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes notBalonGiris {
+          from { opacity: 0; transform: translateY(-4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
         @keyframes yeniNabiz {
           0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.45); }
           50%      { box-shadow: 0 0 0 4px rgba(22,163,74,0); }
@@ -787,12 +853,25 @@ export default function KayitGuncelle() {
               </thead>
               <tbody>
                 {siraliOgrenciler.slice((sayfa - 1) * SAYFA_BOYUTU, sayfa * SAYFA_BOYUTU).map((ogr, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: yeniMi(ogr) ? "#f0fdf4" : "transparent" }}>
-                    <td style={s.td}>
+                  <tr
+                    key={i}
+                    onMouseEnter={() => !isMobile && notSatirlari(ogr["Notlar"]).length && setNotHover(satirAnahtari(ogr))}
+                    onMouseLeave={() => setNotHover(null)}
+                    style={{ borderBottom: "1px solid #f1f5f9", background: yeniMi(ogr) ? "#f0fdf4" : "transparent" }}
+                  >
+                    <td style={{ ...s.td, position: "relative" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                         {yeniMi(ogr) && <span style={s.yeniRozet}>YENİ</span>}
                         {ogr["Öğrenci Adı Soyadı"]}
                       </span>
+                      {notHover === satirAnahtari(ogr) && (
+                        <div style={s.notBalon}>
+                          <div style={s.notBalonOk} />
+                          {notSatirlari(ogr["Notlar"]).map((satir, j) => (
+                            <div key={j} style={{ padding: "3px 0", borderTop: j ? "1px dashed #fcd34d" : "none" }}>{satir}</div>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td style={s.td}>{ogr["TC Kimlik No"]}</td>
                     <td style={{ ...s.td, color: ogr["Danışman Adı"] ? "#0f172a" : "#94a3b8" }}>
@@ -814,6 +893,18 @@ export default function KayitGuncelle() {
                         display: "flex", gap: "6px", justifyContent: "flex-end",
                         flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center",
                       }}>
+                        <button
+                          onClick={() => setNotModal({ ogr, mevcut: String(ogr["Notlar"] || ""), yeni: "" })}
+                          title={notSatirlari(ogr["Notlar"]).length ? "Notları gör / düzenle" : "Not ekle"}
+                          style={{
+                            ...s.notBtn,
+                            background: notSatirlari(ogr["Notlar"]).length ? "#fffbeb" : "#fff",
+                            borderColor: notSatirlari(ogr["Notlar"]).length ? "#fcd34d" : "#e2e8f0",
+                          }}
+                        >
+                          <NotIkonu dolu={notSatirlari(ogr["Notlar"]).length > 0} />
+                          {isMobile && <span style={{ marginLeft: "6px" }}>{notSatirlari(ogr["Notlar"]).length ? "Notlar" : "Not Ekle"}</span>}
+                        </button>
                         <button
                           onClick={() => sorgula(ogr["TC Kimlik No"], !ogr["Danışman Adı"])}
                           style={s.editBtn}
@@ -961,6 +1052,75 @@ export default function KayitGuncelle() {
       </main>
 
       <Toast toast={toast} />
+
+      {notModal && (() => {
+        const bugun = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+        const degisti = notModal.yeni.trim() || notModal.mevcut !== String(notModal.ogr["Notlar"] || "");
+        return (
+          <div style={s.modalOverlay} onClick={() => !notKaydediliyor && setNotModal(null)}>
+            <div style={{ ...s.modal, textAlign: "left", maxWidth: "460px" }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                <NotIkonu dolu />
+                <h3 style={{ margin: 0, fontSize: "16px", color: "#1e3a5f" }}>Notlar</h3>
+              </div>
+              <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "14px" }}>
+                {notModal.ogr["Öğrenci Adı Soyadı"]}
+              </div>
+
+              {String(notModal.ogr["Notlar"] || "").trim() && (
+                <>
+                  <label style={s.fieldLabel}>Mevcut notlar</label>
+                  <textarea
+                    value={notModal.mevcut}
+                    onChange={e => setNotModal(m => ({ ...m, mevcut: e.target.value }))}
+                    rows={4}
+                    style={s.notAlan}
+                  />
+                </>
+              )}
+
+              <label style={{ ...s.fieldLabel, marginTop: "10px" }}>Yeni not ekle</label>
+              <textarea
+                autoFocus
+                value={notModal.yeni}
+                onChange={e => setNotModal(m => ({ ...m, yeni: e.target.value }))}
+                placeholder="Örn: Veli yarın arayacak"
+                rows={3}
+                style={s.notAlan}
+              />
+              {notModal.yeni.trim() && (
+                <div style={{ fontSize: "11px", color: "#92400e", background: "#fffbeb", borderRadius: "8px", padding: "6px 10px", marginTop: "6px" }}>
+                  Eklenecek: <strong>{user?.name}: {notModal.yeni.trim().replace(/\s*\n\s*/g, " ")}, {bugun}</strong>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+                <button
+                  onClick={() => setNotModal(null)}
+                  disabled={notKaydediliyor}
+                  style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: 0 }}
+                >Vazgeç</button>
+                <button
+                  onClick={notKaydet}
+                  disabled={notKaydediliyor || !degisti}
+                  style={{ ...s.modalBtn, marginTop: 0, opacity: degisti ? 1 : 0.5, cursor: degisti ? "pointer" : "not-allowed" }}
+                >
+                  {notKaydediliyor ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{
+                        width: "14px", height: "14px", border: "2px solid rgba(255,255,255,0.4)",
+                        borderTop: "2px solid #fff", borderRadius: "50%",
+                        animation: "spin 0.8s linear infinite", display: "inline-block",
+                      }} />
+                      Kaydediliyor...
+                    </span>
+                  ) : "Kaydet"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {kopyaModal && (
         <div style={s.modalOverlay}>
@@ -1163,6 +1323,29 @@ const s = {
     padding: "2px 7px", borderRadius: "6px", fontSize: "10px", fontWeight: "700",
     letterSpacing: "0.5px", background: "#16a34a", color: "#fff", lineHeight: "1.5",
     animation: "yeniNabiz 2s ease-in-out infinite",
+  },
+  notBtn: {
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    padding: "5px 8px", border: "1px solid #e2e8f0", borderRadius: "6px",
+    cursor: "pointer", fontSize: "12px", color: "#92400e", lineHeight: 1,
+  },
+  notBalon: {
+    position: "absolute", top: "calc(100% - 4px)", left: "12px", zIndex: 30,
+    minWidth: "220px", maxWidth: "420px", padding: "8px 12px",
+    background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "10px",
+    boxShadow: "0 6px 18px rgba(146,64,14,0.12)", fontSize: "12px", color: "#78350f",
+    lineHeight: "1.5", pointerEvents: "none", whiteSpace: "normal",
+    animation: "notBalonGiris 0.15s ease-out",
+  },
+  notBalonOk: {
+    position: "absolute", top: "-6px", left: "18px", width: "10px", height: "10px",
+    background: "#fffbeb", borderLeft: "1px solid #fcd34d", borderTop: "1px solid #fcd34d",
+    transform: "rotate(45deg)",
+  },
+  notAlan: {
+    width: "100%", padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px",
+    fontSize: "13px", fontFamily: "'Sora', sans-serif", color: "#0f172a", outline: "none",
+    boxSizing: "border-box", resize: "vertical", lineHeight: "1.5",
   },
   formBtn: { padding: "5px 12px", background: "#fffbeb", color: "#92400e", border: "1px solid #fcd34d", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   warnBtn: { padding: "5px 8px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "6px", cursor: "pointer", fontSize: "12px", lineHeight: 1 },
