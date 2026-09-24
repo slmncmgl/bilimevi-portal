@@ -322,7 +322,7 @@ export default function KayitGuncelle() {
   // Düzeldiğinde alttaki satırı sil, üstteki yorumu kaldır.
   // const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
   const tumunuGorebilir = true;
-  const [sadeceBenim, setSadeceBenim] = useState(true);
+  const [sadeceBenim, setSadeceBenim] = useState(false);
 
   // Son giriş takibi: önceki ziyaret tarihi bu oturum boyunca sabit kalır,
   // yeni tarih sayfadan çıkarken (route değişimi veya sekme kapatma) kaydedilir
@@ -549,6 +549,19 @@ export default function KayitGuncelle() {
 
   const onayliMi = k => String(k["Onay Durumu"] || "").toLocaleLowerCase("tr-TR").indexOf("onayland") > -1;
 
+  // Liste rozeti için tek tip durum: Onaylı > Gönderilmedi (danışman yok) > Beklemede
+  const sozlesmeDurumu = k => {
+    if (onayliMi(k)) return { metin: k["Onay Durumu"], arka: "#f0fdf4", renk: "#166534" };
+    if (!String(k["Danışman Adı"] || "").trim()) return { metin: "Gönderilmedi", arka: "#f1f5f9", renk: "#64748b" };
+    return { metin: "Beklemede", arka: "#fef9c3", renk: "#854d0e" };
+  };
+
+  // Şimdilik listede gösterilmeyen sözleşme türleri
+  const GIZLI_SOZLESME_TURLERI = ["BİREYSEL YAZ OKULU", "YETİŞKİN DİL OKULU"];
+  const gizliTurMu = k => GIZLI_SOZLESME_TURLERI.includes(
+    String(k["Sözleşme Türü"] || "").trim().toLocaleUpperCase("tr-TR")
+  );
+
   // Bu formlarda dropdown değeri olarak form adı yerine okul adı kullanılır
   const OKUL_BAZLI_FORMLAR = ["Junior Kayıt Formu", "Grup Yaz Okulu Bilgi Formu"];
   const formEtiketi = k => {
@@ -564,6 +577,7 @@ export default function KayitGuncelle() {
 
   // Form filtresi dışındaki tüm filtreler
   const onFiltreli = ogrencilerim.filter(o => {
+    if (gizliTurMu(o)) return false;
     if (onayliGizle && onayliMi(o)) return false;
     if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     if ((sadeceBenim || !tumunuGorebilir) && normalize(o["Danışman Adı"]).trim() !== normalize(user?.name).trim()) return false;
@@ -785,11 +799,15 @@ export default function KayitGuncelle() {
                       {ogr["Danışman Adı"] || "Atanmamış"}
                     </td>
                     <td style={s.td}>
-                      <span style={{
-                        padding: "3px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600",
-                        background: ogr["Onay Durumu"] === "Sözleşme ve KVKK Onaylandı" ? "#f0fdf4" : "#fef9c3",
-                        color: ogr["Onay Durumu"] === "Sözleşme ve KVKK Onaylandı" ? "#166534" : "#854d0e",
-                      }}>{ogr["Onay Durumu"] || "Bekliyor"}</span>
+                      {(() => {
+                        const d = sozlesmeDurumu(ogr);
+                        return (
+                          <span style={{
+                            padding: "3px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600",
+                            whiteSpace: "nowrap", background: d.arka, color: d.renk,
+                          }}>{d.metin}</span>
+                        );
+                      })()}
                     </td>
                     <td style={{ ...s.td, textAlign: "right" }}>
                       <div style={{
