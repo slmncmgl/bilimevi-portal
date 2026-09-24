@@ -323,6 +323,27 @@ export default function KayitGuncelle() {
   // const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
   const tumunuGorebilir = true;
   const [sadeceBenim, setSadeceBenim] = useState(true);
+
+  // Son giriş takibi: önceki ziyaret tarihi bu oturum boyunca sabit kalır,
+  // yeni tarih sayfadan çıkarken (route değişimi veya sekme kapatma) kaydedilir
+  const sonGirisAnahtari = `kayitFormlari_sonGiris_${user?.name || "anonim"}`;
+  const [oncekiGiris] = useState(() => {
+    try {
+      const v = parseInt(localStorage.getItem(sonGirisAnahtari), 10);
+      return isNaN(v) ? null : v;
+    } catch { return null; }
+  });
+
+  useEffect(() => {
+    const kaydet = () => {
+      try { localStorage.setItem(sonGirisAnahtari, String(Date.now())); } catch {}
+    };
+    window.addEventListener("beforeunload", kaydet);
+    return () => {
+      window.removeEventListener("beforeunload", kaydet);
+      kaydet();
+    };
+  }, [sonGirisAnahtari]);
   // Liste varsayılan olarak bu tarihten sonrasını gösterir
   const [tarihFiltre, setTarihFiltre] = useState("2026-08-01");
   const [onayliGizle, setOnayliGizle] = useState(false);
@@ -574,10 +595,17 @@ export default function KayitGuncelle() {
   // En yeni kayıt en üstte
   const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) => eklenmeZamani(b) - eklenmeZamani(a));
 
+  // İlk ziyarette önceki giriş yok, hiçbir satır yeni sayılmaz
+  const yeniMi = k => oncekiGiris !== null && eklenmeZamani(k) > oncekiGiris;
+
   return (
     <div style={s.root}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes yeniNabiz {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.45); }
+          50%      { box-shadow: 0 0 0 4px rgba(22,163,74,0); }
+        }
         @keyframes listFlash {
           0%   { background: #cffafe; transform: scale(1); }
           12%  { background: #a5f3fc; transform: scale(1.03); }
@@ -700,8 +728,8 @@ export default function KayitGuncelle() {
                   background: "#fff", color: "#0f172a", boxSizing: "border-box",
                 }}
               >
-                <option value="">Tümü</option>
-                {formSecenekleri.map(f => <option key={f} value={f}>{f}</option>)}
+                <option value="">({onFiltreli.length}) Tümü</option>
+                {formSecenekleri.map(f => <option key={f} value={f}>({formSayaci[f]}) {f}</option>)}
               </select>
             </div>
           )}
@@ -745,8 +773,13 @@ export default function KayitGuncelle() {
               </thead>
               <tbody>
                 {siraliOgrenciler.slice((sayfa - 1) * SAYFA_BOYUTU, sayfa * SAYFA_BOYUTU).map((ogr, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={s.td}>{ogr["Öğrenci Adı Soyadı"]}</td>
+                  <tr key={i} style={{ borderBottom: "1px solid #f1f5f9", background: yeniMi(ogr) ? "#f0fdf4" : "transparent" }}>
+                    <td style={s.td}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        {yeniMi(ogr) && <span style={s.yeniRozet}>YENİ</span>}
+                        {ogr["Öğrenci Adı Soyadı"]}
+                      </span>
+                    </td>
                     <td style={s.td}>{ogr["TC Kimlik No"]}</td>
                     <td style={{ ...s.td, color: ogr["Danışman Adı"] ? "#0f172a" : "#94a3b8" }}>
                       {ogr["Danışman Adı"] || "Atanmamış"}
@@ -1108,6 +1141,11 @@ const s = {
   filtreMetin: { fontSize: "13px", fontWeight: "600", color: "#1e3a5f", whiteSpace: "nowrap" },
   checkbox: { width: "16px", height: "16px", accentColor: "#1e3a5f", cursor: "pointer" },
   editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
+  yeniRozet: {
+    padding: "2px 7px", borderRadius: "6px", fontSize: "10px", fontWeight: "700",
+    letterSpacing: "0.5px", background: "#16a34a", color: "#fff", lineHeight: "1.5",
+    animation: "yeniNabiz 2s ease-in-out infinite",
+  },
   formBtn: { padding: "5px 12px", background: "#fffbeb", color: "#92400e", border: "1px solid #fcd34d", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   warnBtn: { padding: "5px 8px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "6px", cursor: "pointer", fontSize: "12px", lineHeight: 1 },
   viewBtn: { padding: "5px 12px", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", whiteSpace: "nowrap" },
