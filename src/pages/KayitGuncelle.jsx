@@ -907,7 +907,7 @@ export default function KayitGuncelle() {
                         </button>
                         <button
                           onClick={() => sorgula(ogr["TC Kimlik No"], !ogr["Danışman Adı"])}
-                          style={s.editBtn}
+                          style={{ ...s.editBtn, minWidth: "88px", textAlign: "center" }}
                         >{ogr["Danışman Adı"] ? "Düzenle" : "Görüntüle"}</button>
                         <button
                           onClick={async () => {
@@ -933,21 +933,21 @@ export default function KayitGuncelle() {
                             style={s.warnBtn}
                           >⚠️</button>
                         )}
-                        <button
-                          onClick={() => setSozlesmeModal(ogr["Sözleşme Onay Linki"])}
-                          disabled={!ogr["Sözleşme Onay Linki"]}
-                          style={{ ...s.viewBtn, opacity: ogr["Sözleşme Onay Linki"] ? 1 : 0.4, cursor: ogr["Sözleşme Onay Linki"] ? "pointer" : "not-allowed" }}
-                        >Sözleşmeyi Gör</button>
-                        <button
-                          onClick={() => setGonderOnay(ogr)}
-                          disabled={submitting || !ogr["Danışman Adı"]}
-                          title={!ogr["Danışman Adı"] ? "Danışman atanmamış kayıtlar için sözleşme gönderilemez" : ""}
-                          style={{
-                            ...s.sendBtn,
-                            opacity: ogr["Danışman Adı"] ? 1 : 0.4,
-                            cursor: ogr["Danışman Adı"] ? "pointer" : "not-allowed",
-                          }}
-                        >{gonderilenTC === ogr["TC Kimlik No"] ? "Gönderildi ✓" : "Sözleşmeyi Gönder"}</button>
+                        {(() => {
+                          // Sözleşme önce görülmeli, gönderim modalın içinden yapılır
+                          const link = gecerliLink(ogr["Sözleşme Onay Linki"]);
+                          return (
+                            <button
+                              onClick={() => setSozlesmeModal(ogr)}
+                              disabled={!link}
+                              title={link ? "Sözleşmeyi gör ve gönder" : "Sözleşme henüz oluşturulmamış"}
+                              style={{
+                                ...s.sendBtn, minWidth: "96px", textAlign: "center",
+                                opacity: link ? 1 : 0.4, cursor: link ? "pointer" : "not-allowed",
+                              }}
+                            >{gonderilenTC === ogr["TC Kimlik No"] ? "Gönderildi ✓" : "Sözleşme"}</button>
+                          );
+                        })()}
                       </div>
                     </td>
                   </tr>
@@ -1224,17 +1224,52 @@ export default function KayitGuncelle() {
             background: "#fff", borderRadius: "16px", width: "95%", maxWidth: "900px",
             height: "85vh", display: "flex", flexDirection: "column", overflow: "hidden",
           }} onClick={e => e.stopPropagation()}>
-            <div style={{
-              padding: "12px 16px", borderBottom: "1px solid #e2e8f0",
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-            }}>
-              <strong style={{ fontSize: "14px" }}>Sözleşme</strong>
-              <div style={{ display: "flex", gap: "8px" }}>
-                <a href={sozlesmeModal} target="_blank" rel="noreferrer" style={{ ...s.editBtn, textDecoration: "none" }}>Yeni Sekmede Aç</a>
-                <button onClick={() => setSozlesmeModal(null)} style={s.editBtn}>Kapat</button>
-              </div>
-            </div>
-            <iframe src={sozlesmeModal} style={{ flex: 1, border: "none", width: "100%" }} title="Sözleşme" />
+            {(() => {
+              const ogr = sozlesmeModal;
+              const link = gecerliLink(ogr["Sözleşme Onay Linki"]);
+              const danismanVar = !!String(ogr["Danışman Adı"] || "").trim();
+              const gonderildi = gonderilenTC === ogr["TC Kimlik No"];
+              return (
+                <>
+                  <div style={{
+                    padding: "12px 16px", borderBottom: "1px solid #e2e8f0",
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    gap: "10px", flexWrap: "wrap",
+                  }}>
+                    <div style={{ minWidth: 0 }}>
+                      <strong style={{ fontSize: "14px", color: "#1e3a5f" }}>Sözleşme</strong>
+                      <div style={{ fontSize: "12px", color: "#64748b" }}>{ogr["Öğrenci Adı Soyadı"]}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                      <a href={link} target="_blank" rel="noreferrer" style={{ ...s.editBtn, textDecoration: "none" }}>Yeni Sekmede Aç</a>
+                      <button onClick={() => setSozlesmeModal(null)} style={s.editBtn}>Kapat</button>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: "12px 16px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", flexWrap: "wrap",
+                  }}>
+                    {danismanVar && !gonderildi ? (
+                      <div style={s.donenCerceve}>
+                        <div style={s.donenIsik} />
+                        <button
+                          onClick={() => { setSozlesmeModal(null); setGonderOnay(ogr); }}
+                          disabled={submitting}
+                          style={s.donenBtn}
+                        >Sözleşmeyi Gönder</button>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: gonderildi ? "#166534" : "#64748b" }}>
+                        {gonderildi ? "Sözleşme gönderildi ✓" : "Danışman atanmamış kayıtlar için sözleşme gönderilemez"}
+                      </div>
+                    )}
+                  </div>
+
+                  <iframe src={link} style={{ flex: 1, border: "none", width: "100%" }} title="Sözleşme" />
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -1323,6 +1358,22 @@ const s = {
     padding: "2px 7px", borderRadius: "6px", fontSize: "10px", fontWeight: "700",
     letterSpacing: "0.5px", background: "#16a34a", color: "#fff", lineHeight: "1.5",
     animation: "yeniNabiz 2s ease-in-out infinite",
+  },
+  // Sözleşmeyi Gönder: etrafında dönen ışık çizgisi
+  donenCerceve: {
+    position: "relative", display: "inline-flex", padding: "3px", borderRadius: "14px",
+    overflow: "hidden", boxShadow: "0 4px 16px rgba(8,145,178,0.25)",
+  },
+  donenIsik: {
+    position: "absolute", top: "50%", left: "50%",
+    width: "420px", height: "420px", marginTop: "-210px", marginLeft: "-210px",
+    background: "conic-gradient(from 0deg, transparent 0deg, transparent 220deg, #67e8f9 290deg, #0891b2 330deg, transparent 360deg)",
+    animation: "spin 2.2s linear infinite",
+  },
+  donenBtn: {
+    position: "relative", zIndex: 1, padding: "11px 26px", borderRadius: "11px", border: "none",
+    background: "#0891b2", color: "#fff", fontSize: "14px", fontWeight: "700",
+    fontFamily: "'Sora', sans-serif", cursor: "pointer", whiteSpace: "nowrap",
   },
   notBtn: {
     display: "inline-flex", alignItems: "center", justifyContent: "center",
