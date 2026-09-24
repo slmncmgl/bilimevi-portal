@@ -1241,29 +1241,27 @@ export default function KayitGuncelle() {
                       <div style={{ fontSize: "12px", color: "#64748b" }}>{ogr["Öğrenci Adı Soyadı"]}</div>
                     </div>
                     <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                      {danismanVar && !gonderildi ? (
+                        <div style={s.donenCerceve}>
+                          <div style={s.donenIsik} />
+                          <button
+                            onClick={() => { setSozlesmeModal(null); setGonderOnay(ogr); }}
+                            disabled={submitting}
+                            style={s.donenBtn}
+                          >Sözleşmeyi Gönder</button>
+                        </div>
+                      ) : (
+                        <span
+                          title={gonderildi ? "" : "Danışman atanmamış kayıtlar için sözleşme gönderilemez"}
+                          style={{
+                            fontSize: "12px", fontWeight: "600", padding: "5px 10px", borderRadius: "6px",
+                            background: gonderildi ? "#f0fdf4" : "#f1f5f9", color: gonderildi ? "#166534" : "#64748b",
+                          }}
+                        >{gonderildi ? "Gönderildi ✓" : "Gönderilemez"}</span>
+                      )}
                       <a href={link} target="_blank" rel="noreferrer" style={{ ...s.editBtn, textDecoration: "none" }}>Yeni Sekmede Aç</a>
                       <button onClick={() => setSozlesmeModal(null)} style={s.editBtn}>Kapat</button>
                     </div>
-                  </div>
-
-                  <div style={{
-                    padding: "12px 16px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", flexWrap: "wrap",
-                  }}>
-                    {danismanVar && !gonderildi ? (
-                      <div style={s.donenCerceve}>
-                        <div style={s.donenIsik} />
-                        <button
-                          onClick={() => { setSozlesmeModal(null); setGonderOnay(ogr); }}
-                          disabled={submitting}
-                          style={s.donenBtn}
-                        >Sözleşmeyi Gönder</button>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: "13px", fontWeight: "600", color: gonderildi ? "#166534" : "#64748b" }}>
-                        {gonderildi ? "Sözleşme gönderildi ✓" : "Danışman atanmamış kayıtlar için sözleşme gönderilemez"}
-                      </div>
-                    )}
                   </div>
 
                   <iframe src={link} style={{ flex: 1, border: "none", width: "100%" }} title="Sözleşme" />
@@ -1361,18 +1359,18 @@ const s = {
   },
   // Sözleşmeyi Gönder: etrafında dönen ışık çizgisi
   donenCerceve: {
-    position: "relative", display: "inline-flex", padding: "3px", borderRadius: "14px",
-    overflow: "hidden", boxShadow: "0 4px 16px rgba(8,145,178,0.25)",
+    position: "relative", display: "inline-flex", padding: "2px", borderRadius: "9px",
+    overflow: "hidden", boxShadow: "0 3px 10px rgba(30,58,95,0.25)",
   },
   donenIsik: {
     position: "absolute", top: "50%", left: "50%",
-    width: "420px", height: "420px", marginTop: "-210px", marginLeft: "-210px",
-    background: "conic-gradient(from 0deg, transparent 0deg, transparent 220deg, #67e8f9 290deg, #0891b2 330deg, transparent 360deg)",
+    width: "260px", height: "260px", marginTop: "-130px", marginLeft: "-130px",
+    background: "conic-gradient(from 0deg, transparent 0deg, transparent 220deg, #93c5fd 290deg, #3b82f6 330deg, transparent 360deg)",
     animation: "spin 2.2s linear infinite",
   },
   donenBtn: {
-    position: "relative", zIndex: 1, padding: "11px 26px", borderRadius: "11px", border: "none",
-    background: "#0891b2", color: "#fff", fontSize: "14px", fontWeight: "700",
+    position: "relative", zIndex: 1, padding: "5px 14px", borderRadius: "7px", border: "none",
+    background: "#1e3a5f", color: "#fff", fontSize: "12px", fontWeight: "700",
     fontFamily: "'Sora', sans-serif", cursor: "pointer", whiteSpace: "nowrap",
   },
   notBtn: {
