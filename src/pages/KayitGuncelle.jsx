@@ -346,7 +346,9 @@ export default function KayitGuncelle() {
 
   async function notKaydet() {
     if (!notModal) return;
-    const { ogr, mevcut, yeni } = notModal;
+    const { ogr, satirlar, yeni } = notModal;
+    // Silinmek üzere işaretlenen notlar hariç, düzenlenmiş haliyle kalan notlar
+    const mevcut = satirlar.filter(x => !x.silindi).map(x => x.metin.trim()).filter(Boolean).join("\n");
     const bugun = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
     const eklenecek = yeni.trim() ? `${user?.name || "Bilinmeyen"}: ${yeni.trim().replace(/\s*\n\s*/g, " ")}, ${bugun}` : "";
     const sonNot = [mevcut.trim(), eklenecek].filter(Boolean).join("\n");
@@ -894,7 +896,11 @@ export default function KayitGuncelle() {
                         flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center",
                       }}>
                         <button
-                          onClick={() => setNotModal({ ogr, mevcut: String(ogr["Notlar"] || ""), yeni: "" })}
+                          onClick={() => setNotModal({
+                            ogr,
+                            satirlar: notSatirlari(ogr["Notlar"]).map(metin => ({ metin, silindi: false })),
+                            yeni: "",
+                          })}
                           title={notSatirlari(ogr["Notlar"]).length ? "Notları gör / düzenle" : "Not ekle"}
                           style={{
                             ...s.notBtn,
@@ -1055,7 +1061,13 @@ export default function KayitGuncelle() {
 
       {notModal && (() => {
         const bugun = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
-        const degisti = notModal.yeni.trim() || notModal.mevcut !== String(notModal.ogr["Notlar"] || "");
+        const orijinal = notSatirlari(notModal.ogr["Notlar"]).join("\n");
+        const kalan = notModal.satirlar.filter(x => !x.silindi).map(x => x.metin.trim()).filter(Boolean).join("\n");
+        const degisti = !!notModal.yeni.trim() || kalan !== orijinal;
+        const hepsiSilindi = notModal.satirlar.length > 0 && notModal.satirlar.every(x => x.silindi);
+        const satirGuncelle = (idx, degisim) => setNotModal(m => ({
+          ...m, satirlar: m.satirlar.map((x, j) => j === idx ? { ...x, ...degisim } : x),
+        }));
         return (
           <div style={s.modalOverlay} onClick={() => !notKaydediliyor && setNotModal(null)}>
             <div style={{ ...s.modal, textAlign: "left", maxWidth: "460px" }} onClick={e => e.stopPropagation()}>
@@ -1067,15 +1079,45 @@ export default function KayitGuncelle() {
                 {notModal.ogr["Öğrenci Adı Soyadı"]}
               </div>
 
-              {String(notModal.ogr["Notlar"] || "").trim() && (
+              {notModal.satirlar.length > 0 && (
                 <>
-                  <label style={s.fieldLabel}>Mevcut notlar</label>
-                  <textarea
-                    value={notModal.mevcut}
-                    onChange={e => setNotModal(m => ({ ...m, mevcut: e.target.value }))}
-                    rows={4}
-                    style={s.notAlan}
-                  />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px" }}>
+                    <label style={{ ...s.fieldLabel, marginBottom: 0 }}>Mevcut notlar</label>
+                    <button
+                      onClick={() => setNotModal(m => ({ ...m, satirlar: m.satirlar.map(x => ({ ...x, silindi: !hepsiSilindi })) }))}
+                      style={s.notLinkBtn}
+                    >{hepsiSilindi ? "Tümünü geri al" : "Tüm notları sil"}</button>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxHeight: "240px", overflowY: "auto" }}>
+                    {notModal.satirlar.map((x, idx) => (
+                      <div key={idx} style={{ display: "flex", gap: "6px", alignItems: "flex-start" }}>
+                        <textarea
+                          value={x.metin}
+                          onChange={e => satirGuncelle(idx, { metin: e.target.value })}
+                          readOnly={x.silindi}
+                          rows={Math.min(3, Math.max(1, Math.ceil(x.metin.length / 48)))}
+                          style={{
+                            ...s.notAlan, flex: 1, padding: "7px 10px", resize: "none",
+                            textDecoration: x.silindi ? "line-through" : "none",
+                            color: x.silindi ? "#94a3b8" : "#0f172a",
+                            background: x.silindi ? "#f8fafc" : "#fffbeb",
+                            borderColor: x.silindi ? "#e2e8f0" : "#fde68a",
+                          }}
+                        />
+                        {x.silindi ? (
+                          <button onClick={() => satirGuncelle(idx, { silindi: false })} title="Geri al" style={s.notGeriAlBtn}>Geri al</button>
+                        ) : (
+                          <button onClick={() => satirGuncelle(idx, { silindi: true })} title="Bu notu sil" style={s.notSilBtn}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+                                stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </>
               )}
 
@@ -1390,6 +1432,19 @@ const s = {
     position: "absolute", top: "-6px", left: "18px", width: "10px", height: "10px",
     background: "#fffbeb", borderLeft: "1px solid #fcd34d", borderTop: "1px solid #fcd34d",
     transform: "rotate(45deg)",
+  },
+  notSilBtn: {
+    flexShrink: 0, width: "34px", height: "34px", display: "flex", alignItems: "center", justifyContent: "center",
+    border: "1px solid #fecaca", background: "#fff", color: "#dc2626", borderRadius: "8px", cursor: "pointer",
+  },
+  notGeriAlBtn: {
+    flexShrink: 0, height: "34px", padding: "0 10px", border: "1px solid #e2e8f0", background: "#fff",
+    color: "#475569", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600",
+    fontFamily: "'Sora', sans-serif", whiteSpace: "nowrap",
+  },
+  notLinkBtn: {
+    border: "none", background: "none", padding: 0, cursor: "pointer",
+    fontSize: "12px", fontWeight: "600", color: "#dc2626", fontFamily: "'Sora', sans-serif",
   },
   notAlan: {
     width: "100%", padding: "9px 12px", border: "1.5px solid #e2e8f0", borderRadius: "10px",
