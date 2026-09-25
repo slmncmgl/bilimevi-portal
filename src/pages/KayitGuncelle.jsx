@@ -808,9 +808,9 @@ export default function KayitGuncelle() {
           from { opacity: 0; transform: translateY(-4px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes yeniNabiz {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.45); }
-          50%      { box-shadow: 0 0 0 4px rgba(22,163,74,0); }
+        @keyframes yeniParilti {
+          0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+          50%      { transform: scale(1.18) rotate(12deg); opacity: 0.75; }
         }
         @keyframes listFlash {
           0%   { background: #cffafe; transform: scale(1); }
@@ -975,7 +975,6 @@ export default function KayitGuncelle() {
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                   <th style={s.th}>Öğrenci Adı Soyadı</th>
-                  <th style={s.th}>TC Kimlik No</th>
                   <th style={s.th}>Danışman</th>
                   <th style={s.th}>Sözleşme Durumu</th>
                   <th style={s.th}></th>
@@ -991,7 +990,14 @@ export default function KayitGuncelle() {
                   >
                     <td style={{ ...s.td, position: "relative" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                        {yeniMi(ogr) && <span style={s.yeniRozet}>YENİ</span>}
+                        {yeniMi(ogr) && (
+                          <span title="Yeni kayıt" aria-label="Yeni kayıt" style={s.yeniIkon}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="#16a34a" />
+                              <path d="M19 15.5c.2 1.8.9 2.5 2.7 2.7-1.8.2-2.5.9-2.7 2.7-.2-1.8-.9-2.5-2.7-2.7 1.8-.2 2.5-.9 2.7-2.7z" fill="#4ade80" />
+                            </svg>
+                          </span>
+                        )}
                         {ogr["Öğrenci Adı Soyadı"]}
                       </span>
                       {notHover === satirAnahtari(ogr) && (
@@ -1003,7 +1009,6 @@ export default function KayitGuncelle() {
                         </div>
                       )}
                     </td>
-                    <td style={s.td}>{ogr["TC Kimlik No"]}</td>
                     <td style={{ ...s.td, color: ogr["Danışman Adı"] ? "#0f172a" : "#94a3b8" }}>
                       {ogr["Danışman Adı"] || "Atanmamış"}
                     </td>
@@ -1529,10 +1534,9 @@ const s = {
   filtreMetin: { fontSize: "13px", fontWeight: "600", color: "#1e3a5f", whiteSpace: "nowrap" },
   checkbox: { width: "16px", height: "16px", accentColor: "#1e3a5f", cursor: "pointer" },
   editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
-  yeniRozet: {
-    padding: "2px 7px", borderRadius: "6px", fontSize: "10px", fontWeight: "700",
-    letterSpacing: "0.5px", background: "#16a34a", color: "#fff", lineHeight: "1.5",
-    animation: "yeniNabiz 2s ease-in-out infinite",
+  yeniIkon: {
+    display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+    animation: "yeniParilti 2.4s ease-in-out infinite",
   },
   // Sözleşmeyi Gönder: etrafında dönen ışık çizgisi
   donenCerceve: {
