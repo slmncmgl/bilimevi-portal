@@ -6,6 +6,8 @@ const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
 const NOT_URL = "https://n8n.bilimevi.cloud/webhook/not-guncelle";
+// Bu süre içinde eklenen kayıtlar listede YENİ olarak işaretlenir
+const YENI_SURE_SAAT = 48;
 
 // Not satırlarını ayırıp gösterim için temizler
 function notSatirlari(metin) {
@@ -388,26 +390,6 @@ export default function KayitGuncelle() {
   const tumunuGorebilir = true;
   const [sadeceBenim, setSadeceBenim] = useState(false);
 
-  // Son giriş takibi: önceki ziyaret tarihi bu oturum boyunca sabit kalır,
-  // yeni tarih sayfadan çıkarken (route değişimi veya sekme kapatma) kaydedilir
-  const sonGirisAnahtari = `kayitFormlari_sonGiris_${user?.name || "anonim"}`;
-  const [oncekiGiris] = useState(() => {
-    try {
-      const v = parseInt(localStorage.getItem(sonGirisAnahtari), 10);
-      return isNaN(v) ? null : v;
-    } catch { return null; }
-  });
-
-  useEffect(() => {
-    const kaydet = () => {
-      try { localStorage.setItem(sonGirisAnahtari, String(Date.now())); } catch {}
-    };
-    window.addEventListener("beforeunload", kaydet);
-    return () => {
-      window.removeEventListener("beforeunload", kaydet);
-      kaydet();
-    };
-  }, [sonGirisAnahtari]);
   // Liste varsayılan olarak bu tarihten sonrasını gösterir
   const [tarihFiltre, setTarihFiltre] = useState("2026-08-01");
   const [onayliGizle, setOnayliGizle] = useState(false);
@@ -650,8 +632,9 @@ export default function KayitGuncelle() {
            String(o["TC Kimlik No"] || "").includes(aramaTerimi);
   });
 
-  // İlk ziyarette önceki giriş yok, hiçbir satır yeni sayılmaz
-  const yeniMi = k => oncekiGiris !== null && eklenmeZamani(k) > oncekiGiris;
+  // Son 48 saatte eklenen kayıtlar yeni sayılır
+  const yeniSinir = Date.now() - YENI_SURE_SAAT * 60 * 60 * 1000;
+  const yeniMi = k => eklenmeZamani(k) >= yeniSinir;
 
   // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir:
   // kayıt sayısı, en son kayıt zamanı ve son girişten beri yeni kayıt var mı
