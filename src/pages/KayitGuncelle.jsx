@@ -650,13 +650,25 @@ export default function KayitGuncelle() {
            String(o["TC Kimlik No"] || "").includes(aramaTerimi);
   });
 
-  // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir, kayıt sayısıyla birlikte
-  const formSayaci = onFiltreli.reduce((acc, o) => {
+  // İlk ziyarette önceki giriş yok, hiçbir satır yeni sayılmaz
+  const yeniMi = k => oncekiGiris !== null && eklenmeZamani(k) > oncekiGiris;
+
+  // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir:
+  // kayıt sayısı, en son kayıt zamanı ve son girişten beri yeni kayıt var mı
+  const formBilgi = onFiltreli.reduce((acc, o) => {
     const ad = formEtiketi(o);
-    if (ad) acc[ad] = (acc[ad] || 0) + 1;
+    if (!ad) return acc;
+    const b = acc[ad] || (acc[ad] = { sayi: 0, sonKayit: 0, yeniVar: false });
+    b.sayi += 1;
+    b.sonKayit = Math.max(b.sonKayit, eklenmeZamani(o));
+    if (yeniMi(o)) b.yeniVar = true;
     return acc;
   }, {});
-  const formSecenekleri = Object.keys(formSayaci).sort((a, b) => a.localeCompare(b, "tr"));
+  const formSayaci = Object.fromEntries(Object.entries(formBilgi).map(([k, v]) => [k, v.sayi]));
+  // En son form alınan liste en üstte, eşitlikte alfabetik
+  const formSecenekleri = Object.keys(formBilgi).sort((a, b) =>
+    (formBilgi[b].sonKayit - formBilgi[a].sonKayit) || a.localeCompare(b, "tr")
+  );
 
   const filtreliOgrenciler = formFiltre
     ? onFiltreli.filter(o => formEtiketi(o) === formFiltre)
@@ -672,9 +684,6 @@ export default function KayitGuncelle() {
 
   // En yeni kayıt en üstte
   const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) => eklenmeZamani(b) - eklenmeZamani(a));
-
-  // İlk ziyarette önceki giriş yok, hiçbir satır yeni sayılmaz
-  const yeniMi = k => oncekiGiris !== null && eklenmeZamani(k) > oncekiGiris;
 
   return (
     <div style={s.root}>
@@ -811,7 +820,11 @@ export default function KayitGuncelle() {
                 }}
               >
                 <option value="">({onFiltreli.length}) Tümü</option>
-                {formSecenekleri.map(f => <option key={f} value={f}>({formSayaci[f]}) {f}</option>)}
+                {formSecenekleri.map(f => (
+                  <option key={f} value={f}>
+                    ({formSayaci[f]}) {f}{formBilgi[f].yeniVar ? " (Yeni Formlar Var)" : ""}
+                  </option>
+                ))}
               </select>
             </div>
           )}
