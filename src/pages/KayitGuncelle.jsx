@@ -9,6 +9,25 @@ const NOT_URL = "https://n8n.bilimevi.cloud/webhook/not-guncelle";
 // Bu süre içinde eklenen kayıtlar listede YENİ olarak işaretlenir
 const YENI_SURE_SAAT = 48;
 
+// Portal giriş logları (Kullanıcı adı | Tarih)
+const GIRISLER_URL = "https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=" +
+  encodeURIComponent("Girişler") + "&tq=" + encodeURIComponent("select A, B");
+
+// Büyük/küçük harf ve Türkçe karakter duyarsız karşılaştırma için
+function sadelestir(str) {
+  return String(str || "").trim().toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u")
+    .replace(/ş/g, "s").replace(/ö/g, "o").replace(/ç/g, "c");
+}
+
+// "25.09.2026 14:15:13" -> zaman damgası
+function girisTarihi(str) {
+  const m = String(str || "").trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return 0;
+  const [, g, a, y, sa = 0, dk = 0, sn = 0] = m;
+  return new Date(+y, +a - 1, +g, +sa, +dk, +sn).getTime();
+}
+
 // Not satırlarını ayırıp gösterim için temizler
 function notSatirlari(metin) {
   return String(metin || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
@@ -390,6 +409,27 @@ export default function KayitGuncelle() {
   const tumunuGorebilir = true;
   const [sadeceBenim, setSadeceBenim] = useState(false);
 
+  // Girişler sekmesinden kullanıcının bir önceki giriş zamanı.
+  // En son kayıt şu anki oturumun girişi olduğu için sondan ikinci kayıt alınır.
+  const [oncekiGiris, setOncekiGiris] = useState(null);
+
+  useEffect(() => {
+    const kullanici = sadelestir(String(user?.name || "").split(/\s+/)[0]);
+    if (!kullanici) return;
+    fetch(`${GIRISLER_URL}&_t=${Date.now()}`, { cache: "no-store" })
+      .then(r => r.text())
+      .then(csv => {
+        const zamanlar = csv.split(/\r?\n/).slice(1)
+          .map(satir => [...satir.matchAll(/"((?:[^"]|"")*)"/g)].map(m => m[1].replace(/""/g, '"')))
+          .filter(([ad]) => sadelestir(ad) === kullanici)
+          .map(([, tarih]) => girisTarihi(tarih))
+          .filter(Boolean)
+          .sort((a, b) => b - a);
+        setOncekiGiris(zamanlar[1] || null);
+      })
+      .catch(() => {});
+  }, [user?.name]);
+
   // Liste varsayılan olarak bu tarihten sonrasını gösterir
   const [tarihFiltre, setTarihFiltre] = useState("2026-08-01");
   const [onayliGizle, setOnayliGizle] = useState(false);
@@ -632,9 +672,10 @@ export default function KayitGuncelle() {
            String(o["TC Kimlik No"] || "").includes(aramaTerimi);
   });
 
-  // Son 48 saatte eklenen kayıtlar yeni sayılır
-  const yeniSinir = Date.now() - YENI_SURE_SAAT * 60 * 60 * 1000;
-  const yeniMi = k => eklenmeZamani(k) >= yeniSinir;
+  // YENİ: önceki girişten sonra eklenmiş VE son 48 saat içinde olan kayıtlar.
+  // Önceki giriş bulunamazsa sadece 48 saat kuralı uygulanır.
+  const yeniSinir = Math.max(Date.now() - YENI_SURE_SAAT * 60 * 60 * 1000, oncekiGiris || 0);
+  const yeniMi = k => eklenmeZamani(k) > yeniSinir;
 
   // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir:
   // kayıt sayısı, en son kayıt zamanı ve son girişten beri yeni kayıt var mı
