@@ -822,7 +822,7 @@ export default function KayitGuncelle() {
                 <option value="">({onFiltreli.length}) Tümü</option>
                 {formSecenekleri.map(f => (
                   <option key={f} value={f}>
-                    ({formSayaci[f]}) {f}{formBilgi[f].yeniVar ? " (Yeni Formlar Var)" : ""}
+                    ({formSayaci[f]}) {f}{formBilgi[f].yeniVar ? "  ✨" : ""}
                   </option>
                 ))}
               </select>
