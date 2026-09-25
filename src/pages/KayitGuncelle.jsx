@@ -855,7 +855,7 @@ export default function KayitGuncelle() {
                     key={i}
                     onMouseEnter={() => !isMobile && notSatirlari(ogr["Notlar"]).length && setNotHover(satirAnahtari(ogr))}
                     onMouseLeave={() => setNotHover(null)}
-                    style={{ borderBottom: "1px solid #f1f5f9", background: yeniMi(ogr) ? "#f0fdf4" : "transparent" }}
+                    style={{ borderBottom: "1px solid #f1f5f9" }}
                   >
                     <td style={{ ...s.td, position: "relative" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
