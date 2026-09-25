@@ -321,8 +321,8 @@ function OzetSatir({ etiket, deger, tip }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "5px 0", borderBottom: "1px solid #f1f5f9" }}>
       <div style={{ minWidth: "130px", flexShrink: 0, fontSize: "12px", color: "#64748b" }}>{etiket}</div>
-      <div style={{ fontSize: "13px", color: "#0f172a", fontWeight: "500", display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
-        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{govde}</span>
+      <div style={{ flex: 1, fontSize: "13px", color: "#0f172a", fontWeight: "500", display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
+        <span style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere" }}>{govde}</span>
         {!bos && <KopyalaButonu deger={deger} />}
       </div>
     </div>
