@@ -97,7 +97,7 @@ const TAB_FIELDS = {
     "Okul Adı", "Eğitim Dili", "Kalkış Şehri", "Öğrenci Hangi Gruba Kayıtlı",
     "Hedef Ülke", "Okul Lokasyonu", "Program Adı",
     "Program Başlangıç Tarihi", "Program Bitiş Tarihi",
-    "Haftalık Ders Saati", "Hangi Ek Program",
+    "Haftalık Ders Saati", "Kurs Süresi", "Hangi Ek Program",
     "Hizmete Dahil Olacak Ek Hizmetler",
   ],
   "Konaklama": [
