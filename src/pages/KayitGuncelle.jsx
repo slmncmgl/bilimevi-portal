@@ -122,6 +122,64 @@ const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı 
 const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi", "Haftalık Ders Saati", "Öğrenci Cep Telefonu", "Konaklama Süresi (Accommodation Duration)"];
 const FOTO_FIELDS = ["Pasaport Fotoğrafı", "TC Kimlik Fotoğrafı"];
 
+// Yanında kopyala ikonu çıkan numara alanları (kimlik, telefon, tutar)
+const KOPYALANABILIR_ALANLAR = [
+  "TC Kimlik No", "Anne TC", "Baba TC",
+  "Öğrenci Cep Telefonu", "Anne Telefon", "Baba Telefon",
+  "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti",
+  "Miles & Smiles Üyelik Numarası",
+];
+
+// Minik kopyala butonu: tıklayınca değeri panoya alır, kısa süre ✓ gösterir
+function KopyalaButonu({ deger, style }) {
+  const [kopyalandi, setKopyalandi] = useState(false);
+  const metin = String(deger ?? "").trim();
+  if (!metin) return null;
+
+  const kopyala = async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(metin);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = metin;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setKopyalandi(true);
+    setTimeout(() => setKopyalandi(false), 1200);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={kopyala}
+      title={kopyalandi ? "Kopyalandı" : "Kopyala"}
+      style={{
+        width: "22px", height: "22px", padding: 0, border: "none", borderRadius: "5px",
+        background: kopyalandi ? "#dcfce7" : "transparent", cursor: "pointer",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        color: kopyalandi ? "#16a34a" : "#94a3b8", transition: "background 0.2s, color 0.2s",
+        flexShrink: 0, ...style,
+      }}
+    >
+      {kopyalandi ? (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="8.5" y="8.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2" />
+          <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" stroke="currentColor" strokeWidth="2" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 // Boş, "-", "yok" gibi doldurulmamış değerleri link saymaz
 function gecerliLink(deger) {
   const v = String(deger || "").trim();
@@ -216,7 +274,9 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
     );
   }
 
-  return (
+  const kopyalanabilir = KOPYALANABILIR_ALANLAR.includes(label) || TAKSIT_TUTAR.includes(label);
+
+  const girdi = (
     <input
       ref={el => { if (el && vurgulu) { el.focus(); el.select(); } }}
       type={isDate ? "date" : isEmail ? "email" : "text"}
@@ -228,8 +288,16 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
         onChange(val);
       }}
       readOnly={isReadonly}
-      style={baseStyle}
+      style={kopyalanabilir ? { ...baseStyle, paddingRight: "34px" } : baseStyle}
     />
+  );
+
+  if (!kopyalanabilir) return girdi;
+  return (
+    <div style={{ position: "relative" }}>
+      {girdi}
+      <KopyalaButonu deger={value} style={{ position: "absolute", right: "6px", top: "50%", transform: "translateY(-50%)" }} />
+    </div>
   );
 }
 
@@ -247,7 +315,10 @@ function OzetSatir({ etiket, deger, tip }) {
   return (
     <div style={{ display: "flex", gap: "10px", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
       <div style={{ minWidth: "130px", flexShrink: 0, fontSize: "12px", color: "#64748b" }}>{etiket}</div>
-      <div style={{ fontSize: "13px", color: "#0f172a", fontWeight: "500" }}>{govde}</div>
+      <div style={{ fontSize: "13px", color: "#0f172a", fontWeight: "500", display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
+        {govde}
+        {!bos && tip === "tel" && <KopyalaButonu deger={deger} />}
+      </div>
     </div>
   );
 }
@@ -323,6 +394,13 @@ function OzetPaneli({ data }) {
         <OzetSatir etiket="Ad Soyad" deger={data["Anne Adı Soyadı"]} />
         <OzetSatir etiket="Telefon" deger={data["Anne Telefon"]} tip="tel" />
       </OzetKart>
+
+      <div style={{ gridColumn: "1 / -1" }}>
+        <OzetKart baslik="Ödeme Tercihleri">
+          <OzetSatir etiket="Taksit Dönemi Tercihi" deger={data["Taksit Dönemi Tercihi"]} />
+          <OzetSatir etiket="Tercih Edilen Bankalar" deger={data["Tercih Edilen Bankalar"]} />
+        </OzetKart>
+      </div>
 
       <div style={{ gridColumn: "1 / -1" }}>
         <OzetKart baslik="Adres">
@@ -707,7 +785,11 @@ export default function KayitGuncelle() {
   }, [formFiltre, formSecenekleri.join("|")]);
 
   // En yeni kayıt en üstte
-  const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) => eklenmeZamani(b) - eklenmeZamani(a));
+  // Önce "Beklemede" olanlar, sonra diğerleri; her grup kendi içinde en yeni üstte
+  const beklemedeMi = k => sozlesmeDurumu(k).metin === "Beklemede";
+  const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) =>
+    (beklemedeMi(b) - beklemedeMi(a)) || (eklenmeZamani(b) - eklenmeZamani(a))
+  );
 
   return (
     <div style={s.root}>
@@ -1312,14 +1394,17 @@ export default function KayitGuncelle() {
                 <>
                   <div style={{
                     padding: "12px 16px", borderBottom: "1px solid #e2e8f0",
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    gap: "10px", flexWrap: "wrap",
+                    display: "grid", alignItems: "center", gap: "10px",
+                    gridTemplateColumns: isMobile ? "1fr" : "1fr auto 1fr",
                   }}>
-                    <div style={{ minWidth: 0 }}>
+                    {/* Sol: başlık */}
+                    <div style={{ minWidth: 0, textAlign: isMobile ? "center" : "left" }}>
                       <strong style={{ fontSize: "14px", color: "#1e3a5f" }}>Sözleşme</strong>
                       <div style={{ fontSize: "12px", color: "#64748b" }}>{ogr["Öğrenci Adı Soyadı"]}</div>
                     </div>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+
+                    {/* Orta: gönder butonu */}
+                    <div style={{ display: "flex", justifyContent: "center" }}>
                       {danismanVar && !gonderildi ? (
                         <div style={s.donenCerceve}>
                           <div style={s.donenIsik} />
@@ -1333,11 +1418,15 @@ export default function KayitGuncelle() {
                         <span
                           title={gonderildi ? "" : "Danışman atanmamış kayıtlar için sözleşme gönderilemez"}
                           style={{
-                            fontSize: "12px", fontWeight: "600", padding: "5px 10px", borderRadius: "6px",
+                            fontSize: "14px", fontWeight: "700", padding: "10px 20px", borderRadius: "10px",
                             background: gonderildi ? "#f0fdf4" : "#f1f5f9", color: gonderildi ? "#166534" : "#64748b",
                           }}
                         >{gonderildi ? "Gönderildi ✓" : "Gönderilemez"}</span>
                       )}
+                    </div>
+
+                    {/* Sağ: diğer aksiyonlar */}
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center", justifyContent: isMobile ? "center" : "flex-end", flexWrap: "wrap" }}>
                       <a href={link} target="_blank" rel="noreferrer" style={{ ...s.editBtn, textDecoration: "none" }}>Yeni Sekmede Aç</a>
                       <button onClick={() => setSozlesmeModal(null)} style={s.editBtn}>Kapat</button>
                     </div>
@@ -1438,18 +1527,18 @@ const s = {
   },
   // Sözleşmeyi Gönder: etrafında dönen ışık çizgisi
   donenCerceve: {
-    position: "relative", display: "inline-flex", padding: "2px", borderRadius: "9px",
-    overflow: "hidden", boxShadow: "0 3px 10px rgba(30,58,95,0.25)",
+    position: "relative", display: "inline-flex", padding: "3px", borderRadius: "13px",
+    overflow: "hidden", boxShadow: "0 6px 18px rgba(30,58,95,0.3)",
   },
   donenIsik: {
     position: "absolute", top: "50%", left: "50%",
-    width: "260px", height: "260px", marginTop: "-130px", marginLeft: "-130px",
+    width: "420px", height: "420px", marginTop: "-210px", marginLeft: "-210px",
     background: "conic-gradient(from 0deg, transparent 0deg, transparent 220deg, #93c5fd 290deg, #3b82f6 330deg, transparent 360deg)",
     animation: "spin 2.2s linear infinite",
   },
   donenBtn: {
-    position: "relative", zIndex: 1, padding: "5px 14px", borderRadius: "7px", border: "none",
-    background: "#1e3a5f", color: "#fff", fontSize: "12px", fontWeight: "700",
+    position: "relative", zIndex: 1, padding: "12px 32px", borderRadius: "10px", border: "none",
+    background: "#1e3a5f", color: "#fff", fontSize: "16px", fontWeight: "700", letterSpacing: "0.2px",
     fontFamily: "'Sora', sans-serif", cursor: "pointer", whiteSpace: "nowrap",
   },
   notBtn: {
