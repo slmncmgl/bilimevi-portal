@@ -122,19 +122,12 @@ const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı 
 const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi", "Haftalık Ders Saati", "Öğrenci Cep Telefonu", "Konaklama Süresi (Accommodation Duration)"];
 const FOTO_FIELDS = ["Pasaport Fotoğrafı", "TC Kimlik Fotoğrafı"];
 
-// Yanında kopyala ikonu çıkan numara alanları (kimlik, telefon, tutar)
-const KOPYALANABILIR_ALANLAR = [
-  "TC Kimlik No", "Anne TC", "Baba TC",
-  "Öğrenci Cep Telefonu", "Anne Telefon", "Baba Telefon",
-  "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti",
-  "Miles & Smiles Üyelik Numarası",
-];
-
-// Minik kopyala butonu: tıklayınca değeri panoya alır, kısa süre ✓ gösterir
-function KopyalaButonu({ deger, style }) {
+// Kopyala butonu: tıklayınca değeri panoya alır, kısa süre ✓ gösterir
+function KopyalaButonu({ deger, style, yerTut }) {
   const [kopyalandi, setKopyalandi] = useState(false);
   const metin = String(deger ?? "").trim();
-  if (!metin) return null;
+  // yerTut: değer boşken de aynı genişlikte boşluk bırakır, yan yana dizilimde kayma olmaz
+  if (!metin) return yerTut ? <span style={{ width: "30px", flexShrink: 0 }} /> : null;
 
   const kopyala = async e => {
     e.preventDefault();
@@ -159,7 +152,7 @@ function KopyalaButonu({ deger, style }) {
       onClick={kopyala}
       title={kopyalandi ? "Kopyalandı" : "Kopyala"}
       style={{
-        width: "22px", height: "22px", padding: 0, border: "none", borderRadius: "5px",
+        width: "30px", height: "30px", padding: 0, border: "none", borderRadius: "7px",
         background: kopyalandi ? "#dcfce7" : "transparent", cursor: "pointer",
         display: "inline-flex", alignItems: "center", justifyContent: "center",
         color: kopyalandi ? "#16a34a" : "#94a3b8", transition: "background 0.2s, color 0.2s",
@@ -167,11 +160,11 @@ function KopyalaButonu({ deger, style }) {
       }}
     >
       {kopyalandi ? (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       ) : (
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <rect x="8.5" y="8.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="2" />
           <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" stroke="currentColor" strokeWidth="2" />
         </svg>
@@ -257,24 +250,28 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
 
   if (isDropdown && !isReadonly) {
     return (
-      <select value={DROPDOWN_OPTIONS[label].includes(value) ? value : ""} onChange={e => onChange(e.target.value)} style={{ ...baseStyle, cursor: "pointer" }}>
-        <option value="">Seçiniz</option>
-        {DROPDOWN_OPTIONS[label].map(opt => <option key={opt} value={opt}>{opt}</option>)}
-      </select>
+      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <select value={DROPDOWN_OPTIONS[label].includes(value) ? value : ""} onChange={e => onChange(e.target.value)} style={{ ...baseStyle, cursor: "pointer", flex: 1, minWidth: 0 }}>
+          <option value="">Seçiniz</option>
+          {DROPDOWN_OPTIONS[label].map(opt => <option key={opt} value={opt}>{opt}</option>)}
+        </select>
+        <KopyalaButonu deger={DROPDOWN_OPTIONS[label].includes(value) ? value : ""} yerTut />
+      </div>
     );
   }
 
   if (isTextarea) {
     return (
-      <textarea
-        value={value || ""} onChange={e => onChange(e.target.value)}
-        readOnly={isReadonly} rows={3}
-        style={{ ...baseStyle, resize: "vertical" }}
-      />
+      <div style={{ position: "relative" }}>
+        <textarea
+          value={value || ""} onChange={e => onChange(e.target.value)}
+          readOnly={isReadonly} rows={3}
+          style={{ ...baseStyle, resize: "vertical", paddingRight: "42px" }}
+        />
+        <KopyalaButonu deger={value} style={{ position: "absolute", right: "6px", top: "6px" }} />
+      </div>
     );
   }
-
-  const kopyalanabilir = KOPYALANABILIR_ALANLAR.includes(label) || TAKSIT_TUTAR.includes(label);
 
   const girdi = (
     <input
@@ -288,11 +285,20 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
         onChange(val);
       }}
       readOnly={isReadonly}
-      style={kopyalanabilir ? { ...baseStyle, paddingRight: "34px" } : baseStyle}
+      style={isDate ? baseStyle : { ...baseStyle, paddingRight: "42px" }}
     />
   );
 
-  if (!kopyalanabilir) return girdi;
+  // Tarih alanlarında takvim ikonu sağda olduğu için kopyala butonu inputun dışında durur
+  if (isDate) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>{girdi}</div>
+        <KopyalaButonu deger={value} yerTut />
+      </div>
+    );
+  }
+
   return (
     <div style={{ position: "relative" }}>
       {girdi}
@@ -313,11 +319,11 @@ function OzetSatir({ etiket, deger, tip }) {
         : deger;
 
   return (
-    <div style={{ display: "flex", gap: "10px", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "5px 0", borderBottom: "1px solid #f1f5f9" }}>
       <div style={{ minWidth: "130px", flexShrink: 0, fontSize: "12px", color: "#64748b" }}>{etiket}</div>
       <div style={{ fontSize: "13px", color: "#0f172a", fontWeight: "500", display: "flex", alignItems: "center", gap: "4px", minWidth: 0 }}>
-        {govde}
-        {!bos && tip === "tel" && <KopyalaButonu deger={deger} />}
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{govde}</span>
+        {!bos && <KopyalaButonu deger={deger} />}
       </div>
     </div>
   );
@@ -404,8 +410,11 @@ function OzetPaneli({ data }) {
 
       <div style={{ gridColumn: "1 / -1" }}>
         <OzetKart baslik="Adres">
-          <div style={{ fontSize: "13px", color: adres ? "#0f172a" : "#cbd5e1", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
-            {adres || "—"}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
+            <div style={{ flex: 1, minWidth: 0, fontSize: "13px", color: adres ? "#0f172a" : "#cbd5e1", lineHeight: "1.6", whiteSpace: "pre-wrap" }}>
+              {adres || "—"}
+            </div>
+            <KopyalaButonu deger={adres} />
           </div>
         </OzetKart>
       </div>
