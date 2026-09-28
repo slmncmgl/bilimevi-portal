@@ -736,13 +736,23 @@ export default function KayitGuncelle() {
     String(k["Sözleşme Türü"] || "").trim().toLocaleUpperCase("tr-TR")
   );
 
-  // Dropdown gruplaması: Türkiye'de Eğitim Aldığı Okul.
+  // Dropdown gruplaması: "Türkiye'de Eğitim Aldığı Okul - Öğrenci Hangi Gruba Kayıtlı".
   // Serbest metin olduğu için büyük/küçük harf, fazla boşluk ve Türkçe karakter farkı yok sayılır.
   const OKUL_BOS = "__okul_bos__";
-  const okulMetni = k => String(k["Türkiye'de Eğitim Aldığı Okul"] || "").trim().replace(/\s+/g, " ");
+  const temizMetin = v => {
+    const t = String(v || "").trim().replace(/\s+/g, " ");
+    return t === "-" ? "" : t;
+  };
+  const okulMetni = k => {
+    const okul = temizMetin(k["Türkiye'de Eğitim Aldığı Okul"]);
+    const grup = temizMetin(k["Öğrenci Hangi Gruba Kayıtlı"]);
+    return `${okul || "Okul belirtilmemiş"} - ${grup}`;
+  };
   const formEtiketi = k => {
-    const okul = okulMetni(k);
-    return okul && okul !== "-" ? sadelestir(okul) : OKUL_BOS;
+    const okul = temizMetin(k["Türkiye'de Eğitim Aldığı Okul"]);
+    const grup = temizMetin(k["Öğrenci Hangi Gruba Kayıtlı"]);
+    if (!okul && !grup) return OKUL_BOS;
+    return `${sadelestir(okul)}|${sadelestir(grup)}`;
   };
 
   const aramaTerimi = normalize(tc).trim();
@@ -926,7 +936,7 @@ export default function KayitGuncelle() {
           )}
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "12px" }}>
-              <div style={{ ...s.filtreMetin, marginBottom: "6px" }}>Türkiye'de Eğitim Aldığı Okul</div>
+              <div style={{ ...s.filtreMetin, marginBottom: "6px" }}>Türkiye'de Eğitim Aldığı Okul - Öğrenci Hangi Gruba Kayıtlı</div>
               <select
                 value={formFiltre}
                 onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
