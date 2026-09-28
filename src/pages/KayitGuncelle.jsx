@@ -695,6 +695,16 @@ export default function KayitGuncelle() {
 
   // Kaynak Form Adı seçenekleri (veriden türetilir)
   // Eklenme tarihini parse et - farklı formatları destekler
+  // "28 Eylül" (farklı yıl ise "28 Eylül 2025")
+  const formTarihiMetni = k => {
+    const t = eklenmeZamani(k);
+    if (!t) return "-";
+    const d = new Date(t);
+    const AYLAR = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+    const yil = d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : "";
+    return `${d.getDate()} ${AYLAR[d.getMonth()]}${yil}`;
+  };
+
   const eklenmeZamani = k => {
     const ham = String(k["Eklenme Tarihi"] || "").trim();
     if (!ham) return 0;
@@ -907,7 +917,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setTurGizle(e.target.checked); setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Tüm Sözleşme Türlerini Gizle
+                Grup Öğrencileri Hariç Gizle
               </label>
               </div>
 
@@ -1005,6 +1015,7 @@ export default function KayitGuncelle() {
             <table style={s.table}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                  <th style={{ ...s.th, whiteSpace: "nowrap" }}>Form Tarihi</th>
                   <th style={s.th}>Öğrenci Adı Soyadı</th>
                   <th style={s.th}>Danışman</th>
                   <th style={s.th}>Sözleşme Durumu</th>
@@ -1019,6 +1030,9 @@ export default function KayitGuncelle() {
                     onMouseLeave={() => setNotHover(null)}
                     style={{ borderBottom: "1px solid #f1f5f9" }}
                   >
+                    <td style={{ ...s.td, whiteSpace: "nowrap", color: "#475569", fontWeight: "600" }}>
+                      {formTarihiMetni(ogr)}
+                    </td>
                     <td style={{ ...s.td, position: "relative" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                         {yeniMi(ogr) && (
