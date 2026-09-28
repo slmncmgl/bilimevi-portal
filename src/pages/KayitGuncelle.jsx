@@ -521,6 +521,8 @@ export default function KayitGuncelle() {
   // Liste varsayılan olarak bu tarihten sonrasını gösterir
   const [tarihFiltre, setTarihFiltre] = useState("2026-08-01");
   const [onayliGizle, setOnayliGizle] = useState(false);
+  // Varsayılan açık: Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmeleri gizlenir
+  const [turGizle, setTurGizle] = useState(true);
   const [listeFlash, setListeFlash] = useState(false);
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
@@ -759,7 +761,7 @@ export default function KayitGuncelle() {
 
   // Form filtresi dışındaki tüm filtreler
   const onFiltreli = ogrencilerim.filter(o => {
-    if (gizliTurMu(o)) return false;
+    if (turGizle && gizliTurMu(o)) return false;
     if (onayliGizle && onayliMi(o)) return false;
     if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     if ((sadeceBenim || !tumunuGorebilir) && normalize(o["Danışman Adı"]).trim() !== normalize(user?.name).trim()) return false;
@@ -866,8 +868,10 @@ export default function KayitGuncelle() {
             <div style={{
               display: "flex", gap: "18px", marginTop: "14px",
               flexDirection: isMobile ? "column" : "row",
-              alignItems: isMobile ? "stretch" : "center", flexWrap: "wrap",
+              justifyContent: "space-between",
+              alignItems: isMobile ? "stretch" : "flex-start",
             }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <label
                 style={{
                   ...s.filtreLabel,
@@ -896,11 +900,22 @@ export default function KayitGuncelle() {
                 Onaylı Sözleşmeleri Gizle
               </label>
 
+              <label style={s.filtreLabel} title="Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini gizler">
+                <input
+                  type="checkbox"
+                  checked={turGizle}
+                  onChange={e => { setTurGizle(e.target.checked); setSayfa(1); }}
+                  style={s.checkbox}
+                />
+                Tüm Sözleşme Türlerini Gizle
+              </label>
+              </div>
+
               <div style={{
-                display: "flex", alignItems: "center", gap: "8px",
-                marginLeft: isMobile ? 0 : "auto",
+                display: "flex", flexDirection: "column", gap: "6px",
+                width: isMobile ? "100%" : "200px",
               }}>
-                <span style={s.filtreMetin}>Şu Tarihten Sonrası:</span>
+                <span style={s.filtreMetin}>Şu Tarihten Sonrasını Göster</span>
                 <input
                   type="date"
                   value={tarihFiltre}
@@ -914,10 +929,11 @@ export default function KayitGuncelle() {
                     padding: "7px 10px", borderRadius: "8px", border: "1px solid #e2e8f0",
                     outline: "none", fontSize: "13px", fontFamily: "'Sora', sans-serif",
                     color: "#1e3a5f", background: "#fff", cursor: "pointer", fontWeight: "600",
+                    width: "100%", boxSizing: "border-box",
                   }}
                 />
-                {tarihFiltre && (
-                  <button
+                <button
+                    disabled={!tarihFiltre}
                     onClick={() => {
                       setTarihFiltre("");
                       setSayfa(1);
@@ -926,11 +942,13 @@ export default function KayitGuncelle() {
                     }}
                     title="Tarih filtresini temizle"
                     style={{
-                      padding: "6px 10px", borderRadius: "8px", border: "1px solid #e2e8f0",
-                      background: "#f8fafc", color: "#64748b", cursor: "pointer", fontSize: "12px",
+                      width: "100%", boxSizing: "border-box",
+                      padding: "7px 10px", borderRadius: "8px", border: "1px solid #e2e8f0",
+                      background: "#f8fafc", color: "#64748b", fontSize: "13px", fontWeight: "600",
+                      fontFamily: "'Sora', sans-serif",
+                      cursor: tarihFiltre ? "pointer" : "not-allowed", opacity: tarihFiltre ? 1 : 0.5,
                     }}
                   >Temizle</button>
-                )}
               </div>
             </div>
           )}
