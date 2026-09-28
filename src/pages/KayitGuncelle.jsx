@@ -513,7 +513,9 @@ export default function KayitGuncelle() {
           .map(([, tarih]) => girisTarihi(tarih))
           .filter(Boolean)
           .sort((a, b) => b - a);
-        setOncekiGiris(zamanlar[1] || null);
+        // Bugünkü girişler sayılmaz: bugünden önceki en son giriş baz alınır
+        const bugunBasi = new Date().setHours(0, 0, 0, 0);
+        setOncekiGiris(zamanlar.find(t => t < bugunBasi) || null);
       })
       .catch(() => {});
   }, [user?.name]);
@@ -782,7 +784,8 @@ export default function KayitGuncelle() {
 
   // YENİ: önceki girişten sonra eklenmiş VE son 48 saat içinde olan kayıtlar.
   // Önceki giriş bulunamazsa sadece 48 saat kuralı uygulanır.
-  const yeniSinir = Math.max(Date.now() - YENI_SURE_SAAT * 60 * 60 * 1000, oncekiGiris || 0);
+  // Önceki günlerdeki son giriş varsa ondan sonrası yeni; giriş kaydı yoksa son 48 saat
+  const yeniSinir = oncekiGiris || (Date.now() - YENI_SURE_SAAT * 60 * 60 * 1000);
   const yeniMi = k => eklenmeZamani(k) > yeniSinir;
 
   // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir:
@@ -818,11 +821,9 @@ export default function KayitGuncelle() {
     }
   }, [formFiltre, formSecenekleri.join("|")]);
 
-  // En yeni kayıt en üstte
-  // Önce "Beklemede" olanlar, sonra diğerleri; her grup kendi içinde en yeni üstte
-  const beklemedeMi = k => sozlesmeDurumu(k).metin === "Beklemede";
+  // Sadece tarihe göre: en yeni kayıt 1. sayfanın en üstünde
   const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) =>
-    (beklemedeMi(b) - beklemedeMi(a)) || (eklenmeZamani(b) - eklenmeZamani(a))
+    eklenmeZamani(b) - eklenmeZamani(a)
   );
 
   return (
@@ -832,10 +833,6 @@ export default function KayitGuncelle() {
         @keyframes notBalonGiris {
           from { opacity: 0; transform: translateY(-4px); }
           to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes yeniParilti {
-          0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
-          50%      { transform: scale(1.18) rotate(12deg); opacity: 0.75; }
         }
         @keyframes listFlash {
           0%   { background: #cffafe; transform: scale(1); }
@@ -1028,21 +1025,17 @@ export default function KayitGuncelle() {
                     key={i}
                     onMouseEnter={() => !isMobile && notSatirlari(ogr["Notlar"]).length && setNotHover(satirAnahtari(ogr))}
                     onMouseLeave={() => setNotHover(null)}
-                    style={{ borderBottom: "1px solid #f1f5f9" }}
+                    title={yeniMi(ogr) ? "Yeni kayıt" : undefined}
+                    style={{
+                      borderBottom: "1px solid #f1f5f9",
+                      background: yeniMi(ogr) ? "#f5fbf7" : "transparent",
+                    }}
                   >
                     <td style={{ ...s.td, whiteSpace: "nowrap", color: "#475569", fontWeight: "600" }}>
                       {formTarihiMetni(ogr)}
                     </td>
                     <td style={{ ...s.td, position: "relative" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                        {yeniMi(ogr) && (
-                          <span title="Yeni kayıt" aria-label="Yeni kayıt" style={s.yeniIkon}>
-                            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-                              <path d="M12 2.5c.5 4.6 2.4 6.5 7 7-4.6.5-6.5 2.4-7 7-.5-4.6-2.4-6.5-7-7 4.6-.5 6.5-2.4 7-7z" fill="#16a34a" />
-                              <path d="M19 15.5c.2 1.8.9 2.5 2.7 2.7-1.8.2-2.5.9-2.7 2.7-.2-1.8-.9-2.5-2.7-2.7 1.8-.2 2.5-.9 2.7-2.7z" fill="#4ade80" />
-                            </svg>
-                          </span>
-                        )}
                         {ogr["Öğrenci Adı Soyadı"]}
                       </span>
                       {notHover === satirAnahtari(ogr) && (
@@ -1579,10 +1572,6 @@ const s = {
   filtreMetin: { fontSize: "13px", fontWeight: "600", color: "#1e3a5f", whiteSpace: "nowrap" },
   checkbox: { width: "16px", height: "16px", accentColor: "#1e3a5f", cursor: "pointer" },
   editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
-  yeniIkon: {
-    display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-    animation: "yeniParilti 2.4s ease-in-out infinite",
-  },
   // Sözleşmeyi Gönder: etrafında dönen ışık çizgisi
   donenCerceve: {
     position: "relative", display: "inline-flex", padding: "3px", borderRadius: "13px",
