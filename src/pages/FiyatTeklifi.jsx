@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v110-konaklama-hafta-tier-2026-09-28";
+const BFT_BUILD_VERSION = "v111-karsilastirma-paket-fix-2026-09-28";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1927,11 +1927,11 @@ export default function FiyatTeklifi() {
 
         // Kurs
         row("Kurs", c => c.dt.isPackage
-          ? `${c.cur} ${money2(c.d.selectedPackage.package_price)}`
+          ? `${c.cur} ${money2(c.dt.packagePrice)}`   // v111: otomatik eslesen pakette selectedPackage null olabiliyor
           : `${c.cur} ${money2(c.d.courseTotalPrice)}`);
         // Konaklama
         row("Konaklama", c => {
-          if (c.dt.isPackage && c.d.selectedPackage?.package_type === "with_accommodation") return "Dahil";
+          if (c.dt.isPackage && c.dt.packageType === "with_accommodation") return "Dahil";
           if (!c.d.acc) return "";
           const aw = c.d.accWeeks || c.d.weeks;
           const suffix = aw !== c.d.weeks ? ` (${aw} hf)` : "";
