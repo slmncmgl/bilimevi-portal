@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v109-ec-kaldirildi-2026-09-23";
+const BFT_BUILD_VERSION = "v110-konaklama-hafta-tier-2026-09-28";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -180,6 +180,19 @@ const COUNTRY_ALIAS_NORM = {
   "guatemala": "Guatemala", "mexico": "Mexico", "meksika": "Mexico",
   "peru": "Peru", "uruguay": "Uruguay", "brazil": "Brazil", "brezilya": "Brazil",
 };
+// v110: Ayni bilgi okuldan okula farkli sutun adiyla gelebiliyor
+// (min_weeks / weeks_tier_min / tier_min_weeks ...). Ilk dolu ve gecerli sayiyi dondur.
+function ilkSayi(...vals) {
+  for (const v of vals) {
+    if (v === undefined || v === null) continue;
+    const t = String(v).trim();
+    if (!t) continue;
+    const n = parseInt(t, 10);
+    if (!isNaN(n) && n > 0) return n;
+  }
+  return null;
+}
+
 function normCountry(c) {
   const k = (c || "").trim().toLowerCase();
   if (!k) return "";
@@ -360,7 +373,9 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
           notes: r.notes || "", tiers: [],
         };
       }
-      courseMap[r.course_name].tiers.push({ min: parseInt(r.weeks_tier_min) || 1, max: r.weeks_tier_max ? parseInt(r.weeks_tier_max) : null, price: parseFloat(r.price_per_week) || 0 });
+      const _tMin = ilkSayi(r.weeks_tier_min, r.min_weeks, r.tier_min_weeks, r.week_tier_min) || 1;
+      const _tMaxRaw = ilkSayi(r.weeks_tier_max, r.max_weeks, r.tier_max_weeks, r.week_tier_max);
+      courseMap[r.course_name].tiers.push({ min: _tMin, max: (_tMaxRaw && _tMaxRaw < ACC_UST_SINIRSIZ) ? _tMaxRaw : null, price: parseFloat(r.price_per_week) || 0 });
     });
     const acc = accRows.filter(r => r.city === city).map(r => ({
       name: r.place_name, type: r.accommodation_type || "Standart", room: r.room_type || "",
@@ -368,7 +383,8 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
       price: parseFloat(r.price_per_week) || 0, hs_price: parseFloat(r.high_season_price) || 0,
       hs_start: r.high_season_start || "", hs_end: r.high_season_end || "",
       currency: r.currency, distance: r.distance_to_school || "",
-      min_weeks: r.min_weeks ? parseInt(r.min_weeks) : null, notes: r.notes || "",
+      min_weeks: ilkSayi(r.min_weeks, r.weeks_tier_min, r.tier_min_weeks, r.week_tier_min, r.min_week),
+      max_weeks: ilkSayi(r.max_weeks, r.weeks_tier_max, r.tier_max_weeks, r.week_tier_max, r.max_week), notes: r.notes || "",
     }));
     const fees = feeRows.filter(r => r.city === city).map(r => ({
       name: r.fee_name, amount: parseFloat(r.amount) || 0, currency: r.currency,
@@ -991,6 +1007,38 @@ const emptyDest = (sd = varsayilanBaslangic(), w = 4) => ({
 // Online kurslar artik sheet'ten geliyor: ulke listesinde "Online" kaydi.
 const isOnlineUlke = (c) => /^online$/i.test((c || "").trim());
 
+// v110: Konaklama satiri, secilen konaklama haftasina uygun mu?
+// min_weeks/max_weeks bos olan okullarda kisit yok -> her zaman uygun (geriye donuk guvenli).
+// 999 ve uzeri "ust sinir yok" demek (ESE boyle yaziyor).
+const ACC_UST_SINIRSIZ = 999;
+function accTierAralik(a) {
+  const min = Number(a?.min_weeks) > 0 ? Number(a.min_weeks) : null;
+  const rawMax = Number(a?.max_weeks) > 0 ? Number(a.max_weeks) : null;
+  const max = (rawMax && rawMax < ACC_UST_SINIRSIZ) ? rawMax : null;
+  return { min, max };
+}
+function accHaftaUygun(a, hafta) {
+  const w = Number(hafta) || 0;
+  if (!w) return true;
+  const { min, max } = accTierAralik(a);
+  if (min && w < min) return false;
+  if (max && w > max) return false;
+  return true;
+}
+// "1-4 hafta" / "5+ hafta" rozeti; kisit yoksa bos doner
+function accTierEtiket(a) {
+  const { min, max } = accTierAralik(a);
+  if (!min && !max) return "";
+  if (min && max) return `${min}-${max} hafta`;
+  if (min) return `${min}+ hafta`;
+  return `${max} haftaya kadar`;
+}
+// Ayni oda/pansiyon, farkli tier -> hafta degisince otomatik gecis icin eslestirme
+function ayniOdaMi(a, b) {
+  return a && b && a.name === b.name && a.type === b.type && a.room === b.room
+    && a.board === b.board && a.bathroom === b.bathroom;
+}
+
 const MONTHS = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
 const fmtDate = (d) => d ? `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : "—";
 const formatDateShort = (dateStr) => { if (!dateStr) return ""; const d = new Date(dateStr); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
@@ -1163,6 +1211,16 @@ export default function FiyatTeklifi() {
         setNavError(err.rateLimited ? err.message : "Okul verileri yüklenemedi. Lütfen tekrar deneyiniz.");
       });
   }, [cur.city, cur.brand, nav.schoolSheets, cur.isOnline, cur.cityData]);
+
+  // v110: Konaklama haftasi degisince secili oda tier disinda kalirsa,
+  // ayni odanin dogru tier satirina otomatik gec; yoksa secimi dusur.
+  useEffect(() => {
+    if (!cur.acc || !cur.cityData?.acc?.length) return;
+    const hafta = konaklamaHafta(cur);
+    if (accHaftaUygun(cur.acc, hafta)) return;
+    const dogruTier = cur.cityData.acc.find(a => ayniOdaMi(a, cur.acc) && accHaftaUygun(a, hafta));
+    setCur(p => ({ ...p, acc: dogruTier || null }));
+  }, [cur.acc, cur.cityData, cur.accWeeks, cur.weeks, cur.tatilHafta, cur.holidayWeeks, cur.accWeeksTouched]);
 
   const courses = cur.cityData?.courses || [];
   const accs = cur.cityData?.acc || [];
@@ -2397,14 +2455,22 @@ export default function FiyatTeklifi() {
                       {accs.filter(a => a.type === accType).map((a,i) => {
                         const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board && cur.acc?.bathroom===a.bathroom && cur.acc?.price===a.price;
                         const hsActive = getAccommodationHighSeasonSupplement(a, cur.accWeeks || cur.weeks, cur.startDate).isActive;
-                        return (<div key={i} style={sel ? S.accActive : S.acc} onClick={() => setCur(p => ({...p, acc:a, noAccommodation:false}))}>
+                        // v110: konaklama haftasi bu satirin tier araligi disindaysa kart pasif
+                        const uygun = accHaftaUygun(a, konaklamaHafta(cur));
+                        const tierEtiket = accTierEtiket(a);
+                        return (<div key={i} style={!uygun ? S.accPasif : (sel ? S.accActive : S.acc)}
+                          title={!uygun ? `Bu fiyat ${tierEtiket} konaklama icin gecerli` : undefined}
+                          onClick={uygun ? (() => setCur(p => ({...p, acc:a, noAccommodation:false}))) : undefined}>
                           <div>
                             {(() => { const ap = accLabelParts(a, isStaff ? "orig" : "tr"); return (<>
                               <div style={{ fontWeight:600 }}>{ap.line1}</div>
                               {ap.line2 && <div style={{ fontSize:12.5, color: sel?"inherit":"#0f172a", marginTop:2, fontWeight:600 }}>{ap.line2}</div>}
                             </>); })()}
                             <div style={{ fontSize:12, color: sel?"inherit":"#0d9488", marginTop:2, fontWeight:500 }}>{a.distance ? `Okula ${a.distance}` : ""}</div>
-                            {hsActive && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>⚠️ Yüksek sezon fiyatı geçerli</div>}
+                            {tierEtiket && <div style={{ display:"inline-block", marginTop:4, padding:"1px 7px", borderRadius:999, fontSize:10.5, fontWeight:700,
+                              background: uygun ? "#ecfeff" : "#f1f5f9", color: uygun ? "#0e7490" : "#94a3b8", border:`1px solid ${uygun ? "#a5f3fc" : "#e2e8f0"}` }}>
+                              {uygun ? "" : "⛔ "}{tierEtiket} fiyatı</div>}
+                            {hsActive && uygun && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>⚠️ Yüksek sezon fiyatı geçerli</div>}
                             {a.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{a.notes}</div>}
                           </div>
                           <div style={{ textAlign:"right", flexShrink:0 }}>
@@ -2413,6 +2479,12 @@ export default function FiyatTeklifi() {
                           </div>
                         </div>);
                       })}
+                    </div>
+                  )}
+                  {accType && accs.filter(a => a.type === accType).length > 0
+                    && !accs.filter(a => a.type === accType).some(a => accHaftaUygun(a, konaklamaHafta(cur))) && (
+                    <div style={{ marginTop:12, padding:"10px 12px", background:"#fef2f2", border:"1px solid #fca5a5", borderRadius:8, fontSize:12, color:"#991b1b", fontWeight:600 }}>
+                      ⛔ {konaklamaHafta(cur)} haftalık konaklama için bu tipte geçerli fiyat satırı yok. Konaklama süresini değiştir ya da başka bir konaklama tipi seç.
                     </div>
                   )}
                 </>);
@@ -2839,6 +2911,7 @@ const S = {
   selDisabled: { padding:12, border:"1.5px solid #e2e8f0", borderRadius:12, textAlign:"center", cursor:"not-allowed", fontSize:13, background:"#f8fafc", opacity:0.5, color:"#94a3b8" },
   acc: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:14, border:"1.5px solid #e2e8f0", borderRadius:12, cursor:"pointer", fontSize:13, background:"#fff" },
   accActive: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:14, border:`1.5px solid ${CYAN}`, background:"#f0fdff", color:CYAN, borderRadius:12, cursor:"pointer", fontSize:13 },
+  accPasif: { display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:14, border:"1.5px dashed #e2e8f0", borderRadius:12, cursor:"not-allowed", fontSize:13, background:"#f8fafc", color:"#94a3b8", opacity:0.65 },
   navBox: { marginTop:36, display:"flex", justifyContent:"space-between", alignItems:"center", paddingTop:20, borderTop:"1px solid #f1f5f9" },
   btnBack: { background:"none", border:"none", cursor:"pointer", color:"#64748b", fontSize:14 },
   btnNext: { background:CYAN, color:"#fff", border:"none", padding:"11px 32px", borderRadius:10, fontWeight:600, cursor:"pointer", fontSize:14 },
