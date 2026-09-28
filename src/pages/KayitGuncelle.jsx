@@ -736,15 +736,13 @@ export default function KayitGuncelle() {
     String(k["Sözleşme Türü"] || "").trim().toLocaleUpperCase("tr-TR")
   );
 
-  // Bu formlarda dropdown değeri olarak form adı yerine okul adı kullanılır
-  const OKUL_BAZLI_FORMLAR = ["Junior Kayıt Formu", "Grup Yaz Okulu Bilgi Formu"];
+  // Dropdown gruplaması: Türkiye'de Eğitim Aldığı Okul.
+  // Serbest metin olduğu için büyük/küçük harf, fazla boşluk ve Türkçe karakter farkı yok sayılır.
+  const OKUL_BOS = "__okul_bos__";
+  const okulMetni = k => String(k["Türkiye'de Eğitim Aldığı Okul"] || "").trim().replace(/\s+/g, " ");
   const formEtiketi = k => {
-    const form = String(k["Kaynak Form Adı"] || "").trim();
-    if (OKUL_BAZLI_FORMLAR.includes(form)) {
-      const okul = String(k["Okul Adı"] || "").trim();
-      if (okul) return okul;
-    }
-    return form;
+    const okul = okulMetni(k);
+    return okul && okul !== "-" ? sadelestir(okul) : OKUL_BOS;
   };
 
   const aramaTerimi = normalize(tc).trim();
@@ -768,18 +766,22 @@ export default function KayitGuncelle() {
   // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir:
   // kayıt sayısı, en son kayıt zamanı ve son girişten beri yeni kayıt var mı
   const formBilgi = onFiltreli.reduce((acc, o) => {
-    const ad = formEtiketi(o);
-    if (!ad) return acc;
-    const b = acc[ad] || (acc[ad] = { sayi: 0, sonKayit: 0, yeniVar: false });
+    const anahtar = formEtiketi(o);
+    const b = acc[anahtar] || (acc[anahtar] = {
+      sayi: 0, sonKayit: 0, yeniVar: false,
+      etiket: anahtar === OKUL_BOS ? "Okul belirtilmemiş" : okulMetni(o),
+    });
     b.sayi += 1;
     b.sonKayit = Math.max(b.sonKayit, eklenmeZamani(o));
     if (yeniMi(o)) b.yeniVar = true;
     return acc;
   }, {});
   const formSayaci = Object.fromEntries(Object.entries(formBilgi).map(([k, v]) => [k, v.sayi]));
-  // En son form alınan liste en üstte, eşitlikte alfabetik
+  // En son kayıt gelen okul en üstte, eşitlikte alfabetik; "Okul belirtilmemiş" her zaman en altta
   const formSecenekleri = Object.keys(formBilgi).sort((a, b) =>
-    (formBilgi[b].sonKayit - formBilgi[a].sonKayit) || a.localeCompare(b, "tr")
+    ((a === OKUL_BOS) - (b === OKUL_BOS)) ||
+    (formBilgi[b].sonKayit - formBilgi[a].sonKayit) ||
+    formBilgi[a].etiket.localeCompare(formBilgi[b].etiket, "tr")
   );
 
   const filtreliOgrenciler = formFiltre
@@ -924,7 +926,7 @@ export default function KayitGuncelle() {
           )}
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "12px" }}>
-              <div style={{ ...s.filtreMetin, marginBottom: "6px" }}>Form / Okul</div>
+              <div style={{ ...s.filtreMetin, marginBottom: "6px" }}>Türkiye'de Eğitim Aldığı Okul</div>
               <select
                 value={formFiltre}
                 onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
@@ -938,7 +940,7 @@ export default function KayitGuncelle() {
                 <option value="">({onFiltreli.length}) Tümü</option>
                 {formSecenekleri.map(f => (
                   <option key={f} value={f}>
-                    ({formSayaci[f]}) {f}{formBilgi[f].yeniVar ? "  ✨" : ""}
+                    ({formSayaci[f]}) {formBilgi[f].etiket}{formBilgi[f].yeniVar ? "  ✨" : ""}
                   </option>
                 ))}
               </select>
