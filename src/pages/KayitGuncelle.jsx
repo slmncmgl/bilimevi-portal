@@ -50,6 +50,15 @@ function NotIkonu({ dolu }) {
 
 const TABS = ["Özet", "Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Program Tercihleri", "Taksit", "Diğer"];
 const PROGRAM_TERCIH_ALANLARI = ["Hangi Ek Program", "Hangi Ek Gezi 1", "Hangi Ek Gezi 2", "Hangi Vize Hizmeti", "Hangi Konaklama"];
+// Ekranda görünen adlar (sheet sütun adları değişmez, veri yine bu sütunlara yazılır)
+const ALAN_ETIKETLERI = {
+  "Hangi Ek Program": "Program Seçimi",
+  "Hangi Ek Gezi 1": "Gezi Katılımı-1",
+  "Hangi Ek Gezi 2": "Gezi Katılımı-2",
+  "Hangi Vize Hizmeti": "Vize Hizmeti Talebi",
+  "Hangi Konaklama": "Konaklama Tercihi",
+};
+const alanEtiketi = alan => ALAN_ETIKETLERI[alan] || alan;
 
 const DROPDOWN_OPTIONS = {
   "İmzalayacak Ebeveyn": ["Anne", "Baba"],
@@ -422,7 +431,7 @@ function OzetPaneli({ data }) {
         <div style={{ gridColumn: "1 / -1" }}>
           <OzetKart baslik="Program Tercihleri">
             {programTercihleri.map(alan => (
-              <OzetSatir key={alan} etiket={alan} deger={data[alan]} />
+              <OzetSatir key={alan} etiket={alanEtiketi(alan)} deger={data[alan]} />
             ))}
           </OzetKart>
         </div>
@@ -1220,7 +1229,7 @@ export default function KayitGuncelle() {
               <div style={s.fieldGrid}>
                 {TAB_FIELDS[activeTab]?.map(key => (
                   <div key={key} style={["İkamet Adresi", "Yaşadığı Adres", "Alerji durumu", "Sürekli kullanılan ilaç", "Kronik hastalık", "Hizmete Dahil Olacak Ek Hizmetler", "Eklemek İstedikleriniz"].includes(key) ? { gridColumn: "1 / -1" } : {}}>
-                    <label style={s.fieldLabel}>{key}</label>
+                    <label style={s.fieldLabel}>{alanEtiketi(key)}</label>
                     <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} saltOkunur={saltOkunur} />
                   </div>
                 ))}
