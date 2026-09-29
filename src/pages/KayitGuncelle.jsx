@@ -48,7 +48,8 @@ function NotIkonu({ dolu }) {
   );
 }
 
-const TABS = ["Özet", "Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Taksit", "Diğer"];
+const TABS = ["Özet", "Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Program Tercihleri", "Taksit", "Diğer"];
+const PROGRAM_TERCIH_ALANLARI = ["Hangi Ek Program", "Hangi Ek Gezi 1", "Hangi Ek Gezi 2", "Hangi Vize Hizmeti", "Hangi Konaklama"];
 
 const DROPDOWN_OPTIONS = {
   "İmzalayacak Ebeveyn": ["Anne", "Baba"],
@@ -97,7 +98,7 @@ const TAB_FIELDS = {
     "Okul Adı", "Eğitim Dili", "Kalkış Şehri", "Öğrenci Hangi Gruba Kayıtlı",
     "Hedef Ülke", "Okul Lokasyonu", "Program Adı",
     "Program Başlangıç Tarihi", "Program Bitiş Tarihi",
-    "Haftalık Ders Saati", "Kurs Süresi", "Hangi Ek Program",
+    "Haftalık Ders Saati", "Kurs Süresi",
     "Hizmete Dahil Olacak Ek Hizmetler",
   ],
   "Konaklama": [
@@ -105,6 +106,7 @@ const TAB_FIELDS = {
     "Konaklama Süresi (Accommodation Duration)", "Yemek Planı",
     "Öğle Yemeği", "Vize Harcı Dahil Mi?",
   ],
+  "Program Tercihleri": PROGRAM_TERCIH_ALANLARI,
   "Taksit": [
     "Depozito Miktarı", "Para Birimi", "Program Ücreti", "Konaklama Ücreti",
     "Toplam Program Ücreti", "Taksit Sayısı",
@@ -370,6 +372,10 @@ function OzetPaneli({ data }) {
   const adres = data["Adres"] || data["İkamet Adresi"] || data["Yaşadığı Adres"];
   const okul = data["Türkiye'de Eğitim Aldığı Okul"] || data["Okulu"];
   const sinif = data["Sınıfı-Şubesi"] || data["Sınıfı"];
+  const programTercihleri = PROGRAM_TERCIH_ALANLARI.filter(alan => {
+    const v = String(data[alan] || "").trim();
+    return v && v !== "-";
+  });
 
   return (
     <div style={{
@@ -401,13 +407,26 @@ function OzetPaneli({ data }) {
 
       <OzetKart baslik="Baba">
         <OzetSatir etiket="Ad Soyad" deger={data["Baba Adı Soyadı"]} />
+        <OzetSatir etiket="TC Kimlik No" deger={data["Baba TC"]} />
         <OzetSatir etiket="Telefon" deger={data["Baba Telefon"]} tip="tel" />
       </OzetKart>
 
       <OzetKart baslik="Anne">
         <OzetSatir etiket="Ad Soyad" deger={data["Anne Adı Soyadı"]} />
+        <OzetSatir etiket="TC Kimlik No" deger={data["Anne TC"]} />
         <OzetSatir etiket="Telefon" deger={data["Anne Telefon"]} tip="tel" />
       </OzetKart>
+
+      {/* Sadece dolu olan program tercihleri; hiçbiri dolu değilse kart gösterilmez */}
+      {programTercihleri.length > 0 && (
+        <div style={{ gridColumn: "1 / -1" }}>
+          <OzetKart baslik="Program Tercihleri">
+            {programTercihleri.map(alan => (
+              <OzetSatir key={alan} etiket={alan} deger={data[alan]} />
+            ))}
+          </OzetKart>
+        </div>
+      )}
 
       <div style={{ gridColumn: "1 / -1" }}>
         <OzetKart baslik="Adres">
