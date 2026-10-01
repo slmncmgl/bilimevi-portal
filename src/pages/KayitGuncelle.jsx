@@ -1242,7 +1242,7 @@ export default function KayitGuncelle() {
               <>
               {activeTab === "Taksit" && !saltOkunur && (
                 <label style={{
-                  ...s.filtreLabel, whiteSpace: "normal", marginBottom: "14px",
+                  ...s.filtreLabel, whiteSpace: "normal", marginBottom: "14px", color: "#e11d48",
                   padding: "10px 12px", borderRadius: "8px",
                   background: taksitKontrolKapali ? "#fffbeb" : "#f8fafc",
                   border: `1px solid ${taksitKontrolKapali ? "#fcd34d" : "#e2e8f0"}`,
