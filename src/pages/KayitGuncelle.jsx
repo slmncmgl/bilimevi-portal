@@ -60,6 +60,12 @@ const ALAN_ETIKETLERI = {
 };
 const alanEtiketi = alan => ALAN_ETIKETLERI[alan] || alan;
 
+// Sadece ekranda gösterim için: "AHMET yılmaz" -> "Ahmet Yılmaz" (veri değişmez)
+const basHarfBuyuk = metin => String(metin || "")
+  .trim().replace(/\s+/g, " ")
+  .toLocaleLowerCase("tr-TR")
+  .replace(/(^|[\s\-'])(\S)/g, (_, ayrac, harf) => ayrac + harf.toLocaleUpperCase("tr-TR"));
+
 const DROPDOWN_OPTIONS = {
   "İmzalayacak Ebeveyn": ["Anne", "Baba"],
   "Ödeme Velisi": ["Anne", "Baba"],
@@ -469,6 +475,7 @@ export default function KayitGuncelle() {
   const [gonderOnay, setGonderOnay] = useState(null);
   const [gonderilenTC, setGonderilenTC] = useState(null);
   const [taksitOneri, setTaksitOneri] = useState(null);
+  const [taksitKontrolKapali, setTaksitKontrolKapali] = useState(false);
   const [vurgulananAlan, setVurgulananAlan] = useState(null);
   const [saltOkunur, setSaltOkunur] = useState(false);
   const [formFiltre, setFormFiltre] = useState("");
@@ -609,6 +616,7 @@ export default function KayitGuncelle() {
       const json = await res.json();
       if (!json.found) return showToast("Bu TC ile kayıt bulunamadı", "error");
       setSaltOkunur(viewOnly);
+      setTaksitKontrolKapali(false);
       setData(json.data);
       setActiveTab("Özet");
     } catch {
@@ -644,9 +652,10 @@ export default function KayitGuncelle() {
       }
     }
 
-    // Taksit toplamı kontrolü
+    // Taksit toplamı kontrolü (düzenleme ekranında Taksit sekmesindeki kutucukla kapatılabilir)
     const toplamUcret = parseFloat(kayitData["Toplam Program Ücreti"]) || 0;
-    if (toplamUcret > 0 && taksitSayisi > 0) {
+    const kontrolAtla = !kayit && taksitKontrolKapali;
+    if (!kontrolAtla && toplamUcret > 0 && taksitSayisi > 0) {
       const taksitToplam = Array.from({ length: taksitSayisi }, (_, i) =>
         parseFloat(kayitData[`${i + 1}. Taksit Tutarı`]) || 0
       ).reduce((a, b) => a + b, 0);
@@ -1040,6 +1049,7 @@ export default function KayitGuncelle() {
             <table style={s.table}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
+                  <th style={{ ...s.th, width: "1%", textAlign: "right" }}>#</th>
                   <th style={{ ...s.th, whiteSpace: "nowrap" }}>Form Tarihi</th>
                   <th style={s.th}>Öğrenci Adı Soyadı</th>
                   <th style={s.th}>Danışman</th>
@@ -1059,12 +1069,15 @@ export default function KayitGuncelle() {
                       background: yeniMi(ogr) ? "#f5fbf7" : "transparent",
                     }}
                   >
+                    <td style={{ ...s.td, width: "1%", whiteSpace: "nowrap", color: "#94a3b8", fontSize: "12px", textAlign: "right" }}>
+                      {(sayfa - 1) * SAYFA_BOYUTU + i + 1}
+                    </td>
                     <td style={{ ...s.td, whiteSpace: "nowrap", color: "#475569", fontWeight: "600" }}>
                       {formTarihiMetni(ogr)}
                     </td>
                     <td style={{ ...s.td, position: "relative" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                        {ogr["Öğrenci Adı Soyadı"]}
+                        {basHarfBuyuk(ogr["Öğrenci Adı Soyadı"])}
                       </span>
                       {notHover === satirAnahtari(ogr) && (
                         <div style={s.notBalon}>
@@ -1076,7 +1089,7 @@ export default function KayitGuncelle() {
                       )}
                     </td>
                     <td style={{ ...s.td, color: ogr["Danışman Adı"] ? "#0f172a" : "#94a3b8" }}>
-                      {ogr["Danışman Adı"] || "Atanmamış"}
+                      {basHarfBuyuk(ogr["Danışman Adı"]) || "Atanmamış"}
                     </td>
                     <td style={s.td}>
                       {(() => {
@@ -1226,6 +1239,23 @@ export default function KayitGuncelle() {
             </div>
             <div style={s.formCard}>
               {activeTab === "Özet" ? <OzetPaneli data={data} /> : (
+              <>
+              {activeTab === "Taksit" && !saltOkunur && (
+                <label style={{
+                  ...s.filtreLabel, whiteSpace: "normal", marginBottom: "14px",
+                  padding: "10px 12px", borderRadius: "8px",
+                  background: taksitKontrolKapali ? "#fffbeb" : "#f8fafc",
+                  border: `1px solid ${taksitKontrolKapali ? "#fcd34d" : "#e2e8f0"}`,
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={taksitKontrolKapali}
+                    onChange={e => setTaksitKontrolKapali(e.target.checked)}
+                    style={s.checkbox}
+                  />
+                  Taksit toplamı ile Toplam Program Ücreti kontrolünü devre dışı bırak
+                </label>
+              )}
               <div style={s.fieldGrid}>
                 {TAB_FIELDS[activeTab]?.map(key => (
                   <div key={key} style={["İkamet Adresi", "Yaşadığı Adres", "Alerji durumu", "Sürekli kullanılan ilaç", "Kronik hastalık", "Hizmete Dahil Olacak Ek Hizmetler", "Eklemek İstedikleriniz"].includes(key) ? { gridColumn: "1 / -1" } : {}}>
@@ -1234,6 +1264,7 @@ export default function KayitGuncelle() {
                   </div>
                 ))}
               </div>
+              </>
               )}
             </div>
             {!saltOkunur && (
