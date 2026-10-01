@@ -4,6 +4,12 @@ import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
+const DIL_OKULU_SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/dil-okulu-form";
+// Sözleşme Türü "YETİŞKİN DİL OKULU" ise dil okulu workflow'una, diğerleri birleşmiş forma gider
+const gonderimAdresi = kayit =>
+  String(kayit?.["Sözleşme Türü"] || "").trim().replace(/\s+/g, " ").toLocaleUpperCase("tr-TR") === "YETİŞKİN DİL OKULU"
+    ? DIL_OKULU_SUBMIT_URL
+    : SUBMIT_URL;
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
 const NOT_URL = "https://n8n.bilimevi.cloud/webhook/not-guncelle";
 // Bu süre içinde eklenen kayıtlar listede YENİ olarak işaretlenir
@@ -702,7 +708,7 @@ export default function KayitGuncelle() {
       };
 
       const [res] = await Promise.all([
-        fetch(SUBMIT_URL, {
+        fetch(gonderimAdresi(kayitData), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
