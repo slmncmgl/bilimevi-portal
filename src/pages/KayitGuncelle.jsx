@@ -5,8 +5,8 @@ import { getSession } from "../utils/sheets";
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
 const DIL_OKULU_SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/dil-okulu-form";
-// Sözleşme türünde "DİL OKULU" geçiyorsa dil okulu workflow'una, diğerleri birleşmiş forma gider.
-// Sütun adı farklı gelebileceği için adında "sözleşme türü" geçen tüm alanlara bakılır;
+// "Sözleşme Türü" veya "Kaynak Form Adı" içinde "DİL OKULU" geçiyorsa dil okulu workflow'una,
+// diğerleri birleşmiş forma gider. Sütun adı farklı gelebileceği için adı benzeyen tüm alanlara bakılır;
 // birden fazla kaynak (düzenlenen kayıt + listedeki satır) verilebilir.
 const SADE = v => String(v || "").toLocaleLowerCase("tr-TR")
   .replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u")
@@ -16,15 +16,18 @@ const sozlesmeTuruBul = (...kaynaklar) => {
   for (const k of kaynaklar) {
     if (!k) continue;
     for (const [alan, deger] of Object.entries(k)) {
-      if (SADE(alan).includes("sozlesme turu") && String(deger || "").trim()) return String(deger).trim();
+      const ad = SADE(alan);
+      if ((ad.includes("sozlesme turu") || ad.includes("kaynak form adi")) && SADE(deger).includes("dil okulu")) {
+        return `${alan.trim()}: ${String(deger).trim()}`;
+      }
     }
   }
   return "";
 };
 const gonderimAdresi = (...kaynaklar) => {
-  const tur = sozlesmeTuruBul(...kaynaklar);
-  const adres = SADE(tur).includes("dil okulu") ? DIL_OKULU_SUBMIT_URL : SUBMIT_URL;
-  console.info("[Kayıt Güncelle] Sözleşme Türü:", tur || "(bulunamadı)", "→", adres);
+  const eslesme = sozlesmeTuruBul(...kaynaklar);
+  const adres = eslesme ? DIL_OKULU_SUBMIT_URL : SUBMIT_URL;
+  console.info("[Kayıt Güncelle]", eslesme || "Dil okulu eşleşmesi yok", "→", adres);
   return adres;
 };
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
@@ -1578,10 +1581,17 @@ export default function KayitGuncelle() {
       )}
 
       {gonderOnay && (() => {
-        const isYetiskin = String(gonderOnay["Sözleşme Türü"] || "").toLowerCase().indexOf("yetişkin") > -1;
+        // Türkçe "İ" düzgün küçülsün diye SADE kullanılıyor; Kaynak Form Adı'na da bakılıyor
+        const isYetiskin = !!sozlesmeTuruBul(gonderOnay) || SADE(gonderOnay["Sözleşme Türü"]).includes("yetiskin");
+        // "-" veya boş değerler mail sayılmaz, sıradaki adaya geçilir
+        const gecerliMail = v => { const t = String(v || "").trim(); return t && t !== "-" ? t : ""; };
+        const ogrenciMail = gecerliMail(gonderOnay["Öğrenci Mail Adresi"]) || gecerliMail(gonderOnay["Mail Adresi"]);
+        const babaOnce = gonderOnay["İmzalayacak Ebeveyn"] === "Baba";
         const mail = isYetiskin
-          ? gonderOnay["Öğrenci Mail Adresi"]
-          : (gonderOnay["İmzalayacak Ebeveyn"] === "Baba" ? gonderOnay["Baba Mail"] : gonderOnay["Anne Mail"]) || gonderOnay["Öğrenci Mail Adresi"];
+          ? ogrenciMail
+          : gecerliMail(babaOnce ? gonderOnay["Baba Mail"] : gonderOnay["Anne Mail"])
+            || gecerliMail(babaOnce ? gonderOnay["Anne Mail"] : gonderOnay["Baba Mail"])
+            || ogrenciMail;
         return (
         <div style={s.modalOverlay}>
           <div style={s.modal}>
