@@ -837,12 +837,18 @@ export default function KayitGuncelle() {
 
   const aramaTerimi = normalize(tc).trim();
 
-  // Form filtresi dışındaki tüm filtreler
+  // Form filtresi dışındaki tüm filtreler.
+  // Arama yapılırken kutucuklar, tarih ve okul filtresi yok sayılır (tüm kayıtlarda aranır);
+  // sadece yetki kuralı (tumunuGorebilir) her zaman geçerli kalır.
   const onFiltreli = ogrencilerim.filter(o => {
-    if (turGizle && gizliTurMu(o)) return false;
-    if (onayliGizle && onayliMi(o)) return false;
-    if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
-    if ((sadeceBenim || !tumunuGorebilir) && normalize(o["Danışman Adı"]).trim() !== normalize(user?.name).trim()) return false;
+    if (!aramaTerimi) {
+      if (turGizle && gizliTurMu(o)) return false;
+      if (onayliGizle && onayliMi(o)) return false;
+      if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
+    }
+    const benimMi = normalize(o["Danışman Adı"]).trim() === normalize(user?.name).trim();
+    if (!tumunuGorebilir && !benimMi) return false;
+    if (!aramaTerimi && sadeceBenim && !benimMi) return false;
     if (!aramaTerimi) return true;
     return normalize(o["Öğrenci Adı Soyadı"]).includes(aramaTerimi) ||
            String(o["TC Kimlik No"] || "").includes(aramaTerimi);
@@ -875,13 +881,13 @@ export default function KayitGuncelle() {
     formBilgi[a].etiket.localeCompare(formBilgi[b].etiket, "tr")
   );
 
-  const filtreliOgrenciler = formFiltre
+  const filtreliOgrenciler = formFiltre && !aramaTerimi
     ? onFiltreli.filter(o => formEtiketi(o) === formFiltre)
     : onFiltreli;
 
-  // Seçili form yeni filtrelerde kalmadıysa seçimi bırak
+  // Seçili form yeni filtrelerde kalmadıysa seçimi bırak (arama sırasında seçim korunur)
   useEffect(() => {
-    if (formFiltre && !formSecenekleri.includes(formFiltre)) {
+    if (formFiltre && !aramaTerimi && !formSecenekleri.includes(formFiltre)) {
       setFormFiltre("");
       setSayfa(1);
     }
