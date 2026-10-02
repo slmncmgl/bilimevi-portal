@@ -502,6 +502,15 @@ export default function KayitGuncelle() {
   const [gonderilenTC, setGonderilenTC] = useState(null);
   const [taksitOneri, setTaksitOneri] = useState(null);
   const [taksitKontrolKapali, setTaksitKontrolKapali] = useState(false);
+  // Düzenleme ekranı "Sözleşmeyi Gör": null = henüz güncellenmedi, 10..1 = geri sayım, 0 = aktif
+  const [sozlesmeGeriSayim, setSozlesmeGeriSayim] = useState(null);
+  const [sozlesmeAciliyor, setSozlesmeAciliyor] = useState(false);
+  const [beklemedeGoster, setBeklemedeGoster] = useState(false);
+  useEffect(() => {
+    if (!sozlesmeGeriSayim) return;
+    const t = setTimeout(() => setSozlesmeGeriSayim(n => (n > 0 ? n - 1 : 0)), 1000);
+    return () => clearTimeout(t);
+  }, [sozlesmeGeriSayim]);
   const [vurgulananAlan, setVurgulananAlan] = useState(null);
   const [saltOkunur, setSaltOkunur] = useState(false);
   const [formFiltre, setFormFiltre] = useState("");
@@ -643,6 +652,7 @@ export default function KayitGuncelle() {
       if (!json.found) return showToast("Bu TC ile kayıt bulunamadı", "error");
       setSaltOkunur(viewOnly);
       setTaksitKontrolKapali(false);
+      setSozlesmeGeriSayim(null);
       setData(json.data);
       setActiveTab("Özet");
     } catch {
@@ -743,15 +753,34 @@ export default function KayitGuncelle() {
       if (sozlesmeGonder) {
         setSuccessModal(true);
       } else {
-        setData(null);
-        setTc("");
-        setSaltOkunur(false);
+        // Düzenleme ekranında kalınır; sözleşme 10 sn sonra "Sözleşmeyi Gör" ile açılabilir
+        setSozlesmeGeriSayim(10);
         showToast("Kayıt güncellendi");
       }
     } catch {
       showToast("Gönderim başarısız", "error");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // Düzenleme ekranından sözleşmeyi aç: güncel link için kayıt n8n'den yeniden çekilir
+  async function sozlesmeyiGor() {
+    const tcNo = String(data?.["TC Kimlik No"] || "").replace(/\D/g, "");
+    if (!tcNo) return showToast("TC Kimlik No bulunamadı", "error");
+    setSozlesmeAciliyor(true);
+    try {
+      const res = await fetch(`${FETCH_URL}?tc=${tcNo}&_t=${Date.now()}`, { cache: "no-store" });
+      const json = await res.json();
+      const guncel = json.found ? json.data : data;
+      if (!gecerliLink(guncel["Sözleşme Onay Linki"])) {
+        return showToast("Sözleşme henüz hazır değil, birkaç saniye sonra tekrar deneyin", "error");
+      }
+      setSozlesmeModal(guncel);
+    } catch {
+      showToast("Bağlantı hatası", "error");
+    } finally {
+      setSozlesmeAciliyor(false);
     }
   }
 
@@ -844,6 +873,7 @@ export default function KayitGuncelle() {
     if (!aramaTerimi) {
       if (turGizle && gizliTurMu(o)) return false;
       if (onayliGizle && onayliMi(o)) return false;
+      if (beklemedeGoster && sozlesmeDurumu(o).metin !== "Beklemede") return false;
       if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     }
     const benimMi = normalize(o["Danışman Adı"]).trim() === normalize(user?.name).trim();
@@ -979,6 +1009,16 @@ export default function KayitGuncelle() {
                 Onaylı Sözleşmeleri Gizle
               </label>
 
+              <label style={s.filtreLabel}>
+                <input
+                  type="checkbox"
+                  checked={beklemedeGoster}
+                  onChange={e => { setBeklemedeGoster(e.target.checked); setSayfa(1); }}
+                  style={s.checkbox}
+                />
+                Beklemede Olan Sözleşmeleri Göster
+              </label>
+
               <label style={s.filtreLabel} title="Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini gizler">
                 <input
                   type="checkbox"
@@ -1033,7 +1073,7 @@ export default function KayitGuncelle() {
           )}
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "12px" }}>
-              <div style={{ ...s.filtreMetin, marginBottom: "6px" }}>Türkiye'de Eğitim Aldığı Okul - Öğrenci Hangi Gruba Kayıtlı</div>
+              <div style={{ ...s.filtreMetin, marginBottom: "6px", whiteSpace: "normal" }}>Türkiye'de Eğitim Aldığı Okul - Öğrenci Hangi Gruba Kayıtlı</div>
               <select
                 value={formFiltre}
                 onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
@@ -1303,7 +1343,26 @@ export default function KayitGuncelle() {
               )}
             </div>
             {!saltOkunur && (
-            <div style={s.submitRow}>
+            <div style={{ ...s.submitRow, gap: "10px", flexDirection: isMobile ? "column-reverse" : "row" }}>
+              {(() => {
+                const aktif = sozlesmeGeriSayim === 0 && !sozlesmeAciliyor && !submitting;
+                const metin = sozlesmeAciliyor ? "Açılıyor..."
+                  : sozlesmeGeriSayim > 0 ? `Sözleşmeyi Gör (${sozlesmeGeriSayim})`
+                  : "Sözleşmeyi Gör";
+                return (
+                  <button
+                    onClick={sozlesmeyiGor}
+                    disabled={!aktif}
+                    title={sozlesmeGeriSayim === null ? "Önce Güncelle'ye basın" : sozlesmeGeriSayim > 0 ? "Sözleşme hazırlanıyor" : "Güncel sözleşmeyi gör ve gönder"}
+                    style={{
+                      ...s.submitBtn, background: "#fff", color: "#1e3a5f",
+                      border: "1.5px solid #1e3a5f", minWidth: "190px",
+                      fontVariantNumeric: "tabular-nums",
+                      opacity: aktif ? 1 : 0.45, cursor: aktif ? "pointer" : "not-allowed",
+                    }}
+                  >{metin}</button>
+                );
+              })()}
               <button onClick={() => gonder(null, false)} disabled={submitting} style={s.submitBtn}>
                 {submitting ? (
                   <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -1656,7 +1715,8 @@ const s = {
   headerSub: { fontSize: "11px", color: "#94a3b8" },
   main: { maxWidth: "1000px", margin: "0 auto", padding: "20px", position: "relative", zIndex: 10 },
   searchCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
-  searchLabel: { fontSize: "13px", fontWeight: "600", marginBottom: "10px" },
+  // Ana başlıklar: koyu pastel lacivert
+  searchLabel: { fontSize: "13px", fontWeight: "700", marginBottom: "10px", color: "#3d5a8a", letterSpacing: "0.2px" },
   searchRow: { display: "flex", gap: "10px" },
   searchInput: { flex: 1, padding: "10px", borderRadius: "10px", border: "1px solid #e2e8f0", outline: "none", position: "relative", zIndex: 20 },
   searchBtn: { padding: "10px 20px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "600", position: "relative", zIndex: 20 },
@@ -1670,7 +1730,7 @@ const s = {
   pageNav: { height: "34px", padding: "0 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", color: "#1e3a5f", fontSize: "13px", fontWeight: "600", fontFamily: "'Sora', sans-serif" },
   pageDots: { minWidth: "20px", textAlign: "center", color: "#94a3b8", fontSize: "13px", userSelect: "none" },
   filtreLabel: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "600", color: "#1e3a5f", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" },
-  filtreMetin: { fontSize: "13px", fontWeight: "600", color: "#1e3a5f", whiteSpace: "nowrap" },
+  filtreMetin: { fontSize: "13px", fontWeight: "700", color: "#3d5a8a", letterSpacing: "0.2px", whiteSpace: "nowrap" },
   checkbox: { width: "16px", height: "16px", accentColor: "#1e3a5f", cursor: "pointer" },
   editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   // Sözleşmeyi Gönder: etrafında dönen ışık çizgisi
