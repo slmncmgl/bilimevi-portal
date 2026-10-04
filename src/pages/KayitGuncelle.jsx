@@ -506,6 +506,26 @@ export default function KayitGuncelle() {
   const [sozlesmeGeriSayim, setSozlesmeGeriSayim] = useState(null);
   const [sozlesmeAciliyor, setSozlesmeAciliyor] = useState(false);
   const [beklemedeGoster, setBeklemedeGoster] = useState(false);
+  const [taksitSilOnay, setTaksitSilOnay] = useState(null); // silinecek taksit numarası
+
+  // N. taksiti sil: sonrakiler bir yukarı kayar, son satır temizlenir, Taksit Sayısı bir azalır
+  function taksitSil(no) {
+    setData(prev => {
+      const adet = parseInt(prev["Taksit Sayısı"], 10) || 0;
+      if (!no || no > adet) return prev;
+      const yeni = { ...prev };
+      for (let i = no; i < adet; i++) {
+        yeni[`${i}. Taksit Dönemi`] = prev[`${i + 1}. Taksit Dönemi`] ?? "";
+        yeni[`${i}. Taksit Tutarı`] = prev[`${i + 1}. Taksit Tutarı`] ?? "";
+      }
+      yeni[`${adet}. Taksit Dönemi`] = "";
+      yeni[`${adet}. Taksit Tutarı`] = "";
+      yeni["Taksit Sayısı"] = String(adet - 1);
+      return yeni;
+    });
+    setTaksitSilOnay(null);
+    showToast(`${no}. taksit silindi. Kaydetmek için Güncelle'ye basın`);
+  }
   useEffect(() => {
     if (!sozlesmeGeriSayim) return;
     const t = setTimeout(() => setSozlesmeGeriSayim(n => (n > 0 ? n - 1 : 0)), 1000);
@@ -1334,7 +1354,29 @@ export default function KayitGuncelle() {
               <div style={s.fieldGrid}>
                 {TAB_FIELDS[activeTab]?.map(key => (
                   <div key={key} style={["İkamet Adresi", "Yaşadığı Adres", "Alerji durumu", "Sürekli kullanılan ilaç", "Kronik hastalık", "Hizmete Dahil Olacak Ek Hizmetler", "Eklemek İstedikleriniz"].includes(key) ? { gridColumn: "1 / -1" } : {}}>
-                    <label style={s.fieldLabel}>{alanEtiketi(key)}</label>
+                    {(() => {
+                      // Aktif taksitlerin "Tutarı" etiketinin yanında sil ikonu
+                      const m = key.match(/^(\d+)\. Taksit Tutarı$/);
+                      const no = m ? parseInt(m[1], 10) : 0;
+                      const silinebilir = no > 0 && !saltOkunur && no <= (parseInt(data["Taksit Sayısı"], 10) || 0);
+                      if (!silinebilir) return <label style={s.fieldLabel}>{alanEtiketi(key)}</label>;
+                      return (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                          <label style={s.fieldLabel}>{alanEtiketi(key)}</label>
+                          <button
+                            type="button"
+                            onClick={() => setTaksitSilOnay(no)}
+                            title={`${no}. taksiti sil`}
+                            aria-label={`${no}. taksiti sil`}
+                            style={s.taksitSilBtn}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" />
+                            </svg>
+                          </button>
+                        </div>
+                      );
+                    })()}
                     <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} saltOkunur={saltOkunur} />
                   </div>
                 ))}
@@ -1645,6 +1687,23 @@ export default function KayitGuncelle() {
         </div>
       )}
 
+      {taksitSilOnay && data && (
+        <div style={s.modalOverlay} onClick={() => setTaksitSilOnay(null)}>
+          <div style={s.modal} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: "0 0 8px", color: "#1e3a5f" }}>{taksitSilOnay}. taksit silinsin mi?</h3>
+            <div style={{ fontSize: "13px", color: "#64748b", lineHeight: "1.6" }}>
+              {data[`${taksitSilOnay}. Taksit Dönemi`] || "-"} · {data[`${taksitSilOnay}. Taksit Tutarı`] || "-"}
+              <br />
+              Sonraki taksitler bir sıra yukarı kayar, Taksit Sayısı {(parseInt(data["Taksit Sayısı"], 10) || 0) - 1} olur.
+            </div>
+            <div style={{ display: "flex", gap: "10px", marginTop: "18px" }}>
+              <button onClick={() => setTaksitSilOnay(null)} style={{ ...s.modalBtn, marginTop: 0, background: "#f1f5f9", color: "#475569" }}>Vazgeç</button>
+              <button onClick={() => taksitSil(taksitSilOnay)} style={{ ...s.modalBtn, marginTop: 0, background: "#e11d48" }}>Sil</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {gonderOnay && (() => {
         // Türkçe "İ" düzgün küçülsün diye SADE kullanılıyor; Kaynak Form Adı'na da bakılıyor
         const isYetiskin = !!sozlesmeTuruBul(gonderOnay) || SADE(gonderOnay["Sözleşme Türü"]).includes("yetiskin");
@@ -1797,6 +1856,11 @@ const s = {
   fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "5px" },
   submitRow: { marginTop: "20px", display: "flex", justifyContent: "flex-end" },
   submitBtn: { padding: "15px 30px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer" },
+  taksitSilBtn: {
+    width: "30px", height: "30px", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
+    marginBottom: "4px", borderRadius: "8px", border: "1px solid #fecdd3", background: "#fff1f2",
+    color: "#e11d48", cursor: "pointer", padding: 0,
+  },
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
   modal: { background: "#fff", padding: "30px", borderRadius: "20px", textAlign: "center", maxWidth: "400px", width: "90%" },
   modalBtn: { width: "100%", marginTop: "15px", padding: "12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "10px", fontWeight: "600", cursor: "pointer" },
