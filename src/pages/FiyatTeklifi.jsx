@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 import bilimeviLogoAsset from "../assets/Bilimevi_logo.jpg";
@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v111-karsilastirma-paket-fix-2026-09-28";
+const BFT_BUILD_VERSION = "v112-yarim-birak-ozete-gec-2026-10-05";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1062,6 +1062,10 @@ export default function FiyatTeklifi() {
   const [only30, setOnly30] = useState(false);
   // Özetten düzenlemeye alınan destinasyonun listedeki eski sırası (null = yeni ekleme)
   const [editIndex, setEditIndex] = useState(null);
+  // v112: Duzenlemeye alinan okulun orijinali. Yarida birakilirsa bu geri konur.
+  const [editBackup, setEditBackup] = useState(null);
+  // v112: true ise bir sonraki render'da (yeni cur'a gore hesaplanan) Ozet adimina gidilir
+  const [ozeteGitBekle, setOzeteGitBekle] = useState(false);
   const [leadModal, setLeadModal] = useState(false);
   const [phoneValid, setPhoneValid] = useState(null); // null=bilinmiyor/boş, true/false=validasyon
   const [phoneExample, setPhoneExample] = useState(""); // seçili ülke örnek numarası (placeholder)
@@ -1295,6 +1299,13 @@ export default function FiyatTeklifi() {
   const stepName = STEPS[step];
   const lastStepIdx = STEPS.length - 1;          // Özet'in index'i
   const summaryIdx = STEPS.indexOf("Özet");
+  useLayoutEffect(() => {
+    if (!ozeteGitBekle) return;
+    setOzeteGitBekle(false);
+    if (summaryIdx >= 0) setStep(summaryIdx);
+    const r = document.getElementById("bft-root");
+    if (r) window.scrollTo({ top: r.getBoundingClientRect().top + window.pageYOffset - 20, behavior: "smooth" });
+  }, [ozeteGitBekle, summaryIdx]);
   const addonsIdx = STEPS.indexOf("Ek Ücretler");
 
   const canNextMap = {
@@ -1365,6 +1376,7 @@ export default function FiyatTeklifi() {
         });
       }
       setEditIndex(null);
+      setEditBackup(null);
       setStep(summaryIdx);
     } else {
       // URL'den okul+şehir preselect edildiyse: Genel Bilgi(0) sonrası Destinasyon(1) atlanır, Kurs(2)'a geçilir
@@ -1393,6 +1405,7 @@ export default function FiyatTeklifi() {
     setCur({ ...d });                                   // cityData dahil taşınır → veri yeniden çekilmez
     setAccType(d.acc?.type || "");
     setEditIndex(i);
+    setEditBackup(d);                                   // v112: yarida birakilirsa geri konacak
     setDestinations(p => p.filter((_, idx) => idx !== i));
     const kursIdx = STEPS.indexOf("Kurs");
     setStep(kursIdx >= 0 ? kursIdx : 2);
@@ -1413,7 +1426,38 @@ export default function FiyatTeklifi() {
       onConfirm: () => setDestinations(p => p.filter((_, idx) => idx !== i)),
     });
   };
-  const reset = () => { setDestinations([]); setCur(emptyDest()); setStudent({ name:"", age:"", gender:"" }); setStep(0); };
+  const reset = () => { setDestinations([]); setCur(emptyDest()); setStudent({ name:"", age:"", gender:"" }); setStep(0); setEditIndex(null); setEditBackup(null); };
+
+  // v112: Yarim kalan destinasyonu birakip kayitli okullarla Ozet'e gec.
+  // Duzenleme modundaysa degisiklikler atilir, orijinal eski sirasina geri konur.
+  const yarimBirakOzeteGec = () => {
+    const uygula = () => {
+      if (editIndex !== null && editBackup) {
+        setDestinations(p => {
+          const kopya = [...p];
+          kopya.splice(Math.min(editIndex, kopya.length), 0, editBackup);
+          return kopya;
+        });
+      }
+      setEditIndex(null);
+      setEditBackup(null);
+      setCur(emptyDest(cur.startDate, cur.weeks));
+      setAccType("");
+      setAccWeeksInput(null);
+      setOzeteGitBekle(true);       // adim indeksi yeni cur'a gore hesaplanacak (asagidaki effect)
+    };
+    const duzenlemede = editIndex !== null && !!editBackup;
+    const yarimDolu = !!(cur.lang || cur.country || cur.city || cur.brand || cur.course || cur.acc);
+    if (!duzenlemede && !yarimDolu) return uygula();
+    setConfirmModal({
+      title: "Özete Geç",
+      message: duzenlemede
+        ? `"${`${editBackup.brand || ""} ${editBackup.city || ""}`.trim()}" üzerinde yaptığın değişiklikler atılacak, okul eski haliyle özete dönecek. Emin misin?`
+        : "Yarım kalan destinasyon seçimi silinecek. Kayıtlı okullarla özete geçilsin mi?",
+      confirmLabel: "Evet, Özete Geç",
+      onConfirm: uygula,
+    });
+  };
 
   const loadScript = (src) => new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) return resolve();
@@ -2745,6 +2789,13 @@ export default function FiyatTeklifi() {
             )}
           </div>
           {destinations.length > 0 && destinations.map((d,i) => (<div key={i} style={{ fontSize:12, padding:"6px 0", borderBottom:"1px solid #f1f5f9" }}><strong>{d.brand || d.city}</strong>{d.brand && d.city ? ` · ${d.city}` : ""} · {d.weeks}h · {courseWithLang(d.course, "orig")?.slice(0,24)}</div>))}
+          {/* v112: yarim kalan secimi birakip kayitli okullarla Ozet'e gec */}
+          {stepName !== "Özet" && (destinations.length > 0 || (editIndex !== null && editBackup)) && (
+            <button onClick={yarimBirakOzeteGec}
+              style={{ width:"100%", marginTop:12, padding:"10px 0", background:"#fff", border:`1.5px solid ${CYAN}`, borderRadius:10, cursor:"pointer", fontSize:13, fontWeight:700, color:CYAN, fontFamily:"inherit" }}>
+              Özete Geç ({destinations.length + (editIndex !== null && editBackup ? 1 : 0)} okul) →
+            </button>
+          )}
         </aside>}
       </div>
     </div>
