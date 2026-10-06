@@ -86,6 +86,38 @@ const ALAN_ETIKETLERI = {
 };
 const alanEtiketi = alan => ALAN_ETIKETLERI[alan] || alan;
 
+// Kaynak Form Adı'ndan kısa program adı (sadece gösterim):
+// "Rugby School İngiltere Yaz Okulu 22 Temmuz ... - Portal" -> "Rugby School"
+// Kesme noktaları: virgül, parantez, tarih, "Yaz/Kış Okulu", "Ön Kayıt", "... Formu"; sondaki ülke adı ve "- Portal" atılır
+const PROGRAM_AYLAR = "Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık";
+const PROGRAM_ULKELER = ["İngiltere", "Almanya", "İrlanda", "Amerika", "ABD", "Kanada", "Malta", "İsviçre", "Fransa", "İspanya", "İtalya", "Avusturya", "Hollanda", "Belçika", "Avustralya", "Yeni Zelanda", "Dubai", "Birleşik Krallık", "İskoçya"];
+const PROGRAM_KESICILER = [
+  /,/u, /\(/u,
+  new RegExp(`\\d{1,2}\\s*(${PROGRAM_AYLAR})`, "iu"),
+  new RegExp(`\\d{1,2}\\s*[-–]\\s*\\d{1,2}\\s*(${PROGRAM_AYLAR})`, "iu"),
+  /(Yaz|Kış|Bahar)\s+Okulu/iu, /Ön\s+Kayıt/iu, /(Kayıt|Bilgi|Başvuru)\s+Formu/iu,
+];
+const programAdi = ham => {
+  const t = String(ham || "").replace(/\s+/g, " ").trim().replace(/\s*[-–]\s*Portal\s*$/iu, "");
+  if (!t || t === "-") return "";
+  let kes = t.length;
+  for (const d of PROGRAM_KESICILER) {
+    const m = t.match(d);
+    if (m && m.index > 0 && m.index < kes) kes = m.index;
+  }
+  let s = t.slice(0, kes).trim();
+  let degisti = true;
+  while (degisti) {
+    degisti = false;
+    s = s.replace(/[\s\-–/,]+$/u, "");
+    for (const u of PROGRAM_ULKELER) {
+      const r = new RegExp(`\\s+${u}$`, "iu");
+      if (r.test(s)) { s = s.replace(r, ""); degisti = true; }
+    }
+  }
+  return s || t;
+};
+
 // Sadece ekranda gösterim için: "AHMET yılmaz" -> "Ahmet Yılmaz" (veri değişmez)
 const basHarfBuyuk = metin => String(metin || "")
   .trim().replace(/\s+/g, " ")
@@ -507,6 +539,7 @@ export default function KayitGuncelle() {
   const [sozlesmeAciliyor, setSozlesmeAciliyor] = useState(false);
   const [beklemedeGoster, setBeklemedeGoster] = useState(false);
   const [taksitSilOnay, setTaksitSilOnay] = useState(null); // silinecek taksit numarası
+  const [oneriAcik, setOneriAcik] = useState(false);
 
   // N. taksiti sil: sonrakiler bir yukarı kayar, son satır temizlenir, Taksit Sayısı bir azalır
   function taksitSil(no) {
@@ -875,7 +908,8 @@ export default function KayitGuncelle() {
   const okulMetni = k => {
     const okul = temizMetin(k["Türkiye'de Eğitim Aldığı Okul"]);
     const grup = temizMetin(k["Öğrenci Hangi Gruba Kayıtlı"]);
-    return `${okul || "Okul belirtilmemiş"} - ${grup}`;
+    // Her kelimenin sadece ilk harfi büyük; okul ile grup arasında "||"
+    return `${okul ? basHarfBuyuk(okul) : "Okul belirtilmemiş"} || ${basHarfBuyuk(grup)}`;
   };
   const formEtiketi = k => {
     const okul = temizMetin(k["Türkiye'de Eğitim Aldığı Okul"]);
@@ -901,8 +935,35 @@ export default function KayitGuncelle() {
     if (!aramaTerimi && sadeceBenim && !benimMi) return false;
     if (!aramaTerimi) return true;
     return normalize(o["Öğrenci Adı Soyadı"]).includes(aramaTerimi) ||
-           String(o["TC Kimlik No"] || "").includes(aramaTerimi);
+           String(o["TC Kimlik No"] || "").includes(aramaTerimi) ||
+           normalize(o["Türkiye'de Eğitim Aldığı Okul"]).includes(aramaTerimi) ||
+           normalize(o["Kaynak Form Adı"]).includes(aramaTerimi);
   });
+
+  // Arama kutusunun altındaki öneriler: eşleşen öğrenci, okul ve kaynak form adları (en fazla 8)
+  const aramaOnerileri = (() => {
+    if (aramaTerimi.length < 2 || data) return [];
+    const KAYNAKLAR = [
+      ["Öğrenci", "Öğrenci Adı Soyadı"],
+      ["Okul", "Türkiye'de Eğitim Aldığı Okul"],
+      ["Form", "Kaynak Form Adı"],
+    ];
+    const gorulen = new Set();
+    const sonuc = [];
+    for (const [tur, alan] of KAYNAKLAR) {
+      for (const o of onFiltreli) {
+        const deger = String(o[alan] || "").trim().replace(/\s+/g, " ");
+        if (!deger || deger === "-") continue;
+        const anahtar = normalize(deger);
+        if (!anahtar.includes(aramaTerimi) || gorulen.has(anahtar)) continue;
+        gorulen.add(anahtar);
+        sonuc.push({ tur, deger: tur === "Öğrenci" ? basHarfBuyuk(deger) : deger });
+        if (sonuc.length >= 8) return sonuc;
+      }
+    }
+    // Tek öneri aranan metnin aynısıysa listeyi gösterme
+    return sonuc.length === 1 && normalize(sonuc[0].deger) === aramaTerimi ? [] : sonuc;
+  })();
 
   // YENİ: önceki girişten sonra eklenmiş VE son 48 saat içinde olan kayıtlar.
   // Önceki giriş bulunamazsa sadece 48 saat kuralı uygulanır.
@@ -980,15 +1041,38 @@ export default function KayitGuncelle() {
 
       <main style={s.main}>
         <div style={s.searchCard}>
-          <div style={s.searchLabel}>Ad Soyad / TC Kimlik No ile Sorgula</div>
+          <div style={s.searchLabel}>Ad Soyad / TC Kimlik No / Okul / Form Adı ile Sorgula</div>
           <div style={s.searchRow}>
-            <input
-              type="text" value={tc}
-              onChange={e => { setTc(e.target.value); setSayfa(1); }}
-              onKeyDown={e => e.key === "Enter" && sorgula()}
-              placeholder="Ad Soyad veya TC Kimlik No"
-              style={s.searchInput}
-            />
+            <div style={{ position: "relative", flex: 1, minWidth: 0, display: "flex" }}>
+              <input
+                type="text" value={tc}
+                onChange={e => { setTc(e.target.value); setSayfa(1); setOneriAcik(true); }}
+                onFocus={() => setOneriAcik(true)}
+                onBlur={() => setOneriAcik(false)}
+                onKeyDown={e => {
+                  if (e.key === "Escape") setOneriAcik(false);
+                  if (e.key === "Enter") { setOneriAcik(false); sorgula(); }
+                }}
+                placeholder="Ad Soyad, TC, okul veya form adı"
+                style={{ ...s.searchInput, width: "100%", boxSizing: "border-box" }}
+              />
+              {oneriAcik && aramaOnerileri.length > 0 && (
+                <div style={s.oneriKutusu}>
+                  {aramaOnerileri.map(o => (
+                    <div
+                      key={o.tur + o.deger}
+                      onMouseDown={e => { e.preventDefault(); setTc(o.deger); setSayfa(1); setOneriAcik(false); }}
+                      style={s.oneriSatir}
+                      onMouseEnter={e => { e.currentTarget.style.background = "#f1f5f9"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                    >
+                      <span style={s.oneriEtiket}>{o.tur}</span>
+                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.deger}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <button onClick={() => sorgula()} disabled={loading} style={s.searchBtn}>
               {loading ? "..." : "Sorgula"}
             </button>
@@ -1093,7 +1177,7 @@ export default function KayitGuncelle() {
           )}
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "12px" }}>
-              <div style={{ ...s.filtreMetin, marginBottom: "6px", whiteSpace: "normal" }}>Türkiye'de Eğitim Aldığı Okul - Öğrenci Hangi Gruba Kayıtlı</div>
+              <div style={{ ...s.filtreMetin, marginBottom: "6px", whiteSpace: "normal" }}>Türkiye'de Eğitim Aldığı Okul || Öğrenci Hangi Gruba Kayıtlı</div>
               <select
                 value={formFiltre}
                 onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
@@ -1147,6 +1231,7 @@ export default function KayitGuncelle() {
                   <th style={{ ...s.th, width: "1%", textAlign: "right" }}>#</th>
                   <th style={{ ...s.th, whiteSpace: "nowrap" }}>Form Tarihi</th>
                   <th style={s.th}>Öğrenci Adı Soyadı</th>
+                  <th style={s.th}>Program</th>
                   <th style={s.th}>Danışman</th>
                   <th style={s.th}>Sözleşme Durumu</th>
                   <th style={s.th}></th>
@@ -1182,6 +1267,12 @@ export default function KayitGuncelle() {
                           ))}
                         </div>
                       )}
+                    </td>
+                    <td
+                      title={String(ogr["Kaynak Form Adı"] || "")}
+                      style={{ ...s.td, maxWidth: "220px", color: "#475569", fontSize: "13px", lineHeight: "1.4" }}
+                    >
+                      {programAdi(ogr["Kaynak Form Adı"]) || <span style={{ color: "#cbd5e1" }}>-</span>}
                     </td>
                     <td style={{ ...s.td, color: ogr["Danışman Adı"] ? "#0f172a" : "#94a3b8" }}>
                       {basHarfBuyuk(ogr["Danışman Adı"]) || "Atanmamış"}
@@ -1777,6 +1868,19 @@ const s = {
   // Ana başlıklar: koyu pastel lacivert
   searchLabel: { fontSize: "13px", fontWeight: "700", marginBottom: "10px", color: "#3d5a8a", letterSpacing: "0.2px" },
   searchRow: { display: "flex", gap: "10px" },
+  oneriKutusu: {
+    position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 50,
+    background: "#fff", border: "1px solid #e2e8f0", borderRadius: "10px",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.10)", padding: "4px", maxHeight: "300px", overflowY: "auto",
+  },
+  oneriSatir: {
+    display: "flex", alignItems: "center", gap: "10px", padding: "10px 10px",
+    borderRadius: "8px", cursor: "pointer", fontSize: "13px", color: "#0f172a",
+  },
+  oneriEtiket: {
+    flexShrink: 0, minWidth: "54px", textAlign: "center", fontSize: "11px", fontWeight: "700",
+    color: "#3d5a8a", background: "#eef2f9", borderRadius: "6px", padding: "3px 6px",
+  },
   searchInput: { flex: 1, padding: "10px", borderRadius: "10px", border: "1px solid #e2e8f0", outline: "none", position: "relative", zIndex: 20 },
   searchBtn: { padding: "10px 20px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "600", position: "relative", zIndex: 20 },
   listCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
