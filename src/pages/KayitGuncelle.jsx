@@ -1,3 +1,4 @@
+// KayitGuncelle.jsx v1.0
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -1343,7 +1344,7 @@ export default function KayitGuncelle() {
                         )}
                         <button
                           onClick={() => sorgula(ogr["TC Kimlik No"], !ogr["Danışman Adı"])}
-                          style={{ ...s.editBtn, ...s.aksiyonBtn }}
+                          style={{ ...s.editBtn, ...s.aksiyonBtn, minWidth: "76px" }}
                         >{ogr["Danışman Adı"] ? "Düzenle" : "Görüntüle"}</button>
                         <button
                           onClick={async () => {
