@@ -1314,10 +1314,11 @@ export default function KayitGuncelle() {
                       })()}
                     </td>
                     <td style={{ ...s.td, textAlign: "right", whiteSpace: "nowrap", width: "1%" }}>
+                      {/* Solda Not (ve varsa ⚠️); sağda 2x2 blok: Düzenle | Sözleşme Oluştur, altında tam genişlikte Sözleşmeyi Göster */}
                       <div style={{
-                        display: "flex", gap: "6px", justifyContent: "flex-end", flexWrap: "nowrap",
-                        flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center",
+                        display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "center", flexWrap: "nowrap",
                       }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "center" }}>
                         <button
                           onClick={() => setNotModal({
                             ogr,
@@ -1332,11 +1333,19 @@ export default function KayitGuncelle() {
                           }}
                         >
                           <NotIkonu dolu={notSatirlari(ogr["Notlar"]).length > 0} />
-                          {isMobile && <span style={{ marginLeft: "6px" }}>{notSatirlari(ogr["Notlar"]).length ? "Notlar" : "Not Ekle"}</span>}
                         </button>
+                        {taksitFarki(ogr) && (
+                          <button
+                            onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
+                            title="Taksit toplamı program ücreti ile eşleşmiyor"
+                            style={s.warnBtn}
+                          >⚠️</button>
+                        )}
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px" }}>
                         <button
                           onClick={() => sorgula(ogr["TC Kimlik No"], !ogr["Danışman Adı"])}
-                          style={{ ...s.editBtn, minWidth: "88px", textAlign: "center" }}
+                          style={{ ...s.editBtn, textAlign: "center" }}
                         >{ogr["Danışman Adı"] ? "Düzenle" : "Görüntüle"}</button>
                         <button
                           onClick={async () => {
@@ -1353,15 +1362,9 @@ export default function KayitGuncelle() {
                             }
                             setKopyaModal({ tc: tcNo, ad: ogr["Öğrenci Adı Soyadı"] });
                           }}
-                          style={s.formBtn}
-                        >Danışman Formu</button>
-                        {taksitFarki(ogr) && (
-                          <button
-                            onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
-                            title="Taksit toplamı program ücreti ile eşleşmiyor"
-                            style={s.warnBtn}
-                          >⚠️</button>
-                        )}
+                          title="TC'yi kopyalar ve danışman sözleşme formunu açar"
+                          style={{ ...s.formBtn, textAlign: "center" }}
+                        >Sözleşme Oluştur</button>
                         {(() => {
                           // Sözleşme önce görülmeli, gönderim modalın içinden yapılır
                           const link = gecerliLink(ogr["Sözleşme Onay Linki"]);
@@ -1371,12 +1374,13 @@ export default function KayitGuncelle() {
                               disabled={!link}
                               title={link ? "Sözleşmeyi gör ve gönder" : "Sözleşme henüz oluşturulmamış"}
                               style={{
-                                ...s.sendBtn, minWidth: "96px", textAlign: "center",
+                                ...s.sendBtn, gridColumn: "1 / -1", textAlign: "center",
                                 opacity: link ? 1 : 0.4, cursor: link ? "pointer" : "not-allowed",
                               }}
-                            >{gonderilenTC === ogr["TC Kimlik No"] ? "Gönderildi ✓" : "Sözleşme"}</button>
+                            >{gonderilenTC === ogr["TC Kimlik No"] ? "Gönderildi ✓" : "Sözleşmeyi Göster"}</button>
                           );
                         })()}
+                        </div>
                       </div>
                     </td>
                   </tr>
