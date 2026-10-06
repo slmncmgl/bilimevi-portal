@@ -1230,6 +1230,9 @@ export default function KayitGuncelle() {
                 transition: "background 0.4s, color 0.4s",
               }}>{siraliOgrenciler.length}</span>
             </div>
+            {/* Satırlar tek satırda kalır; mobilde tablo yana kayar, sayfa taşmaz.
+                Masaüstünde kaydırma kapalı ki not ve program balonları kırpılmasın. */}
+            <div style={isMobile ? { overflowX: "auto", WebkitOverflowScrolling: "touch" } : undefined}>
             <table style={s.table}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
@@ -1260,8 +1263,8 @@ export default function KayitGuncelle() {
                     <td style={{ ...s.td, whiteSpace: "nowrap", color: "#475569", fontWeight: "600" }}>
                       {formTarihiMetni(ogr)}
                     </td>
-                    <td style={{ ...s.td, position: "relative" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <td style={{ ...s.td, position: "relative", whiteSpace: "nowrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "nowrap", whiteSpace: "nowrap" }}>
                         {basHarfBuyuk(ogr["Öğrenci Adı Soyadı"])}
                       </span>
                       {notHover === satirAnahtari(ogr) && (
@@ -1310,9 +1313,9 @@ export default function KayitGuncelle() {
                         );
                       })()}
                     </td>
-                    <td style={{ ...s.td, textAlign: "right" }}>
+                    <td style={{ ...s.td, textAlign: "right", whiteSpace: "nowrap", width: "1%" }}>
                       <div style={{
-                        display: "flex", gap: "6px", justifyContent: "flex-end",
+                        display: "flex", gap: "6px", justifyContent: "flex-end", flexWrap: "nowrap",
                         flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center",
                       }}>
                         <button
@@ -1351,7 +1354,7 @@ export default function KayitGuncelle() {
                             setKopyaModal({ tc: tcNo, ad: ogr["Öğrenci Adı Soyadı"] });
                           }}
                           style={s.formBtn}
-                        >Danışman Formuna Git</button>
+                        >Danışman Formu</button>
                         {taksitFarki(ogr) && (
                           <button
                             onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
@@ -1380,6 +1383,7 @@ export default function KayitGuncelle() {
                 ))}
               </tbody>
             </table>
+            </div>
             {siraliOgrenciler.length === 0 && (
               <div style={{ textAlign: "center", padding: "24px", color: "#94a3b8", fontSize: "13px" }}>
                 Filtrelerinizle eşleşen kayıt bulunamadı.
@@ -1916,7 +1920,7 @@ const s = {
   listHeader: { fontWeight: "700", marginBottom: "15px", fontSize: "14px" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
   th: { padding: "10px 12px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" },
-  td: { padding: "12px 12px", fontSize: "13px", color: "#0f172a" },
+  td: { padding: "8px 10px", fontSize: "13px", color: "#0f172a", verticalAlign: "middle" },
   pagination: { display: "flex", gap: "6px", justifyContent: "center", alignItems: "center", marginTop: "18px", flexWrap: "wrap" },
   pageBtn: { minWidth: "34px", height: "34px", padding: "0 8px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontFamily: "'Sora', sans-serif", background: "transparent" },
   pageNav: { height: "34px", padding: "0 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", color: "#1e3a5f", fontSize: "13px", fontWeight: "600", fontFamily: "'Sora', sans-serif" },
