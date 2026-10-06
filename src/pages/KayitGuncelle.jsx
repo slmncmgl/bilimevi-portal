@@ -1360,8 +1360,18 @@ export default function KayitGuncelle() {
                             }
                             setKopyaModal({ tc: tcNo, ad: ogr["Öğrenci Adı Soyadı"] });
                           }}
-                          title="TC'yi kopyalar ve danışman sözleşme formunu açar"
-                          style={{ ...s.formBtn, ...s.aksiyonBtn }}
+                          // Danışman atanmışsa ya da sözleşme zaten oluşmuşsa yeniden oluşturulamaz
+                          disabled={!!String(ogr["Danışman Adı"] || "").trim() || !!gecerliLink(ogr["Sözleşme Onay Linki"])}
+                          title={
+                            String(ogr["Danışman Adı"] || "").trim() || gecerliLink(ogr["Sözleşme Onay Linki"])
+                              ? "Sözleşme zaten oluşturulmuş, Sözleşmeyi Göster'i kullanın"
+                              : "TC'yi kopyalar ve danışman sözleşme formunu açar"
+                          }
+                          style={{
+                            ...s.formBtn, ...s.aksiyonBtn,
+                            ...((String(ogr["Danışman Adı"] || "").trim() || gecerliLink(ogr["Sözleşme Onay Linki"]))
+                              ? { opacity: 0.4, cursor: "not-allowed" } : {}),
+                          }}
                         >Sözleşme<br />Oluştur</button>
                         {(() => {
                           // Sözleşme önce görülmeli, gönderim modalın içinden yapılır
