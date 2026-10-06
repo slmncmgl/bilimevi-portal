@@ -96,7 +96,11 @@ const PROGRAM_KESICILER = [
   new RegExp(`\\d{1,2}\\s*(${PROGRAM_AYLAR})`, "iu"),
   new RegExp(`\\d{1,2}\\s*[-–]\\s*\\d{1,2}\\s*(${PROGRAM_AYLAR})`, "iu"),
   /(Yaz|Kış|Bahar)\s+Okulu/iu, /Ön\s+Kayıt/iu, /(Kayıt|Bilgi|Başvuru)\s+Formu/iu,
+  /\s(Sömestr|Semest|Dönem)/iu, /\sProgram(ı|i)?\b/iu, /\+/u,
 ];
+// Listede gösterilecek en uzun program adı ("University Of Edinburgh" uzunluğu); fazlası "…" ile kısalır
+const PROGRAM_MAKS_KARAKTER = "University Of Edinburgh".length;
+const programKisa = ad => ad.length > PROGRAM_MAKS_KARAKTER ? ad.slice(0, PROGRAM_MAKS_KARAKTER).trimEnd() + "…" : ad;
 const programAdi = ham => {
   const t = String(ham || "").replace(/\s+/g, " ").trim().replace(/\s*[-–]\s*Portal\s*$/iu, "");
   if (!t || t === "-") return "";
@@ -540,6 +544,7 @@ export default function KayitGuncelle() {
   const [beklemedeGoster, setBeklemedeGoster] = useState(false);
   const [taksitSilOnay, setTaksitSilOnay] = useState(null); // silinecek taksit numarası
   const [oneriAcik, setOneriAcik] = useState(false);
+  const [programHover, setProgramHover] = useState(null); // tam program adı balonu açık olan satır
 
   // N. taksiti sil: sonrakiler bir yukarı kayar, son satır temizlenir, Taksit Sayısı bir azalır
   function taksitSil(no) {
@@ -1268,11 +1273,27 @@ export default function KayitGuncelle() {
                         </div>
                       )}
                     </td>
-                    <td
-                      title={String(ogr["Kaynak Form Adı"] || "")}
-                      style={{ ...s.td, maxWidth: "220px", color: "#475569", fontSize: "13px", lineHeight: "1.4" }}
-                    >
-                      {programAdi(ogr["Kaynak Form Adı"]) || <span style={{ color: "#cbd5e1" }}>-</span>}
+                    <td style={{ ...s.td, color: "#475569", fontSize: "13px", lineHeight: "1.4", whiteSpace: "nowrap" }}>
+                      {(() => {
+                        const tam = String(ogr["Kaynak Form Adı"] || "").trim();
+                        const ad = programAdi(tam);
+                        if (!ad) return <span style={{ color: "#cbd5e1" }}>-</span>;
+                        const anahtar = satirAnahtari(ogr);
+                        const acik = programHover === anahtar;
+                        return (
+                          <span
+                            style={{ position: "relative", cursor: "default" }}
+                            onMouseEnter={() => !isMobile && setProgramHover(anahtar)}
+                            onMouseLeave={() => !isMobile && setProgramHover(null)}
+                            onClick={() => isMobile && setProgramHover(acik ? null : anahtar)}
+                          >
+                            {programKisa(ad)}
+                            {acik && (
+                              <span style={s.programBalon}>{tam}</span>
+                            )}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td style={{ ...s.td, color: ogr["Danışman Adı"] ? "#0f172a" : "#94a3b8" }}>
                       {basHarfBuyuk(ogr["Danışman Adı"]) || "Atanmamış"}
@@ -1282,8 +1303,9 @@ export default function KayitGuncelle() {
                         const d = sozlesmeDurumu(ogr);
                         return (
                           <span style={{
-                            padding: "3px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: "600",
-                            whiteSpace: "nowrap", background: d.arka, color: d.renk,
+                            display: "inline-block", maxWidth: "120px", lineHeight: "1.35",
+                            padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "600",
+                            whiteSpace: "normal", textAlign: "center", background: d.arka, color: d.renk,
                           }}>{d.metin}</span>
                         );
                       })()}
@@ -1868,6 +1890,13 @@ const s = {
   // Ana başlıklar: koyu pastel lacivert
   searchLabel: { fontSize: "13px", fontWeight: "700", marginBottom: "10px", color: "#3d5a8a", letterSpacing: "0.2px" },
   searchRow: { display: "flex", gap: "10px" },
+  programBalon: {
+    position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 40,
+    width: "max-content", maxWidth: "min(320px, 80vw)", whiteSpace: "normal",
+    background: "#1e3a5f", color: "#fff", fontSize: "12px", lineHeight: "1.5",
+    padding: "8px 10px", borderRadius: "8px", boxShadow: "0 8px 20px rgba(15,23,42,0.18)",
+    pointerEvents: "none",
+  },
   oneriKutusu: {
     position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 50,
     background: "#fff", border: "1px solid #e2e8f0", borderRadius: "10px",
