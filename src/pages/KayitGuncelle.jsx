@@ -60,9 +60,9 @@ function notSatirlari(metin) {
 }
 
 // Minimal not ikonu: dolu = not var, çizgi = not yok
-function NotIkonu({ dolu }) {
+function NotIkonu({ dolu, boyut = 15 }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={boyut} height={boyut} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
         d="M5 4h10l4 4v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"
         fill={dolu ? "#fde68a" : "none"} stroke={dolu ? "#b45309" : "#94a3b8"}
@@ -1084,7 +1084,8 @@ export default function KayitGuncelle() {
           </div>
           {!data && (
             <div style={{
-              display: "flex", gap: "18px", marginTop: "14px",
+              display: "flex", gap: "18px", marginTop: "16px",
+              paddingTop: "16px", borderTop: "1px solid #e8edf3",
               flexDirection: isMobile ? "column" : "row",
               justifyContent: "space-between",
               alignItems: isMobile ? "stretch" : "flex-start",
@@ -1181,7 +1182,7 @@ export default function KayitGuncelle() {
             </div>
           )}
           {!data && formSecenekleri.length > 0 && (
-            <div style={{ marginTop: "12px" }}>
+            <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e8edf3" }}>
               <div style={{ ...s.filtreMetin, marginBottom: "6px", whiteSpace: "normal" }}>Türkiye'de Eğitim Aldığı Okul || Öğrenci Hangi Gruba Kayıtlı</div>
               <select
                 value={formFiltre}
@@ -1239,7 +1240,7 @@ export default function KayitGuncelle() {
                   <th style={{ ...s.th, width: "1%", textAlign: "right" }}>#</th>
                   <th style={{ ...s.th, whiteSpace: "nowrap" }}>Form Tarihi</th>
                   <th style={s.th}>Öğrenci Adı Soyadı</th>
-                  <th style={s.th}>Program</th>
+                  <th style={s.th}>Kaynak Form</th>
                   <th style={s.th}>Danışman</th>
                   <th style={s.th}>Sözleşme Durumu</th>
                   <th style={s.th}></th>
@@ -1314,11 +1315,10 @@ export default function KayitGuncelle() {
                       })()}
                     </td>
                     <td style={{ ...s.td, textAlign: "right", whiteSpace: "nowrap", width: "1%" }}>
-                      {/* Solda Not (ve varsa ⚠️); sağda 2x2 blok: Düzenle | Sözleşme Oluştur, altında tam genişlikte Sözleşmeyi Göster */}
+                      {/* Tüm butonlar yan yana ve aynı yükseklikte (s.aksiyonBtn): Not, (⚠️), Düzenle, Sözleşme Oluştur, Sözleşmeyi Göster */}
                       <div style={{
-                        display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "center", flexWrap: "nowrap",
+                        display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "stretch", flexWrap: "nowrap",
                       }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "center" }}>
                         <button
                           onClick={() => setNotModal({
                             ogr,
@@ -1327,25 +1327,23 @@ export default function KayitGuncelle() {
                           })}
                           title={notSatirlari(ogr["Notlar"]).length ? "Notları gör / düzenle" : "Not ekle"}
                           style={{
-                            ...s.notBtn,
+                            ...s.notBtn, ...s.aksiyonBtn, width: s.aksiyonBtn.height, padding: 0,
                             background: notSatirlari(ogr["Notlar"]).length ? "#fffbeb" : "#fff",
                             borderColor: notSatirlari(ogr["Notlar"]).length ? "#fcd34d" : "#e2e8f0",
                           }}
                         >
-                          <NotIkonu dolu={notSatirlari(ogr["Notlar"]).length > 0} />
+                          <NotIkonu dolu={notSatirlari(ogr["Notlar"]).length > 0} boyut={20} />
                         </button>
                         {taksitFarki(ogr) && (
                           <button
                             onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
                             title="Taksit toplamı program ücreti ile eşleşmiyor"
-                            style={s.warnBtn}
+                            style={{ ...s.warnBtn, ...s.aksiyonBtn, width: s.aksiyonBtn.height, padding: 0 }}
                           >⚠️</button>
                         )}
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px" }}>
                         <button
                           onClick={() => sorgula(ogr["TC Kimlik No"], !ogr["Danışman Adı"])}
-                          style={{ ...s.editBtn, textAlign: "center" }}
+                          style={{ ...s.editBtn, ...s.aksiyonBtn }}
                         >{ogr["Danışman Adı"] ? "Düzenle" : "Görüntüle"}</button>
                         <button
                           onClick={async () => {
@@ -1363,8 +1361,8 @@ export default function KayitGuncelle() {
                             setKopyaModal({ tc: tcNo, ad: ogr["Öğrenci Adı Soyadı"] });
                           }}
                           title="TC'yi kopyalar ve danışman sözleşme formunu açar"
-                          style={{ ...s.formBtn, textAlign: "center" }}
-                        >Sözleşme Oluştur</button>
+                          style={{ ...s.formBtn, ...s.aksiyonBtn }}
+                        >Sözleşme<br />Oluştur</button>
                         {(() => {
                           // Sözleşme önce görülmeli, gönderim modalın içinden yapılır
                           const link = gecerliLink(ogr["Sözleşme Onay Linki"]);
@@ -1374,13 +1372,12 @@ export default function KayitGuncelle() {
                               disabled={!link}
                               title={link ? "Sözleşmeyi gör ve gönder" : "Sözleşme henüz oluşturulmamış"}
                               style={{
-                                ...s.sendBtn, gridColumn: "1 / -1", textAlign: "center",
+                                ...s.sendBtn, ...s.aksiyonBtn,
                                 opacity: link ? 1 : 0.4, cursor: link ? "pointer" : "not-allowed",
                               }}
-                            >{gonderilenTC === ogr["TC Kimlik No"] ? "Gönderildi ✓" : "Sözleşmeyi Göster"}</button>
+                            >{gonderilenTC === ogr["TC Kimlik No"] ? <>Gönderildi<br />✓</> : <>Sözleşmeyi<br />Göster</>}</button>
                           );
                         })()}
-                        </div>
                       </div>
                     </td>
                   </tr>
@@ -1898,6 +1895,12 @@ const s = {
   // Ana başlıklar: koyu pastel lacivert
   searchLabel: { fontSize: "13px", fontWeight: "700", marginBottom: "10px", color: "#3d5a8a", letterSpacing: "0.2px" },
   searchRow: { display: "flex", gap: "10px" },
+  // Listedeki satır butonları: hepsi aynı yükseklikte, iki satırlık yazıya göre
+  aksiyonBtn: {
+    height: "40px", boxSizing: "border-box", padding: "0 10px",
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    textAlign: "center", lineHeight: "1.2", fontSize: "12px", whiteSpace: "nowrap",
+  },
   programBalon: {
     position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 40,
     width: "max-content", maxWidth: "min(320px, 80vw)", whiteSpace: "normal",
