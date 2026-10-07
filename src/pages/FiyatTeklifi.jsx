@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v112-yarim-birak-ozete-gec-2026-10-05";
+const BFT_BUILD_VERSION = "v114-hs-kosul-promo-paket-2026-10-07";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -382,6 +382,7 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
       bathroom: r.bathroom_type || "", board: r.board_type || "",
       price: parseFloat(r.price_per_week) || 0, hs_price: parseFloat(r.high_season_price) || 0,
       hs_start: r.high_season_start || "", hs_end: r.high_season_end || "",
+      hs_cond: (r.high_season_condition || "").trim(),   // v114: orn. weeks_less_than_12
       currency: r.currency, distance: r.distance_to_school || "",
       min_weeks: ilkSayi(r.min_weeks, r.weeks_tier_min, r.tier_min_weeks, r.week_tier_min, r.min_week),
       max_weeks: ilkSayi(r.max_weeks, r.weeks_tier_max, r.tier_max_weeks, r.week_tier_max, r.max_week), notes: r.notes || "",
@@ -439,11 +440,19 @@ function getPrice(course, weeks) {
 }
 function isCourseValid(course, weeks) { return course?.tiers?.some(t => weeks >= t.min && (t.max === null || weeks <= t.max)); }
 
+// v114: "weeks_less_than_N" -> N (bu hafta ve uzerinde yuksek sezon zammi yok). Kalip yoksa null.
+function hsKosulHafta(cond) {
+  const m = /^weeks_less_than_(\d+)$/i.exec((cond || "").trim());
+  return m ? parseInt(m[1], 10) : null;
+}
+
 function getHighSeasonSupplement(course, weeks, startDate) {
   if (!course?.hs_supp || !course?.hs_start || !course?.hs_end) return { amount: 0, isActive: false };
   const start = new Date(startDate), hsStart = new Date(course.hs_start), hsEnd = new Date(course.hs_end);
   let isActive = start >= hsStart && start <= hsEnd;
-  if (course.hs_cond === "weeks_less_than_12" && weeks >= 12) isActive = false;
+  const _kosulN = hsKosulHafta(course.hs_cond);          // v114: N genel (eskiden sadece 12)
+  if (_kosulN && weeks >= _kosulN) isActive = false;
+  // SİL: if (course.hs_cond === "weeks_less_than_12" && weeks >= 12) isActive = false;
   if (course.max_weeks && weeks > course.max_weeks) isActive = false;
   return { amount: isActive ? course.hs_supp * weeks : 0, isActive, supplementPerWeek: course.hs_supp, startDate: course.hs_start, endDate: course.hs_end };
 }
@@ -453,6 +462,8 @@ function getAccommodationHighSeasonSupplement(acc, weeks, startDate) {
   const start = new Date(startDate), hsStart = new Date(acc.hs_start), hsEnd = new Date(acc.hs_end);
   let isActive = start >= hsStart && start <= hsEnd;
   if (acc.min_weeks && weeks < acc.min_weeks) isActive = false;
+  const _accKosulN = hsKosulHafta(acc.hs_cond);          // v114: Atlas Malta 12+ hafta konaklamada zam yok
+  if (_accKosulN && weeks >= _accKosulN) isActive = false;
   const supplementPerWeek = isActive ? (acc.hs_price - acc.price) : 0;
   return { amount: supplementPerWeek * weeks, isActive, supplementPerWeek, startDate: acc.hs_start, endDate: acc.hs_end, hsPrice: acc.hs_price, basePrice: acc.price };
 }
@@ -769,7 +780,7 @@ function kesisenHafta(feeStart, feeEnd, kalisStart, kalisEnd) {
 }
 // A tipi: okulun KAPALI olduğu tatil dönemi → konaklama süresi uzar
 function isTatilSupplement(name) {
-  return /end of year|christmas|xmas|new year|yılbaşı|yilbasi/i.test(name || "");
+  return /end of year|christmas|xmas|new year|winter|yılbaşı|yilbasi/i.test(name || "");   // v114: winter eklendi
 }
 // B tipi: okul açık, yalnızca dönemsel fiyat zammı
 function isSezonSupplement(name) {
@@ -914,24 +925,71 @@ function packageIncludesTransfer(pkg) {
   return t.includes("transfer") || t.includes("airport pickup") || t.includes("havalimanı") || t.includes("havaalanı");
 }
 
+// v114: Paket siralamasi: kampanyali (reg_date_end dolu) once, sonra en dusuk fiyat.
+function paketSirala(list) {
+  return [...list].sort((a, b) => {
+    const ka = a.reg_date_end ? 0 : 1, kb = b.reg_date_end ? 0 : 1;
+    if (ka !== kb) return ka - kb;
+    return (a.package_price || 0) - (b.package_price || 0);
+  });
+}
+// v114: Haftasi bos paket: min/max_weeks araligi (bossa her hafta) icinde mi?
+function paketHaftaUyar(d, weeks) {
+  if (d.weeks) return d.weeks === weeks;
+  return (!d.min_weeks || weeks >= d.min_weeks) && (!d.max_weeks || weeks <= d.max_weeks);
+}
 function findFixedPackage(discounts, course, weeks, startDate) {
   if (!discounts?.length || !course) return null;
   const today = new Date().toISOString().split("T")[0];
-  return discounts.find(d => d.discount_type === "fixed_package" && d.course_name === course.name && d.weeks === weeks
-    && inDateRange(today, d.reg_date_start, d.reg_date_end) && inDateRange(startDate, d.arrival_start, d.arrival_end)) || null;
+  // v114: haftasi BOS paket otomatik eslesmeye girmez (d.weeks zorunlu) -> sadece listede gorunur
+  const adaylar = discounts.filter(d => d.discount_type === "fixed_package" && d.course_name === course.name && d.weeks && d.weeks === weeks
+    && inDateRange(today, d.reg_date_start, d.reg_date_end) && inDateRange(startDate, d.arrival_start, d.arrival_end));
+  return paketSirala(adaylar)[0] || null;   // v114: birden fazla eslesirse kampanya once, sonra en ucuz
 }
 // Secili hafta + tarih icin gecerli TUM paketleri dondurur (Kurs adimindaki "Paket Programlar" sekmesi icin)
 function getAvailablePackages(discounts, weeks, startDate) {
   if (!discounts?.length) return [];
   const today = new Date().toISOString().split("T")[0];
-  return discounts.filter(d => d.discount_type === "fixed_package" && d.weeks === weeks
-    && inDateRange(today, d.reg_date_start, d.reg_date_end) && inDateRange(startDate, d.arrival_start, d.arrival_end));
+  return paketSirala(discounts.filter(d => d.discount_type === "fixed_package" && paketHaftaUyar(d, weeks)
+    && inDateRange(today, d.reg_date_start, d.reg_date_end) && inDateRange(startDate, d.arrival_start, d.arrival_end)));
 }
+// v114: Haftalik promo fiyat (value_type = per_week_price). Uyan satirlar icinde en dusuk promo fiyat secilir.
+// Donen: { satir, amount, normalHafta } ya da null
+function promoHaftalikBul(discounts, course, weeks, startDate, today) {
+  if (!course || !weeks) return null;
+  const normalToplam = getPrice(course, weeks);
+  if (normalToplam <= 0) return null;
+  const normalHafta = normalToplam / weeks;
+  let enIyi = null;
+  discounts.forEach(d => {
+    if (d.discount_type !== "percentage" || d.value_type !== "per_week_price" || d.applies_to !== "tuition") return;
+    if (!(d.discount_value > 0)) return;
+    if (!inDateRange(today, d.reg_date_start, d.reg_date_end)) return;
+    if (!inDateRange(startDate, d.arrival_start, d.arrival_end)) return;
+    if (d.min_weeks && weeks < d.min_weeks) return;
+    if (d.max_weeks && weeks > d.max_weeks) return;
+    if (d.eligible_courses && !courseInList(course?.name, d.eligible_courses)) return;
+    if (d.excluded_courses && courseInList(course?.name, d.excluded_courses)) return;
+    const amount = Math.max(0, (normalHafta - d.discount_value) * weeks);
+    if (amount <= 0) return;
+    if (!enIyi || amount > enIyi.amount) enIyi = { satir: d, amount, normalHafta };
+  });
+  return enIyi;
+}
+
 function computeDiscounts(discounts, course, weeks, startDate, targets) {
   if (!discounts?.length) return [];
   const today = new Date().toISOString().split("T")[0];
   const result = [];
+  // v114: Promo haftalik fiyat varsa kurs icin YUZDE indirim uygulanmaz (cift indirim olmasin)
+  const promo = promoHaftalikBul(discounts, course, weeks, startDate, today);
+  if (promo) {
+    result.push({ label: "Kurs İndirimi", applies_to: "tuition", target_name: "", value_type: "per_week_price",
+      value: promo.satir.discount_value, normalHafta: promo.normalHafta, amount: promo.amount });
+  }
   discounts.forEach(d => {
+    if (d.value_type === "per_week_price") return;                                           // v114: yukarida islendi
+    if (promo && d.applies_to === "tuition" && d.value_type === "percentage") return;        // v114: promo varsa yuzde yok
     if (d.discount_type !== "percentage") return;
     if (!inDateRange(today, d.reg_date_start, d.reg_date_end)) return;
     if (!inDateRange(startDate, d.arrival_start, d.arrival_end)) return;
@@ -954,6 +1012,16 @@ function computeDiscounts(discounts, course, weeks, startDate, targets) {
     result.push({ label, applies_to: d.applies_to, target_name: d.target_name || "", value_type: d.value_type, value: d.discount_value, amount });
   });
   return result;
+}
+// v114: Indirim satirinin parantez ici etiketi (ekran + PDF ortak)
+function indirimEtiket(disc) {
+  if (disc.value_type === "percentage") return "%" + disc.value;
+  if (disc.value_type === "free") return "Ücretsiz";
+  if (disc.value_type === "per_week_price") {
+    const f = (n) => roundHalf(n).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return `Promo: ${f(disc.normalHafta || 0)} yerine ${f(disc.value)}/hafta`;
+  }
+  return disc.value + " Sabit";
 }
 // Bir destinasyon icin indirimleri + nihai toplami hesaplar (tek kaynak)
 function getDestinationTotals(d, fees) {
@@ -998,7 +1066,7 @@ function varsayilanBaslangic() {
 const emptyDest = (sd = varsayilanBaslangic(), w = 4) => ({
   lang: "", country: "", city: "", brand: "", course: null, weeks: w, accWeeks: w, accWeeksTouched: false, acc: null, startDate: sd,
   isOnline: false, cityData: null, cityLoading: false, addons: [], transfer: null,
-  selectedPackage: null, noAccommodation: false, transferRoundTrip: false, holidayWeeks: 0,
+  selectedPackage: null, paketOtomatik: false, noAccommodation: false, transferRoundTrip: false, holidayWeeks: 0,
   courseBasePrice: 0, courseHsAmount: 0, courseTotalPrice: 0, courseHsActive: false,
   accBasePrice: 0, accHsAmount: 0, accTotalPrice: 0, accHsActive: false,
 });
@@ -1225,6 +1293,19 @@ export default function FiyatTeklifi() {
     const dogruTier = cur.cityData.acc.find(a => ayniOdaMi(a, cur.acc) && accHaftaUygun(a, hafta));
     setCur(p => ({ ...p, acc: dogruTier || null }));
   }, [cur.acc, cur.cityData, cur.accWeeks, cur.weeks, cur.tatilHafta, cur.holidayWeeks, cur.accWeeksTouched]);
+
+  // v114: Kurs + hafta + tarih sabit bir paketle eslesiyorsa paketi STATE'e de yaz.
+  // Eskiden sadece toplamda kullaniliyordu; ekran/ozet/PDF detayi kurs fiyatini gosterip
+  // toplam paket fiyatiyla cikiyordu. Elle secilen pakete (paketOtomatik=false) dokunulmaz.
+  useEffect(() => {
+    if (cur.isOnline || !cur.cityData) return;
+    if (cur.selectedPackage && !cur.paketOtomatik) return;
+    const oto = cur.course ? findFixedPackage(cur.cityData.discounts, cur.course, cur.weeks, cur.startDate) : null;
+    if ((oto || null) === (cur.selectedPackage || null)) return;
+    setCur(p => ({ ...p, selectedPackage: oto || null, paketOtomatik: !!oto,
+      ...(oto && oto.package_type === "with_accommodation" ? { acc: null, noAccommodation: false } : {}),
+      ...(oto && packageIncludesTransfer(oto) ? { transfer: null } : {}) }));
+  }, [cur.cityData, cur.course, cur.weeks, cur.startDate, cur.selectedPackage, cur.paketOtomatik, cur.isOnline]);
 
   const courses = cur.cityData?.courses || [];
   const accs = cur.cityData?.acc || [];
@@ -1818,7 +1899,7 @@ export default function FiyatTeklifi() {
             doc.setFont(FONT, "bold");
             doc.setFontSize(10); doc.setTextColor(22, 163, 74);
             if (i === 0) doc.text("İndirimler", MARGIN, y);
-            const dLabel = `${disc.label} (${disc.value_type === "percentage" ? "%" + disc.value : disc.value_type === "free" ? "Ücretsiz" : disc.value + " Sabit"})`;
+            const dLabel = `${disc.label} (${indirimEtiket(disc)})`;   // v114: promo haftalik fiyat destegi
             doc.text(dLabel, MARGIN + 32, y);
             doc.text(`-${money(disc.amount)}`, PAGE_W - MARGIN, y, { align:"right" });
             y += 5;
@@ -2376,7 +2457,7 @@ export default function FiyatTeklifi() {
                     const w = Math.min(n, 52);
                     setCur(p => ({...p, weeks: w,
                       accWeeks: p.accWeeksTouched ? Math.min(p.accWeeks || w, w) : w,
-                      course:null, selectedPackage:null, courseTab:null, acc:null, noAccommodation:false}));
+                      course:null, selectedPackage:null, paketOtomatik:false, courseTab:null, acc:null, noAccommodation:false}));
                   }
                 }} onBlur={() => setWeeksInput(null)} />
                 </div>
@@ -2400,7 +2481,7 @@ export default function FiyatTeklifi() {
                         const sel = cur.selectedPackage?.course_name === pkg.course_name && cur.selectedPackage?.weeks === pkg.weeks && cur.selectedPackage?.package_price === pkg.package_price;
                         const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[pkg.currency] || pkg.currency;
                         return (<div key={i} style={{ padding:"16px 18px", borderRadius:12, cursor:"pointer", border:`1.5px solid ${sel ? CYAN : "#e2e8f0"}`, background: sel ? "#f0fdff" : "#fff" }}
-                          onClick={() => setCur(p => ({...p, selectedPackage: pkg, course: matchCourse || p.course, noAccommodation: false, acc: null, transfer: packageIncludesTransfer(pkg) ? null : p.transfer }))}>
+                          onClick={() => setCur(p => ({...p, selectedPackage: pkg, paketOtomatik: false, course: matchCourse || null /* v113: courses'ta karsiligi yoksa onceki kurs paketin ustune yapismasin */, noAccommodation: false, acc: null, transfer: packageIncludesTransfer(pkg) ? null : p.transfer }))}>
                           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                             <div style={{ flex:1 }}>
                               <div style={{ fontWeight:700, fontSize:14, color: sel ? CYAN : "#0f172a" }}>{matchCourse ? (isStaff ? courseWithLang(matchCourse, "orig") : courseWithLang(matchCourse, "tr")) : pkg.course_name}</div>
@@ -2409,11 +2490,17 @@ export default function FiyatTeklifi() {
                             </div>
                             <div style={{ textAlign:"right", flexShrink:0, marginLeft:12 }}>
                               <div style={{ fontWeight:700, fontSize:16, color: sel ? CYAN : "#0f172a" }}>{curSym}{roundHalf(pkg.package_price).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                              <div style={{ fontSize:11, color:"#94a3b8" }}>{pkg.weeks} hafta</div>
+                              <div style={{ fontSize:11, color:"#94a3b8" }}>{pkg.weeks ? `${pkg.weeks} hafta` : (pkg.min_weeks || pkg.max_weeks) ? `${pkg.min_weeks || 1}${pkg.max_weeks ? "-" + pkg.max_weeks : "+"} hafta` : "Hafta sayısından bağımsız"}</div>
+                              {pkg.reg_date_end && <div style={{ display:"inline-block", marginTop:4, padding:"1px 7px", borderRadius:999, fontSize:10.5, fontWeight:700, background:"#fef3c7", color:"#92400e", border:"1px solid #fcd34d" }}>Kampanya · son gün {new Date(pkg.reg_date_end).toLocaleDateString("tr-TR", { day:"numeric", month:"long" })}</div>}
                             </div>
                           </div>
                         </div>);
                       })}
+                    </div>
+                  )}
+                  {(!hasPackages || courseTab === "standard") && cur.paketOtomatik && cur.selectedPackage && (
+                    <div style={{ marginBottom:12, padding:"10px 12px", background:"#fef3c7", border:"1px solid #fbbf24", borderRadius:8, fontSize:12, color:"#92400e", fontWeight:600 }}>
+                      🎁 Bu kurs ve {cur.weeks} hafta için paket fiyatı otomatik uygulanıyor: {cur.selectedPackage.notes || cur.selectedPackage.campaign_name || "Sabit Paket"} ({cur.selectedPackage.currency} {roundHalf(cur.selectedPackage.package_price).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}){cur.selectedPackage.package_type === "with_accommodation" ? ", konaklama dahil" : ""}
                     </div>
                   )}
                   {(!hasPackages || courseTab === "standard") && (
@@ -2498,7 +2585,7 @@ export default function FiyatTeklifi() {
                     <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:10 }}>
                       {accs.filter(a => a.type === accType).map((a,i) => {
                         const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board && cur.acc?.bathroom===a.bathroom && cur.acc?.price===a.price;
-                        const hsActive = getAccommodationHighSeasonSupplement(a, cur.accWeeks || cur.weeks, cur.startDate).isActive;
+                        const hsActive = getAccommodationHighSeasonSupplement(a, konaklamaHafta(cur), cur.startDate).isActive;   // v114: toplamla ayni hafta
                         // v110: konaklama haftasi bu satirin tier araligi disindaysa kart pasif
                         const uygun = accHaftaUygun(a, konaklamaHafta(cur));
                         const tierEtiket = accTierEtiket(a);
@@ -2719,7 +2806,7 @@ export default function FiyatTeklifi() {
                     {(() => { const _dt = getDestinationTotals(d, f); return (<>
                     {!_dt.isPackage && _dt.appliedDiscounts.map((disc, di) => (
                       <div key={di} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#16a34a", fontWeight:500 }}>
-                        <span>{disc.label} ({disc.value_type === "percentage" ? `%${disc.value}` : disc.value_type === "free" ? "Ücretsiz" : `${disc.value} Sabit`})</span>
+                        <span>{disc.label} ({indirimEtiket(disc)})</span>
                         {isStaff && <span>- {fmt(disc.amount, cur2)}</span>}
                       </div>
                     ))}
