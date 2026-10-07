@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.0
+// KayitGuncelle.jsx v1.1
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -33,6 +33,7 @@ const gonderimAdresi = (...kaynaklar) => {
 };
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
 const NOT_URL = "https://n8n.bilimevi.cloud/webhook/not-guncelle";
+const OPERASYON_URL = "https://n8n.bilimevi.cloud/webhook/operasyon-bildir";
 // Bu süre içinde eklenen kayıtlar listede YENİ olarak işaretlenir
 const YENI_SURE_SAAT = 48;
 
@@ -546,6 +547,27 @@ export default function KayitGuncelle() {
   const [taksitSilOnay, setTaksitSilOnay] = useState(null); // silinecek taksit numarası
   const [oneriAcik, setOneriAcik] = useState(false);
   const [programHover, setProgramHover] = useState(null); // tam program adı balonu açık olan satır
+  const [operasyonGonderiliyor, setOperasyonGonderiliyor] = useState(false);
+
+  // Ekrandaki kayıt bilgilerini operasyona mail olarak gönderir (CC: kaydın danışmanı)
+  async function operasyonaGonder() {
+    if (!data) return;
+    setOperasyonGonderiliyor(true);
+    try {
+      const res = await fetch(OPERASYON_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kayit: data, kaynak: "manuel", gonderen: user?.name || "" }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.ok === false) throw new Error(json.msg || "Gönderilemedi");
+      showToast(json.msg || "Kayıt bilgileri operasyona gönderildi");
+    } catch (e) {
+      showToast(e.message || "Gönderilemedi", "error");
+    } finally {
+      setOperasyonGonderiliyor(false);
+    }
+  }
 
   // N. taksiti sil: sonrakiler bir yukarı kayar, son satır temizlenir, Taksit Sayısı bir azalır
   function taksitSil(no) {
@@ -1515,6 +1537,17 @@ export default function KayitGuncelle() {
             </div>
             {!saltOkunur && (
             <div style={{ ...s.submitRow, gap: "10px", flexDirection: isMobile ? "column-reverse" : "row" }}>
+              {/* Sol alt: operasyona gönder (mobilde en alta düşer) */}
+              <button
+                onClick={operasyonaGonder}
+                disabled={operasyonGonderiliyor || submitting}
+                style={{
+                  ...s.submitBtn, background: "#fff", color: "#0891b2",
+                  border: "1.5px solid #0891b2", marginRight: isMobile ? 0 : "auto",
+                  opacity: operasyonGonderiliyor ? 0.6 : 1,
+                  cursor: operasyonGonderiliyor ? "wait" : "pointer",
+                }}
+              >{operasyonGonderiliyor ? "Gönderiliyor..." : "Kayıt Bilgilerini Operasyona Gönder"}</button>
               {(() => {
                 const aktif = sozlesmeGeriSayim === 0 && !sozlesmeAciliyor && !submitting;
                 const metin = sozlesmeAciliyor ? "Açılıyor..."
