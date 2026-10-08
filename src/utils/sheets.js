@@ -1,8 +1,7 @@
+// v1.1 — login tek isteğe indirildi: Personel ve Modüller satırları Login Servisi (L3) cevabından geliyor, gviz istekleri kaldırıldı
 // v1.0 — modules objesine "kayittakip" (Kayıt Takip) eklendi
 import { LOGIN_SCRIPT_URL } from "../config";
 
-const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
-const BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=`;
 // 1. Spreadsheet ID'yi sabitlere ekle
 const EXAM_RESULTS_SHEET_ID = '1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY';
 
@@ -29,26 +28,6 @@ export const getExamResults = async (accessToken) => {
 };
 
 
-async function fetchSheet(sheetName) {
-  const res = await fetch(`${BASE_URL}${encodeURIComponent(sheetName)}`);
-  if (!res.ok) throw new Error("Sheet okunamadı: " + sheetName);
-  const csv = await res.text();
-  return parseCSV(csv);
-}
-
-function parseCSV(csv) {
-  const lines = csv.trim().split("\n");
-  const headers = lines[0].split(",").map(h => h.replace(/"/g, "").trim());
-  return lines.slice(1).map(line => {
-    const values = line.match(/(".*?"|[^",]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || [];
-    const row = {};
-    headers.forEach((h, i) => {
-      row[h] = (values[i] || "").replace(/"/g, "").trim();
-    });
-    return row;
-  });
-}
-
 export async function loginWithCredentials(username, password) {
   // Apps Script üzerinden login — gviz CSV sıralama sorununu aşmak için
   const res = await fetch(LOGIN_SCRIPT_URL, {
@@ -59,22 +38,11 @@ export async function loginWithCredentials(username, password) {
 
   if (!json.success) return { success: false, msg: json.msg || "Hatalı kullanıcı adı veya şifre." };
 
-  // Personel ve modül bilgilerini gviz'den paralel çek
-  const [personel, moduller] = await Promise.all([
-    fetchSheet("Personel"),
-    fetchSheet("Modüller")
-  ]);
-
-  const user = personel.find(
-    p => p["E-posta"]?.toLowerCase() === (json.email || "").toLowerCase()
-      || p["Ad Soyad"]?.toLowerCase() === (json.userName || "").toLowerCase()
-  );
+  // Personel ve modül satırları artık login cevabıyla birlikte geliyor (tek istek)
+  const user = json.personel;
+  const modulRow = json.modulRow;
 
   if (!user) return { success: false, msg: "Kullanıcı personel listesinde bulunamadı." };
-
-  const modulRow = moduller.find(
-    m => m["Ad Soyad"]?.toLowerCase() === user["Ad Soyad"]?.toLowerCase()
-  );
 
   const modules = {
     izin:      modulRow?.["İzin Yönetimi"]?.toLowerCase() === "evet",
