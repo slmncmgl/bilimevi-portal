@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.3
+// KayitGuncelle.jsx v1.4
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -1038,7 +1038,7 @@ export default function KayitGuncelle() {
     }
   }, [formFiltre, formSecenekleri.join("|")]);
 
-  // Özet ve Ebeveyn sekmelerinin en üstündeki, tam genişlikteki not kutusu: listedeki pencereyle aynı kaydı kullanır
+  // Özet ve Ebeveyn sekmelerinin en altındaki, tam genişlikteki not kutusu: listedeki pencereyle aynı kaydı kullanır
   const notKutusu = () => {
     const orijinal = notSatirlari(data?.["Notlar"]).join("\n");
     const kalan = kartNot.satirlar.filter(x => !x.silindi).map(x => x.metin.trim()).filter(Boolean).join("\n");
@@ -1048,7 +1048,7 @@ export default function KayitGuncelle() {
     }));
     const sifirla = () => setKartNot({ satirlar: notSatirlari(data?.["Notlar"]).map(metin => ({ metin, silindi: false })), yeni: "" });
     return (
-      <div style={{ marginBottom: "14px" }}>
+      <div style={{ marginTop: "18px" }}>
         <div style={{
           width: "100%", boxSizing: "border-box",
           background: "#fffdf5", border: "1px solid #fde68a", borderRadius: "12px", padding: "10px 12px",
@@ -1572,7 +1572,6 @@ export default function KayitGuncelle() {
               ))}
             </div>
             <div style={s.formCard}>
-              {(activeTab === "Özet" || activeTab === "Ebeveyn") && notKutusu()}
               {activeTab === "Özet" ? <OzetPaneli data={data} /> : (
               <>
               {activeTab === "Taksit" && !saltOkunur && (
@@ -1623,6 +1622,7 @@ export default function KayitGuncelle() {
               </div>
               </>
               )}
+              {(activeTab === "Özet" || activeTab === "Ebeveyn") && notKutusu()}
             </div>
             {!saltOkunur && (
             <div style={{ ...s.submitRow, gap: "10px", flexDirection: isMobile ? "column-reverse" : "row" }}>
