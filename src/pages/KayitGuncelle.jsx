@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.1
+// KayitGuncelle.jsx v1.2
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -599,14 +599,20 @@ export default function KayitGuncelle() {
   const [notModal, setNotModal] = useState(null); // { ogr, mevcut, yeni }
   const [notKaydediliyor, setNotKaydediliyor] = useState(false);
   const [notHover, setNotHover] = useState(null); // hover edilen satırın anahtarı
+  // Düzenleme ekranındaki not kutusu (Özet ve Ebeveyn sekmeleri): { satirlar, yeni }
+  const [kartNot, setKartNot] = useState({ satirlar: [], yeni: "" });
+  useEffect(() => {
+    setKartNot({ satirlar: notSatirlari(data?.["Notlar"]).map(metin => ({ metin, silindi: false })), yeni: "" });
+  }, [data?.["Notlar"], data?.["Tally Submission ID"], data?.["TC Kimlik No"]]);
 
   // Satırı benzersiz tanımlayan anahtar (not eşleştirmesi ve hover için)
   const satirAnahtari = k => String(k["Tally Submission ID"] || "").trim() ||
     `${String(k["TC Kimlik No"] || "").trim()}|${String(k["Öğrenci Adı Soyadı"] || "").trim()}`;
 
-  async function notKaydet() {
-    if (!notModal) return;
-    const { ogr, satirlar, yeni } = notModal;
+  // Listedeki pencere de düzenleme ekranındaki not kutusu da bunu kullanır
+  async function notKaydet(kaynak = notModal, kapat = () => setNotModal(null)) {
+    if (!kaynak) return;
+    const { ogr, satirlar, yeni } = kaynak;
     // Silinmek üzere işaretlenen notlar hariç, düzenlenmiş haliyle kalan notlar
     const mevcut = satirlar.filter(x => !x.silindi).map(x => x.metin.trim()).filter(Boolean).join("\n");
     const bugun = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -631,7 +637,7 @@ export default function KayitGuncelle() {
       const anahtar = satirAnahtari(ogr);
       setOgrencilerim(prev => prev.map(o => satirAnahtari(o) === anahtar ? { ...o, Notlar: sonNot } : o));
       setData(prev => prev && satirAnahtari(prev) === anahtar ? { ...prev, Notlar: sonNot } : prev);
-      setNotModal(null);
+      kapat();
       showToast("Not kaydedildi");
     } catch {
       showToast("Not kaydedilemedi", "error");
@@ -1031,6 +1037,88 @@ export default function KayitGuncelle() {
       setSayfa(1);
     }
   }, [formFiltre, formSecenekleri.join("|")]);
+
+  // Özet ve Ebeveyn sekmelerinin sağ üstündeki not kutusu: listedeki pencereyle aynı kaydı kullanır
+  const notKutusu = () => {
+    const orijinal = notSatirlari(data?.["Notlar"]).join("\n");
+    const kalan = kartNot.satirlar.filter(x => !x.silindi).map(x => x.metin.trim()).filter(Boolean).join("\n");
+    const degisti = !!kartNot.yeni.trim() || kalan !== orijinal;
+    const satirGuncelle = (idx, degisim) => setKartNot(m => ({
+      ...m, satirlar: m.satirlar.map((x, j) => j === idx ? { ...x, ...degisim } : x),
+    }));
+    const sifirla = () => setKartNot({ satirlar: notSatirlari(data?.["Notlar"]).map(metin => ({ metin, silindi: false })), yeni: "" });
+    return (
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "14px" }}>
+        <div style={{
+          width: isMobile ? "100%" : "360px", boxSizing: "border-box",
+          background: "#fffdf5", border: "1px solid #fde68a", borderRadius: "12px", padding: "10px 12px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+            <NotIkonu dolu={kartNot.satirlar.length > 0} boyut={14} />
+            <span style={{ fontSize: "13px", fontWeight: "700", color: "#92400e" }}>Notlar</span>
+            {kartNot.satirlar.length > 0 && (
+              <span style={{ fontSize: "11px", color: "#b45309" }}>({kartNot.satirlar.filter(x => !x.silindi).length})</span>
+            )}
+          </div>
+
+          {kartNot.satirlar.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", maxHeight: "180px", overflowY: "auto", marginBottom: "8px" }}>
+              {kartNot.satirlar.map((x, idx) => (
+                <div key={idx} style={{ display: "flex", gap: "5px", alignItems: "flex-start" }}>
+                  <textarea
+                    value={x.metin}
+                    onChange={e => satirGuncelle(idx, { metin: e.target.value })}
+                    readOnly={x.silindi}
+                    rows={Math.min(3, Math.max(1, Math.ceil(x.metin.length / 40)))}
+                    style={{
+                      ...s.notAlan, flex: 1, padding: "6px 8px", fontSize: "12px", resize: "none",
+                      textDecoration: x.silindi ? "line-through" : "none",
+                      color: x.silindi ? "#94a3b8" : "#0f172a",
+                      background: x.silindi ? "#f8fafc" : "#fffbeb",
+                      borderColor: x.silindi ? "#e2e8f0" : "#fde68a",
+                    }}
+                  />
+                  {x.silindi ? (
+                    <button onClick={() => satirGuncelle(idx, { silindi: false })} title="Geri al" style={s.notGeriAlBtn}>Geri al</button>
+                  ) : (
+                    <button onClick={() => satirGuncelle(idx, { silindi: true })} title="Bu notu sil" style={s.notSilBtn}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+                          stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <textarea
+            value={kartNot.yeni}
+            onChange={e => setKartNot(m => ({ ...m, yeni: e.target.value }))}
+            placeholder={kartNot.satirlar.length ? "Yeni not ekle..." : "Henüz not yok, ilk notu ekle..."}
+            rows={2}
+            style={{ ...s.notAlan, padding: "6px 8px", fontSize: "12px", resize: "vertical" }}
+          />
+
+          {degisti && (
+            <div style={{ display: "flex", gap: "8px", marginTop: "8px", justifyContent: "flex-end" }}>
+              <button
+                onClick={sifirla}
+                disabled={notKaydediliyor}
+                style={{ padding: "7px 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}
+              >Vazgeç</button>
+              <button
+                onClick={() => notKaydet({ ogr: data, ...kartNot }, () => {})}
+                disabled={notKaydediliyor}
+                style={{ padding: "7px 14px", borderRadius: "8px", border: "none", background: "#d97706", color: "#fff", fontSize: "12px", fontWeight: "700", cursor: notKaydediliyor ? "wait" : "pointer" }}
+              >{notKaydediliyor ? "Kaydediliyor..." : "Kaydet"}</button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Sadece tarihe göre: en yeni kayıt 1. sayfanın en üstünde
   const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) =>
@@ -1484,6 +1572,7 @@ export default function KayitGuncelle() {
               ))}
             </div>
             <div style={s.formCard}>
+              {(activeTab === "Özet" || activeTab === "Ebeveyn") && notKutusu()}
               {activeTab === "Özet" ? <OzetPaneli data={data} /> : (
               <>
               {activeTab === "Taksit" && !saltOkunur && (
@@ -1671,7 +1760,7 @@ export default function KayitGuncelle() {
                   style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: 0 }}
                 >Vazgeç</button>
                 <button
-                  onClick={notKaydet}
+                  onClick={() => notKaydet()}
                   disabled={notKaydediliyor || !degisti}
                   style={{ ...s.modalBtn, marginTop: 0, opacity: degisti ? 1 : 0.5, cursor: degisti ? "pointer" : "not-allowed" }}
                 >
