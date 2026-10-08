@@ -1,0 +1,199 @@
+{
+  "name": "Operasyon Bildirimi v1.1",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "operasyon-bildir",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "operasyon-bildir"
+    },
+    {
+      "parameters": {
+        "url": "https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=Personel",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "name": "Personel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Operasyon Bildirimi v1.1 - \"tarafından gönderildi\" kaldırıldı, kategori başlıkları lacivert şerit\n// Girdi: Webhook body { kayit: {...}, kaynak: \"manuel\" | \"otomatik\", gonderen }\n// Personel CSV'sinden danışmanın şubesi ve maili bulunur, şubeye göre operasyon alıcısı seçilir.\n\n// Şube -> operasyon alıcısı. Yeni şube eklemek için buraya satır ekle.\nconst OPERASYON_ALICILARI = [\n  { sube: \"kadikoy\", alici: \"Soner Bayraktar <soner@bilimevi.com>\" },\n];\n\n// Düzenle ekranındaki sekmelerle aynı sıra ve alanlar (Özet hariç)\nconst KATEGORILER = {\n  \"Öğrenci\": [\n    \"TC Kimlik No\", \"Öğrenci Adı Soyadı\", \"Öğrenci Doğum Tarihi\", \"Öğrencinin Cinsiyeti\",\n    \"Öğrenci Mail Adresi\", \"Öğrenci Cep Telefonu\",\n    \"Pasaportu Var Mı\", \"Pasaport Türü\",\n    \"Pasaport Fotoğrafı\", \"TC Kimlik Fotoğrafı\",\n    \"Türkiye'de Eğitim Aldığı Okul\", \"Sınıfı-Şubesi\",\n    \"İkamet Adresi\", \"Yaşadığı Adres\",\n  ],\n  \"Sağlık\": [\"Alerji durumu\", \"Sürekli kullanılan ilaç\", \"Kronik hastalık\"],\n  \"Ebeveyn\": [\n    \"Anne Adı Soyadı\", \"Anne TC\", \"Anne Telefon\", \"Anne Mail\",\n    \"Baba Adı Soyadı\", \"Baba TC\", \"Baba Telefon\", \"Baba Mail\",\n    \"İmzalayacak Ebeveyn\", \"Ödeme Velisi\",\n    \"Formu Dolduran Ebeveynin Adı\", \"Konsolosluğa verilecek mail kime ait\",\n  ],\n  \"Okul\": [\n    \"Okul Adı\", \"Eğitim Dili\", \"Kalkış Şehri\", \"Öğrenci Hangi Gruba Kayıtlı\",\n    \"Hedef Ülke\", \"Okul Lokasyonu\", \"Program Adı\",\n    \"Program Başlangıç Tarihi\", \"Program Bitiş Tarihi\",\n    \"Haftalık Ders Saati\", \"Kurs Süresi\",\n    \"Hizmete Dahil Olacak Ek Hizmetler\",\n  ],\n  \"Konaklama\": [\n    \"Konaklama Talebi\", \"Konaklama Tipi\", \"Oda Tipi\",\n    \"Konaklama Süresi (Accommodation Duration)\", \"Yemek Planı\",\n    \"Öğle Yemeği\", \"Vize Harcı Dahil Mi?\",\n  ],\n  \"Program Tercihleri\": [\"Hangi Ek Program\", \"Hangi Ek Gezi 1\", \"Hangi Ek Gezi 2\", \"Hangi Vize Hizmeti\", \"Hangi Konaklama\"],\n  \"Taksit\": [\n    \"Depozito Miktarı\", \"Para Birimi\", \"Program Ücreti\", \"Konaklama Ücreti\",\n    \"Toplam Program Ücreti\", \"Taksit Sayısı\",\n    \"Taksit Dönemi Tercihi\", \"Tercih Edilen Bankalar\",\n    ...Array.from({ length: 11 }, (_, i) => [`${i + 1}. Taksit Dönemi`, `${i + 1}. Taksit Tutarı`]).flat(),\n  ],\n  \"Diğer\": [\n    \"Şube Adı\", \"Danışman Adı\", \"Şirket Adı\", \"Sözleşme Türü\",\n    \"Onay Durumu\", \"Tally Submission ID\", \"Kaynak Form Adı\", \"Eklenme Tarihi\",\n    \"Miles & Smiles Üyelik Numarası\", \"Eklemek İstedikleriniz\",\n  ],\n};\n\nconst ETIKETLER = {\n  \"Hangi Ek Program\": \"Program Seçimi\",\n  \"Hangi Ek Gezi 1\": \"Gezi Katılımı-1\",\n  \"Hangi Ek Gezi 2\": \"Gezi Katılımı-2\",\n  \"Hangi Vize Hizmeti\": \"Vize Hizmeti Talebi\",\n  \"Hangi Konaklama\": \"Konaklama Tercihi\",\n};\n\nconst SADE = v => String(v || \"\").toLocaleLowerCase(\"tr-TR\")\n  .replace(/ı/g, \"i\").replace(/ğ/g, \"g\").replace(/ü/g, \"u\")\n  .replace(/ş/g, \"s\").replace(/ö/g, \"o\").replace(/ç/g, \"c\")\n  .replace(/\\s+/g, \" \").trim();\n\nconst esc = v => String(v).replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\").replace(/\"/g, \"&quot;\");\n\n// gviz CSV: tırnaklı alanlar, alan içinde virgül / satır sonu olabilir\nfunction csvOku(metin) {\n  const satirlar = []; let satir = [], alan = \"\", tirnak = false;\n  for (let i = 0; i < metin.length; i++) {\n    const c = metin[i];\n    if (tirnak) {\n      if (c === '\"' && metin[i + 1] === '\"') { alan += '\"'; i++; }\n      else if (c === '\"') tirnak = false;\n      else alan += c;\n    } else if (c === '\"') tirnak = true;\n    else if (c === \",\") { satir.push(alan); alan = \"\"; }\n    else if (c === \"\\n\" || c === \"\\r\") {\n      if (c === \"\\r\" && metin[i + 1] === \"\\n\") i++;\n      satir.push(alan); satirlar.push(satir); satir = []; alan = \"\";\n    } else alan += c;\n  }\n  if (alan || satir.length) { satir.push(alan); satirlar.push(satir); }\n  const [baslik = [], ...veri] = satirlar;\n  return veri.filter(r => r.some(Boolean))\n    .map(r => Object.fromEntries(baslik.map((b, i) => [b.trim(), (r[i] || \"\").trim()])));\n}\n\nconst body = $(\"Webhook\").first().json.body || {};\nconst k = body.kayit || {};\nconst kaynak = body.kaynak === \"otomatik\" ? \"otomatik\" : \"manuel\";\n\nconst personel = csvOku(String($input.first().json.data || \"\"));\nconst danismanAdi = String(k[\"Danışman Adı\"] || \"\").trim();\nconst danisman = personel.find(p => SADE(p[\"Ad Soyad\"]) === SADE(danismanAdi));\nconst danismanMail = String(danisman?.[\"E-posta\"] || \"\").trim();\nconst sube = danisman?.[\"Şube\"] || k[\"Şube Adı\"] || \"\";\n\nconst eslesme = OPERASYON_ALICILARI.find(o => SADE(sube).includes(o.sube));\nif (!eslesme) {\n  return [{ json: {\n    ok: false, kaynak,\n    msg: `${danismanAdi || \"Danışman\"} için operasyon alıcısı tanımlı değil (şube: ${sube || \"bilinmiyor\"})`,\n  } }];\n}\n\n// Tablo\nconst taksitSayisi = parseInt(k[\"Taksit Sayısı\"], 10) || 0;\nconst taksitNo = alan => { const m = alan.match(/^(\\d+)\\. Taksit/); return m ? +m[1] : 0; };\nconst linkMi = v => /^https?:\\/\\/\\S+$/i.test(String(v).trim());\n\nconst hucreSol = \"padding:8px 10px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-weight:600;width:40%;vertical-align:top;\";\nconst hucreSag = \"padding:8px 10px;border:1px solid #e2e8f0;color:#0f172a;vertical-align:top;word-break:break-word;\";\n\nlet tablo = \"\";\nfor (const [kategori, alanlar] of Object.entries(KATEGORILER)) {\n  const satirlar = alanlar\n    .filter(a => !taksitNo(a) || taksitNo(a) <= taksitSayisi)\n    .map(a => {\n      const ham = k[a] == null ? \"\" : String(k[a]).trim();\n      const deger = !ham ? \"-\"\n        : linkMi(ham) ? `<a href=\"${esc(ham)}\" style=\"color:#0891b2;\">Görüntüle</a>`\n        : esc(ham).replace(/\\n/g, \"<br>\");\n      return `<tr><td style=\"${hucreSol}\">${esc(ETIKETLER[a] || a)}</td><td style=\"${hucreSag}\">${deger}</td></tr>`;\n    }).join(\"\");\n  tablo += `<tr><td colspan=\"2\" style=\"height:14px;border:none;\"></td></tr>`\n    + `<tr><td colspan=\"2\" style=\"padding:9px 12px;font-size:15px;font-weight:700;color:#ffffff;background:#1e3a5f;border:1px solid #1e3a5f;\">${esc(kategori)}</td></tr>${satirlar}`;\n}\n\nconst ogrenci = String(k[\"Öğrenci Adı Soyadı\"] || \"\").trim() || \"İsimsiz kayıt\";\nconst okul = String(k[\"Okul Adı\"] || \"\").trim();\nconst subject = `Kayıt Bilgileri: ${ogrenci}${okul ? \" - \" + okul : \"\"}`;\n\nconst giris = kaynak === \"otomatik\"\n  ? `${esc(ogrenci)} için sözleşme onaylandı. Kayıt bilgileri aşağıda.`\n  : `${esc(ogrenci)} için kayıt bilgileri aşağıda.`;\n\nconst html = `<div style=\"font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#0f172a;max-width:680px;\">\n<p style=\"margin:0 0 12px;\">Merhaba,</p>\n<p style=\"margin:0 0 16px;\">${giris}</p>\n<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" width=\"100%\" style=\"border-collapse:collapse;width:100%;max-width:680px;font-size:14px;\">${tablo}</table>\n<p style=\"margin:16px 0 0;color:#64748b;font-size:12px;\">Bilimevi Portal</p>\n</div>`;\n\nreturn [{ json: {\n  ok: true, kaynak, subject, html,\n  to: eslesme.alici,\n  cc: danismanMail,\n  msg: `Kayıt bilgileri operasyona gönderildi${danismanMail ? \"\" : \" (danışman maili bulunamadı, CC eklenmedi)\"}`,\n} }];\n"
+      },
+      "name": "Mail Hazırla",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Alıcı Var Mı",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false,
+          "ccList": "={{ $json.cc }}"
+        }
+      },
+      "name": "Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true, msg: $('Mail Hazırla').first().json.msg } }}",
+        "options": {}
+      },
+      "name": "Yanıt OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, msg: $json.msg } }}",
+        "options": {}
+      },
+      "name": "Yanıt Hata",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Personel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Personel": {
+      "main": [
+        [
+          {
+            "node": "Mail Hazırla",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mail Hazırla": {
+      "main": [
+        [
+          {
+            "node": "Alıcı Var Mı",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        [
+          {
+            "node": "Yanıt OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alıcı Var Mı": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Yanıt Hata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
