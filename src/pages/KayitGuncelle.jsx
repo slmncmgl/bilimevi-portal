@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.2
+// KayitGuncelle.jsx v1.3
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -1038,7 +1038,7 @@ export default function KayitGuncelle() {
     }
   }, [formFiltre, formSecenekleri.join("|")]);
 
-  // Özet ve Ebeveyn sekmelerinin sağ üstündeki not kutusu: listedeki pencereyle aynı kaydı kullanır
+  // Özet ve Ebeveyn sekmelerinin en üstündeki, tam genişlikteki not kutusu: listedeki pencereyle aynı kaydı kullanır
   const notKutusu = () => {
     const orijinal = notSatirlari(data?.["Notlar"]).join("\n");
     const kalan = kartNot.satirlar.filter(x => !x.silindi).map(x => x.metin.trim()).filter(Boolean).join("\n");
@@ -1048,9 +1048,9 @@ export default function KayitGuncelle() {
     }));
     const sifirla = () => setKartNot({ satirlar: notSatirlari(data?.["Notlar"]).map(metin => ({ metin, silindi: false })), yeni: "" });
     return (
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "14px" }}>
+      <div style={{ marginBottom: "14px" }}>
         <div style={{
-          width: isMobile ? "100%" : "360px", boxSizing: "border-box",
+          width: "100%", boxSizing: "border-box",
           background: "#fffdf5", border: "1px solid #fde68a", borderRadius: "12px", padding: "10px 12px",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
