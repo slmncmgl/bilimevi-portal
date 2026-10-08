@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v114-hs-kosul-promo-paket-2026-10-07";
+const BFT_BUILD_VERSION = "v115-zorunlu-ucret-filtre-2026-10-08";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -866,11 +866,61 @@ const konaklamaTarihleri = (startD, d) => {
   return { giris, cikis };
 };
 
-function calcFees(fees, weeks, age, accType, accWeeks, hasAcc = true) {
+// ─── v115: ZORUNLU ÜCRET FİLTRELERİ ───
+// Hepsi sadece ilgili sütun/kalıp doluysa devreye girer; boş satırda eski davranış aynen kalır.
+// Not: toLocaleLowerCase("tr") KULLANILMAZ, "Intensive" -> "ıntensive" olup eşleşme bozuluyordu.
+// I/İ/ı/i hepsi "i" sayılır; sheet'teki büyük/küçük harf ve Türkçe karakter farkı eşleşmeyi bozmaz.
+const _norm = (x) => (x || "").toString().replace(/[İI]/g, "i").toLowerCase().replace(/ı/g, "i").replace(/\u0307/g, "").replace(/\s+/g, " ").trim();
+// eligible_courses: büyük/küçük harf ve boşluk farkına dayanıklı
+function kursListedeMi(courseName, listStr) {
+  const hedef = _norm(courseName);
+  return (listStr || "").split(",").some(x => _norm(x) === hedef);
+}
+// Ücret adındaki konaklama kelimesi seçili tiple uyuşuyor mu?
+// "Homestay & Residence ..." gibi iki kelime geçen adlarda biri tutması yeterli.
+function zorunluKonaklamaKelimeUyar(name, accType) {
+  const n = _norm(name), t = _norm(accType);
+  const istekler = [];
+  if (/homestay|host family/.test(n)) istekler.push(/homestay|host family|aile/);
+  if (/residence|apartment/.test(n)) istekler.push(/residence|apartment|apart|yurt|rezidans/);
+  if (!istekler.length) return true;
+  return istekler.some(r => r.test(t));
+}
+// Parantez: "(Dream House)" o şehrin bir place_name / accommodation_type'ına eşitse,
+// ücret sadece o konaklama seçiliyken uygulanır. Eşleşmeyen parantez ("(non-refundable)") yok sayılır.
+function parantezKonaklamaUyar(name, ctx) {
+  const parcalar = [...(name || "").matchAll(/\(([^)]+)\)/g)].map(m => _norm(m[1])).filter(Boolean);
+  if (!parcalar.length) return true;
+  const sehirAdlari = new Set();
+  (ctx?.konaklamalar || []).forEach(a => { if (a.name) sehirAdlari.add(_norm(a.name)); if (a.type) sehirAdlari.add(_norm(a.type)); });
+  const etiketler = parcalar.filter(p => sehirAdlari.has(p));
+  if (!etiketler.length) return true;                      // konaklamaya ait değil, dokunma
+  const secili = [_norm(ctx?.accName), _norm(ctx?.accType)].filter(Boolean);
+  return etiketler.some(e => secili.includes(e));
+}
+// calcFees'e verilecek bağlam (destinasyondan). ctx verilmezse calcFees eski davranışta çalışır.
+function feeBaglami(d) {
+  if (!d) return null;
+  const start = d.startDate ? new Date(d.startDate) : null;
+  let bitis = null;
+  if (start) {
+    const h = Math.max(kursTakvimHafta(d), d.acc ? konaklamaHafta(d) : 0) || (d.weeks || 1);
+    bitis = addWeeksToDate(start, h);
+  }
+  return {
+    courseName: d.course?.name || d.selectedPackage?.course_name || "",
+    accName: d.acc?.name || "", accType: d.acc?.type || "",
+    konaklamalar: d.cityData?.acc || [],
+    kalisBaslangic: start, kalisBitis: bitis,
+  };
+}
+
+function calcFees(fees, weeks, age, accType, accWeeks, hasAcc = true, ctx = null) {
   const currency = fees?.[0]?.currency || "GBP";
   const items = [];
   let total = 0;
   const feeGroups = {};
+  const adaylar = {};   // v115: ad -> o adı taşıyan uygun satırlar (tarih seçimi için)
   (fees || []).forEach(f => {
     const n = (f.name || "").toLowerCase();
     const isCompulsory = f.addon_type ? f.addon_type === "compulsory"
@@ -885,8 +935,30 @@ function calcFees(fees, weeks, age, accType, accWeeks, hasAcc = true) {
       const inRange = (!f.tier_min || weeks >= f.tier_min) && (!f.tier_max || weeks <= f.tier_max);
       if (!inRange) return;
     }
+    if (ctx) {
+      // v115: kurs, yaş ve konaklama filtreleri
+      if (f.eligible_courses && ctx.courseName && !kursListedeMi(ctx.courseName, f.eligible_courses)) return;
+      if (age > 0 && f.min_age && age < f.min_age) return;
+      if (age > 0 && f.max_age && age > f.max_age) return;
+      if (!zorunluKonaklamaKelimeUyar(f.name, ctx.accType || accType)) return;
+      if (!parantezKonaklamaUyar(f.name, { ...ctx, accType: ctx.accType || accType })) return;
+      (adaylar[f.name] = adaylar[f.name] || []).push(f);
+    }
     feeGroups[f.name] = f;
   });
+  // v115: Tarihli zorunlu ücretler. Aynı adın birden fazla satırı varsa kalışla KESİŞEN satır seçilir.
+  // Hiçbiri kesişmiyorsa tarihsiz satır, o da yoksa eski davranış (son satır) -> ücret ASLA kaybolmaz.
+  if (ctx && ctx.kalisBaslangic && ctx.kalisBitis) {
+    Object.keys(feeGroups).forEach(ad => {
+      const liste = adaylar[ad] || [];
+      const tarihli = liste.filter(x => x.date_start || x.date_end);
+      if (!tarihli.length) return;                                    // tarih yok: eski davranış
+      const kesisen = tarihli.filter(x => kesisenHafta(x.date_start, x.date_end, ctx.kalisBaslangic, ctx.kalisBitis) > 0);
+      const tarihsiz = liste.filter(x => !x.date_start && !x.date_end);
+      if (kesisen.length) feeGroups[ad] = kesisen[kesisen.length - 1];
+      else if (tarihsiz.length) feeGroups[ad] = tarihsiz[tarihsiz.length - 1];
+    });
+  }
   Object.values(feeGroups).forEach(f => {
     const amount = f.calc_type === "per_week" ? f.amount * weeks : f.amount;
     items.push({ name: f.name, amount, currency: f.currency || currency });
@@ -1353,7 +1425,7 @@ export default function FiyatTeklifi() {
 
   const feesData = cur.isOnline
     ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-    : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks, !!cur.acc);
+    : calcFees(cur.cityData?.fees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks, !!cur.acc, feeBaglami(cur));
   const coursePriceData = cur.course ? getTotalCoursePrice(cur.course, cur.weeks, cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
   const accPriceData = cur.acc ? getTotalAccommodationPrice(cur.acc, konaklamaHafta(cur), cur.startDate) : { basePrice:0, hsAmount:0, totalPrice:0, hsActive:false };
   const courseTotal = coursePriceData.totalPrice;
@@ -1660,7 +1732,7 @@ export default function FiyatTeklifi() {
         if (idx > 0) doc.addPage();
         const f = d.isOnline
           ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-          : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
+          : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc, feeBaglami(d));
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"GBP", EUR:"EUR", USD:"USD", CAD:"CAD" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
@@ -1993,7 +2065,7 @@ export default function FiyatTeklifi() {
         const cols = destinations.map(d => {
           const f = d.isOnline
             ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" }
-            : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
+            : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc, feeBaglami(d));
           const dt = getDestinationTotals(d, f);
           const cur = d.course?.currency || f.currency || "GBP";
           return { d, f, dt, cur };
@@ -2173,7 +2245,7 @@ export default function FiyatTeklifi() {
             consentAdvisor: !!leadForm.consentAdvisor,
             subSource: SUB_SOURCE,
             destinations: destinations.map(d => {
-              const _f = d.isOnline ? { items:[], total:65 } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
+              const _f = d.isOnline ? { items:[], total:65 } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc, feeBaglami(d));
               const _dt = getDestinationTotals(d, _f);
               return { city: d.city, brand: d.brand, weeks: d.weeks,
                 course: d.course?.name, total: _dt.grandTotal, currency: d.course?.currency || _f.currency || "GBP" };
@@ -2630,7 +2702,7 @@ export default function FiyatTeklifi() {
                 const allFees = cur.cityData?.fees || [];
                 const age = parseInt(student.age) || 0;
                 const startD = cur.startDate ? new Date(cur.startDate) : null;
-                const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks, !!cur.acc).items;
+                const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks, !!cur.acc, feeBaglami(cur)).items;
                 const optional = allFees.filter(f => {
                   if (!["optional_service","supplement","upgrade","course_addon","post_departure"].includes(f.addon_type)) return false;
                   // Otomatik eklenenler (yılbaşı/sezon supplement'leri) listede GÖSTERİLMEZ —
@@ -2755,7 +2827,7 @@ export default function FiyatTeklifi() {
               <h2 style={S.ttl}>Teklif Özeti</h2>
               {destinations.length === 0 && <p style={{ color:"#94a3b8" }}>Henüz destinasyon eklenmedi.</p>}
               {destinations.map((d,i) => {
-                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
+                const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc, feeBaglami(d));
                 const cur2 = d.course?.currency || f.currency;
                 const sD = d.startDate ? new Date(d.startDate) : null;
                 const eD = sD ? kursBitisTarihi(sD, d) : null;
@@ -2904,7 +2976,7 @@ function PdfTemplate({ destinations, student, user, logoSrc }) {
   return (
     <div id="pdf-area" style={{ display:"none", fontFamily:"Arial, Helvetica, sans-serif", background:"#fff" }}>
       {destinations.map((d, idx) => {
-        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc);
+        const f = d.isOnline ? { items:[{name:"Kayıt Ücreti",amount:35,currency:"EUR"},{name:"Ders Materyalleri",amount:30,currency:"EUR"}], total:65, currency:"EUR" } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc, feeBaglami(d));
         const cur = d.course?.currency || f.currency || "GBP";
         const curSym = { GBP:"£", EUR:"€", USD:"$", CAD:"CA$" }[cur] || cur;
         const startD = d.startDate ? new Date(d.startDate) : new Date();
