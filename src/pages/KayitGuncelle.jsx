@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.5
+// KayitGuncelle.jsx v1.6
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -1019,11 +1019,10 @@ export default function KayitGuncelle() {
     return acc;
   }, {});
   const formSayaci = Object.fromEntries(Object.entries(formBilgi).map(([k, v]) => [k, v.sayi]));
-  // En son kayıt gelen okul en üstte, eşitlikte alfabetik; "Okul belirtilmemiş" her zaman en altta
+  // Alfabetik sıralı; "Okul belirtilmemiş" her zaman en altta
   const formSecenekleri = Object.keys(formBilgi).sort((a, b) =>
     ((a === OKUL_BOS) - (b === OKUL_BOS)) ||
-    (formBilgi[b].sonKayit - formBilgi[a].sonKayit) ||
-    formBilgi[a].etiket.localeCompare(formBilgi[b].etiket, "tr")
+    formBilgi[a].etiket.localeCompare(formBilgi[b].etiket, "tr", { sensitivity: "base" })
   );
 
   const filtreliOgrenciler = formFiltre && !aramaTerimi
