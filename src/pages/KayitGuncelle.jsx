@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.4
+// KayitGuncelle.jsx v1.5
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -1453,7 +1453,8 @@ export default function KayitGuncelle() {
                           >⚠️</button>
                         )}
                         <button
-                          onClick={() => sorgula(ogr["TC Kimlik No"], !ogr["Danışman Adı"])}
+                          // Danışmanı olmayan kayıtlar da düzenlenebilir açılır
+                          onClick={() => sorgula(ogr["TC Kimlik No"])}
                           style={{ ...s.editBtn, ...s.aksiyonBtn, minWidth: "76px" }}
                         >{ogr["Danışman Adı"] ? "Düzenle" : "Görüntüle"}</button>
                         <button
