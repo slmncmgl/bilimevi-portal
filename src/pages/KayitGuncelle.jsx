@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.7
+// KayitGuncelle.jsx v1.8
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -1133,10 +1133,10 @@ export default function KayitGuncelle() {
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes listFlash {
-          0%   { background: #cffafe; transform: scale(1); }
-          12%  { background: #a5f3fc; transform: scale(1.03); }
-          30%  { background: #cffafe; transform: scale(1); }
-          100% { background: transparent; transform: scale(1); }
+          0%   { box-shadow: 0 0 0 0 rgba(8,145,178,0.55); transform: scale(1); }
+          12%  { box-shadow: 0 0 0 6px rgba(8,145,178,0.35); transform: scale(1.02); }
+          30%  { box-shadow: 0 0 0 3px rgba(8,145,178,0.2); transform: scale(1); }
+          100% { box-shadow: 0 0 0 0 rgba(8,145,178,0); transform: scale(1); }
         }
       `}</style>
       <div style={s.bgGrid} />
@@ -1156,7 +1156,7 @@ export default function KayitGuncelle() {
 
       <main style={s.main}>
         <div style={s.searchCard}>
-          <div style={s.searchLabel}>Ad Soyad / TC Kimlik No / Okul / Form Adı ile Sorgula</div>
+          <div style={{ ...s.baslikBant, marginBottom: "10px" }}>🔍 Ad Soyad / TC Kimlik No / Okul / Form Adı ile Sorgula</div>
           <div style={s.searchRow}>
             <div style={{ position: "relative", flex: 1, minWidth: 0, display: "flex" }}>
               <input
@@ -1294,7 +1294,7 @@ export default function KayitGuncelle() {
           )}
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e8edf3" }}>
-              <div style={{ ...s.filtreMetin, marginBottom: "6px", whiteSpace: "normal" }}>Türkiye'de Eğitim Aldığı Okul || Öğrenci Hangi Gruba Kayıtlı</div>
+              <div style={{ ...s.baslikBant, marginBottom: "8px" }}>🏫 Türkiye'de Eğitim Aldığı Okul || Öğrenci Hangi Gruba Kayıtlı</div>
               <select
                 value={formFiltre}
                 onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
@@ -1329,15 +1329,13 @@ export default function KayitGuncelle() {
         {!data && !ogrencilerLoading && ogrencilerim.length > 0 && (
           <div style={s.listCard}>
             <div style={{
-              ...s.listHeader,
-              display: "flex", alignItems: "center", gap: "10px",
+              ...s.baslikBant, fontSize: "14px", marginBottom: "14px",
               animation: listeFlash ? "listFlash 2s ease-out" : "none",
-              borderRadius: "8px", padding: "6px 10px", margin: "-6px -10px 12px",
             }}>
-              Kayıt Formları
+              📋 Kayıt Formları
               <span style={{
-                background: listeFlash ? "#0891b2" : "#f1f5f9",
-                color: listeFlash ? "#fff" : "#475569",
+                background: listeFlash ? "#fff" : "rgba(255,255,255,0.25)",
+                color: listeFlash ? "#0891b2" : "#fff",
                 padding: "2px 10px", borderRadius: "20px", fontSize: "12px",
                 transition: "background 0.4s, color 0.4s",
               }}>{siraliOgrenciler.length}</span>
@@ -2059,6 +2057,13 @@ const s = {
   searchBtn: { padding: "10px 20px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "600", position: "relative", zIndex: 20 },
   listCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
   listHeader: { fontWeight: "700", marginBottom: "15px", fontSize: "14px" },
+  // Bölüm başlıkları: lacivertten turkuaza gradyan şerit, beyaz yazı (genel form başlık stili)
+  baslikBant: {
+    background: "linear-gradient(90deg, #1e3a5f, #0891b2)", color: "#fff",
+    fontSize: "13px", fontWeight: "700", letterSpacing: "0.3px", lineHeight: "1.35",
+    padding: "9px 12px", borderRadius: "9px", boxSizing: "border-box",
+    display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap",
+  },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
   th: { padding: "10px 12px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" },
   td: { padding: "8px 10px", fontSize: "13px", color: "#0f172a", verticalAlign: "middle" },
