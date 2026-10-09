@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.9
+// KayitGuncelle.jsx v1.10
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -595,7 +595,6 @@ export default function KayitGuncelle() {
   const [vurgulananAlan, setVurgulananAlan] = useState(null);
   const [saltOkunur, setSaltOkunur] = useState(false);
   const [formFiltre, setFormFiltre] = useState("");
-  const [kaynakFiltre, setKaynakFiltre] = useState(""); // Kaynak Form Adı dropdown'u
   const [sozlesmesizGoster, setSozlesmesizGoster] = useState(false); // sadece sözleşmesi hazırlanmamışlar
   const [kopyaModal, setKopyaModal] = useState(null);
   const [notModal, setNotModal] = useState(null); // { ogr, mevcut, yeni }
@@ -1008,20 +1007,9 @@ export default function KayitGuncelle() {
   const yeniSinir = oncekiGiris || (Date.now() - YENI_SURE_SAAT * 60 * 60 * 1000);
   const yeniMi = k => eklenmeZamani(k) > yeniSinir;
 
-  // Kaynak Form Adı anahtarı: boşluk ve Türkçe karakter farkları yok sayılır
-  const KAYNAK_BOS = "__kaynak_bos__";
-  const kaynakAnahtari = k => {
-    const t = temizMetin(k["Kaynak Form Adı"]);
-    return t ? sadelestir(t) : KAYNAK_BOS;
-  };
-
-  // İki dropdown birbirini daraltır: her biri, diğerinde seçili olana uyan kayıtlardan türetilir
-  const okulTabani = kaynakFiltre && !aramaTerimi ? onFiltreli.filter(o => kaynakAnahtari(o) === kaynakFiltre) : onFiltreli;
-  const kaynakTabani = formFiltre && !aramaTerimi ? onFiltreli.filter(o => formEtiketi(o) === formFiltre) : onFiltreli;
-
   // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir:
   // kayıt sayısı, en son kayıt zamanı ve son girişten beri yeni kayıt var mı
-  const formBilgi = okulTabani.reduce((acc, o) => {
+  const formBilgi = onFiltreli.reduce((acc, o) => {
     const anahtar = formEtiketi(o);
     const b = acc[anahtar] || (acc[anahtar] = {
       sayi: 0, sonKayit: 0, yeniVar: false,
@@ -1039,25 +1027,9 @@ export default function KayitGuncelle() {
     formBilgi[a].etiket.localeCompare(formBilgi[b].etiket, "tr", { sensitivity: "base" })
   );
 
-  const kaynakBilgi = kaynakTabani.reduce((acc, o) => {
-    const anahtar = kaynakAnahtari(o);
-    const b = acc[anahtar] || (acc[anahtar] = {
-      sayi: 0, yeniVar: false,
-      etiket: anahtar === KAYNAK_BOS ? "Form adı belirtilmemiş" : temizMetin(o["Kaynak Form Adı"]),
-    });
-    b.sayi += 1;
-    if (yeniMi(o)) b.yeniVar = true;
-    return acc;
-  }, {});
-  const kaynakSecenekleri = Object.keys(kaynakBilgi).sort((a, b) =>
-    ((a === KAYNAK_BOS) - (b === KAYNAK_BOS)) ||
-    kaynakBilgi[a].etiket.localeCompare(kaynakBilgi[b].etiket, "tr", { sensitivity: "base" })
-  );
-
-  const filtreliOgrenciler = aramaTerimi ? onFiltreli : onFiltreli.filter(o =>
-    (!formFiltre || formEtiketi(o) === formFiltre) &&
-    (!kaynakFiltre || kaynakAnahtari(o) === kaynakFiltre)
-  );
+  const filtreliOgrenciler = formFiltre && !aramaTerimi
+    ? onFiltreli.filter(o => formEtiketi(o) === formFiltre)
+    : onFiltreli;
 
   // Seçili form yeni filtrelerde kalmadıysa seçimi bırak (arama sırasında seçim korunur)
   useEffect(() => {
@@ -1066,12 +1038,6 @@ export default function KayitGuncelle() {
       setSayfa(1);
     }
   }, [formFiltre, formSecenekleri.join("|")]);
-  useEffect(() => {
-    if (kaynakFiltre && !aramaTerimi && !kaynakSecenekleri.includes(kaynakFiltre)) {
-      setKaynakFiltre("");
-      setSayfa(1);
-    }
-  }, [kaynakFiltre, kaynakSecenekleri.join("|")]);
 
   // Özet ve Ebeveyn sekmelerinin en altındaki, tam genişlikteki not kutusu: listedeki pencereyle aynı kaydı kullanır
   const notKutusu = () => {
@@ -1339,12 +1305,8 @@ export default function KayitGuncelle() {
               </div>
             </div>
           )}
-          {!data && (formSecenekleri.length > 0 || kaynakSecenekleri.length > 0) && (
-            <div style={{
-              marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e8edf3",
-              display: "grid", gap: "14px", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
-            }}>
-              {/* 1. sekme: okul || grup */}
+          {!data && formSecenekleri.length > 0 && (
+            <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e8edf3" }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ ...s.baslikBant, marginBottom: "8px" }}>🏫 Türkiye'de Eğitim Aldığı Okul || Öğrenci Hangi Gruba Kayıtlı</div>
                 <select
@@ -1352,26 +1314,10 @@ export default function KayitGuncelle() {
                   onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
                   style={s.filtreSelect}
                 >
-                  <option value="">({okulTabani.length}) Tümü</option>
+                  <option value="">({onFiltreli.length}) Tümü</option>
                   {formSecenekleri.map(f => (
                     <option key={f} value={f}>
                       ({formSayaci[f]}) {formBilgi[f].etiket}{formBilgi[f].yeniVar ? "  ✨" : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {/* 2. sekme: kaynak form adı */}
-              <div style={{ minWidth: 0 }}>
-                <div style={{ ...s.baslikBant, marginBottom: "8px" }}>📝 Kaynak Form Adı</div>
-                <select
-                  value={kaynakFiltre}
-                  onChange={e => { setKaynakFiltre(e.target.value); setSayfa(1); }}
-                  style={s.filtreSelect}
-                >
-                  <option value="">({kaynakTabani.length}) Tümü</option>
-                  {kaynakSecenekleri.map(f => (
-                    <option key={f} value={f}>
-                      ({kaynakBilgi[f].sayi}) {kaynakBilgi[f].etiket}{kaynakBilgi[f].yeniVar ? "  ✨" : ""}
                     </option>
                   ))}
                 </select>
