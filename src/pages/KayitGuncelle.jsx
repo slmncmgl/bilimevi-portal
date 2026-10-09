@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.12
+// KayitGuncelle.jsx v1.13
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -682,7 +682,7 @@ export default function KayitGuncelle() {
   const [tarihFiltre, setTarihFiltre] = useState("2026-08-01");
   const [onayliGoster, setOnayliGoster] = useState(false); // sadece onaylılar
   // Varsayılan kapalı: Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmeleri gizli kalır
-  const [grupDisiGoster, setGrupDisiGoster] = useState(false); // kapalıyken Bireysel/Yetişkin gizli
+  const [grupDisiGoster, setGrupDisiGoster] = useState(false); // açıkken sadece Bireysel/Yetişkin, kapalıyken sadece gruplar
   const [listeFlash, setListeFlash] = useState(false);
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
@@ -960,7 +960,8 @@ export default function KayitGuncelle() {
   // sadece yetki kuralı (tumunuGorebilir) her zaman geçerli kalır.
   const onFiltreli = ogrencilerim.filter(o => {
     if (!aramaTerimi) {
-      if (!grupDisiGoster && gizliTurMu(o)) return false;
+      // Kapalıyken sadece grup kayıtları, açıkken sadece grup dışı (Bireysel / Yetişkin) kayıtlar
+      if (grupDisiGoster ? !gizliTurMu(o) : gizliTurMu(o)) return false;
       if (onayliGoster && !onayliMi(o)) return false;
       if (beklemedeGoster && sozlesmeDurumu(o).metin !== "Beklemede") return false;
       if (sozlesmesizGoster && gecerliLink(o["Sözleşme Onay Linki"])) return false;
@@ -1234,7 +1235,7 @@ export default function KayitGuncelle() {
                 Sadece Onaylı Sözleşmeleri Göster
               </label>
 
-              <label style={s.filtreLabel} title="Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini de listeye ekler">
+              <label style={s.filtreLabel} title="Sadece Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini gösterir">
                 <input
                   type="checkbox"
                   checked={grupDisiGoster}
@@ -1253,7 +1254,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setBeklemedeGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sadece Beklemede Olan Sözleşmeleri Göster
+                Sadece Sözleşme Onayı Bekleyenleri Göster
               </label>
 
               <label style={s.filtreLabel} title="Sözleşme linki henüz oluşmamış kayıtlar">
@@ -1264,7 +1265,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setSozlesmesizGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setBeklemedeGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sadece Sözleşmesi Hazırlanmamışları Göster
+                Sadece Sözleşme Hazırlanacakları Göster
               </label>
               </div>
               </div>
