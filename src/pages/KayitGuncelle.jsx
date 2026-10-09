@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.10
+// KayitGuncelle.jsx v1.11
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -1202,6 +1202,8 @@ export default function KayitGuncelle() {
               justifyContent: "space-between",
               alignItems: isMobile ? "stretch" : "flex-start",
             }}>
+              {/* Kutucuklar iki sütunda: solda 3, sağda 2 (mobilde alt alta) */}
+              <div style={{ display: "flex", gap: isMobile ? "10px" : "32px", flexDirection: isMobile ? "column" : "row" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <label
                 style={{
@@ -1241,6 +1243,9 @@ export default function KayitGuncelle() {
                 />
                 Sadece Beklemede Olan Sözleşmeleri Göster
               </label>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
 
               <label style={s.filtreLabel} title="Sözleşme linki henüz oluşmamış kayıtlar">
                 <input
@@ -1262,6 +1267,7 @@ export default function KayitGuncelle() {
                 />
                 Gruplar Dışındaki Kayıtları Göster
               </label>
+              </div>
               </div>
 
               <div style={{
@@ -1585,7 +1591,7 @@ export default function KayitGuncelle() {
               <>
               {activeTab === "Taksit" && !saltOkunur && (
                 <label style={{
-                  ...s.filtreLabel, whiteSpace: "normal", marginBottom: "14px", color: "#e11d48",
+                  ...s.filtreLabel, fontWeight: "600", whiteSpace: "normal", marginBottom: "14px", color: "#e11d48",
                   padding: "10px 12px", borderRadius: "8px",
                   background: taksitKontrolKapali ? "#fffbeb" : "#f8fafc",
                   border: `1px solid ${taksitKontrolKapali ? "#fcd34d" : "#e2e8f0"}`,
@@ -2087,7 +2093,7 @@ const s = {
   pageBtn: { minWidth: "34px", height: "34px", padding: "0 8px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontFamily: "'Sora', sans-serif", background: "transparent" },
   pageNav: { height: "34px", padding: "0 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", color: "#1e3a5f", fontSize: "13px", fontWeight: "600", fontFamily: "'Sora', sans-serif" },
   pageDots: { minWidth: "20px", textAlign: "center", color: "#94a3b8", fontSize: "13px", userSelect: "none" },
-  filtreLabel: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "600", color: "#1e3a5f", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" },
+  filtreLabel: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "400", color: "#1e3a5f", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" },
   filtreMetin: { fontSize: "13px", fontWeight: "700", color: "#3d5a8a", letterSpacing: "0.2px", whiteSpace: "nowrap" },
   checkbox: { width: "16px", height: "16px", accentColor: "#1e3a5f", cursor: "pointer" },
   editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
