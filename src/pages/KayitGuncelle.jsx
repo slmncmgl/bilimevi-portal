@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.8
+// KayitGuncelle.jsx v1.9
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -595,6 +595,8 @@ export default function KayitGuncelle() {
   const [vurgulananAlan, setVurgulananAlan] = useState(null);
   const [saltOkunur, setSaltOkunur] = useState(false);
   const [formFiltre, setFormFiltre] = useState("");
+  const [kaynakFiltre, setKaynakFiltre] = useState(""); // Kaynak Form Adı dropdown'u
+  const [sozlesmesizGoster, setSozlesmesizGoster] = useState(false); // sadece sözleşmesi hazırlanmamışlar
   const [kopyaModal, setKopyaModal] = useState(null);
   const [notModal, setNotModal] = useState(null); // { ogr, mevcut, yeni }
   const [notKaydediliyor, setNotKaydediliyor] = useState(false);
@@ -962,6 +964,7 @@ export default function KayitGuncelle() {
       if (!grupDisiGoster && gizliTurMu(o)) return false;
       if (onayliGoster && !onayliMi(o)) return false;
       if (beklemedeGoster && sozlesmeDurumu(o).metin !== "Beklemede") return false;
+      if (sozlesmesizGoster && gecerliLink(o["Sözleşme Onay Linki"])) return false;
       if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     }
     const benimMi = normalize(o["Danışman Adı"]).trim() === normalize(user?.name).trim();
@@ -1005,9 +1008,20 @@ export default function KayitGuncelle() {
   const yeniSinir = oncekiGiris || (Date.now() - YENI_SURE_SAAT * 60 * 60 * 1000);
   const yeniMi = k => eklenmeZamani(k) > yeniSinir;
 
+  // Kaynak Form Adı anahtarı: boşluk ve Türkçe karakter farkları yok sayılır
+  const KAYNAK_BOS = "__kaynak_bos__";
+  const kaynakAnahtari = k => {
+    const t = temizMetin(k["Kaynak Form Adı"]);
+    return t ? sadelestir(t) : KAYNAK_BOS;
+  };
+
+  // İki dropdown birbirini daraltır: her biri, diğerinde seçili olana uyan kayıtlardan türetilir
+  const okulTabani = kaynakFiltre && !aramaTerimi ? onFiltreli.filter(o => kaynakAnahtari(o) === kaynakFiltre) : onFiltreli;
+  const kaynakTabani = formFiltre && !aramaTerimi ? onFiltreli.filter(o => formEtiketi(o) === formFiltre) : onFiltreli;
+
   // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir:
   // kayıt sayısı, en son kayıt zamanı ve son girişten beri yeni kayıt var mı
-  const formBilgi = onFiltreli.reduce((acc, o) => {
+  const formBilgi = okulTabani.reduce((acc, o) => {
     const anahtar = formEtiketi(o);
     const b = acc[anahtar] || (acc[anahtar] = {
       sayi: 0, sonKayit: 0, yeniVar: false,
@@ -1025,9 +1039,25 @@ export default function KayitGuncelle() {
     formBilgi[a].etiket.localeCompare(formBilgi[b].etiket, "tr", { sensitivity: "base" })
   );
 
-  const filtreliOgrenciler = formFiltre && !aramaTerimi
-    ? onFiltreli.filter(o => formEtiketi(o) === formFiltre)
-    : onFiltreli;
+  const kaynakBilgi = kaynakTabani.reduce((acc, o) => {
+    const anahtar = kaynakAnahtari(o);
+    const b = acc[anahtar] || (acc[anahtar] = {
+      sayi: 0, yeniVar: false,
+      etiket: anahtar === KAYNAK_BOS ? "Form adı belirtilmemiş" : temizMetin(o["Kaynak Form Adı"]),
+    });
+    b.sayi += 1;
+    if (yeniMi(o)) b.yeniVar = true;
+    return acc;
+  }, {});
+  const kaynakSecenekleri = Object.keys(kaynakBilgi).sort((a, b) =>
+    ((a === KAYNAK_BOS) - (b === KAYNAK_BOS)) ||
+    kaynakBilgi[a].etiket.localeCompare(kaynakBilgi[b].etiket, "tr", { sensitivity: "base" })
+  );
+
+  const filtreliOgrenciler = aramaTerimi ? onFiltreli : onFiltreli.filter(o =>
+    (!formFiltre || formEtiketi(o) === formFiltre) &&
+    (!kaynakFiltre || kaynakAnahtari(o) === kaynakFiltre)
+  );
 
   // Seçili form yeni filtrelerde kalmadıysa seçimi bırak (arama sırasında seçim korunur)
   useEffect(() => {
@@ -1036,6 +1066,12 @@ export default function KayitGuncelle() {
       setSayfa(1);
     }
   }, [formFiltre, formSecenekleri.join("|")]);
+  useEffect(() => {
+    if (kaynakFiltre && !aramaTerimi && !kaynakSecenekleri.includes(kaynakFiltre)) {
+      setKaynakFiltre("");
+      setSayfa(1);
+    }
+  }, [kaynakFiltre, kaynakSecenekleri.join("|")]);
 
   // Özet ve Ebeveyn sekmelerinin en altındaki, tam genişlikteki not kutusu: listedeki pencereyle aynı kaydı kullanır
   const notKutusu = () => {
@@ -1224,7 +1260,7 @@ export default function KayitGuncelle() {
                   type="checkbox"
                   checked={onayliGoster}
                   // Onaylı ve Beklemede aynı anda seçilemez, biri seçilince diğeri kalkar
-                  onChange={e => { setOnayliGoster(e.target.checked); if (e.target.checked) setBeklemedeGoster(false); setSayfa(1); }}
+                  onChange={e => { setOnayliGoster(e.target.checked); if (e.target.checked) { setBeklemedeGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
                 Sadece Onaylı Sözleşmeleri Göster
@@ -1234,10 +1270,21 @@ export default function KayitGuncelle() {
                 <input
                   type="checkbox"
                   checked={beklemedeGoster}
-                  onChange={e => { setBeklemedeGoster(e.target.checked); if (e.target.checked) setOnayliGoster(false); setSayfa(1); }}
+                  onChange={e => { setBeklemedeGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
                 Sadece Beklemede Olan Sözleşmeleri Göster
+              </label>
+
+              <label style={s.filtreLabel} title="Sözleşme linki henüz oluşmamış kayıtlar">
+                <input
+                  type="checkbox"
+                  checked={sozlesmesizGoster}
+                  // Onaylı / Beklemede / Hazırlanmamış filtrelerinden aynı anda yalnızca biri seçilebilir
+                  onChange={e => { setSozlesmesizGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setBeklemedeGoster(false); } setSayfa(1); }}
+                  style={s.checkbox}
+                />
+                Sadece Sözleşmesi Hazırlanmamışları Göster
               </label>
 
               <label style={s.filtreLabel} title="Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini de listeye ekler">
@@ -1292,26 +1339,43 @@ export default function KayitGuncelle() {
               </div>
             </div>
           )}
-          {!data && formSecenekleri.length > 0 && (
-            <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e8edf3" }}>
-              <div style={{ ...s.baslikBant, marginBottom: "8px" }}>🏫 Türkiye'de Eğitim Aldığı Okul || Öğrenci Hangi Gruba Kayıtlı</div>
-              <select
-                value={formFiltre}
-                onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
-                style={{
-                  width: "100%", padding: "10px", borderRadius: "10px",
-                  border: "1px solid #e2e8f0", outline: "none", cursor: "pointer",
-                  fontSize: "13px", fontFamily: "'Sora', sans-serif",
-                  background: "#fff", color: "#0f172a", boxSizing: "border-box",
-                }}
-              >
-                <option value="">({onFiltreli.length}) Tümü</option>
-                {formSecenekleri.map(f => (
-                  <option key={f} value={f}>
-                    ({formSayaci[f]}) {formBilgi[f].etiket}{formBilgi[f].yeniVar ? "  ✨" : ""}
-                  </option>
-                ))}
-              </select>
+          {!data && (formSecenekleri.length > 0 || kaynakSecenekleri.length > 0) && (
+            <div style={{
+              marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e8edf3",
+              display: "grid", gap: "14px", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+            }}>
+              {/* 1. sekme: okul || grup */}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ ...s.baslikBant, marginBottom: "8px" }}>🏫 Türkiye'de Eğitim Aldığı Okul || Öğrenci Hangi Gruba Kayıtlı</div>
+                <select
+                  value={formFiltre}
+                  onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
+                  style={s.filtreSelect}
+                >
+                  <option value="">({okulTabani.length}) Tümü</option>
+                  {formSecenekleri.map(f => (
+                    <option key={f} value={f}>
+                      ({formSayaci[f]}) {formBilgi[f].etiket}{formBilgi[f].yeniVar ? "  ✨" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {/* 2. sekme: kaynak form adı */}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ ...s.baslikBant, marginBottom: "8px" }}>📝 Kaynak Form Adı</div>
+                <select
+                  value={kaynakFiltre}
+                  onChange={e => { setKaynakFiltre(e.target.value); setSayfa(1); }}
+                  style={s.filtreSelect}
+                >
+                  <option value="">({kaynakTabani.length}) Tümü</option>
+                  {kaynakSecenekleri.map(f => (
+                    <option key={f} value={f}>
+                      ({kaynakBilgi[f].sayi}) {kaynakBilgi[f].etiket}{kaynakBilgi[f].yeniVar ? "  ✨" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
         </div>
@@ -2057,6 +2121,12 @@ const s = {
   searchBtn: { padding: "10px 20px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "600", position: "relative", zIndex: 20 },
   listCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
   listHeader: { fontWeight: "700", marginBottom: "15px", fontSize: "14px" },
+  filtreSelect: {
+    width: "100%", padding: "10px", borderRadius: "10px",
+    border: "1px solid #e2e8f0", outline: "none", cursor: "pointer",
+    fontSize: "13px", fontFamily: "'Sora', sans-serif",
+    background: "#fff", color: "#0f172a", boxSizing: "border-box",
+  },
   // Bölüm başlıkları: lacivertten turkuaza gradyan şerit, beyaz yazı (genel form başlık stili)
   baslikBant: {
     background: "linear-gradient(90deg, #1e3a5f, #0891b2)", color: "#fff",
