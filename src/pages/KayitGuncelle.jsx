@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.11
+// KayitGuncelle.jsx v1.12
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -1202,7 +1202,7 @@ export default function KayitGuncelle() {
               justifyContent: "space-between",
               alignItems: isMobile ? "stretch" : "flex-start",
             }}>
-              {/* Kutucuklar iki sütunda: solda 3, sağda 2 (mobilde alt alta) */}
+              {/* Kutucuklar iki sütunda: solda 3, sağda Beklemede + Hazırlanmamış (mobilde alt alta) */}
               <div style={{ display: "flex", gap: isMobile ? "10px" : "32px", flexDirection: isMobile ? "column" : "row" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <label
@@ -1234,6 +1234,18 @@ export default function KayitGuncelle() {
                 Sadece Onaylı Sözleşmeleri Göster
               </label>
 
+              <label style={s.filtreLabel} title="Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini de listeye ekler">
+                <input
+                  type="checkbox"
+                  checked={grupDisiGoster}
+                  onChange={e => { setGrupDisiGoster(e.target.checked); setSayfa(1); }}
+                  style={s.checkbox}
+                />
+                Gruplar Dışındaki Kayıtları Göster
+              </label>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <label style={s.filtreLabel}>
                 <input
                   type="checkbox"
@@ -1243,9 +1255,6 @@ export default function KayitGuncelle() {
                 />
                 Sadece Beklemede Olan Sözleşmeleri Göster
               </label>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
 
               <label style={s.filtreLabel} title="Sözleşme linki henüz oluşmamış kayıtlar">
                 <input
@@ -1256,16 +1265,6 @@ export default function KayitGuncelle() {
                   style={s.checkbox}
                 />
                 Sadece Sözleşmesi Hazırlanmamışları Göster
-              </label>
-
-              <label style={s.filtreLabel} title="Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini de listeye ekler">
-                <input
-                  type="checkbox"
-                  checked={grupDisiGoster}
-                  onChange={e => { setGrupDisiGoster(e.target.checked); setSayfa(1); }}
-                  style={s.checkbox}
-                />
-                Gruplar Dışındaki Kayıtları Göster
               </label>
               </div>
               </div>
