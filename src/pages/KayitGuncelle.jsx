@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.6
+// KayitGuncelle.jsx v1.7
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -679,9 +679,9 @@ export default function KayitGuncelle() {
 
   // Liste varsayılan olarak bu tarihten sonrasını gösterir
   const [tarihFiltre, setTarihFiltre] = useState("2026-08-01");
-  const [onayliGizle, setOnayliGizle] = useState(false);
-  // Varsayılan açık: Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmeleri gizlenir
-  const [turGizle, setTurGizle] = useState(true);
+  const [onayliGoster, setOnayliGoster] = useState(false); // sadece onaylılar
+  // Varsayılan kapalı: Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmeleri gizli kalır
+  const [grupDisiGoster, setGrupDisiGoster] = useState(false); // kapalıyken Bireysel/Yetişkin gizli
   const [listeFlash, setListeFlash] = useState(false);
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
@@ -959,8 +959,8 @@ export default function KayitGuncelle() {
   // sadece yetki kuralı (tumunuGorebilir) her zaman geçerli kalır.
   const onFiltreli = ogrencilerim.filter(o => {
     if (!aramaTerimi) {
-      if (turGizle && gizliTurMu(o)) return false;
-      if (onayliGizle && onayliMi(o)) return false;
+      if (!grupDisiGoster && gizliTurMu(o)) return false;
+      if (onayliGoster && !onayliMi(o)) return false;
       if (beklemedeGoster && sozlesmeDurumu(o).metin !== "Beklemede") return false;
       if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     }
@@ -1222,31 +1222,32 @@ export default function KayitGuncelle() {
               <label style={s.filtreLabel}>
                 <input
                   type="checkbox"
-                  checked={onayliGizle}
-                  onChange={e => { setOnayliGizle(e.target.checked); setSayfa(1); }}
+                  checked={onayliGoster}
+                  // Onaylı ve Beklemede aynı anda seçilemez, biri seçilince diğeri kalkar
+                  onChange={e => { setOnayliGoster(e.target.checked); if (e.target.checked) setBeklemedeGoster(false); setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Onaylı Sözleşmeleri Gizle
+                Sadece Onaylı Sözleşmeleri Göster
               </label>
 
               <label style={s.filtreLabel}>
                 <input
                   type="checkbox"
                   checked={beklemedeGoster}
-                  onChange={e => { setBeklemedeGoster(e.target.checked); setSayfa(1); }}
+                  onChange={e => { setBeklemedeGoster(e.target.checked); if (e.target.checked) setOnayliGoster(false); setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Beklemede Olan Sözleşmeleri Göster
+                Sadece Beklemede Olan Sözleşmeleri Göster
               </label>
 
-              <label style={s.filtreLabel} title="Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini gizler">
+              <label style={s.filtreLabel} title="Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini de listeye ekler">
                 <input
                   type="checkbox"
-                  checked={turGizle}
-                  onChange={e => { setTurGizle(e.target.checked); setSayfa(1); }}
+                  checked={grupDisiGoster}
+                  onChange={e => { setGrupDisiGoster(e.target.checked); setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Grup Öğrencileri Hariç Gizle
+                Gruplar Dışındaki Kayıtları Göster
               </label>
               </div>
 
