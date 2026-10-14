@@ -1,4 +1,4 @@
-// v1.0 — modules objesine "kayittakip" (Kayıt Takip) eklendi
+// v1.1 — title Personel'deki küçük harfli "title" sütunundan da okunuyor
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveSession } from "../utils/sheets";
@@ -78,8 +78,9 @@ export default function AuthCallback() {
           email:   data.email,
           company: personel["Şirket"],
           branch:  personel["Şube"],
-          title:   (personel["Title"] || "staff").toLowerCase(),
-          rol:     (personel["Title"] || "staff").toLowerCase(),
+          // Personel sekmesinde başlık "title" (küçük t); sheets.js ile aynı okuma
+          title:   (personel["title"] || personel["Title"] || "staff").toLowerCase().trim(),
+          rol:     (personel["title"] || personel["Title"] || "staff").toLowerCase().trim(),
           modules: {
             izin:      moduller?.["İzin Yönetimi"]?.toLowerCase() === "evet",
             instagram: moduller?.["İnstagram DM"]?.toLowerCase() === "evet",

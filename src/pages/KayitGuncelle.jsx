@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.13
+// KayitGuncelle.jsx v1.14
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -653,6 +653,10 @@ export default function KayitGuncelle() {
   // Düzeldiğinde alttaki satırı sil, üstteki yorumu kaldır.
   // const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
   const tumunuGorebilir = true;
+  // Intern: sadece All Submissions'ta Title sütununa "intern" yazılmış kayıtları görür
+  const internMi = rol === "intern";
+  const internKaydiMi = k => sadelestir(k?.["Title"]) === "intern";
+  const erisebilir = k => !internMi || internKaydiMi(k);
   const [sadeceBenim, setSadeceBenim] = useState(false);
 
   // Girişler sekmesinden kullanıcının bir önceki giriş zamanı.
@@ -738,6 +742,7 @@ export default function KayitGuncelle() {
       const res = await fetch(`${FETCH_URL}?tc=${targetTC}&_t=${Date.now()}`, { cache: "no-store" });
       const json = await res.json();
       if (!json.found) return showToast("Bu TC ile kayıt bulunamadı", "error");
+      if (!erisebilir(json.data)) return showToast("Bu kayda erişim yetkiniz yok", "error");
       setSaltOkunur(viewOnly);
       setTaksitKontrolKapali(false);
       setSozlesmeGeriSayim(null);
@@ -959,6 +964,8 @@ export default function KayitGuncelle() {
   // Arama yapılırken kutucuklar, tarih ve okul filtresi yok sayılır (tüm kayıtlarda aranır);
   // sadece yetki kuralı (tumunuGorebilir) her zaman geçerli kalır.
   const onFiltreli = ogrencilerim.filter(o => {
+    // Intern yetkisi aramada da geçerli, hiçbir filtreyle aşılamaz
+    if (!erisebilir(o)) return false;
     if (!aramaTerimi) {
       // Kapalıyken sadece grup kayıtları, açıkken sadece grup dışı (Bireysel / Yetişkin) kayıtlar
       if (grupDisiGoster ? !gizliTurMu(o) : gizliTurMu(o)) return false;
