@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.15
+// KayitGuncelle.jsx v1.16
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -653,13 +653,17 @@ export default function KayitGuncelle() {
   // Düzeldiğinde alttaki satırı sil, üstteki yorumu kaldır.
   // const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
   const tumunuGorebilir = true;
-  // Intern: sadece All Submissions'ta title sütununa "intern" yazılmış kayıtları görür.
-  // Sütun adı "title" / "Title" / " Title " gibi yazılabildiği için ad büyük-küçük harf ve boşluk duyarsız aranır.
-  const internMi = rol === "intern";
-  const internKaydiMi = k => Object.entries(k || {}).some(([alan, deger]) =>
-    sadelestir(alan) === "title" && sadelestir(deger) === "intern"
-  );
-  const erisebilir = k => !internMi || internKaydiMi(k);
+  // Form Yetkisi: All Submissions'taki "Form Yetkisi" sütununa virgülle danışman adları yazılır.
+  // Adı bu sütunda herhangi bir satırda geçen kişi SADECE adının yazılı olduğu satırları görür.
+  // Adı hiç geçmeyenler eskisi gibi tüm kayıtları görür. Ad ve sütun adı harf/boşluk duyarsız eşleşir.
+  const formYetkilileri = k => {
+    const alan = Object.entries(k || {}).find(([ad]) => sadelestir(ad) === "form yetkisi");
+    return alan ? String(alan[1] || "").split(",").map(sadelestir).filter(Boolean) : [];
+  };
+  const benimAdim = sadelestir(user?.name);
+  const yetkiliMi = k => !!benimAdim && formYetkilileri(k).includes(benimAdim);
+  const kisitliKullanici = ogrencilerim.some(yetkiliMi);
+  const erisebilir = k => !kisitliKullanici || yetkiliMi(k);
   const [sadeceBenim, setSadeceBenim] = useState(false);
 
   // Girişler sekmesinden kullanıcının bir önceki giriş zamanı.
@@ -967,7 +971,7 @@ export default function KayitGuncelle() {
   // Arama yapılırken kutucuklar, tarih ve okul filtresi yok sayılır (tüm kayıtlarda aranır);
   // sadece yetki kuralı (tumunuGorebilir) her zaman geçerli kalır.
   const onFiltreli = ogrencilerim.filter(o => {
-    // Intern yetkisi aramada da geçerli, hiçbir filtreyle aşılamaz
+    // Form Yetkisi kısıtı aramada da geçerli, hiçbir filtreyle aşılamaz
     if (!erisebilir(o)) return false;
     if (!aramaTerimi) {
       // Kapalıyken sadece grup kayıtları, açıkken sadece grup dışı (Bireysel / Yetişkin) kayıtlar
