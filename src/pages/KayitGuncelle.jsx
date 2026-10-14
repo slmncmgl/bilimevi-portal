@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.14
+// KayitGuncelle.jsx v1.15
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -653,9 +653,12 @@ export default function KayitGuncelle() {
   // Düzeldiğinde alttaki satırı sil, üstteki yorumu kaldır.
   // const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
   const tumunuGorebilir = true;
-  // Intern: sadece All Submissions'ta Title sütununa "intern" yazılmış kayıtları görür
+  // Intern: sadece All Submissions'ta title sütununa "intern" yazılmış kayıtları görür.
+  // Sütun adı "title" / "Title" / " Title " gibi yazılabildiği için ad büyük-küçük harf ve boşluk duyarsız aranır.
   const internMi = rol === "intern";
-  const internKaydiMi = k => sadelestir(k?.["Title"]) === "intern";
+  const internKaydiMi = k => Object.entries(k || {}).some(([alan, deger]) =>
+    sadelestir(alan) === "title" && sadelestir(deger) === "intern"
+  );
   const erisebilir = k => !internMi || internKaydiMi(k);
   const [sadeceBenim, setSadeceBenim] = useState(false);
 
