@@ -1,11 +1,11 @@
-// v1.7
+// v1.8
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwf-GAPBHK0mKd7_hOLuxuBhYhS3XctxjjHicfs3iLyBErm5m1cXECyBnb7EeRUn529aA/exec";
 
-const APP_VERSION = "v1.7";
+const APP_VERSION = "v1.8";
 
 // Gemini çağrısı artık Vercel /api/gemini üzerinden (API key server-side, tarayıcıya gönderilmez)
 const GEMINI_ENDPOINT = "/api/gemini";
@@ -94,7 +94,7 @@ export default function BultenDuzenleyici() {
   function tumHaberlerMetni() {
     return channels.map((ch, i) => {
       const satirlar = [haberEtiketi(i)];
-      if (ch) { if (ch.title) satirlar.push(ch.title); if (ch.content) satirlar.push(ch.content); }
+      if (ch) { if (ch.title) satirlar.push("*" + ch.title.trim() + "*"); if (ch.content) satirlar.push(ch.content); }
       return satirlar.join("\n");
     }).join("\n\n");
   }
