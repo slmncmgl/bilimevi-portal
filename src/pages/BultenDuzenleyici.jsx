@@ -1,11 +1,11 @@
-// v1.4
+// v1.5
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwf-GAPBHK0mKd7_hOLuxuBhYhS3XctxjjHicfs3iLyBErm5m1cXECyBnb7EeRUn529aA/exec";
 
-const APP_VERSION = "v1.4";
+const APP_VERSION = "v1.5";
 
 // Gemini çağrısı artık Vercel /api/gemini üzerinden (API key server-side, tarayıcıya gönderilmez)
 const GEMINI_ENDPOINT = "/api/gemini";
@@ -86,6 +86,7 @@ export default function BultenDuzenleyici() {
   const [channels, setChannels] = useState(Array(8).fill(null));
   const [showModal, setShowModal] = useState(false);
   const [overwriteConfirm, setOverwriteConfirm] = useState(null);
+  const [sheetConfirm, setSheetConfirm] = useState(false); // Sheet satırını güncelleme onayı
   const [activeChannel, setActiveChannel] = useState(null);
   const [copied, setCopied] = useState({}); // key: "idx:field" veya "link"
 
@@ -219,12 +220,32 @@ export default function BultenDuzenleyici() {
       };
       const res = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
       const json = await res.json();
-      if (!json.success) throw new Error(json.msg || "Kayıt hatası");
-      setStatus({ type: "success", msg: `Sheet'e kaydedildi (satır ${json.satir})` });
+      if (!json.success || json.satir === -1) throw new Error(json.msg || "Kayıt hatası");
+      const guncelleme = !!channels[activeChannel]?.fromSheet;
+      // Kanal hafızasını yeni seçimle güncelle → tekrar tıklayınca yeni seçim mavi gelir
+      if (activeChannel !== null) {
+        const updated = [...channels];
+        updated[activeChannel] = {
+          ...(updated[activeChannel] || {}),
+          title: sel.title, content: sel.content, urls: result.urls || [],
+          options: result.options.map(o => ({ title: o.title, content: o.content })),
+          selTitle: selectedTitle, selContent: selectedContent,
+          fromSheet: true
+        };
+        setChannels(updated);
+      }
+      setStatus({ type: "success", msg: guncelleme ? `Sheet'te güncellendi (satır ${json.satir})` : `Sheet'e kaydedildi (satır ${json.satir})` });
     } catch (err) {
       setStatus({ type: "error", msg: "Kayıt hatası: " + err.message });
     }
     setSaving(false);
+  }
+
+  function handleSheetClick() {
+    const errors = karakterKontrol();
+    if (errors.length > 0) { setStatus({ type: "error", msg: errors.join(" | ") }); return; }
+    if (channels[activeChannel]?.fromSheet) { setSheetConfirm(true); return; } // Sheet'te kayıtlı → önce onay
+    saveToSheet();
   }
 
   // ── Kopyala ───────────────────────────────────────────────────
@@ -253,8 +274,9 @@ export default function BultenDuzenleyici() {
     setSelectedContent(ch.selContent != null ? ch.selContent : 0);
     setSourceText("");
     setCopied({});
-    if (ch.fromSheet) { setActiveChannel(null); setFromSheetPreview(true); }
-    else { setActiveChannel(idx); setFromSheetPreview(false); }
+    // Sheet'te kayıtlı kanal da artık aktif olur → seçim değiştirip aynı satırı güncelleyebilirsin
+    setActiveChannel(idx);
+    setFromSheetPreview(!!ch.fromSheet);
   }
 
   function karakterKontrol() {
@@ -582,7 +604,7 @@ export default function BultenDuzenleyici() {
                     Hafızaya Kaydet
                   </button>
                 )}
-                <button onClick={saveToSheet} disabled={saving || activeChannel === null || !getSelected()} style={{
+                <button onClick={handleSheetClick} disabled={saving || activeChannel === null || !getSelected()} style={{
                   ...s.primaryBtn, flex: 1,
                   opacity: (saving || activeChannel === null || !getSelected()) ? 0.4 : 1,
                   cursor: (saving || activeChannel === null || !getSelected()) ? "not-allowed" : "pointer"
@@ -593,7 +615,7 @@ export default function BultenDuzenleyici() {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
                           <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
                         </svg>
-                        Sheet'e Kaydet
+                        {channels[activeChannel]?.fromSheet ? "Sheet'te Güncelle" : "Sheet'e Kaydet"}
                       </>
                   }
                 </button>
@@ -603,6 +625,25 @@ export default function BultenDuzenleyici() {
           </div>
         </div>
       </main>
+
+      {/* Sheet güncelleme onayı */}
+      {sheetConfirm && activeChannel !== null && (
+        <div onClick={() => setSheetConfirm(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: "16px", padding: "24px", width: "340px", boxShadow: "0 20px 60px rgba(0,0,0,0.15)" }}>
+            <p style={{ fontSize: "12px", fontWeight: "700", color: "#d97706", textTransform: "uppercase", letterSpacing: "0.5px", margin: "0 0 8px" }}>Sheet'teki Kayıt Değişecek</p>
+            <p style={{ fontSize: "13px", color: "#475569", margin: "0 0 18px", lineHeight: 1.6 }}>
+              {activeChannel + 1}. haberin Sheet'teki satırı (satır {activeChannel + 2}) yeni seçiminle değiştirilecek. Devam edelim mi?
+            </p>
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+              <button onClick={() => setSheetConfirm(false)} style={s.modalCancelBtn}>Vazgeç</button>
+              <button onClick={() => { setSheetConfirm(false); saveToSheet(); }}
+                style={{ ...s.modalDangerBtn, background: "#1e3a5f" }}>Güncelle</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Kanal Modal */}
       {showModal && (
