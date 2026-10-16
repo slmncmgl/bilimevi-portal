@@ -15,7 +15,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v116-paket-konaklama-eslesme-2026-10-12";
+const BFT_BUILD_VERSION = "v117-ucret-muafiyeti-2026-10-15";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -593,13 +593,16 @@ function normalizeFeeName(rawName) {
   return FEE_NAME_MAP[key] || key;
 }
 // Aynı TR-standart isme sahip fee'leri tek satırda topla (tutarları toplar)
+// v117: Her satır, hangi ham (sheet'teki) ücretlerden oluştuğunu `parcalar` içinde taşır.
+// Ücret indirimi (applies_to=fee) bu ham adlarla eşlenir; Türkçe ad sadece gösterim içindir.
 function mergeFeeItems(items) {
   const merged = {};
   const order = [];
   (items || []).forEach(it => {
     const name = normalizeFeeName(it.name);
-    if (!merged[name]) { merged[name] = { ...it, name }; order.push(name); }
-    else { merged[name].amount += it.amount; merged[name].auto = merged[name].auto && it.auto; }
+    const parca = { name: it.name, amount: it.amount };
+    if (!merged[name]) { merged[name] = { ...it, name, parcalar: [parca] }; order.push(name); }
+    else { merged[name].amount += it.amount; merged[name].auto = merged[name].auto && it.auto; merged[name].parcalar.push(parca); }
   });
   return order.map(n => merged[n]);
 }
@@ -1150,7 +1153,22 @@ function computeDiscounts(discounts, course, weeks, startDate, targets) {
     let base = 0, label = "";
     if (d.applies_to === "tuition") { base = targets.tuition || 0; label = "Kurs İndirimi"; }
     else if (d.applies_to === "accommodation") { base = targets.accommodation || 0; label = "Konaklama İndirimi"; }
-    else if (d.applies_to === "fee") { const fee = (targets.fees || []).find(f => f.name === d.target_name); if (!fee) return; base = fee.amount; label = d.target_name + " İndirimi"; }
+    else if (d.applies_to === "fee") {
+      // v117: target_name, fees sekmesindeki HAM adla (_norm) eşlenir. Base sadece o ham ücretin tutarı;
+      // aynı Türkçe satıra birleşen diğer ücretler (ör. iki ayrı kayıt ücreti) etkilenmez.
+      const hedef = _norm(d.target_name);
+      if (!hedef) return;
+      let satir = null;
+      (targets.fees || []).forEach(f => {
+        const parcalar = f.parcalar || [{ name: f.name, amount: f.amount }];
+        const tutar = parcalar.filter(p => _norm(p.name) === hedef).reduce((t, p) => t + (p.amount || 0), 0);
+        if (!satir && tutar > 0) satir = { trAd: f.name, tutar };
+      });
+      if (!satir) return;
+      base = satir.tutar;
+      label = satir.trAd;                                   // ekranda: "Materyal / Kitap Ücreti (Ücretsiz)"
+    }
+    // SİL: eski tek satır -> const fee = (targets.fees || []).find(f => f.name === d.target_name); ... label = d.target_name + " İndirimi";
     else return;
     if (base <= 0) return;
     let amount = 0;
