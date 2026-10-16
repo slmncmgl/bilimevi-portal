@@ -1,11 +1,11 @@
-// v1.6 
+// v1.7
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwf-GAPBHK0mKd7_hOLuxuBhYhS3XctxjjHicfs3iLyBErm5m1cXECyBnb7EeRUn529aA/exec";
 
-const APP_VERSION = "v1.6";
+const APP_VERSION = "v1.7";
 
 // Gemini çağrısı artık Vercel /api/gemini üzerinden (API key server-side, tarayıcıya gönderilmez)
 const GEMINI_ENDPOINT = "/api/gemini";
@@ -656,8 +656,21 @@ export default function BultenDuzenleyici() {
             <div style={{ marginTop: "18px", display: "flex", flexDirection: "column", gap: "22px" }}>
               {channels.map((ch, i) => (
                 <div key={i} style={{ fontSize: "13px", lineHeight: 1.6, color: "#0f172a" }}>
-                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>
-                    {haberEtiketi(i)}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      {haberEtiketi(i)}
+                    </span>
+                    {ch && (
+                      <button
+                        onClick={() => { loadChannel(i); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                        title="Düzenle"
+                        aria-label={haberEtiketi(i) + " düzenle"}
+                        style={s.editIconBtn}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="13" height="13">
+                          <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+                        </svg>
+                      </button>
+                    )}
                   </div>
                   {ch?.title && <div style={{ fontWeight: "600" }}>{ch.title}</div>}
                   {ch?.content && <div style={{ color: "#475569" }}>{ch.content}</div>}
@@ -801,6 +814,7 @@ const s = {
   primaryBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "10px 18px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "10px", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", cursor: "pointer", transition: "opacity 0.2s" },
   secondaryBtn: { display: "flex", alignItems: "center", justifyContent: "center", gap: "7px", padding: "10px 18px", background: "#fff", color: "#1e3a5f", border: "1.5px solid #bfdbfe", borderRadius: "10px", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", cursor: "pointer" },
   regenBtn: { display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "6px", fontSize: "11px", color: "#475569", cursor: "pointer", fontFamily: "inherit" },
+  editIconBtn: { display: "flex", alignItems: "center", justifyContent: "center", width: "24px", height: "24px", padding: 0, background: "#eff6ff", color: "#2563eb", border: "none", borderRadius: "6px", cursor: "pointer" },
   miniCopyBtn: { padding: "4px 10px", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", background: "#eff6ff", color: "#2563eb" },
 
   channelBtn: { padding: "10px 6px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "10px", cursor: "pointer", fontFamily: "inherit", textAlign: "center", transition: "all 0.15s" },
