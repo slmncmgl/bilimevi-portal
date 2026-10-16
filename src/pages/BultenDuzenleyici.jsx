@@ -1,11 +1,11 @@
-// v1.5 
+// v1.6
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwf-GAPBHK0mKd7_hOLuxuBhYhS3XctxjjHicfs3iLyBErm5m1cXECyBnb7EeRUn529aA/exec";
 
-const APP_VERSION = "v1.5";
+const APP_VERSION = "v1.6";
 
 // Gemini çağrısı artık Vercel /api/gemini üzerinden (API key server-side, tarayıcıya gönderilmez)
 const GEMINI_ENDPOINT = "/api/gemini";
@@ -87,6 +87,17 @@ export default function BultenDuzenleyici() {
   const [showModal, setShowModal] = useState(false);
   const [overwriteConfirm, setOverwriteConfirm] = useState(null);
   const [sheetConfirm, setSheetConfirm] = useState(false); // Sheet satırını güncelleme onayı
+  const [showOzet, setShowOzet] = useState(false); // en alttaki "Haberleri Özet Göster" bölümü
+
+  // 8 haberi Haber-1'den Haber-8'e sıralı düz metin olarak hazırlar (boş slot sadece etiketle)
+  function haberEtiketi(i) { return channels[i]?.label || ("Haber-" + (i + 1)); }
+  function tumHaberlerMetni() {
+    return channels.map((ch, i) => {
+      const satirlar = [haberEtiketi(i)];
+      if (ch) { if (ch.title) satirlar.push(ch.title); if (ch.content) satirlar.push(ch.content); }
+      return satirlar.join("\n");
+    }).join("\n\n");
+  }
   const [activeChannel, setActiveChannel] = useState(null);
   const [copied, setCopied] = useState({}); // key: "idx:field" veya "link"
 
@@ -119,7 +130,8 @@ export default function BultenDuzenleyici() {
           if (selC < 0) selC = 0;
           updated[idx] = {
             title: h.title, content: h.content, urls: h.url ? [h.url] : [],
-            options, selTitle: selT, selContent: selC, date: "", fromSheet: true
+            options, selTitle: selT, selContent: selC, date: "", fromSheet: true,
+            label: h.slot ? String(h.slot) : "" // Sheet A sütunu (ör. "Haber-1")
           };
         }
       });
@@ -623,6 +635,36 @@ export default function BultenDuzenleyici() {
             )}
 
           </div>
+        </div>
+
+        {/* Haberleri Özet Göster (açılır/kapanır) */}
+        <div style={{ ...s.card, marginTop: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+            <button onClick={() => setShowOzet(v => !v)} style={{ ...s.secondaryBtn, padding: "8px 14px" }}>
+              <span style={{ display: "inline-block", transition: "transform 0.2s", transform: showOzet ? "rotate(90deg)" : "none" }}>▸</span>
+              {showOzet ? "Özeti Gizle" : "Haberleri Özet Göster"}
+            </button>
+            {showOzet && (
+              <button onClick={() => copyField("tumu", tumHaberlerMetni())}
+                style={{ ...s.miniCopyBtn, padding: "8px 14px", fontSize: "12px", background: ck("tumu") ? "#dcfce7" : "#eff6ff", color: ck("tumu") ? "#16a34a" : "#2563eb" }}>
+                {ck("tumu") ? "✓ Kopyalandı" : "Tümünü Kopyala"}
+              </button>
+            )}
+          </div>
+
+          {showOzet && (
+            <div style={{ marginTop: "18px", display: "flex", flexDirection: "column", gap: "22px" }}>
+              {channels.map((ch, i) => (
+                <div key={i} style={{ fontSize: "13px", lineHeight: 1.6, color: "#0f172a" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#2563eb", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>
+                    {haberEtiketi(i)}
+                  </div>
+                  {ch?.title && <div style={{ fontWeight: "600" }}>{ch.title}</div>}
+                  {ch?.content && <div style={{ color: "#475569" }}>{ch.content}</div>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
