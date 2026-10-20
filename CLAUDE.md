@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 20 Ekim 2026. Repo'daki BFT sürümü: `v117-ucret-muafiyeti-2026-10-15`.
+Son güncelleme: 20 Ekim 2026 (deploy-wp v1.1 path filtresi). Repo'daki BFT sürümü: `v117-ucret-muafiyeti-2026-10-15`.
 
 ## Kapsam
 
@@ -56,6 +56,8 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - `main`'e push (ya da Actions'ta elle `workflow_dispatch`) şunu yapar:
   1. `npm install`, sonra `npm run build:wp` (`vite.wp.config.js`, çıktı `dist-wp/`: `fiyat-teklifi.js`, `fiyat-teklifi.css`, logolar).
   2. `dist-wp/` içeriğini FTP ile ingilteredil ve maltadil'de `/public_html/wp-content/plugins/bilimevi-fiyat-teklifi/assets/` klasörüne atar.
+- **Kod dışı push deploy etmez (workflow v1.1, 20 Ekim 2026):** `paths-ignore` listesi `**/*.md`, `tests/**`, `n8n/**`, `api/**`, `vercel.json`, `apps-script/**`. Push'ta bu listenin dışında tek bir dosya bile varsa deploy çalışır. `workflow_dispatch` filtreden etkilenmez. Workflow dosyasının kendisi listede yok, onu değiştiren merge bir kez deploy eder.
+  - Liste, WordPress bundle'ının bu klasörlerden import etmemesine dayanıyor (zincir: `wp-main.jsx` → `FiyatTeklifi.jsx` → `utils/sheets.js` → `config.js`, artı `assets/` ve npm paketleri). `FiyatTeklifi.jsx` ya da bu zincire listedeki bir klasörden import eklenirse o klasör listeden çıkarılmalı, yoksa değişikliği canlıya gitmez.
 - `dangerous-clean-slate: true`: hedef `assets/` klasörü her deploy'da **silinip yeniden yazılır.** O klasöre elle konan dosya bir sonraki push'ta kaybolur. Logo gibi dosyalar build'e girmeli (`copy-logos` listesinde sadece `ingilteredil_logo.png`, `Bilimevi_logo.jpg`, `bilimevi_logo.svg` var).
 - ingilteredil adımında `continue-on-error: true`, maltadil son adım ve hata verirse workflow kırmızı olur. Bilinçli tercih.
 - **almanyadil workflow'da yok.** Push ile güncellenmiyor. **Nasıl güncellendiğini kullanıcı da bilmiyor (20 Ekim 2026), sonra bakılacak.** Bakılana kadar almanyadil'deki sürümün repodakiyle aynı olduğunu varsayma. Elle yol: yerelde `npm run build:wp`, `dist-wp/` içeriğini almanyadil'in aynı plugin `assets/` klasörüne at.
@@ -69,7 +71,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - Staff portalı Vercel'de, `vercel.json` SPA rewrite ve `api/` serverless fonksiyonları (`auth.js`, `gemini.js`, `kylas.js`).
 - Env: `VITE_MASTER_ID`, `VITE_TEKLIF_ARSIV_URL`, `VITE_GOOGLE_CLIENT_ID`, `VITE_REDIRECT_URI`, `GOOGLE_CLIENT_SECRET`, `GEMINI_API_KEY`, `KYLAS_API_KEY`.
 - **Her dal için önizleme var:** `bilimevi-portal-git-<dal>-....vercel.app`. Staff tarafındaki değişiklikler merge'den önce bu adreste denenebilir. WordPress tarafının önizlemesi yok, o sadece main'den deploy olur.
-- main'e her push'un staff portalını da canlıya çıkardığını varsay.
+- main'e her push'un staff portalını da canlıya çıkardığını varsay. WordPress'teki `paths-ignore` filtresi Vercel'i etkilemez; sadece md değişse de Vercel build alır. Bilerek dokunulmadı (kullanıcı kararı 20 Ekim 2026). İstenirse Vercel ayarlarındaki "Ignored Build Step" ile yapılır.
 - **Hobby plan:** commit yazarı Vercel hesabının sahibi değilse deploy "Blocked" olur. Bu yüzden commit kimliği her zaman `Selman C. <it@bilimevi.com>` olmalı (bkz. Çalışma kuralları).
 - `docs/claude-md` dalının commit'leri farklı kimlikle yapıldığı için önizlemesi engellendi. Sadece doküman ve test içerdiği için sorun değil.
 
