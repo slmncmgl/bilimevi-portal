@@ -1,9 +1,18 @@
-# Workflow version: v1.0
+# Workflow version: v1.1
 name: Deploy to WordPress
 on:
   push:
     branches:
       - main
+    # Bu yollar dışında bir dosya değişmediyse WordPress deploy'u çalışmaz.
+    # Bundle bu klasörlerden import etmiyor (kontrol 20.10.2026).
+    paths-ignore:
+      - '**/*.md'
+      - 'tests/**'
+      - 'n8n/**'
+      - 'api/**'
+      - 'vercel.json'
+      - 'apps-script/**'
   workflow_dispatch:
 jobs:
   build-and-deploy:
