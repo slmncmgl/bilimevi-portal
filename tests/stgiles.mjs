@@ -1,0 +1,10 @@
+import fs from "fs"; import vm from "vm";
+const src = fs.readFileSync(process.argv[2], "utf8");
+let kod = src.slice(src.indexOf("// Mode tespiti"), src.indexOf("export default function FiyatTeklifi")) + "\n" + src.slice(src.indexOf("function addWeeksToDate"), src.indexOf("function PdfTemplate"));
+kod = kod.replace(/import\.meta\.env\.\w+/g, "undefined");
+const ctx = { window:{location:{hostname:"x"}}, console:{log(){},warn(){},error:console.error}, Date, Math, JSON, Promise, Set, Object, Array, String, Number, parseInt, parseFloat, isNaN, Intl, bilimeviLogoAsset:"" };
+vm.createContext(ctx); vm.runInContext(kod + ";globalThis.__api={computeDiscounts};", ctx);
+const disc = (o) => ({ discount_type:"percentage", reg_date_start:"", reg_date_end:"2026-12-31", arrival_start:"", arrival_end:"", min_weeks:null, max_weeks:null, eligible_courses:"", excluded_courses:"", applies_to:"tuition", target_name:"", value_type:"percentage", discount_value:0, ...o });
+const satirlar = [disc({ discount_value:30, excluded_courses:"One to One" }), disc({ discount_value:5, eligible_courses:"Platinum Group Course" })];
+const r = ctx.__api.computeDiscounts(satirlar, { name:"Platinum Group Course" }, 4, "2026-11-02", { tuition:1000, accommodation:0, fees:[] });
+console.log(r.map(x => `${x.label} %${x.value} -> -${x.amount}`).join("\n"), "\nToplam indirim:", r.reduce((t,x)=>t+x.amount,0), "/ kurs 1000");
