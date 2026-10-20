@@ -24,6 +24,7 @@ Son güncelleme: 20 Ekim 2026. Repo'daki BFT sürümü: `v117-ucret-muafiyeti-20
 - **JSX'e siteye özel kod yazılmaz.** Site farkı sadece shortcode parametreleri ve `BFT_CONFIG` ile gelir.
 - Hata yaptıysan açıkça söyle. Kullanıcı geçmişte yanlış kılavuz ve yarım düzeltme yüzünden zarar gördü.
 - Çalışan yapılandırmaya (özellikle `vite.wp.config.js`) gerekçesiz dokunma.
+- **Commit kimliği her zaman `Selman C. <it@bilimevi.com>`.** Başka bir ad ya da e-posta ile yapılan commit'lerin Vercel önizlemesi engellenir (Hobby plan). Commit'ten önce `git config user.name` / `user.email` değerini kontrol et ya da `git -c user.name="Selman C." -c user.email="it@bilimevi.com" commit ...` kullan.
 
 ## Versiyon kuralı
 
@@ -67,7 +68,10 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 - Staff portalı Vercel'de, `vercel.json` SPA rewrite ve `api/` serverless fonksiyonları (`auth.js`, `gemini.js`, `kylas.js`).
 - Env: `VITE_MASTER_ID`, `VITE_TEKLIF_ARSIV_URL`, `VITE_GOOGLE_CLIENT_ID`, `VITE_REDIRECT_URI`, `GOOGLE_CLIENT_SECRET`, `GEMINI_API_KEY`, `KYLAS_API_KEY`.
-- **Bilinmiyor:** Vercel'in main'i otomatik production'a, diğer branch'leri preview'a çıkarıp çıkarmadığını kullanıcı da bilmiyor (20 Ekim 2026), sonra bakılacak. Bakılana kadar main'e her push'un staff portalını da canlıya çıkarabileceğini varsay, branch push'larının preview ürettiğine güvenme.
+- **Her dal için önizleme var:** `bilimevi-portal-git-<dal>-....vercel.app`. Staff tarafındaki değişiklikler merge'den önce bu adreste denenebilir. WordPress tarafının önizlemesi yok, o sadece main'den deploy olur.
+- main'e her push'un staff portalını da canlıya çıkardığını varsay.
+- **Hobby plan:** commit yazarı Vercel hesabının sahibi değilse deploy "Blocked" olur. Bu yüzden commit kimliği her zaman `Selman C. <it@bilimevi.com>` olmalı (bkz. Çalışma kuralları).
+- `docs/claude-md` dalının commit'leri farklı kimlikle yapıldığı için önizlemesi engellendi. Sadece doküman ve test içerdiği için sorun değil.
 
 ## Test
 
@@ -132,7 +136,6 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 ### Yapılacak
 - A2 arşiv script'inin deploy ve doğrulaması (Drive API v3 servisi + New version + `/exec` kontrolü). Yapıldı mı bilinmiyor, kullanıcıya sor.
 - almanyadil'in bugün nasıl güncellendiğine bakmak (sitede konsoldaki `[BFT] Build:` sürümü iyi bir başlangıç). Sonra `deploy-wp.yml`'a eklemek (secret'lar + adım) ve üç sitenin PHP plugin sürümünün aynı olduğunu doğrulamak.
-- Vercel ayarlarına bakmak: main otomatik production'a çıkıyor mu, branch'ler için preview var mı. Sonuca göre Deploy bölümünü güncelle.
 - `fiyat-teklifi.css`'in her sitede enqueue edildiğinin kontrolü (Network sekmesi).
 - `tests/` script'leri elle çalıştırılıyor. İleride `package.json`'a bir `test` komutu ve kalıcı bir sahte veri seti (fixture) eklenebilir.
 - `calculation_type = per_day` ve `percentage`: şu an ikisi de sabit tutar gibi ekleniyor. Engel: kalış başı tavan (Malta eco tax vb.), sheet'te tavan sütunu yok. Yöntem netleşmeden yazılmayacak. English Path Dubai'de "Accommodation 2027 Booking Surcharge" %10 `percentage` olarak duruyor (opsiyonel).
