@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 19 Ekim 2026. Repo'daki BFT sürümü: `v117-ucret-muafiyeti-2026-10-15`.
+Son güncelleme: 20 Ekim 2026. Repo'daki BFT sürümü: `v117-ucret-muafiyeti-2026-10-15`.
 
 ## Kapsam
 
@@ -57,7 +57,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
   2. `dist-wp/` içeriğini FTP ile ingilteredil ve maltadil'de `/public_html/wp-content/plugins/bilimevi-fiyat-teklifi/assets/` klasörüne atar.
 - `dangerous-clean-slate: true`: hedef `assets/` klasörü her deploy'da **silinip yeniden yazılır.** O klasöre elle konan dosya bir sonraki push'ta kaybolur. Logo gibi dosyalar build'e girmeli (`copy-logos` listesinde sadece `ingilteredil_logo.png`, `Bilimevi_logo.jpg`, `bilimevi_logo.svg` var).
 - ingilteredil adımında `continue-on-error: true`, maltadil son adım ve hata verirse workflow kırmızı olur. Bilinçli tercih.
-- **almanyadil workflow'da yok.** Push ile güncellenmiyor. Şu an elle mi güncellendiği bilinmiyor, kullanıcıya sor. Elle yol: yerelde `npm run build:wp`, `dist-wp/` içeriğini almanyadil'in aynı plugin `assets/` klasörüne at.
+- **almanyadil workflow'da yok.** Push ile güncellenmiyor. **Nasıl güncellendiğini kullanıcı da bilmiyor (20 Ekim 2026), sonra bakılacak.** Bakılana kadar almanyadil'deki sürümün repodakiyle aynı olduğunu varsayma. Elle yol: yerelde `npm run build:wp`, `dist-wp/` içeriğini almanyadil'in aynı plugin `assets/` klasörüne at.
 - Matrix job denendi ve reddedildi (çift build, secret'lara dinamik erişim yok). Yeni site = workflow'a yeni bir adım + o siteye ait 3 FTP secret'ı (`FTP_SERVER_X`, `FTP_USER_X`, `FTP_PASSWORD_X`).
 - **WordPress için preview/staging yok.** main'e giren her şey birkaç dakika içinde iki canlı sitede. Riskli işleri branch'te tut, main'e kullanıcı onayıyla al.
 - Deploy sonrası kontrol: sitede konsolda `[BFT] Build:` sürümüne bak. Eski sürüm görünüyorsa LiteSpeed cache temizlenmeli.
@@ -67,7 +67,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 - Staff portalı Vercel'de, `vercel.json` SPA rewrite ve `api/` serverless fonksiyonları (`auth.js`, `gemini.js`, `kylas.js`).
 - Env: `VITE_MASTER_ID`, `VITE_TEKLIF_ARSIV_URL`, `VITE_GOOGLE_CLIENT_ID`, `VITE_REDIRECT_URI`, `GOOGLE_CLIENT_SECRET`, `GEMINI_API_KEY`, `KYLAS_API_KEY`.
-- **Teyit edilmedi:** Vercel'in Git entegrasyonuyla main'i otomatik production'a, diğer branch'leri preview'a çıkardığı varsayılıyor (Vercel varsayılanı). Kullanıcıdan teyit al, sonra bu satırı düzelt.
+- **Bilinmiyor:** Vercel'in main'i otomatik production'a, diğer branch'leri preview'a çıkarıp çıkarmadığını kullanıcı da bilmiyor (20 Ekim 2026), sonra bakılacak. Bakılana kadar main'e her push'un staff portalını da canlıya çıkarabileceğini varsay, branch push'larının preview ürettiğine güvenme.
 
 ## Test
 
@@ -131,7 +131,8 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 ### Yapılacak
 - A2 arşiv script'inin deploy ve doğrulaması (Drive API v3 servisi + New version + `/exec` kontrolü). Yapıldı mı bilinmiyor, kullanıcıya sor.
-- almanyadil'i `deploy-wp.yml`'a eklemek (secret'lar + adım) ve üç sitenin PHP plugin sürümünün aynı olduğunu doğrulamak.
+- almanyadil'in bugün nasıl güncellendiğine bakmak (sitede konsoldaki `[BFT] Build:` sürümü iyi bir başlangıç). Sonra `deploy-wp.yml`'a eklemek (secret'lar + adım) ve üç sitenin PHP plugin sürümünün aynı olduğunu doğrulamak.
+- Vercel ayarlarına bakmak: main otomatik production'a çıkıyor mu, branch'ler için preview var mı. Sonuca göre Deploy bölümünü güncelle.
 - `fiyat-teklifi.css`'in her sitede enqueue edildiğinin kontrolü (Network sekmesi).
 - `tests/` script'leri elle çalıştırılıyor. İleride `package.json`'a bir `test` komutu ve kalıcı bir sahte veri seti (fixture) eklenebilir.
 - `calculation_type = per_day` ve `percentage`: şu an ikisi de sabit tutar gibi ekleniyor. Engel: kalış başı tavan (Malta eco tax vb.), sheet'te tavan sütunu yok. Yöntem netleşmeden yazılmayacak. English Path Dubai'de "Accommodation 2027 Booking Surcharge" %10 `percentage` olarak duruyor (opsiyonel).
