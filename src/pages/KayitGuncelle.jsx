@@ -1,4 +1,4 @@
-// KayitGuncelle.jsx v1.16
+// KayitGuncelle.jsx v1.17
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
@@ -524,6 +524,11 @@ function OzetPaneli({ data }) {
 export default function KayitGuncelle() {
   const navigate = useNavigate();
   const user = getSession();
+  // Liste filtreleri sekme kapanana kadar hatırlanır (sessionStorage, kullanıcıya özel)
+  const FILTRE_ANAHTARI = `kayitGuncelleFiltre:${user?.name || ""}`;
+  const kayitliFiltre = (() => {
+    try { return JSON.parse(sessionStorage.getItem(FILTRE_ANAHTARI) || "{}") || {}; } catch { return {}; }
+  })();
 
   const [tc, setTc] = useState("");
   const [loading, setLoading] = useState(false);
@@ -534,7 +539,7 @@ export default function KayitGuncelle() {
   const [successModal, setSuccessModal] = useState(false);
   const [ogrencilerim, setOgrencilerim] = useState([]);
   const [ogrencilerLoading, setOgrencilerLoading] = useState(false);
-  const [sayfa, setSayfa] = useState(1);
+  const [sayfa, setSayfa] = useState(() => kayitliFiltre.sayfa ?? 1);
   const [sozlesmeModal, setSozlesmeModal] = useState(null);
   const [gonderOnay, setGonderOnay] = useState(null);
   const [gonderilenTC, setGonderilenTC] = useState(null);
@@ -543,7 +548,7 @@ export default function KayitGuncelle() {
   // Düzenleme ekranı "Sözleşmeyi Gör": null = henüz güncellenmedi, 10..1 = geri sayım, 0 = aktif
   const [sozlesmeGeriSayim, setSozlesmeGeriSayim] = useState(null);
   const [sozlesmeAciliyor, setSozlesmeAciliyor] = useState(false);
-  const [beklemedeGoster, setBeklemedeGoster] = useState(false);
+  const [beklemedeGoster, setBeklemedeGoster] = useState(() => kayitliFiltre.beklemedeGoster ?? false);
   const [taksitSilOnay, setTaksitSilOnay] = useState(null); // silinecek taksit numarası
   const [oneriAcik, setOneriAcik] = useState(false);
   const [programHover, setProgramHover] = useState(null); // tam program adı balonu açık olan satır
@@ -594,8 +599,8 @@ export default function KayitGuncelle() {
   }, [sozlesmeGeriSayim]);
   const [vurgulananAlan, setVurgulananAlan] = useState(null);
   const [saltOkunur, setSaltOkunur] = useState(false);
-  const [formFiltre, setFormFiltre] = useState("");
-  const [sozlesmesizGoster, setSozlesmesizGoster] = useState(false); // sadece sözleşmesi hazırlanmamışlar
+  const [formFiltre, setFormFiltre] = useState(() => kayitliFiltre.formFiltre ?? "");
+  const [sozlesmesizGoster, setSozlesmesizGoster] = useState(() => kayitliFiltre.sozlesmesizGoster ?? false); // sadece sözleşmesi hazırlanmamışlar
   const [kopyaModal, setKopyaModal] = useState(null);
   const [notModal, setNotModal] = useState(null); // { ogr, mevcut, yeni }
   const [notKaydediliyor, setNotKaydediliyor] = useState(false);
@@ -664,7 +669,7 @@ export default function KayitGuncelle() {
   const yetkiliMi = k => !!benimAdim && formYetkilileri(k).includes(benimAdim);
   const kisitliKullanici = ogrencilerim.some(yetkiliMi);
   const erisebilir = k => !kisitliKullanici || yetkiliMi(k);
-  const [sadeceBenim, setSadeceBenim] = useState(false);
+  const [sadeceBenim, setSadeceBenim] = useState(() => kayitliFiltre.sadeceBenim ?? false);
 
   // Girişler sekmesinden kullanıcının bir önceki giriş zamanı.
   // En son kayıt şu anki oturumun girişi olduğu için sondan ikinci kayıt alınır.
@@ -690,10 +695,10 @@ export default function KayitGuncelle() {
   }, [user?.name]);
 
   // Liste varsayılan olarak bu tarihten sonrasını gösterir
-  const [tarihFiltre, setTarihFiltre] = useState("2026-08-01");
-  const [onayliGoster, setOnayliGoster] = useState(false); // sadece onaylılar
+  const [tarihFiltre, setTarihFiltre] = useState(() => kayitliFiltre.tarihFiltre ?? "2026-08-01");
+  const [onayliGoster, setOnayliGoster] = useState(() => kayitliFiltre.onayliGoster ?? false); // sadece onaylılar
   // Varsayılan kapalı: Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmeleri gizli kalır
-  const [grupDisiGoster, setGrupDisiGoster] = useState(false); // açıkken sadece Bireysel/Yetişkin, kapalıyken sadece gruplar
+  const [grupDisiGoster, setGrupDisiGoster] = useState(() => kayitliFiltre.grupDisiGoster ?? false); // açıkken sadece Bireysel/Yetişkin, kapalıyken sadece gruplar
   const [listeFlash, setListeFlash] = useState(false);
   const SAYFA_BOYUTU = 10;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
@@ -1047,12 +1052,31 @@ export default function KayitGuncelle() {
     : onFiltreli;
 
   // Seçili form yeni filtrelerde kalmadıysa seçimi bırak (arama sırasında seçim korunur)
+  // Liste henüz yüklenmeden çalışmaz, yoksa hatırlanan seçim açılışta silinirdi
   useEffect(() => {
+    if (!ogrencilerim.length) return;
     if (formFiltre && !aramaTerimi && !formSecenekleri.includes(formFiltre)) {
       setFormFiltre("");
       setSayfa(1);
     }
-  }, [formFiltre, formSecenekleri.join("|")]);
+  }, [formFiltre, formSecenekleri.join("|"), ogrencilerim.length]);
+
+  // Filtreleri her değişimde kaydet
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(FILTRE_ANAHTARI, JSON.stringify({
+        sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim,
+        tarihFiltre, onayliGoster, grupDisiGoster,
+      }));
+    } catch { /* depolama kapalıysa sessizce geç */ }
+  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim, tarihFiltre, onayliGoster, grupDisiGoster]);
+
+  // Hatırlanan sayfa numarası yeni listede yoksa son sayfaya çek
+  useEffect(() => {
+    if (!ogrencilerim.length) return;
+    const sonSayfa = Math.max(1, Math.ceil(filtreliOgrenciler.length / SAYFA_BOYUTU));
+    if (sayfa > sonSayfa) setSayfa(sonSayfa);
+  }, [filtreliOgrenciler.length, sayfa, ogrencilerim.length]);
 
   // Özet ve Ebeveyn sekmelerinin en altındaki, tam genişlikteki not kutusu: listedeki pencereyle aynı kaydı kullanır
   const notKutusu = () => {
