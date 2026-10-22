@@ -1,5 +1,5 @@
-// KayitGuncelle.jsx v1.17
-import { useState, useEffect } from "react";
+// KayitGuncelle.jsx v1.18
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
@@ -545,8 +545,11 @@ export default function KayitGuncelle() {
   const [gonderilenTC, setGonderilenTC] = useState(null);
   const [taksitOneri, setTaksitOneri] = useState(null);
   const [taksitKontrolKapali, setTaksitKontrolKapali] = useState(false);
-  // Düzenleme ekranı "Sözleşmeyi Gör": null = henüz güncellenmedi, 10..1 = geri sayım, 0 = aktif
-  const [sozlesmeGeriSayim, setSozlesmeGeriSayim] = useState(null);
+  // Düzenleme ekranı "Sözleşmeyi Gör" durumu:
+  // null = henüz güncellenmedi, "bekliyor" = yeni sözleşme linki bekleniyor,
+  // "hazir" = link değişti, "gecikti" = 60 sn içinde değişmedi, "yok" = danışmansız kayıt, sözleşme oluşmaz
+  const [sozlesmeDurumu, setSozlesmeDurumu] = useState(null);
+  const beklemeRef = useRef(null); // { tc, eskiLink, baslangic }
   const [sozlesmeAciliyor, setSozlesmeAciliyor] = useState(false);
   const [beklemedeGoster, setBeklemedeGoster] = useState(() => kayitliFiltre.beklemedeGoster ?? false);
   const [taksitSilOnay, setTaksitSilOnay] = useState(null); // silinecek taksit numarası
@@ -592,11 +595,39 @@ export default function KayitGuncelle() {
     setTaksitSilOnay(null);
     showToast(`${no}. taksit silindi. Kaydetmek için Güncelle'ye basın`);
   }
+  // Güncelle sonrası: n8n yeni sözleşmeyi sheet'e yazınca onay linkindeki ?v= damgası değişir.
+  // Kayıt 3 sn'de bir yeniden okunur, link değişince buton açılır. 60 sn sınır.
   useEffect(() => {
-    if (!sozlesmeGeriSayim) return;
-    const t = setTimeout(() => setSozlesmeGeriSayim(n => (n > 0 ? n - 1 : 0)), 1000);
-    return () => clearTimeout(t);
-  }, [sozlesmeGeriSayim]);
+    if (sozlesmeDurumu !== "bekliyor" || !beklemeRef.current) return;
+    const { tc, eskiLink, baslangic } = beklemeRef.current;
+    let iptal = false;
+    let zamanlayici;
+    const kontrol = async () => {
+      if (iptal) return;
+      try {
+        const res = await fetch(`${FETCH_URL}?tc=${tc}&_t=${Date.now()}`, { cache: "no-store" });
+        const json = await res.json();
+        const yeniLink = String(json?.data?.["Sözleşme Onay Linki"] || "").trim();
+        if (!iptal && json.found && gecerliLink(yeniLink) && yeniLink !== eskiLink) {
+          setData(prev => prev ? { ...prev, "Sözleşme Onay Linki": yeniLink } : prev);
+          setSozlesmeDurumu("hazir");
+          showToast("Sözleşme hazır");
+          return;
+        }
+      } catch { /* bir sonraki denemede tekrar bakılır */ }
+      if (iptal) return;
+      if (Date.now() - baslangic > 60000) {
+        setSozlesmeDurumu("gecikti");
+        showToast("Sözleşme hâlâ hazırlanıyor, birkaç saniye sonra Sözleşmeyi Gör'e basın", "error");
+        return;
+      }
+      zamanlayici = setTimeout(kontrol, 3000);
+    };
+    zamanlayici = setTimeout(kontrol, 3000);
+    return () => { iptal = true; clearTimeout(zamanlayici); };
+  }, [sozlesmeDurumu]);
+  // Listeye dönülünce bekleme durur
+  useEffect(() => { if (!data) setSozlesmeDurumu(null); }, [data]);
   const [vurgulananAlan, setVurgulananAlan] = useState(null);
   const [saltOkunur, setSaltOkunur] = useState(false);
   const [formFiltre, setFormFiltre] = useState(() => kayitliFiltre.formFiltre ?? "");
@@ -757,7 +788,7 @@ export default function KayitGuncelle() {
       if (!erisebilir(json.data)) return showToast("Bu kayda erişim yetkiniz yok", "error");
       setSaltOkunur(viewOnly);
       setTaksitKontrolKapali(false);
-      setSozlesmeGeriSayim(null);
+      setSozlesmeDurumu(null);
       setData(json.data);
       setActiveTab("Özet");
     } catch {
@@ -858,9 +889,18 @@ export default function KayitGuncelle() {
       if (sozlesmeGonder) {
         setSuccessModal(true);
       } else {
-        // Düzenleme ekranında kalınır; sözleşme 10 sn sonra "Sözleşmeyi Gör" ile açılabilir
-        setSozlesmeGeriSayim(10);
+        // Düzenleme ekranında kalınır; yeni sözleşme linki gelince "Sözleşmeyi Gör" açılır
         showToast("Kayıt güncellendi");
+        if (!String(kayitData["Danışman Adı"] || "").trim()) {
+          setSozlesmeDurumu("yok"); // danışmansız kayıt sadece sheet'te güncellenir
+        } else {
+          beklemeRef.current = {
+            tc: String(kayitData["TC Kimlik No"] || "").replace(/\D/g, ""),
+            eskiLink: String(kayitData["Sözleşme Onay Linki"] || "").trim(),
+            baslangic: Date.now(),
+          };
+          setSozlesmeDurumu("bekliyor");
+        }
       }
     } catch {
       showToast("Gönderim başarısız", "error");
@@ -1691,15 +1731,20 @@ export default function KayitGuncelle() {
                 }}
               >{operasyonGonderiliyor ? "Gönderiliyor..." : "Kayıt Bilgilerini Operasyona Gönder"}</button>
               {(() => {
-                const aktif = sozlesmeGeriSayim === 0 && !sozlesmeAciliyor && !submitting;
+                const aktif = (sozlesmeDurumu === "hazir" || sozlesmeDurumu === "gecikti") && !sozlesmeAciliyor && !submitting;
                 const metin = sozlesmeAciliyor ? "Açılıyor..."
-                  : sozlesmeGeriSayim > 0 ? `Sözleşmeyi Gör (${sozlesmeGeriSayim})`
+                  : sozlesmeDurumu === "bekliyor" ? "Sözleşme hazırlanıyor..."
                   : "Sözleşmeyi Gör";
+                const ipucu = sozlesmeDurumu === null ? "Önce Güncelle'ye basın"
+                  : sozlesmeDurumu === "bekliyor" ? "Sözleşme hazırlanıyor, hazır olunca buton açılır"
+                  : sozlesmeDurumu === "yok" ? "Danışmanı olmayan kayıtlarda sözleşme oluşturulmaz"
+                  : sozlesmeDurumu === "gecikti" ? "Sözleşme gecikti, açınca eski sürüm görünebilir"
+                  : "Güncel sözleşmeyi gör ve gönder";
                 return (
                   <button
                     onClick={sozlesmeyiGor}
                     disabled={!aktif}
-                    title={sozlesmeGeriSayim === null ? "Önce Güncelle'ye basın" : sozlesmeGeriSayim > 0 ? "Sözleşme hazırlanıyor" : "Güncel sözleşmeyi gör ve gönder"}
+                    title={ipucu}
                     style={{
                       ...s.submitBtn, background: "#fff", color: "#1e3a5f",
                       border: "1.5px solid #1e3a5f", minWidth: "190px",
