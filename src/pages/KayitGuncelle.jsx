@@ -1,6 +1,8 @@
-// KayitGuncelle.jsx v1.19
+// KayitGuncelle.jsx v1.20
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+
+const SURUM = "v1.20"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1232,6 +1234,7 @@ export default function KayitGuncelle() {
             <div style={s.headerTitleText}>Doldurulan Kayıt Formları</div>
             <div style={s.headerSub}>{user?.name} | Bilimevi</div>
           </div>
+          <div style={{ color: "#94a3b8", fontSize: "11px", whiteSpace: "nowrap" }}>{SURUM}</div>
         </div>
       </header>
 
