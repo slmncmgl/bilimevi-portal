@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.25
+// KayitGuncelle.jsx v1.26
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.25"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.26"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -2195,12 +2195,12 @@ const s = {
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: -1, pointerEvents: "none" },
   bgGlow: { position: "fixed", top: "-10%", right: "-5%", width: "500px", height: "500px", background: "radial-gradient(circle, #cffafe44 0%, transparent 70%)", zIndex: -1, pointerEvents: "none" },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 100 },
-  headerInner: { maxWidth: "1000px", margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px" },
+  headerInner: { maxWidth: "1100px", margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px" },
   backBtn: { padding: "8px 15px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" },
   headerTitle: { flex: 1 },
   headerTitleText: { fontWeight: "700", fontSize: "14px" },
   headerSub: { fontSize: "11px", color: "#94a3b8" },
-  main: { maxWidth: "1000px", margin: "0 auto", padding: "20px", position: "relative", zIndex: 10 },
+  main: { maxWidth: "1100px", margin: "0 auto", padding: "20px", position: "relative", zIndex: 10 },
   searchCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
   // Ana başlıklar: koyu pastel lacivert
   searchLabel: { fontSize: "13px", fontWeight: "700", marginBottom: "10px", color: "#3d5a8a", letterSpacing: "0.2px" },
