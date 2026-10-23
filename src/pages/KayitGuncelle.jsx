@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.22
+// KayitGuncelle.jsx v1.23
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.22"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.23"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -992,22 +992,24 @@ export default function KayitGuncelle() {
     String(k["Sözleşme Türü"] || "").trim().toLocaleUpperCase("tr-TR")
   );
 
-  // Dropdown gruplaması: "Türkiye'de Eğitim Aldığı Okul - Öğrenci Hangi Gruba Kayıtlı".
+  // Dropdown gruplaması: TR_Okul_Default; sözleşme linki oluşmuş kayıtlarda yanına "|| Öğrenci Hangi Gruba Kayıtlı" (tam değer).
   // Serbest metin olduğu için büyük/küçük harf, fazla boşluk ve Türkçe karakter farkı yok sayılır.
   const OKUL_BOS = "__okul_bos__";
   const temizMetin = v => {
     const t = String(v || "").trim().replace(/\s+/g, " ");
     return t === "-" ? "" : t;
   };
+  const dropdownParcalari = k => ({
+    okul: temizMetin(k["TR_Okul_Default"]),
+    // Grup sadece sözleşmesi oluşmuş kayıtlarda (Hazırlanacaklar filtresinin tersi)
+    grup: gecerliLink(k["Sözleşme Onay Linki"]) ? temizMetin(k["Öğrenci Hangi Gruba Kayıtlı"]) : "",
+  });
   const okulMetni = k => {
-    const okul = temizMetin(k["Türkiye'de Eğitim Aldığı Okul"]);
-    const grup = temizMetin(k["Öğrenci Hangi Gruba Kayıtlı"]);
-    // Her kelimenin sadece ilk harfi büyük; okul ile grup arasında "||"
-    return `${okul ? basHarfBuyuk(okul) : "Okul belirtilmemiş"} || ${basHarfBuyuk(grup)}`;
+    const { okul, grup } = dropdownParcalari(k);
+    return `${okul || "Okul belirtilmemiş"}${grup ? " || " + grup : ""}`;
   };
   const formEtiketi = k => {
-    const okul = temizMetin(k["Türkiye'de Eğitim Aldığı Okul"]);
-    const grup = temizMetin(k["Öğrenci Hangi Gruba Kayıtlı"]);
+    const { okul, grup } = dropdownParcalari(k);
     if (!okul && !grup) return OKUL_BOS;
     return `${sadelestir(okul)}|${sadelestir(grup)}`;
   };
@@ -1405,7 +1407,7 @@ export default function KayitGuncelle() {
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e8edf3" }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ ...s.baslikBant, marginBottom: "8px" }}>🏫 Türkiye'de Eğitim Aldığı Okul || Öğrenci Hangi Gruba Kayıtlı</div>
+                <div style={{ ...s.baslikBant, marginBottom: "8px" }}>🏫 Okul || Grup</div>
                 <select
                   value={formFiltre}
                   onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
