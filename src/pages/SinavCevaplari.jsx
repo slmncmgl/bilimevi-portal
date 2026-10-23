@@ -1,3 +1,4 @@
+// v1.8 — Toplam Soru tekrar düzenlenebilir (varsayılan 15)
 // v1.7 — Quiz Başlığı son eğitimin kurum adıyla otomatik doluyor, AI başlığı ezmiyor; Toplam Soru 15 sabit
 // v1.6 — Sınavı Çöz butonu (pastel şeftali), link yoksa pasif; sekme adı "Sınav Cevaplarını Gir"
 // v1.5 — Sayfa başına kayıt 10'dan 5'e düşürüldü
@@ -21,7 +22,7 @@ export default function SinavCevaplari() {
   const [right, setRight] = useState("");
   const [wrong, setWrong] = useState("");
   const [skipped, setSkipped] = useState("");
-  const TOTAL_Q = "15"; // v1.7 — toplam soru sabit
+  const TOTAL_Q = "15"; // v1.8 — toplam soru varsayılanı
   const [total, setTotal] = useState(TOTAL_Q);
   const [autoTitle, setAutoTitle] = useState(""); // v1.7 — son eğitimin kurum adı
   const [accuracy, setAccuracy] = useState("");
@@ -129,6 +130,7 @@ export default function SinavCevaplari() {
   }
 
   function handleRight(v) { setRight(v); setAccuracy(calcAccuracy(v, total)); }
+  function handleTotal(v) { setTotal(v); setAccuracy(calcAccuracy(right, v)); } // v1.8
 
   function onFileChange(e) {
     const file = e.target.files[0];
@@ -164,7 +166,7 @@ export default function SinavCevaplari() {
       setRight(String(data.right || ""));
       setWrong(String(data.wrong || ""));
       setSkipped(String(data.skipped || ""));
-      setAccuracy(calcAccuracy(data.right, TOTAL_Q)); // v1.7 — toplam her zaman 15
+      setAccuracy(calcAccuracy(data.right, total)); // v1.8 — formdaki toplam kullanılır
       setStatus({ type: "success", msg: "Analiz tamamlandı!" });
     } catch (_) {
       setStatus({ type: "error", msg: "Sınav sonuçlarını manuel olarak giriniz." });
@@ -321,8 +323,8 @@ export default function SinavCevaplari() {
               <div style={s.bottomGrid}>
                 <div>
                   <label style={s.label}>Toplam Soru</label>
-                  <input type="number" value={total} readOnly tabIndex={-1}
-                    style={{ ...s.input, background: "#f1f5f9", color: "#64748b", fontWeight: "700", textAlign: "center", cursor: "not-allowed" }} />
+                  <input type="number" value={total} onChange={e => handleTotal(e.target.value)}
+                    style={s.input} />
                 </div>
                 <div>
                   <label style={{ ...s.label, color: "#2563eb" }}>Doğruluk (%)</label>
