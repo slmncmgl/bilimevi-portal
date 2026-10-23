@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.23
+// KayitGuncelle.jsx v1.24
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.23"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.24"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -988,9 +988,19 @@ export default function KayitGuncelle() {
 
   // Şimdilik listede gösterilmeyen sözleşme türleri
   const GIZLI_SOZLESME_TURLERI = ["BİREYSEL YAZ OKULU", "YETİŞKİN DİL OKULU"];
+  // TR_Okul_Default boşsa kayıt yaz okulu grubu değildir, grup dışı sayılır
   const gizliTurMu = k => GIZLI_SOZLESME_TURLERI.includes(
     String(k["Sözleşme Türü"] || "").trim().toLocaleUpperCase("tr-TR")
-  );
+  ) || !temizMetin(k["TR_Okul_Default"]);
+
+  const VARSAYILAN_TARIH = "2026-08-01";
+  const filtreDegisti = sadeceBenim || onayliGoster || grupDisiGoster || beklemedeGoster
+    || sozlesmesizGoster || !!formFiltre || !!tc || tarihFiltre !== VARSAYILAN_TARIH;
+  const filtreleriTemizle = () => {
+    setSadeceBenim(false); setOnayliGoster(false); setGrupDisiGoster(false);
+    setBeklemedeGoster(false); setSozlesmesizGoster(false);
+    setFormFiltre(""); setTc(""); setTarihFiltre(VARSAYILAN_TARIH); setSayfa(1);
+  };
 
   // Dropdown gruplaması: TR_Okul_Default; sözleşme linki oluşmuş kayıtlarda yanına "|| Öğrenci Hangi Gruba Kayıtlı" (tam değer).
   // Serbest metin olduğu için büyük/küçük harf, fazla boşluk ve Türkçe karakter farkı yok sayılır.
@@ -1360,6 +1370,18 @@ export default function KayitGuncelle() {
                 />
                 Sadece Sözleşme Hazırlanacakları Göster
               </label>
+
+              <button
+                type="button"
+                onClick={filtreleriTemizle}
+                disabled={!filtreDegisti}
+                style={{
+                  alignSelf: "flex-start", marginTop: "2px", padding: "6px 12px",
+                  fontSize: "12.5px", fontWeight: "600", borderRadius: "8px",
+                  background: "#fff", color: "#1e3a5f", border: "1px solid #cbd5e1",
+                  opacity: filtreDegisti ? 1 : 0.45, cursor: filtreDegisti ? "pointer" : "not-allowed",
+                }}
+              >Tüm Filtreleri Temizle</button>
               </div>
               </div>
 
