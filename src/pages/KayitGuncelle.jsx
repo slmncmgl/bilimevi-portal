@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.21
+// KayitGuncelle.jsx v1.22
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.21"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.22"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1456,7 +1456,7 @@ export default function KayitGuncelle() {
                   <th style={{ ...s.th, width: "1%", textAlign: "right" }}>#</th>
                   <th style={{ ...s.th, whiteSpace: "nowrap" }}>Form Tarihi</th>
                   <th style={s.th}>Öğrenci Adı Soyadı</th>
-                  <th style={s.th}>Kaynak Form</th>
+                  <th style={s.th}>Okul Adı</th>
                   <th style={s.th}>Danışman</th>
                   <th style={s.th}>Sözleşme Durumu</th>
                   <th style={s.th}></th>
@@ -1496,7 +1496,9 @@ export default function KayitGuncelle() {
                     <td style={{ ...s.td, color: "#475569", fontSize: "13px", lineHeight: "1.4", whiteSpace: "nowrap" }}>
                       {(() => {
                         const tam = String(ogr["Kaynak Form Adı"] || "").trim();
-                        const ad = programAdi(tam);
+                        // Hücrede TR_Okul_Default, boşsa form adından kısa ad; balonda tam Kaynak Form Adı
+                        const okul = String(ogr["TR_Okul_Default"] || "").trim();
+                        const ad = okul && okul !== "-" ? okul : programAdi(tam);
                         if (!ad) return <span style={{ color: "#cbd5e1" }}>-</span>;
                         const anahtar = satirAnahtari(ogr);
                         const acik = programHover === anahtar;
@@ -1508,7 +1510,7 @@ export default function KayitGuncelle() {
                             onClick={() => isMobile && setProgramHover(acik ? null : anahtar)}
                           >
                             {programKisa(ad)}
-                            {acik && (
+                            {acik && tam && (
                               <span style={s.programBalon}>{tam}</span>
                             )}
                           </span>
