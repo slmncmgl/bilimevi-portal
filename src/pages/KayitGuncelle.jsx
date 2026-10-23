@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.27
+// KayitGuncelle.jsx v1.28
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.27"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.28"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -981,9 +981,9 @@ export default function KayitGuncelle() {
 
   // Liste rozeti için tek tip durum: Onaylı > Gönderilmedi (danışman yok) > Beklemede
   const sozlesmeDurumu = k => {
-    if (onayliMi(k)) return { metin: k["Onay Durumu"], arka: "#f0fdf4", renk: "#166534" };
-    if (!String(k["Danışman Adı"] || "").trim()) return { metin: "Gönderilmedi", arka: "#f1f5f9", renk: "#64748b" };
-    return { metin: "Beklemede", arka: "#fef9c3", renk: "#854d0e" };
+    if (onayliMi(k)) return { metin: k["Onay Durumu"], simge: "✓", arka: "#dcfce7", renk: "#16a34a", halka: "#86efac" };
+    if (!String(k["Danışman Adı"] || "").trim()) return { metin: "Gönderilmedi", simge: "–", arka: "#f1f5f9", renk: "#64748b", halka: "#cbd5e1" };
+    return { metin: "Beklemede", simge: "⏳", arka: "#ffedd5", renk: "#ea580c", halka: "#fdba74" };
   };
 
   // Şimdilik listede gösterilmeyen sözleşme türleri
@@ -1237,6 +1237,8 @@ export default function KayitGuncelle() {
           60%  { width: 100%; opacity: 1; }
           100% { width: 100%; opacity: 0; }
         }
+        .durumRozet { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .durumRozet:hover { transform: scale(1.12); }
         @keyframes listFlash {
           0%   { box-shadow: 0 0 0 0 rgba(8,145,178,0.55); transform: scale(1); }
           12%  { box-shadow: 0 0 0 6px rgba(8,145,178,0.35); transform: scale(1.02); }
@@ -1483,7 +1485,7 @@ export default function KayitGuncelle() {
                   <th style={s.th}>TR Okul Adı</th>
                   {!isMobile && <th style={s.th}>Yaz Okulu Adı</th>}
                   <th style={s.th}>Danışman</th>
-                  <th style={s.th}>Sözleşme Durumu</th>
+                  <th style={{ ...s.th, textAlign: "center" }}>Sözleşme</th>
                   <th style={s.th}></th>
                 </tr>
               </thead>
@@ -1569,15 +1571,27 @@ export default function KayitGuncelle() {
                     <td style={{ ...s.td, color: ogr["Danışman Adı"] ? "#0f172a" : "#94a3b8" }}>
                       {basHarfBuyuk(ogr["Danışman Adı"]) || "Atanmamış"}
                     </td>
-                    <td style={s.td}>
+                    <td style={{ ...s.td, textAlign: "center" }}>
                       {(() => {
                         const d = sozlesmeDurumu(ogr);
+                        const anahtar = satirAnahtari(ogr) + "|durum";
+                        const acik = programHover === anahtar;
+                        // Renkli yuvarlak rozet; anlamı üstüne gelince / dokununca balonda
                         return (
-                          <span style={{
-                            display: "inline-block", maxWidth: "120px", lineHeight: "1.35",
-                            padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "600",
-                            whiteSpace: "normal", textAlign: "center", background: d.arka, color: d.renk,
-                          }}>{d.metin}</span>
+                          <span
+                            style={{ position: "relative", display: "inline-flex" }}
+                            onMouseEnter={() => !isMobile && setProgramHover(anahtar)}
+                            onMouseLeave={() => !isMobile && setProgramHover(null)}
+                            onClick={() => isMobile && setProgramHover(acik ? null : anahtar)}
+                          >
+                            <span className="durumRozet" aria-label={d.metin} style={{
+                              width: "26px", height: "26px", borderRadius: "50%",
+                              display: "inline-flex", alignItems: "center", justifyContent: "center",
+                              background: d.arka, color: d.renk, fontSize: "13px", fontWeight: "700",
+                              boxShadow: `0 0 0 2px ${d.halka}`, cursor: "default", userSelect: "none",
+                            }}>{d.simge}</span>
+                            {acik && <span style={{ ...s.programBalon, whiteSpace: "nowrap" }}>{d.metin}</span>}
+                          </span>
                         );
                       })()}
                     </td>
@@ -2195,12 +2209,12 @@ const s = {
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: -1, pointerEvents: "none" },
   bgGlow: { position: "fixed", top: "-10%", right: "-5%", width: "500px", height: "500px", background: "radial-gradient(circle, #cffafe44 0%, transparent 70%)", zIndex: -1, pointerEvents: "none" },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 100 },
-  headerInner: { maxWidth: "max(min(92vw, 1400px), min(100vw, 768px))", margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px" },
+  headerInner: { maxWidth: "max(min(92vw, 1200px), min(100vw, 768px))", margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px" },
   backBtn: { padding: "8px 15px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" },
   headerTitle: { flex: 1 },
   headerTitleText: { fontWeight: "700", fontSize: "14px" },
   headerSub: { fontSize: "11px", color: "#94a3b8" },
-  main: { maxWidth: "max(min(92vw, 1400px), min(100vw, 768px))", margin: "0 auto", padding: "20px", position: "relative", zIndex: 10 },
+  main: { maxWidth: "max(min(92vw, 1200px), min(100vw, 768px))", margin: "0 auto", padding: "20px", position: "relative", zIndex: 10 },
   searchCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
   // Ana başlıklar: koyu pastel lacivert
   searchLabel: { fontSize: "13px", fontWeight: "700", marginBottom: "10px", color: "#3d5a8a", letterSpacing: "0.2px" },
