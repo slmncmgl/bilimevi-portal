@@ -1,3 +1,4 @@
+// v1.7 — Quiz Başlığı son eğitimin kurum adıyla otomatik doluyor, AI başlığı ezmiyor; Toplam Soru 15 sabit
 // v1.6 — Sınavı Çöz butonu (pastel şeftali), link yoksa pasif; sekme adı "Sınav Cevaplarını Gir"
 // v1.5 — Sayfa başına kayıt 10'dan 5'e düşürüldü
 // v1.4 — Başlık "Eğitim Videoları ve Sınav Cevapları" olarak güncellendi
@@ -20,7 +21,9 @@ export default function SinavCevaplari() {
   const [right, setRight] = useState("");
   const [wrong, setWrong] = useState("");
   const [skipped, setSkipped] = useState("");
-  const [total, setTotal] = useState("");
+  const TOTAL_Q = "15"; // v1.7 — toplam soru sabit
+  const [total, setTotal] = useState(TOTAL_Q);
+  const [autoTitle, setAutoTitle] = useState(""); // v1.7 — son eğitimin kurum adı
   const [accuracy, setAccuracy] = useState("");
 
   const [imageBase64, setImageBase64] = useState(null);
@@ -65,7 +68,16 @@ export default function SinavCevaplari() {
       setYears(ys);
       setRowsByYear(data.rows || {});
       const now = String(new Date().getFullYear());
-      setYear(ys.includes(now) ? now : (ys[0] || ""));
+      const activeYear = ys.includes(now) ? now : (ys[0] || "");
+      setYear(activeYear);
+      // v1.7 — aktif yılın en yeni tarihli kaydının kurum adı
+      const latest = [...((data.rows || {})[activeYear] || [])]
+        .filter(r => r.iso)
+        .sort((a, b) => b.iso.localeCompare(a.iso))[0];
+      if (latest) {
+        setAutoTitle(latest.kurum);
+        setQuizTitle(prev => prev || latest.kurum); // sadece boşsa doldur
+      }
       setEgLoaded(true);
     } catch (_) {
       setEgError("Eğitim kayıtları yüklenemedi. Lütfen tekrar deneyin.");
@@ -117,7 +129,6 @@ export default function SinavCevaplari() {
   }
 
   function handleRight(v) { setRight(v); setAccuracy(calcAccuracy(v, total)); }
-  function handleTotal(v) { setTotal(v); setAccuracy(calcAccuracy(right, v)); }
 
   function onFileChange(e) {
     const file = e.target.files[0];
@@ -149,12 +160,11 @@ export default function SinavCevaplari() {
       const result = await res.json();
       const text = result.candidates[0].content.parts[0].text;
       const data = JSON.parse(text.replace(/```json|```/g, "").trim());
-      setQuizTitle(data.quizTitle || "");
+      setQuizTitle(prev => prev || data.quizTitle || ""); // v1.7 — dolu başlık korunur
       setRight(String(data.right || ""));
       setWrong(String(data.wrong || ""));
       setSkipped(String(data.skipped || ""));
-      setTotal(String(data.totalQuestions || ""));
-      setAccuracy(calcAccuracy(data.right, data.totalQuestions));
+      setAccuracy(calcAccuracy(data.right, TOTAL_Q)); // v1.7 — toplam her zaman 15
       setStatus({ type: "success", msg: "Analiz tamamlandı!" });
     } catch (_) {
       setStatus({ type: "error", msg: "Sınav sonuçlarını manuel olarak giriniz." });
@@ -184,7 +194,7 @@ export default function SinavCevaplari() {
         })
       });
       setStatus({ type: "success", msg: "Sonuç başarıyla tabloya kaydedildi!" });
-      setQuizTitle(""); setRight(""); setWrong(""); setSkipped(""); setTotal(""); setAccuracy(""); setImageBase64(null);
+      setQuizTitle(autoTitle); setRight(""); setWrong(""); setSkipped(""); setTotal(TOTAL_Q); setAccuracy(""); setImageBase64(null);
     } catch (_) {
       setStatus({ type: "error", msg: "Kayıt hatası." });
     }
@@ -311,8 +321,8 @@ export default function SinavCevaplari() {
               <div style={s.bottomGrid}>
                 <div>
                   <label style={s.label}>Toplam Soru</label>
-                  <input type="number" value={total} onChange={e => handleTotal(e.target.value)}
-                    style={s.input} />
+                  <input type="number" value={total} readOnly tabIndex={-1}
+                    style={{ ...s.input, background: "#f1f5f9", color: "#64748b", fontWeight: "700", textAlign: "center", cursor: "not-allowed" }} />
                 </div>
                 <div>
                   <label style={{ ...s.label, color: "#2563eb" }}>Doğruluk (%)</label>
