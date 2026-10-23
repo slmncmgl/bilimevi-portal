@@ -1,3 +1,4 @@
+// v1.6 — Sınavı Çöz butonu (pastel şeftali), link yoksa pasif; sekme adı "Sınav Cevaplarını Gir"
 // v1.5 — Sayfa başına kayıt 10'dan 5'e düşürüldü
 // v1.4 — Başlık "Eğitim Videoları ve Sınav Cevapları" olarak güncellendi
 // v1.3 — Eğitim Kayıtları sekmesi sola alındı ve varsayılan oldu, pastel lacivert tema
@@ -231,7 +232,7 @@ export default function SinavCevaplari() {
           </button>
           <button onClick={() => setActiveTab("giris")}
             className={activeTab === "giris" ? "sc-tab sc-tab-on" : "sc-tab"}>
-            Sınav Girişi
+            Sınav Cevaplarını Gir
           </button>
         </div>
 
@@ -396,12 +397,39 @@ export default function SinavCevaplari() {
                       <span className="sc-date">{r.tarih || "—"}</span>
                       <span className="sc-kurum">{r.kurum}</span>
                     </div>
-                    <a href={r.videoUrl} target="_blank" rel="noopener noreferrer" className="sc-watch">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                        <polygon points="5 3 19 12 5 21 5 3"/>
-                      </svg>
-                      Eğitim Kaydını İzle
-                    </a>
+                    {/* v1.6 — Sınavı Çöz + Eğitim Kaydını İzle, link yoksa pasif */}
+                    <div className="sc-actions">
+                      {r.quizUrl ? (
+                        <a href={r.quizUrl} target="_blank" rel="noopener noreferrer" className="sc-quiz">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                            <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                          </svg>
+                          Sınavı Çöz
+                        </a>
+                      ) : (
+                        <span className="sc-quiz sc-off" aria-disabled="true" title="Bu eğitim için sınav linki yok">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                            <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                          </svg>
+                          Sınavı Çöz
+                        </span>
+                      )}
+                      {r.videoUrl ? (
+                        <a href={r.videoUrl} target="_blank" rel="noopener noreferrer" className="sc-watch">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                          </svg>
+                          Eğitim Kaydını İzle
+                        </a>
+                      ) : (
+                        <span className="sc-watch sc-off" aria-disabled="true" title="Bu eğitimin video kaydı henüz yok">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                          </svg>
+                          Eğitim Kaydını İzle
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -469,6 +497,19 @@ export default function SinavCevaplari() {
         }
         .sc-watch:hover { background: #6b7ac2; }
 
+        /* v1.6 — Sınavı Çöz (pastel şeftali) ve pasif durum */
+        .sc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+        .sc-quiz {
+          display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+          flex-shrink: 0; padding: 9px 16px; background: #e0a37a; color: #fff;
+          border-radius: 10px; font-size: 13px; font-weight: 700;
+          text-decoration: none; font-family: 'Inter', sans-serif; transition: background 0.2s;
+        }
+        .sc-quiz:hover { background: #d4915f; }
+        .sc-off, .sc-off:hover {
+          background: #f1f5f9; color: #b6c0ce; cursor: not-allowed;
+        }
+
         /* v1.3 — Sayfalama */
         .sc-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .sc-pnums { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
@@ -491,12 +532,16 @@ export default function SinavCevaplari() {
           .sc-filters { flex-direction: column; align-items: stretch; }
           .sc-row { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px; }
           .sc-info { flex-direction: column; align-items: flex-start; gap: 6px; }
-          .sc-watch { width: 100%; padding: 13px 16px; min-height: 46px; font-size: 14px; }
+          .sc-actions { width: 100%; }
+          .sc-watch, .sc-quiz { flex: 1; padding: 13px 10px; min-height: 46px; font-size: 13px; }
           .sc-tab { padding: 12px 10px; min-height: 46px; font-size: 13px; }
           .sc-pager { flex-wrap: wrap; }
           .sc-pbtn { flex: 1; min-height: 44px; }
           .sc-pnums { order: 3; width: 100%; }
           .sc-pnum { min-height: 44px; min-width: 44px; }
+        }
+        @media (max-width: 360px) {
+          .sc-actions { flex-direction: column; }
         }
       `}</style>
     </div>
