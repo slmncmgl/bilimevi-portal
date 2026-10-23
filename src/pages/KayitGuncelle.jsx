@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.24
+// KayitGuncelle.jsx v1.25
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.24"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.25"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1481,6 +1481,7 @@ export default function KayitGuncelle() {
                   <th style={{ ...s.th, whiteSpace: "nowrap" }}>Form Tarihi</th>
                   <th style={s.th}>Öğrenci Adı Soyadı</th>
                   <th style={s.th}>Okul Adı</th>
+                  {!isMobile && <th style={s.th}>Yaz Okulu Adı</th>}
                   <th style={s.th}>Danışman</th>
                   <th style={s.th}>Sözleşme Durumu</th>
                   <th style={s.th}></th>
@@ -1541,6 +1542,30 @@ export default function KayitGuncelle() {
                         );
                       })()}
                     </td>
+                    {!isMobile && (
+                      <td style={{ ...s.td, color: "#475569", fontSize: "13px", lineHeight: "1.4", whiteSpace: "nowrap" }}>
+                        {(() => {
+                          // Hücrede sheet'teki Okul Adı; balonda Öğrenci Hangi Gruba Kayıtlı tam değeri
+                          const yazOkulu = String(ogr["Okul Adı"] || "").trim();
+                          if (!yazOkulu || yazOkulu === "-") return <span style={{ color: "#cbd5e1" }}>-</span>;
+                          const grup = String(ogr["Öğrenci Hangi Gruba Kayıtlı"] || "").trim();
+                          const anahtar = satirAnahtari(ogr) + "|yaz";
+                          const acik = programHover === anahtar;
+                          return (
+                            <span
+                              style={{ position: "relative", cursor: "default" }}
+                              onMouseEnter={() => setProgramHover(anahtar)}
+                              onMouseLeave={() => setProgramHover(null)}
+                            >
+                              {programKisa(yazOkulu)}
+                              {acik && grup && grup !== "-" && (
+                                <span style={s.programBalon}>{grup}</span>
+                              )}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                    )}
                     <td style={{ ...s.td, color: ogr["Danışman Adı"] ? "#0f172a" : "#94a3b8" }}>
                       {basHarfBuyuk(ogr["Danışman Adı"]) || "Atanmamış"}
                     </td>
