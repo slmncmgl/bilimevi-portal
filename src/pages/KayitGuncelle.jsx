@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.20
+// KayitGuncelle.jsx v1.21
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.20"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.21"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1215,6 +1215,16 @@ export default function KayitGuncelle() {
           from { opacity: 0; transform: translateY(-4px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes sozlesmeBar {
+          0%   { width: 0%; }
+          50%  { width: 90%; }
+          100% { width: 95%; }
+        }
+        @keyframes sozlesmeBarBitis {
+          0%   { width: 90%; opacity: 1; }
+          60%  { width: 100%; opacity: 1; }
+          100% { width: 100%; opacity: 0; }
+        }
         @keyframes listFlash {
           0%   { box-shadow: 0 0 0 0 rgba(8,145,178,0.55); transform: scale(1); }
           12%  { box-shadow: 0 0 0 6px rgba(8,145,178,0.35); transform: scale(1.02); }
@@ -1735,6 +1745,11 @@ export default function KayitGuncelle() {
               >{operasyonGonderiliyor ? "Gönderiliyor..." : "Kayıt Bilgilerini Operasyona Gönder"}</button>
               {(() => {
                 const aktif = (sozlesmeHazirlik === "hazir" || sozlesmeHazirlik === "gecikti") && !sozlesmeAciliyor && !submitting;
+                const bekliyor = sozlesmeHazirlik === "bekliyor";
+                // Workflow ortalama 25-30 sn: 30 sn'de %90, 60 sn'ye kadar %95. Link gelince %100 olup kaybolur.
+                const bar = bekliyor ? "sozlesmeBar 60s cubic-bezier(0.25, 0.6, 0.4, 1) forwards"
+                  : sozlesmeHazirlik === "hazir" ? "sozlesmeBarBitis 0.8s ease-out forwards"
+                  : null;
                 const metin = sozlesmeAciliyor ? "Açılıyor..."
                   : sozlesmeHazirlik === "bekliyor" ? "Sözleşme hazırlanıyor..."
                   : "Sözleşmeyi Gör";
@@ -1752,9 +1767,19 @@ export default function KayitGuncelle() {
                       ...s.submitBtn, background: "#fff", color: "#1e3a5f",
                       border: "1.5px solid #1e3a5f", minWidth: "190px",
                       fontVariantNumeric: "tabular-nums",
-                      opacity: aktif ? 1 : 0.45, cursor: aktif ? "pointer" : "not-allowed",
+                      opacity: aktif || bekliyor ? 1 : 0.45, cursor: aktif ? "pointer" : bekliyor ? "wait" : "not-allowed",
+                      position: "relative", overflow: "hidden",
                     }}
-                  >{metin}</button>
+                  >
+                    {bar && (
+                      <span aria-hidden="true" style={{
+                        position: "absolute", left: 0, top: 0, bottom: 0, width: 0,
+                        background: "linear-gradient(90deg, rgba(8,145,178,0.18), rgba(8,145,178,0.38))",
+                        animation: bar, pointerEvents: "none",
+                      }} />
+                    )}
+                    <span style={{ position: "relative" }}>{metin}</span>
+                  </button>
                 );
               })()}
               <button onClick={() => gonder(null, false)} disabled={submitting} style={s.submitBtn}>
