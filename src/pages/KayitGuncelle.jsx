@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.29
+// KayitGuncelle.jsx v1.30
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.29"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.30"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1379,12 +1379,15 @@ export default function KayitGuncelle() {
                 onClick={filtreleriTemizle}
                 disabled={!filtreDegisti}
                 style={{
-                  alignSelf: "flex-start", marginTop: "2px", padding: "6px 12px",
-                  fontSize: "12.5px", fontWeight: "600", borderRadius: "8px",
-                  background: "#fff", color: "#1e3a5f", border: "1px solid #cbd5e1",
-                  opacity: filtreDegisti ? 1 : 0.45, cursor: filtreDegisti ? "pointer" : "not-allowed",
+                  // Başlık şeritleriyle aynı lacivert-turkuaz gradyan
+                  alignSelf: "flex-start", marginTop: "4px", padding: "9px 18px",
+                  fontSize: "14px", fontWeight: "700", borderRadius: "10px", border: "none",
+                  background: "linear-gradient(90deg, #1e3a5f, #0891b2)", color: "#fff",
+                  boxShadow: filtreDegisti ? "0 4px 12px rgba(8,145,178,0.28)" : "none",
+                  display: "inline-flex", alignItems: "center", gap: "8px",
+                  opacity: filtreDegisti ? 1 : 0.4, cursor: filtreDegisti ? "pointer" : "not-allowed",
                 }}
-              >Tüm Filtreleri Temizle</button>
+              >🧹 Tüm Filtreleri Temizle</button>
               </div>
               </div>
 
