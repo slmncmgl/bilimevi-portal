@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.34
+// KayitGuncelle.jsx v1.35
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.34"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.35"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -984,9 +984,9 @@ export default function KayitGuncelle() {
 
   // Liste rozeti için tek tip durum: Onaylı > Gönderilmedi (danışman yok) > Beklemede
   const sozlesmeDurumu = k => {
-    if (onayliMi(k)) return { metin: k["Onay Durumu"], simge: "✓", arka: "#dcfce7", renk: "#16a34a", halka: "#86efac" };
-    if (!String(k["Danışman Adı"] || "").trim()) return { metin: "Gönderilmedi", simge: "–", arka: "#f1f5f9", renk: "#64748b", halka: "#cbd5e1" };
-    return { metin: "Beklemede", simge: "⏳", arka: "#ffedd5", renk: "#ea580c", halka: "#fdba74" };
+    if (onayliMi(k)) return { metin: k["Onay Durumu"], simge: "onay", renk: "#16a34a" };
+    if (!String(k["Danışman Adı"] || "").trim()) return { metin: "Gönderilmedi", simge: "yok", renk: "#94a3b8" };
+    return { metin: "Beklemede", simge: "bekle", renk: "#ea580c" };
   };
 
   // Şimdilik listede gösterilmeyen sözleşme türleri
@@ -1590,12 +1590,14 @@ export default function KayitGuncelle() {
                             onMouseLeave={() => !isMobile && setProgramHover(null)}
                             onClick={() => isMobile && setProgramHover(acik ? null : anahtar)}
                           >
-                            <span className="durumRozet" aria-label={d.metin} style={{
-                              width: "26px", height: "26px", borderRadius: "50%",
-                              display: "inline-flex", alignItems: "center", justifyContent: "center",
-                              background: d.arka, color: d.renk, fontSize: "13px", fontWeight: "700",
-                              boxShadow: `0 0 0 2px ${d.halka}`, cursor: "default", userSelect: "none",
-                            }}>{d.simge}</span>
+                            {/* Minimal çizgi ikon: onaylı tik, beklemede saat, gönderilmedi boş daire */}
+                            <svg className="durumRozet" role="img" aria-label={d.metin} width="20" height="20" viewBox="0 0 24 24"
+                              fill="none" stroke={d.renk} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+                              style={{ display: "block", cursor: "default" }}>
+                              {d.simge === "onay" && <path d="M5 12.5l4.5 4.5L19 7.5" />}
+                              {d.simge === "bekle" && <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>}
+                              {d.simge === "yok" && <circle cx="12" cy="12" r="7" strokeDasharray="3 3.2" />}
+                            </svg>
                             {acik && <span style={{ ...s.programBalon, whiteSpace: "nowrap" }}>{d.metin}</span>}
                           </span>
                         );
