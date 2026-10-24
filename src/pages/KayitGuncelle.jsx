@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.28
+// KayitGuncelle.jsx v1.29
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.28"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.29"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -87,6 +87,7 @@ const ALAN_ETIKETLERI = {
   "Hangi Ek Gezi 2": "Gezi Katılımı-2",
   "Hangi Vize Hizmeti": "Vize Hizmeti Talebi",
   "Hangi Konaklama": "Konaklama Tercihi",
+  "Okul Adı": "Yaz Okulu Adı",
 };
 const alanEtiketi = alan => ALAN_ETIKETLERI[alan] || alan;
 
@@ -461,7 +462,7 @@ function OzetPaneli({ data }) {
   return (
     <div style={{
       display: "grid", gap: "14px",
-      gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))",
+      gridTemplateColumns: "repeat(auto-fit, minmax(max(min(100%, 320px), calc(50% - 7px)), 1fr))", // en fazla 2 sütun
     }}>
       <OzetKart baslik="Öğrenci">
         <OzetSatir etiket="Ad Soyad" deger={data["Öğrenci Adı Soyadı"]} />
@@ -2333,7 +2334,7 @@ const s = {
   tabBar: { display: "flex", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0", overflowX: "auto", WebkitOverflowScrolling: "touch" },
   tabBtn: { flex: "1 0 auto", padding: "12px 14px", border: "none", background: "none", cursor: "pointer", fontSize: "13px", whiteSpace: "nowrap" },
   formCard: { background: "#fff", border: "1px solid #e2e8f0", padding: "20px", borderRadius: "0 0 15px 15px" },
-  fieldGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: "15px" },
+  fieldGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(max(min(100%, 320px), calc(50% - 8px)), 1fr))", gap: "15px" }, // en fazla 2 sütun
   fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "5px" },
   submitRow: { marginTop: "20px", display: "flex", justifyContent: "flex-end" },
   submitBtn: { padding: "15px 30px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer" },
