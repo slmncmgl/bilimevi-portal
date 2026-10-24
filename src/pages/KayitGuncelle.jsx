@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.36
+// KayitGuncelle.jsx v1.37
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.36"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.37"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -555,6 +555,11 @@ export default function KayitGuncelle() {
   // "hazir" = link değişti, "gecikti" = 60 sn içinde değişmedi, "yok" = danışmansız kayıt, sözleşme oluşmaz
   const [sozlesmeHazirlik, setSozlesmeHazirlik] = useState(null);
   const beklemeRef = useRef(null); // { tc, eskiLink, baslangic }
+  // Kayıt açıldığındaki / son kaydedildiğindeki hali; kaydedilmemiş değişiklik kontrolü için
+  const kayitliHalRef = useRef(null);
+  const kayitOzeti = k => JSON.stringify(
+    Object.fromEntries(Object.entries(k || {}).filter(([a]) => a !== "Sözleşme Onay Linki" && a !== "Notlar").sort())
+  );
   const [sozlesmeAciliyor, setSozlesmeAciliyor] = useState(false);
   const [beklemedeGoster, setBeklemedeGoster] = useState(() => kayitliFiltre.beklemedeGoster ?? false);
   const [taksitSilOnay, setTaksitSilOnay] = useState(null); // silinecek taksit numarası
@@ -795,6 +800,7 @@ export default function KayitGuncelle() {
       setTaksitKontrolKapali(false);
       setSozlesmeHazirlik(null);
       setData(json.data);
+      kayitliHalRef.current = kayitOzeti(json.data);
       setActiveTab("Özet");
     } catch {
       showToast("Bağlantı hatası", "error");
@@ -896,6 +902,7 @@ export default function KayitGuncelle() {
       } else {
         // Düzenleme ekranında kalınır; yeni sözleşme linki gelince "Sözleşmeyi Gör" açılır
         showToast("Kayıt güncellendi");
+        kayitliHalRef.current = kayitOzeti(kayitData);
         if (!String(kayitData["Danışman Adı"] || "").trim()) {
           setSozlesmeHazirlik("yok"); // danışmansız kayıt sadece sheet'te güncellenir
         } else {
@@ -1272,7 +1279,15 @@ export default function KayitGuncelle() {
             <div style={{ position: "relative", flex: 1, minWidth: 0, display: "flex" }}>
               <input
                 type="text" value={tc}
-                onChange={e => { setTc(e.target.value); setSayfa(1); setOneriAcik(true); }}
+                onChange={e => {
+                  // Kayıt detayındayken yazmaya başlanırsa listeye dönülür, arama orada sürer
+                  if (data) {
+                    const degisti = !saltOkunur && kayitliHalRef.current !== null && kayitOzeti(data) !== kayitliHalRef.current;
+                    if (degisti && !window.confirm("Kaydedilmemiş değişiklikler kaybolacak, devam edilsin mi?")) return;
+                    setData(null); setSaltOkunur(false);
+                  }
+                  setTc(e.target.value); setSayfa(1); setOneriAcik(true);
+                }}
                 onFocus={() => setOneriAcik(true)}
                 onBlur={() => setOneriAcik(false)}
                 onKeyDown={e => {
