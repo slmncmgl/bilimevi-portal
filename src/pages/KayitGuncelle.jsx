@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.33
+// KayitGuncelle.jsx v1.34
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.33"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.34"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1531,7 +1531,7 @@ export default function KayitGuncelle() {
                     <td style={{ ...s.td, color: "#475569", fontSize: "13px", lineHeight: "1.4", whiteSpace: "nowrap" }}>
                       {(() => {
                         const tam = String(ogr["Kaynak Form Adı"] || "").trim();
-                        // Hücrede TR_Okul_Default, boşsa form adından kısa ad; balonda tam Kaynak Form Adı
+                        // Hücrede TR_Okul_Default, boşsa form adından kısa ad; tam form adı balonu masaüstünde Yaz Okulu sütununda, mobilde burada
                         const okul = String(ogr["TR_Okul_Default"] || "").trim();
                         const ad = okul && okul !== "-" ? okul : programAdi(tam);
                         if (!ad) return <span style={{ color: "#cbd5e1" }}>-</span>;
@@ -1540,8 +1540,6 @@ export default function KayitGuncelle() {
                         return (
                           <span
                             style={{ position: "relative", cursor: "default" }}
-                            onMouseEnter={() => !isMobile && setProgramHover(anahtar)}
-                            onMouseLeave={() => !isMobile && setProgramHover(null)}
                             onClick={() => isMobile && setProgramHover(acik ? null : anahtar)}
                           >
                             {programKisa(ad)}
@@ -1555,10 +1553,10 @@ export default function KayitGuncelle() {
                     {!isMobile && (
                       <td style={{ ...s.td, color: "#475569", fontSize: "13px", lineHeight: "1.4", whiteSpace: "nowrap" }}>
                         {(() => {
-                          // Hücrede sheet'teki Okul Adı; balonda Öğrenci Hangi Gruba Kayıtlı tam değeri
+                          // Hücrede sheet'teki Okul Adı; balonda tam Kaynak Form Adı
                           const yazOkulu = String(ogr["Okul Adı"] || "").trim();
                           if (!yazOkulu || yazOkulu === "-") return <span style={{ color: "#cbd5e1" }}>-</span>;
-                          const grup = String(ogr["Öğrenci Hangi Gruba Kayıtlı"] || "").trim();
+                          const tamForm = String(ogr["Kaynak Form Adı"] || "").trim();
                           const anahtar = satirAnahtari(ogr) + "|yaz";
                           const acik = programHover === anahtar;
                           return (
@@ -1568,8 +1566,8 @@ export default function KayitGuncelle() {
                               onMouseLeave={() => setProgramHover(null)}
                             >
                               {programKisa(yazOkulu)}
-                              {acik && grup && grup !== "-" && (
-                                <span style={s.programBalon}>{grup}</span>
+                              {acik && tamForm && tamForm !== "-" && (
+                                <span style={s.programBalon}>{tamForm}</span>
                               )}
                             </span>
                           );
