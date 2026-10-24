@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.37
+// KayitGuncelle.jsx v1.38
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.37"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.38"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1506,7 +1506,7 @@ export default function KayitGuncelle() {
                   <th style={{ ...s.th, whiteSpace: "nowrap" }}>Form Tarihi</th>
                   <th style={s.th}>Öğrenci Adı Soyadı</th>
                   <th style={s.th}>TR Okul Adı</th>
-                  {!isMobile && <th style={s.th}>Yaz Okulu Adı</th>}
+                  {!isMobile && <th style={s.th}>{grupDisiGoster ? "Dil Okulu Adı" : "Yaz Okulu Adı"}</th>}
                   <th style={s.th}>Danışman</th>
                   <th style={{ ...s.th, textAlign: "center" }}>Sözleşme</th>
                   <th style={s.th}></th>
