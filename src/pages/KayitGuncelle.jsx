@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.32
+// KayitGuncelle.jsx v1.33
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.32"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.33"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1604,7 +1604,7 @@ export default function KayitGuncelle() {
                       })()}
                     </td>
                     <td style={{ ...s.td, textAlign: "right", whiteSpace: "nowrap", width: "1%" }}>
-                      {/* Tüm butonlar yan yana ve aynı yükseklikte (s.aksiyonBtn): Not, (⚠️), Düzenle, Sözleşme Oluştur, Sözleşmeyi Göster */}
+                      {/* Tüm butonlar yan yana ve aynı yükseklikte (s.aksiyonBtn): Not, (⚠️), Düzenle, Sözleşme (Oluştur / Hazırlanıyor / Göster) */}
                       <div style={{
                         display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "stretch", flexWrap: "nowrap",
                       }}>
@@ -1635,47 +1635,43 @@ export default function KayitGuncelle() {
                           onClick={() => sorgula(ogr["TC Kimlik No"])}
                           style={{ ...s.editBtn, ...s.aksiyonBtn, minWidth: "76px" }}
                         >{ogr["Danışman Adı"] ? "Düzenle" : "Görüntüle"}</button>
-                        <button
-                          onClick={async () => {
-                            const tcNo = String(ogr["TC Kimlik No"] || "");
-                            try {
-                              await navigator.clipboard.writeText(tcNo);
-                            } catch {
-                              const ta = document.createElement("textarea");
-                              ta.value = tcNo;
-                              document.body.appendChild(ta);
-                              ta.select();
-                              document.execCommand("copy");
-                              document.body.removeChild(ta);
-                            }
-                            setKopyaModal({ tc: tcNo, ad: ogr["Öğrenci Adı Soyadı"] });
-                          }}
-                          // Danışman atanmışsa ya da sözleşme zaten oluşmuşsa yeniden oluşturulamaz
-                          disabled={!!String(ogr["Danışman Adı"] || "").trim() || !!gecerliLink(ogr["Sözleşme Onay Linki"])}
-                          title={
-                            String(ogr["Danışman Adı"] || "").trim() || gecerliLink(ogr["Sözleşme Onay Linki"])
-                              ? "Sözleşme zaten oluşturulmuş, Sözleşmeyi Göster'i kullanın"
-                              : "TC'yi kopyalar ve danışman sözleşme formunu açar"
-                          }
-                          style={{
-                            ...s.formBtn, ...s.aksiyonBtn,
-                            ...((String(ogr["Danışman Adı"] || "").trim() || gecerliLink(ogr["Sözleşme Onay Linki"]))
-                              ? { opacity: 0.4, cursor: "not-allowed" } : {}),
-                          }}
-                        >Sözleşme<br />Oluştur</button>
                         {(() => {
-                          // Sözleşme önce görülmeli, gönderim modalın içinden yapılır
+                          // Tek sözleşme butonu: link varsa Göster, danışman yoksa Oluştur, danışman var link yoksa Hazırlanıyor (pasif)
                           const link = gecerliLink(ogr["Sözleşme Onay Linki"]);
-                          return (
+                          const danismanVar = !!String(ogr["Danışman Adı"] || "").trim();
+                          if (link) return (
                             <button
                               onClick={() => setSozlesmeModal(ogr)}
-                              disabled={!link}
-                              title={link ? "Sözleşmeyi gör ve gönder" : "Sözleşme henüz oluşturulmamış"}
-                              style={{
-                                ...s.sendBtn, ...s.aksiyonBtn,
-                                opacity: link ? 1 : 0.4, cursor: link ? "pointer" : "not-allowed",
-                              }}
+                              title="Sözleşmeyi gör ve gönder"
+                              style={{ ...s.sendBtn, ...s.aksiyonBtn, minWidth: "92px" }}
                             >{gonderilenTC === ogr["TC Kimlik No"] ? <>Gönderildi<br />✓</> : <>Sözleşmeyi<br />Göster</>}</button>
+                          );
+                          if (danismanVar) return (
+                            <button
+                              disabled
+                              title="Sözleşme hazırlanıyor, link henüz oluşmadı"
+                              style={{ ...s.formBtn, ...s.aksiyonBtn, minWidth: "92px", opacity: 0.4, cursor: "not-allowed" }}
+                            >Sözleşme<br />Hazırlanıyor</button>
+                          );
+                          return (
+                            <button
+                              onClick={async () => {
+                                const tcNo = String(ogr["TC Kimlik No"] || "");
+                                try {
+                                  await navigator.clipboard.writeText(tcNo);
+                                } catch {
+                                  const ta = document.createElement("textarea");
+                                  ta.value = tcNo;
+                                  document.body.appendChild(ta);
+                                  ta.select();
+                                  document.execCommand("copy");
+                                  document.body.removeChild(ta);
+                                }
+                                setKopyaModal({ tc: tcNo, ad: ogr["Öğrenci Adı Soyadı"] });
+                              }}
+                              title="TC'yi kopyalar ve danışman sözleşme formunu açar"
+                              style={{ ...s.formBtn, ...s.aksiyonBtn, minWidth: "92px" }}
+                            >Sözleşme<br />Oluştur</button>
                           );
                         })()}
                       </div>
@@ -2217,12 +2213,12 @@ const s = {
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: -1, pointerEvents: "none" },
   bgGlow: { position: "fixed", top: "-10%", right: "-5%", width: "500px", height: "500px", background: "radial-gradient(circle, #cffafe44 0%, transparent 70%)", zIndex: -1, pointerEvents: "none" },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 100 },
-  headerInner: { maxWidth: "max(min(92vw, 1200px), min(100vw, 768px))", margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px" },
+  headerInner: { maxWidth: "max(min(92vw, 1100px), min(100vw, 768px))", margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px" },
   backBtn: { padding: "8px 15px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" },
   headerTitle: { flex: 1 },
   headerTitleText: { fontWeight: "700", fontSize: "14px" },
   headerSub: { fontSize: "11px", color: "#94a3b8" },
-  main: { maxWidth: "max(min(92vw, 1200px), min(100vw, 768px))", margin: "0 auto", padding: "20px", position: "relative", zIndex: 10 },
+  main: { maxWidth: "max(min(92vw, 1100px), min(100vw, 768px))", margin: "0 auto", padding: "20px", position: "relative", zIndex: 10 },
   searchCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
   // Ana başlıklar: koyu pastel lacivert
   searchLabel: { fontSize: "13px", fontWeight: "700", marginBottom: "10px", color: "#3d5a8a", letterSpacing: "0.2px" },
