@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.30
+// KayitGuncelle.jsx v1.31
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.30"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.31"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -88,6 +88,8 @@ const ALAN_ETIKETLERI = {
   "Hangi Vize Hizmeti": "Vize Hizmeti Talebi",
   "Hangi Konaklama": "Konaklama Tercihi",
   "Okul Adı": "Yaz Okulu Adı",
+  "Türkiye'de Eğitim Aldığı Okul": "Türkiye'de Eğitim Aldığı Okul (Manuel girilen)",
+  "TR_Okul_Default": "Sunum Yapılan Okul (Formdan sabit gelen)",
 };
 const alanEtiketi = alan => ALAN_ETIKETLERI[alan] || alan;
 
@@ -152,7 +154,7 @@ const DROPDOWN_OPTIONS = {
   ],
 };
 
-const READONLY_FIELDS = ["TC Kimlik No", "Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi", "Danışman Adı", "Şirket Adı", "Sözleşme Türü", "Toplam Program Ücreti"];
+const READONLY_FIELDS = ["TR_Okul_Default", "TC Kimlik No", "Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi", "Danışman Adı", "Şirket Adı", "Sözleşme Türü", "Toplam Program Ücreti"];
 
 const HIDDEN_FIELDS = [
   "row_number", "Sözleşme Onay Linki", "Öğrenci Takip URL", "Öğrenci Sheet Linki",
@@ -166,7 +168,7 @@ const TAB_FIELDS = {
     "Öğrenci Mail Adresi", "Öğrenci Cep Telefonu",
     "Pasaportu Var Mı", "Pasaport Türü",
     "Pasaport Fotoğrafı", "TC Kimlik Fotoğrafı",
-    "Türkiye'de Eğitim Aldığı Okul", "Sınıfı-Şubesi",
+    "Türkiye'de Eğitim Aldığı Okul", "TR_Okul_Default", "Sınıfı-Şubesi",
     "İkamet Adresi", "Yaşadığı Adres",
   ],
   "Sağlık": ["Alerji durumu", "Sürekli kullanılan ilaç", "Kronik hastalık"],
