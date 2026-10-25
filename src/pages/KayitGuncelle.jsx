@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.40
+// KayitGuncelle.jsx v1.41
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.40"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.41"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1379,7 +1379,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setSadeceBenim(e.target.checked); setSayfa(1); }}
                   style={{ ...s.checkbox, cursor: tumunuGorebilir ? "pointer" : "not-allowed" }}
                 />
-                Sadece Kendi Öğrencilerimi Göster{kutuSayisi("benim")}
+                Kendi Öğrencilerimi Göster{kutuSayisi("benim")}
               </label>
 
               <label style={s.filtreLabel}>
@@ -1390,10 +1390,10 @@ export default function KayitGuncelle() {
                   onChange={e => { setOnayliGoster(e.target.checked); if (e.target.checked) { setBeklemedeGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sadece Onaylı Sözleşmeleri Göster{kutuSayisi("onayli")}
+                Onaylı Sözleşmeleri Göster{kutuSayisi("onayli")}
               </label>
 
-              <label style={s.filtreLabel} title="Sadece Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini gösterir">
+              <label style={s.filtreLabel} title="Bireysel yaz okulu, yetişkin dil okulu ve okulu belirtilmemiş kayıtları gösterir">
                 <input
                   type="checkbox"
                   checked={grupDisiGoster}
@@ -1412,7 +1412,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setBeklemedeGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sadece Sözleşme Onayı Bekleyenleri Göster{kutuSayisi("bekleyen")}
+                Sözleşme Onayı Bekleyenleri Göster{kutuSayisi("bekleyen")}
               </label>
 
               <label style={s.filtreLabel} title="Sözleşme linki henüz oluşmamış kayıtlar">
@@ -1423,7 +1423,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setSozlesmesizGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setBeklemedeGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sadece Sözleşme Hazırlanacakları Göster{kutuSayisi("hazirlanacak")}
+                Sözleşme Hazırlanacakları Göster{kutuSayisi("hazirlanacak")}
               </label>
 
               <button
