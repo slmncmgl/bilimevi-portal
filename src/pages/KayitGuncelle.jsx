@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.46
+// KayitGuncelle.jsx v1.47
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.46"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.47"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -748,13 +748,13 @@ export default function KayitGuncelle() {
   // yazi: şerit yazı rengi, rozet: sayaç zemini (açık temada koyu yazı)
   const TEMA_RENKLERI = {
     lacivert: { ad: "Lacivert", bant: "linear-gradient(90deg, #1e3a5f, #0891b2)", nokta: "#1e3a5f", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
-    turkuaz: { ad: "Turkuaz", bant: "linear-gradient(90deg, #0e7490, #22d3ee)", nokta: "#0891b2", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
-    zumrut: { ad: "Zümrüt", bant: "linear-gradient(90deg, #047857, #34d399)", nokta: "#059669", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
-    grafit: { ad: "Grafit", bant: "linear-gradient(90deg, #334155, #64748b)", nokta: "#475569", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
-    pastel: { ad: "Pastel Turkuaz", bant: "linear-gradient(90deg, #cffafe, #e0f2fe)", nokta: "#a5f3fc", yazi: "#155e75", rozet: "rgba(255,255,255,0.75)" },
+    geceMavisi: { ad: "Gece Mavisi", bant: "linear-gradient(90deg, #312e81, #3b82f6)", nokta: "#4338ca", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
+    petrol: { ad: "Petrol", bant: "linear-gradient(90deg, #134e4a, #0f766e)", nokta: "#0f766e", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
+    bordo: { ad: "Bordo", bant: "linear-gradient(90deg, #881337, #be185d)", nokta: "#9f1239", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
+    antrasit: { ad: "Antrasit", bant: "linear-gradient(90deg, #1f2937, #0e7490)", nokta: "#1f2937", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
   };
   const [tema, setTema] = useState(() => {
-    try { const v = localStorage.getItem(TEMA_ANAHTARI); return TEMA_RENKLERI[v] ? v : "turkuaz"; } catch { return "turkuaz"; }
+    try { const v = localStorage.getItem(TEMA_ANAHTARI); return TEMA_RENKLERI[v] ? v : "lacivert"; } catch { return "lacivert"; }
   });
   const temaSec = v => { setTema(v); try { localStorage.setItem(TEMA_ANAHTARI, v); } catch { /* depolama kapalı */ } };
   const bant = { ...s.baslikBant, background: TEMA_RENKLERI[tema].bant, color: TEMA_RENKLERI[tema].yazi };
