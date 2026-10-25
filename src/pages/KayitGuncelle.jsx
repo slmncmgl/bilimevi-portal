@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.42
+// KayitGuncelle.jsx v1.43
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.42"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.43"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1433,7 +1433,7 @@ export default function KayitGuncelle() {
                 style={{
                   // Başlık şeritleriyle aynı lacivert-turkuaz gradyan
                   // Yükseklik eski boyutta, genişlik eskinin ~1,5 katı
-                  alignSelf: "flex-start", marginTop: "2px", padding: "6px 18px", minWidth: "282px",
+                  alignSelf: "flex-start", marginTop: "2px", padding: "6px 18px", minWidth: "245px",
                   justifyContent: "center",
                   fontSize: "12.5px", fontWeight: "700", borderRadius: "8px", border: "none",
                   background: "linear-gradient(90deg, #1e3a5f, #0891b2)", color: "#fff",
