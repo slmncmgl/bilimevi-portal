@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.45
+// KayitGuncelle.jsx v1.46
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.45"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.46"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -745,15 +745,19 @@ export default function KayitGuncelle() {
   const SAYFA_BOYUTU = sayfaBoyutu;
   // Başlık şeridi rengi: kullanıcıya özel, tarayıcıda kalıcı
   const TEMA_ANAHTARI = `kayitGuncelleTema:${user?.name || ""}`;
+  // yazi: şerit yazı rengi, rozet: sayaç zemini (açık temada koyu yazı)
   const TEMA_RENKLERI = {
-    turkuaz: { ad: "Turkuaz", bant: "linear-gradient(90deg, #0e7490, #22d3ee)", nokta: "#0891b2" },
-    zumrut: { ad: "Zümrüt", bant: "linear-gradient(90deg, #047857, #34d399)", nokta: "#059669" },
+    lacivert: { ad: "Lacivert", bant: "linear-gradient(90deg, #1e3a5f, #0891b2)", nokta: "#1e3a5f", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
+    turkuaz: { ad: "Turkuaz", bant: "linear-gradient(90deg, #0e7490, #22d3ee)", nokta: "#0891b2", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
+    zumrut: { ad: "Zümrüt", bant: "linear-gradient(90deg, #047857, #34d399)", nokta: "#059669", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
+    grafit: { ad: "Grafit", bant: "linear-gradient(90deg, #334155, #64748b)", nokta: "#475569", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
+    pastel: { ad: "Pastel Turkuaz", bant: "linear-gradient(90deg, #cffafe, #e0f2fe)", nokta: "#a5f3fc", yazi: "#155e75", rozet: "rgba(255,255,255,0.75)" },
   };
   const [tema, setTema] = useState(() => {
     try { const v = localStorage.getItem(TEMA_ANAHTARI); return TEMA_RENKLERI[v] ? v : "turkuaz"; } catch { return "turkuaz"; }
   });
   const temaSec = v => { setTema(v); try { localStorage.setItem(TEMA_ANAHTARI, v); } catch { /* depolama kapalı */ } };
-  const bant = { ...s.baslikBant, background: TEMA_RENKLERI[tema].bant };
+  const bant = { ...s.baslikBant, background: TEMA_RENKLERI[tema].bant, color: TEMA_RENKLERI[tema].yazi };
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
   // Bir kaydın taksit toplamı ile program ücreti uyuşuyor mu?
@@ -1460,7 +1464,7 @@ export default function KayitGuncelle() {
                   alignSelf: "flex-start", marginTop: "2px", padding: "6px 18px", minWidth: "245px",
                   justifyContent: "center",
                   fontSize: "12.5px", fontWeight: "700", borderRadius: "8px", border: "none",
-                  background: TEMA_RENKLERI[tema].bant, color: "#fff",
+                  background: TEMA_RENKLERI[tema].bant, color: TEMA_RENKLERI[tema].yazi,
                   boxShadow: filtreDegisti ? "0 4px 12px rgba(8,145,178,0.28)" : "none",
                   display: "inline-flex", alignItems: "center", gap: "8px",
                   opacity: filtreDegisti ? 1 : 0.4, cursor: filtreDegisti ? "pointer" : "not-allowed",
@@ -1549,8 +1553,8 @@ export default function KayitGuncelle() {
             }}>
               📋 Kayıt Formları
               <span style={{
-                background: listeFlash ? "#fff" : "rgba(255,255,255,0.25)",
-                color: listeFlash ? "#0891b2" : "#fff",
+                background: listeFlash ? "#fff" : TEMA_RENKLERI[tema].rozet,
+                color: listeFlash ? "#0891b2" : TEMA_RENKLERI[tema].yazi,
                 padding: "2px 10px", borderRadius: "20px", fontSize: "12px",
                 transition: "background 0.4s, color 0.4s",
               }}>{siraliOgrenciler.length}</span>
