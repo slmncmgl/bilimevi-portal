@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.43
+// KayitGuncelle.jsx v1.44
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.43"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.44"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1400,7 +1400,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setGrupDisiGoster(e.target.checked); setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Gruplar Dışındaki Kayıtlar{kutuSayisi("grupDisi")}
+                Grup Kayıtları Hariç{kutuSayisi("grupDisi")}
               </label>
               </div>
 
