@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.39
+// KayitGuncelle.jsx v1.40
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.39"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.40"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1280,6 +1280,8 @@ export default function KayitGuncelle() {
           60%  { width: 100%; opacity: 1; }
           100% { width: 100%; opacity: 0; }
         }
+        input[type="date"]::-webkit-datetime-edit-fields-wrapper { display: flex; justify-content: center; }
+        input[type="date"]::-webkit-date-and-time-value { text-align: center; }
         .durumRozet { transition: transform 0.15s ease, box-shadow 0.15s ease; }
         .durumRozet:hover { transform: scale(1.12); }
         @keyframes listFlash {
@@ -1431,7 +1433,7 @@ export default function KayitGuncelle() {
                 style={{
                   // Başlık şeritleriyle aynı lacivert-turkuaz gradyan
                   // Yükseklik eski boyutta, genişlik eskinin ~1,5 katı
-                  alignSelf: "flex-start", marginTop: "2px", padding: "6px 18px", minWidth: "245px",
+                  alignSelf: "flex-start", marginTop: "2px", padding: "6px 18px", minWidth: "282px",
                   justifyContent: "center",
                   fontSize: "12.5px", fontWeight: "700", borderRadius: "8px", border: "none",
                   background: "linear-gradient(90deg, #1e3a5f, #0891b2)", color: "#fff",
@@ -1461,7 +1463,7 @@ export default function KayitGuncelle() {
                     padding: "7px 10px", borderRadius: "8px", border: "1px solid #e2e8f0",
                     outline: "none", fontSize: "13px", fontFamily: "'Sora', sans-serif",
                     color: "#1e3a5f", background: "#fff", cursor: "pointer", fontWeight: "600",
-                    width: "100%", boxSizing: "border-box",
+                    width: "100%", boxSizing: "border-box", textAlign: "center",
                   }}
                 />
                 <button
