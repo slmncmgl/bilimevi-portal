@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.44
+// KayitGuncelle.jsx v1.45
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.44"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.45"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -741,7 +741,19 @@ export default function KayitGuncelle() {
   // Varsayılan kapalı: Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmeleri gizli kalır
   const [grupDisiGoster, setGrupDisiGoster] = useState(() => kayitliFiltre.grupDisiGoster ?? false); // açıkken sadece Bireysel/Yetişkin, kapalıyken sadece gruplar
   const [listeFlash, setListeFlash] = useState(false);
-  const SAYFA_BOYUTU = 10;
+  const [sayfaBoyutu, setSayfaBoyutu] = useState(() => [10, 20, 30, 50].includes(kayitliFiltre.sayfaBoyutu) ? kayitliFiltre.sayfaBoyutu : 10);
+  const SAYFA_BOYUTU = sayfaBoyutu;
+  // Başlık şeridi rengi: kullanıcıya özel, tarayıcıda kalıcı
+  const TEMA_ANAHTARI = `kayitGuncelleTema:${user?.name || ""}`;
+  const TEMA_RENKLERI = {
+    turkuaz: { ad: "Turkuaz", bant: "linear-gradient(90deg, #0e7490, #22d3ee)", nokta: "#0891b2" },
+    zumrut: { ad: "Zümrüt", bant: "linear-gradient(90deg, #047857, #34d399)", nokta: "#059669" },
+  };
+  const [tema, setTema] = useState(() => {
+    try { const v = localStorage.getItem(TEMA_ANAHTARI); return TEMA_RENKLERI[v] ? v : "turkuaz"; } catch { return "turkuaz"; }
+  });
+  const temaSec = v => { setTema(v); try { localStorage.setItem(TEMA_ANAHTARI, v); } catch { /* depolama kapalı */ } };
+  const bant = { ...s.baslikBant, background: TEMA_RENKLERI[tema].bant };
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
   // Bir kaydın taksit toplamı ile program ücreti uyuşuyor mu?
@@ -1163,17 +1175,17 @@ export default function KayitGuncelle() {
     try {
       sessionStorage.setItem(FILTRE_ANAHTARI, JSON.stringify({
         sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim,
-        tarihFiltre, onayliGoster, grupDisiGoster,
+        tarihFiltre, onayliGoster, grupDisiGoster, sayfaBoyutu,
       }));
     } catch { /* depolama kapalıysa sessizce geç */ }
-  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim, tarihFiltre, onayliGoster, grupDisiGoster]);
+  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim, tarihFiltre, onayliGoster, grupDisiGoster, sayfaBoyutu]);
 
   // Hatırlanan sayfa numarası yeni listede yoksa son sayfaya çek
   useEffect(() => {
     if (!ogrencilerim.length) return;
     const sonSayfa = Math.max(1, Math.ceil(filtreliOgrenciler.length / SAYFA_BOYUTU));
     if (sayfa > sonSayfa) setSayfa(sonSayfa);
-  }, [filtreliOgrenciler.length, sayfa, ogrencilerim.length]);
+  }, [filtreliOgrenciler.length, sayfa, ogrencilerim.length, sayfaBoyutu]);
 
   // Özet ve Ebeveyn sekmelerinin en altındaki, tam genişlikteki not kutusu: listedeki pencereyle aynı kaydı kullanır
   const notKutusu = () => {
@@ -1303,13 +1315,25 @@ export default function KayitGuncelle() {
             <div style={s.headerTitleText}>Doldurulan Kayıt Formları</div>
             <div style={s.headerSub}>{user?.name} | Bilimevi</div>
           </div>
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }} aria-label="Başlık rengi">
+            {Object.entries(TEMA_RENKLERI).map(([k, v]) => (
+              <button
+                key={k} type="button" onClick={() => temaSec(k)} title={`Başlık rengi: ${v.ad}`}
+                style={{
+                  width: "14px", height: "14px", borderRadius: "50%", padding: 0, cursor: "pointer",
+                  background: v.nokta, border: "2px solid #fff",
+                  boxShadow: tema === k ? `0 0 0 1.5px ${v.nokta}` : "0 0 0 1px #e2e8f0",
+                }}
+              />
+            ))}
+          </div>
           <div style={{ color: "#94a3b8", fontSize: "11px", whiteSpace: "nowrap" }}>{SURUM}</div>
         </div>
       </header>
 
       <main style={s.main}>
         <div style={s.searchCard}>
-          <div style={{ ...s.baslikBant, marginBottom: "10px" }}>🔍 Ad Soyad / TC Kimlik No / Okul / Form Adı ile Sorgula</div>
+          <div style={{ ...bant, marginBottom: "10px" }}>🔍 Ad Soyad / TC Kimlik No / Okul / Form Adı ile Sorgula</div>
           <div style={s.searchRow}>
             <div style={{ position: "relative", flex: 1, minWidth: 0, display: "flex" }}>
               <input
@@ -1436,7 +1460,7 @@ export default function KayitGuncelle() {
                   alignSelf: "flex-start", marginTop: "2px", padding: "6px 18px", minWidth: "245px",
                   justifyContent: "center",
                   fontSize: "12.5px", fontWeight: "700", borderRadius: "8px", border: "none",
-                  background: "linear-gradient(90deg, #1e3a5f, #0891b2)", color: "#fff",
+                  background: TEMA_RENKLERI[tema].bant, color: "#fff",
                   boxShadow: filtreDegisti ? "0 4px 12px rgba(8,145,178,0.28)" : "none",
                   display: "inline-flex", alignItems: "center", gap: "8px",
                   opacity: filtreDegisti ? 1 : 0.4, cursor: filtreDegisti ? "pointer" : "not-allowed",
@@ -1489,7 +1513,7 @@ export default function KayitGuncelle() {
           {!data && formSecenekleri.length > 0 && (
             <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e8edf3" }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ ...s.baslikBant, marginBottom: "8px" }}>🏫 Okul || Grup</div>
+                <div style={{ ...bant, marginBottom: "8px" }}>🏫 Okul || Grup</div>
                 <select
                   value={formFiltre}
                   onChange={e => { setFormFiltre(e.target.value); setSayfa(1); }}
@@ -1520,7 +1544,7 @@ export default function KayitGuncelle() {
         {!data && !ogrencilerLoading && ogrencilerim.length > 0 && (
           <div style={s.listCard}>
             <div style={{
-              ...s.baslikBant, fontSize: "14px", marginBottom: "14px",
+              ...bant, fontSize: "14px", marginBottom: "14px",
               animation: listeFlash ? "listFlash 2s ease-out" : "none",
             }}>
               📋 Kayıt Formları
@@ -1737,6 +1761,11 @@ export default function KayitGuncelle() {
                 Filtrelerinizle eşleşen kayıt bulunamadı.
               </div>
             )}
+            {siraliOgrenciler.length > 0 && (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: "14px", marginTop: "18px",
+              flexWrap: "wrap", flexDirection: isMobile ? "column" : "row",
+            }}>
             {siraliOgrenciler.length > SAYFA_BOYUTU && (() => {
               const toplamSayfa = Math.ceil(siraliOgrenciler.length / SAYFA_BOYUTU);
               // Aktif sayfanın etrafında pencere, başta ve sonda kısayol
@@ -1752,7 +1781,7 @@ export default function KayitGuncelle() {
               });
 
               return (
-                <div style={s.pagination}>
+                <div style={{ ...s.pagination, marginTop: 0 }}>
                   <button
                     onClick={() => setSayfa(sayfa - 1)}
                     disabled={sayfa === 1}
@@ -1779,6 +1808,18 @@ export default function KayitGuncelle() {
                 </div>
               );
             })()}
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "#475569" }}>
+              Satır sayısı:
+              <select
+                value={sayfaBoyutu}
+                onChange={e => { setSayfaBoyutu(Number(e.target.value)); setSayfa(1); }}
+                style={{ ...s.filtreSelect, width: "auto", padding: "5px 8px" }}
+              >
+                {[10, 20, 30, 50].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
+            </div>
+            )}
           </div>
         )}
 
