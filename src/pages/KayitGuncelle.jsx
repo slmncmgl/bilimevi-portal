@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.38
+// KayitGuncelle.jsx v1.39
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.38"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.39"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1060,6 +1060,39 @@ export default function KayitGuncelle() {
            normalize(o["Kaynak Form Adı"]).includes(aramaTerimi);
   });
 
+  // Kutucuk sayıları: kutu işaretlenirse listede kaç kayıt kalacağı (diğer filtreler + okul dropdown'u dahil).
+  // onFiltreli'ye dokunulmadan aynı kurallar ayrı uygulanır; aramada sayılar gizlenir.
+  const kutuUygun = (o, a) => {
+    if (!erisebilir(o)) return false;
+    if (a.grupDisi ? !gizliTurMu(o) : gizliTurMu(o)) return false;
+    if (a.onayli && !onayliMi(o)) return false;
+    if (a.bekleyen && sozlesmeDurumu(o).metin !== "Beklemede") return false;
+    if (a.hazirlanacak && gecerliLink(o["Sözleşme Onay Linki"])) return false;
+    if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
+    const benimMi = normalize(o["Danışman Adı"]).trim() === normalize(user?.name).trim();
+    if (!tumunuGorebilir && !benimMi) return false;
+    if (a.benim && !benimMi) return false;
+    if (a.okul && formEtiketi(o) !== a.okul) return false;
+    return true;
+  };
+  const mevcutKutular = {
+    grupDisi: grupDisiGoster, onayli: onayliGoster, bekleyen: beklemedeGoster,
+    hazirlanacak: sozlesmesizGoster, benim: sadeceBenim, okul: formFiltre,
+  };
+  const kutuSay = ayar => ogrencilerim.filter(o => kutuUygun(o, { ...mevcutKutular, ...ayar })).length;
+  const DURUM_KAPALI = { onayli: false, bekleyen: false, hazirlanacak: false }; // üçü birbirini dışlar
+  const kutuSayilari = aramaTerimi || !ogrencilerim.length ? null : {
+    benim: kutuSay({ benim: true }),
+    onayli: kutuSay({ ...DURUM_KAPALI, onayli: true }),
+    // Grup dışına geçince okul seçenekleri değiştiği için okul filtresi sayılmaz
+    grupDisi: kutuSay({ grupDisi: true, okul: "" }),
+    bekleyen: kutuSay({ ...DURUM_KAPALI, bekleyen: true }),
+    hazirlanacak: kutuSay({ ...DURUM_KAPALI, hazirlanacak: true }),
+  };
+  const kutuSayisi = anahtar => kutuSayilari
+    ? <span style={{ color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}> ({kutuSayilari[anahtar]})</span>
+    : null;
+
   // Arama kutusunun altındaki öneriler: eşleşen öğrenci, okul ve kaynak form adları (en fazla 8)
   const aramaOnerileri = (() => {
     if (aramaTerimi.length < 2 || data) return [];
@@ -1344,7 +1377,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setSadeceBenim(e.target.checked); setSayfa(1); }}
                   style={{ ...s.checkbox, cursor: tumunuGorebilir ? "pointer" : "not-allowed" }}
                 />
-                Sadece Kendi Öğrencilerimi Göster
+                Sadece Kendi Öğrencilerimi Göster{kutuSayisi("benim")}
               </label>
 
               <label style={s.filtreLabel}>
@@ -1355,7 +1388,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setOnayliGoster(e.target.checked); if (e.target.checked) { setBeklemedeGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sadece Onaylı Sözleşmeleri Göster
+                Sadece Onaylı Sözleşmeleri Göster{kutuSayisi("onayli")}
               </label>
 
               <label style={s.filtreLabel} title="Sadece Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmelerini gösterir">
@@ -1365,7 +1398,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setGrupDisiGoster(e.target.checked); setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Gruplar Dışındaki Kayıtları Göster
+                Gruplar Dışındaki Kayıtları Göster{kutuSayisi("grupDisi")}
               </label>
               </div>
 
@@ -1377,7 +1410,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setBeklemedeGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sadece Sözleşme Onayı Bekleyenleri Göster
+                Sadece Sözleşme Onayı Bekleyenleri Göster{kutuSayisi("bekleyen")}
               </label>
 
               <label style={s.filtreLabel} title="Sözleşme linki henüz oluşmamış kayıtlar">
@@ -1388,7 +1421,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setSozlesmesizGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setBeklemedeGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sadece Sözleşme Hazırlanacakları Göster
+                Sadece Sözleşme Hazırlanacakları Göster{kutuSayisi("hazirlanacak")}
               </label>
 
               <button
