@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.41
+// KayitGuncelle.jsx v1.42
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.41"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.42"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1379,7 +1379,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setSadeceBenim(e.target.checked); setSayfa(1); }}
                   style={{ ...s.checkbox, cursor: tumunuGorebilir ? "pointer" : "not-allowed" }}
                 />
-                Kendi Öğrencilerimi Göster{kutuSayisi("benim")}
+                Kendi Öğrencilerim{kutuSayisi("benim")}
               </label>
 
               <label style={s.filtreLabel}>
@@ -1390,7 +1390,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setOnayliGoster(e.target.checked); if (e.target.checked) { setBeklemedeGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Onaylı Sözleşmeleri Göster{kutuSayisi("onayli")}
+                Onaylı Sözleşmeler{kutuSayisi("onayli")}
               </label>
 
               <label style={s.filtreLabel} title="Bireysel yaz okulu, yetişkin dil okulu ve okulu belirtilmemiş kayıtları gösterir">
@@ -1400,7 +1400,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setGrupDisiGoster(e.target.checked); setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Gruplar Dışındaki Kayıtları Göster{kutuSayisi("grupDisi")}
+                Gruplar Dışındaki Kayıtlar{kutuSayisi("grupDisi")}
               </label>
               </div>
 
@@ -1412,7 +1412,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setBeklemedeGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sözleşme Onayı Bekleyenleri Göster{kutuSayisi("bekleyen")}
+                Onay Bekleyen Sözleşmeler{kutuSayisi("bekleyen")}
               </label>
 
               <label style={s.filtreLabel} title="Sözleşme linki henüz oluşmamış kayıtlar">
@@ -1423,7 +1423,7 @@ export default function KayitGuncelle() {
                   onChange={e => { setSozlesmesizGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setBeklemedeGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sözleşme Hazırlanacakları Göster{kutuSayisi("hazirlanacak")}
+                Hazırlanacak Sözleşmeler{kutuSayisi("hazirlanacak")}
               </label>
 
               <button
@@ -1449,7 +1449,7 @@ export default function KayitGuncelle() {
                 display: "flex", flexDirection: "column", gap: "6px",
                 width: isMobile ? "100%" : "200px",
               }}>
-                <span style={s.filtreMetin}>Şu Tarihten Sonrasını Göster</span>
+                <span style={s.filtreMetin}>Bu Tarihten Sonraki Kayıtlar</span>
                 <input
                   type="date"
                   value={tarihFiltre}
