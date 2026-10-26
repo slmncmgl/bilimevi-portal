@@ -1,6 +1,13 @@
 /**
  * InstagramDM.jsx
- * CODE_VERSION: v1.0
+ * CODE_VERSION: v1.2
+ *
+ * V1.1: - "Potansiyel Müşteri" checkbox eklendi (Pipeline kartı altında)
+ *         Tikliyse Create Note içeriğinin en üstüne bold "POTANSİYEL MÜŞTERİ" satırı
+ *         eklenir. CRM payload'ına (source/subSource/pipeline) hiçbir şey eklenmez.
+ *
+ * V1.2: - Gemini görsel analizinde "potansiyelMusteri" alanı eklendi; satın alma niyeti
+ *         sinyali varsa checkbox otomatik tiklenir (manuel override her zaman mümkün).
  *
  * V1.0: - Kylas ve Gemini API çağrıları backend proxy'ye taşındı (/api/kylas, /api/gemini)
  *         Frontend'de API key kalmadı, key'ler Vercel env variable'dan okunuyor
@@ -51,6 +58,7 @@ export default function InstagramDM() {
   const [selectedOwner, setSelectedOwner] = useState("");
   const [skipOwner, setSkipOwner] = useState(false);
   const [yurtdisiLise, setYurtdisiLise] = useState(false);
+  const [potansiyelMusteri, setPotansiyelMusteri] = useState(false);
 
   const [crmLoading, setCrmLoading] = useState(false);
   const [crmDone, setCrmDone] = useState(false);
@@ -153,6 +161,11 @@ KURALLAR:
    - Her mesajı "A: [mesaj]" veya "B: [mesaj]" formatında yaz
    - Her mesaj yeni satırda
    - Konuşmacı değişince boş satır ekle
+5. Potansiyel Müşteri: Konuşmada müşterinin somut satın alma / kayıt niyeti varsa true döndür.
+   - true sayılan sinyaller: fiyat sorması, tarih/kontenjan sorması, "kayıt olmak istiyorum",
+     belge/başvuru şartı sorması, ödeme veya taksit sorması, randevu/görüşme talep etmesi
+   - false: sadece selam, genel merak, "bilgi alabilir miyim" gibi niyet belirtmeyen mesajlar
+   - Emin değilsen false döndür
 
 JSON formatında döndür:
 {
@@ -161,7 +174,8 @@ JSON formatında döndür:
   "dialCode": "+90",
   "countryCode": "TR",
   "email": "email",
-  "dialogue": "A: ...\nB: ..."
+  "dialogue": "A: ...\nB: ...",
+  "potansiyelMusteri": false
 }
 
 Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'a EKLEME!`
@@ -194,6 +208,7 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
       if (parsed.countryCode) setCountryCode(parsed.countryCode);
       if (parsed.email) setEmail(parsed.email);
       if (parsed.dialogue) setDialogue(prev => prev ? prev + "\n\n---\n\n" + parsed.dialogue : parsed.dialogue);
+      if (parsed.potansiyelMusteri === true) setPotansiyelMusteri(true);
 
       setStatus({ type: "success", msg: `${newFiles.length} görsel analiz edildi` });
     } catch (err) {
@@ -262,7 +277,9 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
       if (!leadRes.ok) throw new Error(leadData.message || "Lead oluşturulamadı");
       const leadId = leadData.id;
 
-      const sendNote = async (text) => {
+      const pmHeader = potansiyelMusteri ? "<b>POTANSİYEL MÜŞTERİ</b><br><br>" : "";
+
+      const sendNote = async (text, prefix = "") => {
         if (!text.trim()) return;
         await fetch("/api/kylas", {
           method: "POST",
@@ -271,7 +288,7 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
             path: "notes/relation",
             method: "POST",
             body: {
-              sourceEntity: { description: text.replace(/\n/g, "<br>") },
+              sourceEntity: { description: prefix + text.replace(/\n/g, "<br>") },
               targetEntityId: Number(leadId),
               targetEntityType: "LEAD"
             }
@@ -279,9 +296,9 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
         });
       };
 
-      await sendNote(dialogue);
+      await sendNote(dialogue, pmHeader);
       await new Promise(r => setTimeout(r, 800));
-      await sendNote(note);
+      await sendNote(note, dialogue.trim() ? "" : pmHeader);
 
       setStatus({ type: "success", msg: "Kylas CRM'e başarıyla aktarıldı 🎉" });
       setCrmDone(true);
@@ -301,7 +318,7 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
     setFiles([]); setCustomerName(""); setPhone(""); setDialCode("+90"); setCountryCode("TR"); setEmail("");
     setDialogue(""); setNote(""); setPipeline(null); setOwners([]);
     setSelectedOwner(""); setSkipOwner(false); setCrmDone(false); setStatus(null);
-    setYurtdisiLise(false);
+    setYurtdisiLise(false); setPotansiyelMusteri(false);
   }
 
   useEffect(() => {
@@ -417,6 +434,15 @@ Form bilgisi, kayıt numarası, tarih, saat, web sitesi gibi bilgileri dialogue'
                   style={{ width: "15px", height: "15px", cursor: "pointer" }}
                 />
                 <span style={{ fontSize: "13px", color: "#475569", fontWeight: "500" }}>🏫 Yurtdışı Lise</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", marginTop: "8px" }}>
+                <input
+                  type="checkbox"
+                  checked={potansiyelMusteri}
+                  onChange={e => setPotansiyelMusteri(e.target.checked)}
+                  style={{ width: "15px", height: "15px", cursor: "pointer" }}
+                />
+                <span style={{ fontSize: "13px", color: "#475569", fontWeight: "500" }}>⭐ Potansiyel Müşteri</span>
               </label>
             </div>
 
