@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 20 Ekim 2026 (deploy-wp v1.1 path filtresi). Repo'daki BFT sürümü: `v117-ucret-muafiyeti-2026-10-15`.
+Son güncelleme: 30 Ekim 2026 (staff portalı portal.bilimevi.com'a taşındı). Repo'daki BFT sürümü: `v118-portal-domain-2026-10-30`.
 
 ## Kapsam
 
@@ -68,7 +68,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 ### Vercel (staff modu)
 
-- Staff portalı Vercel'de, `vercel.json` SPA rewrite ve `api/` serverless fonksiyonları (`auth.js`, `gemini.js`, `kylas.js`).
+- Staff portalı Vercel'de, adres **`https://portal.bilimevi.com`** (30 Ekim 2026'dan beri; eskiden `bilimevi-portal.vercel.app`). BFT: `/fiyat-teklifi`. `vercel.json` SPA rewrite ve `api/` serverless fonksiyonları (`auth.js`, `gemini.js`, `kylas.js`).
 - Env: `VITE_MASTER_ID`, `VITE_TEKLIF_ARSIV_URL`, `VITE_GOOGLE_CLIENT_ID`, `VITE_REDIRECT_URI`, `GOOGLE_CLIENT_SECRET`, `GEMINI_API_KEY`, `KYLAS_API_KEY`.
 - **Her dal için önizleme var:** `bilimevi-portal-git-<dal>-....vercel.app`. Staff tarafındaki değişiklikler merge'den önce bu adreste denenebilir. WordPress tarafının önizlemesi yok, o sadece main'den deploy olur.
 - main'e her push'un staff portalını da canlıya çıkardığını varsay. WordPress'teki `paths-ignore` filtresi Vercel'i etkilemez; sadece md değişse de Vercel build alır. Bilerek dokunulmadı (kullanıcı kararı 20 Ekim 2026). İstenirse Vercel ayarlarındaki "Ignored Build Step" ile yapılır.
@@ -113,6 +113,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 ## Bilinen tuzaklar
 
+- **Staff adresi değişirse `detectMode()` güncellenmeli.** `BFT_CONFIG.mode` yoksa mod `hostname`'den bulunur: `portal.bilimevi.com` (birebir), `vercel.app` ve `localhost` staff, gerisi customer. Listede olmayan bir staff adresinde portal sessizce customer moduna düşer ve veriyi `/wp-json` proxy'sinden okumaya çalışır. `.bilimevi.com` ile biten her adresi staff sayma, WordPress siteleri customer kalmalı. Aynı değişiklikte Vercel'deki `VITE_REDIRECT_URI` ve Google OAuth izinli adresleri de güncellenir (`Login.jsx`'teki yedek adres hâlâ eski Vercel adresi, env doluyken kullanılmaz).
 - `minify: true` yapma: canlıda React #31 / "Cannot access '_' before initialization" geri gelir. Kök neden 3 tur sonra DEBUG build ile bulundu.
 - LiteSpeed Cache: BFT sayfasında **Guest Optimization ve JS Combine kapalı** olmalı, açılırsa portal kırılır. Lokal testte görünmez.
 - Türkçe karşılaştırmada `toLocaleLowerCase("tr")` kullanma ("Intensive" → "ıntensive" olur). `_norm()` kullan.
@@ -129,7 +130,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 ## Açık işler
 
 ### Karar bekleyen
-- **v118, parantezli ücret adlarının çevirisi:** `Accommodation Placement Fee (VITA Student Residence)` → `Konaklama Ayarlama Ücreti (VITA Student Residence)`. Önerilen: `normalizeFeeName`'de tam ad bulunmazsa parantez öncesini haritada ara, parantezi koru, her parantez için genel kural. Bekleyen kararlar: (1) kapsam genel mi sadece konaklama mı, (2) `Accommodation Security Deposit` haritaya eklensin mi, `(Refundable)` → `(İade Edilir)`, `(Mandatory)` → `(Zorunlu)` sözlüğü olsun mu, (3) v117 muafiyet etiketindeki çift parantez (`... (VITA Student Residence) (Ücretsiz)`).
+- **Sıradaki sürüm (v119), parantezli ücret adlarının çevirisi:** (v118 numarası domain değişikliğine verildi.) `Accommodation Placement Fee (VITA Student Residence)` → `Konaklama Ayarlama Ücreti (VITA Student Residence)`. Önerilen: `normalizeFeeName`'de tam ad bulunmazsa parantez öncesini haritada ara, parantezi koru, her parantez için genel kural. Bekleyen kararlar: (1) kapsam genel mi sadece konaklama mı, (2) `Accommodation Security Deposit` haritaya eklensin mi, `(Refundable)` → `(İade Edilir)`, `(Mandatory)` → `(Zorunlu)` sözlüğü olsun mu, (3) v117 muafiyet etiketindeki çift parantez (`... (VITA Student Residence) (Ücretsiz)`).
 - **v117 sağlamlaştırma:** `discount_type` boşsa ve `applies_to` doluysa satırı indirim satırı say mı, yoksa sadece parse kuralına "zorunlu" maddesi mi eklensin.
 - **English Path Toronto placement ücretleri:** parantezler (`Dream House`, `CASA`) `place_name`'lerle (`Dream House Village`, `Dream House Yorkville`, `CASA Residence`, `CASA Student House`) birebir eşleşmiyor, Residence seçilince iki placement birden ekleniyor (200 + 280). Önerilen çözüm sheet'te: her yer için ayrı satır, parantez = tam `place_name`.
 - **St Giles Q4 Platinum Group:** %30 + %5 portalda %35 olarak toplanıyor. Okulun hesabı farklıysa (sadece %5 ya da zincirleme) parse tarafı ya da yeni portal kuralı gerekecek.
@@ -155,10 +156,11 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - Atlas Malta paketlerini v116 alanlarıyla doldurmak, Atlas "Homestay Christmas Supplement" → "Homestay Winter Supplement", Toronto placement adları, "v115 sonrası compulsory" notlu satırlar.
 - Oxford International sheet'i: fee muafiyet satırları `discount_type = percentage`, `applies_to = fee`, `target_name` = fees sekmesindeki ad birebir, `value_type = free`.
 
-## Durum (19 Ekim 2026)
+## Durum (30 Ekim 2026)
 
+- **v118 push edildi (30 Ekim):** staff portalı `portal.bilimevi.com`'a taşındı, `detectMode()` bu adı staff sayar. Sadece bu satır ve sürüm değişti.
 - **v117 push edildi.** Repo'daki `FiyatTeklifi.jsx`, sohbette teslim edilen v117 ile birebir aynı (commit 16 Ekim, "Update FiyatTeklifi.jsx"). Push otomatik deploy'u tetiklediği için ingilteredil ve maltadil'de v117 olmalı, almanyadil belirsiz.
-- **v118 başlamadı**, sadece mimari önerildi (yukarıda).
+- **Parantezli ücret çevirisi (v119) başlamadı**, sadece mimari önerildi (yukarıda).
 - **Kampanya takip K3** 16 Ekim'de teslim edildi. Repoda değil. `school_registry`'deki `-` değerleri K3'ün en az bir kez çalıştığını gösteriyor, ama editördeki kopya teslim edilen dosyayla aynı olmayabilir (`SABIT_SUTUN` farkı, tuzaklar bölümü).
 - **Teklif arşivi A2:** dosya hazır, canlı deploy edildi mi doğrulanmadı.
 - Yarım kalmış kod değişikliği yok.

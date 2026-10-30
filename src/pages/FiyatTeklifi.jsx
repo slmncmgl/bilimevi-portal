@@ -8,14 +8,16 @@ function detectMode() {
   if (typeof window !== "undefined") {
     if (window.BFT_CONFIG?.mode) return window.BFT_CONFIG.mode;
     const host = window.location.hostname;
-    if (host.includes("vercel.app") || host.includes("localhost")) return "staff";
+    // v118: staff portalı portal.bilimevi.com'a taşındı. Birebir eşleşme: bilimevi.com'un
+    // diğer alt alanları (WordPress siteleri) customer modda kalmalı. vercel.app önizlemeler için duruyor.
+    if (host === "portal.bilimevi.com" || host.includes("vercel.app") || host.includes("localhost")) return "staff";
   }
   return "customer";
 }
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v117-ucret-muafiyeti-2026-10-15";
+const BFT_BUILD_VERSION = "v118-portal-domain-2026-10-30";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
