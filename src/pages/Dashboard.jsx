@@ -1,3 +1,4 @@
+// v1.9: Klasik temada sürükle-bırak için tek seferlik, 10 sn duran uyarı (src/pages/dashboard/SuruklemeIpucu.jsx).
 // v1.8: Ana sayfanın altında küçük sürüm etiketi (DASHBOARD_VERSION + Vercel commit kodu, vite.config.js define).
 // v1.7: Klasik temada kartlar masaüstünde sürüklenip sıralanabilir, sıra kullanıcı başına tarayıcıda saklanır (src/pages/dashboard/kartSirasi.js).
 // v1.6: Tema seçici varsayılan gizli, 1+2+3+0 tuşlarına birlikte 3 sn basınca açılır/kapanır.
@@ -18,9 +19,10 @@ import KategoriTema from "./dashboard/KategoriTema";
 import KimlikTema from "./dashboard/KimlikTema";
 import { useKartSirasi } from "./dashboard/kartSirasi";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
+import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.8";
+const DASHBOARD_VERSION = "v1.9";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -280,7 +282,8 @@ export default function Dashboard() {
   }
 
   const allowedModules = MODULE_CONFIG.filter(m => user?.modules?.[m.key]);
-  const kart = useKartSirasi(allowedModules, user ? `${user.company}|${user.name}` : "");
+  const kullaniciAnahtari = user ? `${user.company}|${user.name}` : "";
+  const kart = useKartSirasi(allowedModules, kullaniciAnahtari);
   const isFortis = user?.company === "Fortis";
   const greeting = isFortis
     ? (time.getHours() < 12 ? "Good morning" : time.getHours() < 18 ? "Good afternoon" : "Good evening")
@@ -461,6 +464,7 @@ export default function Dashboard() {
       )}
 
       {secici}
+      <SuruklemeIpucu kullanici={kullaniciAnahtari} isFortis={isFortis} suruklendi={kart.animasyonKapali} kartSayisi={allowedModules.length} />
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
