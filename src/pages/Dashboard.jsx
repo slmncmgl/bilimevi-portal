@@ -1,3 +1,4 @@
+// v1.4: Bilet teması: üst bölüm tek şeride indirildi, kupon kodları yerine modül ikonları.
 // v1.3: Yeni temalarda erişilebilirlik düzeltmeleri (atlama linki, logo boyutu, arama kutusu, telefonda arama). Klasik görünüm değişmedi.
 // v1.2: Tema seçici eklendi (Klasik varsayılan, Bilet ve Menülü temaları src/pages/dashboard/ altında). Klasik görünüm değişmedi.
 // v1.1 — MODULE_CONFIG'e "kayittakip" (Kayıt Takip) kartı eklendi

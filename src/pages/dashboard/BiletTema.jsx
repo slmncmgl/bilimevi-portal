@@ -1,6 +1,6 @@
-import { departmanlaraAyir, modulKodu } from "./tema";
+import { departmanlaraAyir } from "./tema";
 
-// Bilet Cüzdanı teması: kişi kartı biniş kartı gibi, modüller departmanlara göre bilet kuponları.
+// Bilet Cüzdanı teması: üstte ince biniş kartı şeridi, modüller departmanlara göre bilet kuponları.
 // Bütün stiller .tb altında, klasik görünümü etkilemez.
 
 const UCAK = (
@@ -14,25 +14,14 @@ const OK = (
   </svg>
 );
 
-const ROL = {
-  tr: { admin: "Yönetici", owner: "Yönetici", director: "Direktör", manager: "Yönetici", staff: "Personel" },
-  en: { admin: "Admin", owner: "Owner", director: "Director", manager: "Manager", staff: "Staff" },
-};
-
 const METIN = {
   tr: {
-    cikis: "Çıkış", lede: "Bugün hangi işle başlıyorsun? Araçlar departmanlarına göre aşağıda.",
-    alanlar: ["Personel", "Şube", "Rol", "Modül"], saat: "Saat", damga: "Yetkili",
-    panel: "Yönetici Paneli", panelMetin: "Ekibinin izin talepleri tek yerde: onay bekleyenler, yaklaşanlar, geçmiş.",
-    bekleyen: "Bekleyen onaylar", ac: "Paneli aç", adet: n => `${n} modül`, hepsi: "Modüllerin",
+    cikis: "Çıkış", panel: "Yönetici Paneli", bekleyen: "Bekleyen onaylar", adet: n => `${n} modül`, hepsi: "Modüllerin",
     atla: "İçeriğe geç",
     bosBaslik: "Henüz erişim izniniz yok", bosMetin: "Yöneticinizle iletişime geçin, modüller açıldığında burada görünecek.", bosDamga: "Erişim yok",
   },
   en: {
-    cikis: "Logout", lede: "Where do you want to start today? Tools are grouped by department below.",
-    alanlar: ["Staff", "Branch", "Role", "Modules"], saat: "Time", damga: "Authorised",
-    panel: "Admin Panel", panelMetin: "Your team's leave requests in one place: pending, upcoming and past.",
-    bekleyen: "Pending approvals", ac: "Open panel", adet: n => `${n} modules`, hepsi: "Your modules",
+    cikis: "Logout", panel: "Admin Panel", bekleyen: "Pending approvals", adet: n => `${n} modules`, hepsi: "Your modules",
     atla: "Skip to content",
     bosBaslik: "You don't have access to any modules yet", bosMetin: "Please contact your manager. Modules will appear here once they are enabled.", bosDamga: "No access",
   },
@@ -85,41 +74,22 @@ export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting,
       </header>
 
       <main className="tb-main" id="tb-main" tabIndex={-1}>
-        <div className={"tb-top" + (isAdmin ? "" : " solo")}>
-          <section className="tb-pass" aria-labelledby="tb-hello">
-            <div className="tb-pass-head">
-              <span className="tb-route">{UCAK}<span>{kisalt(user.company)} · {kisalt(user.branch)}</span></span>
-              <span className="tb-day tb-cap">{haftaGunu}</span>
-            </div>
-            <div className="tb-pass-main">
-              <h1 id="tb-hello">{greeting}, {ad.split(" ")[0]}</h1>
-              {moduller.length > 0 && <p className="tb-lede">{t.lede}</p>}
-              <dl className="tb-fields">
-                <div><dt>{t.alanlar[0]}</dt><dd>{ad}</dd></div>
-                <div><dt>{t.alanlar[1]}</dt><dd>{user.branch}</dd></div>
-                <div><dt>{t.alanlar[2]}</dt><dd>{ROL[L][user.rol] || user.rol || "-"}</dd></div>
-                <div><dt>{t.alanlar[3]}</dt><dd className="num">{moduller.length}</dd></div>
-              </dl>
-            </div>
-            <dl className="tb-stub">
-              <dt>{t.saat}</dt>
-              <dd className="time">{saat}</dd>
-              <dd className="date">{gun}</dd>
-            </dl>
-          </section>
-
+        <section className="tb-pass" aria-labelledby="tb-hello">
+          <div className="tb-pass-main">
+            <span className="tb-route">{UCAK}<span>{kisalt(user.company)} · {kisalt(user.branch)} · {haftaGunu}</span></span>
+            <h1 id="tb-hello">{greeting}, {ad.split(" ")[0]}</h1>
+          </div>
           {isAdmin && (
-            <section className="tb-admin" aria-labelledby="tb-admin-title">
-              <div className="tb-admin-head"><span className="tb-stamp">{t.damga}</span></div>
-              <div className="tb-admin-body">
-                <h2 id="tb-admin-title">{t.panel}</h2>
-                <p>{t.panelMetin}</p>
-                <a className="tb-go" {...link("/izin?tab=bekleyen")}><span>{t.bekleyen}</span>{OK}</a>
-                <a className="tb-tabcap" {...link("/izin?panel=admin")}>{t.ac}</a>
-              </div>
-            </section>
+            <nav className="tb-acts" aria-label={t.panel}>
+              <a className="tb-go" {...link("/izin?tab=bekleyen")}><span>{t.bekleyen}</span>{OK}</a>
+              <a className="tb-ghost" {...link("/izin?panel=admin")}>{t.panel}</a>
+            </nav>
           )}
-        </div>
+          <div className="tb-stub">
+            <span className="time">{saat}</span>
+            <span className="date">{gun}</span>
+          </div>
+        </section>
 
         {bolumler.length === 0 ? (
           <section className="tb-void" role="status">
@@ -140,7 +110,7 @@ export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting,
             <div className="tb-coupons">
               {d.mods.map(m => (
                 <a className="tb-cp" key={m.key} {...link(m.path)}>
-                  <span className="tb-cp-stub" aria-hidden="true"><b>{modulKodu(m, isFortis)}</b></span>
+                  <span className="tb-cp-stub" aria-hidden="true">{m.icon}</span>
                   <div className="tb-cp-body">
                     <h3>{isFortis ? (m.titleEn || m.title) : m.title}</h3>
                     <p>{isFortis ? (m.descEn || m.desc) : m.desc}</p>
@@ -199,42 +169,25 @@ body { margin: 0; background: #EBEEF4; }
 .tb-out:hover { background:var(--red); border-color:var(--red); }
 
 .tb-main { max-width:1320px; margin:0 auto; padding:32px var(--gutter) 96px; }
-.tb-top { display:grid; grid-template-columns:repeat(12,1fr); gap:24px; align-items:stretch; }
 
-.tb-pass { grid-column:span 8; display:grid; grid-template-columns:1fr 228px; grid-template-rows:auto 1fr; background:var(--coupon); border:1.5px solid var(--navy); position:relative; }
-.tb-top.solo .tb-pass { grid-column:1/-1; }
-.tb-pass-head { grid-column:1/-1; display:flex; align-items:stretch; justify-content:space-between; background:var(--navy); color:#fff; }
-.tb-route { font:600 15px/1 var(--mono); letter-spacing:.1em; display:flex; align-items:center; gap:12px; padding:10px 24px; }
-.tb-day { background:var(--red); padding:10px 24px; display:flex; align-items:center; font-size:15px; }
-.tb-pass-main { padding:28px 32px 0; display:flex; flex-direction:column; min-width:0; }
-.tb h1 { font:800 clamp(44px,5.4vw,72px)/.92 var(--cond); text-transform:uppercase; color:var(--navy); letter-spacing:-.01em; text-wrap:balance; }
-.tb-lede { margin-top:14px; color:var(--grey); font-size:17px; max-width:46ch; }
-.tb-fields { margin-top:auto; padding-top:28px; display:grid; grid-template-columns:minmax(0,1.4fr) repeat(3,minmax(0,1fr)); }
-.tb-fields div { padding:14px 16px 18px; border-top:1px solid var(--rule); border-left:1px solid var(--rule); }
-.tb-fields div:first-child { border-left:0; padding-left:0; }
-.tb-fields dt { font:700 13px/1 var(--cond); letter-spacing:.14em; text-transform:uppercase; color:var(--grey); margin-bottom:8px; }
-.tb-fields dd { font:700 22px/1.1 var(--cond); text-transform:uppercase; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.tb-fields dd.num { font-family:var(--mono); font-weight:600; color:var(--carbon); }
-.tb-stub { background:var(--lilac); border-left:2px dashed var(--lilac-rule); padding:24px; display:flex; flex-direction:column; color:var(--carbon); position:relative; }
-.tb-stub::before, .tb-stub::after { content:""; position:absolute; left:-13px; width:24px; height:24px; border-radius:50%; background:var(--ground); border:1.5px solid var(--navy); }
-.tb-stub::before { top:-13px; clip-path:inset(50% 0 0 0); }
-.tb-stub::after { bottom:-13px; clip-path:inset(0 0 50% 0); }
-.tb-stub dt { font:700 13px/1 var(--cond); letter-spacing:.14em; text-transform:uppercase; opacity:.8; }
-.tb-stub .time { font:600 64px/1 var(--mono); letter-spacing:-.04em; margin:8px 0 20px; font-variant-numeric:tabular-nums; }
-.tb-stub .date { font:600 20px/1.2 var(--mono); font-variant-numeric:tabular-nums; }
-
-.tb-admin { grid-column:span 4; background:var(--navy); color:#fff; display:flex; flex-direction:column; position:relative; overflow:hidden; }
-.tb-admin-head { display:flex; justify-content:flex-end; align-items:center; padding:12px 24px; border-bottom:1px dashed rgba(255,255,255,.35); }
-.tb-stamp { border:5px double #FF6A60; color:#FF8A82; padding:4px 10px; font:800 18px/1 var(--cond); letter-spacing:.16em; text-transform:uppercase; transform:rotate(-4deg); }
-.tb-admin-body { padding:24px 24px 0; display:flex; flex-direction:column; gap:20px; flex:1; }
-.tb-admin h2 { font:800 40px/.95 var(--cond); text-transform:uppercase; }
-.tb-admin p { color:#C3CAE6; font-size:16px; max-width:34ch; }
-.tb-go { display:flex; align-items:center; justify-content:space-between; gap:12px; height:52px; padding:0 20px; background:var(--red); color:#fff; font:700 18px/1 var(--cond); letter-spacing:.12em; text-transform:uppercase; transition:background .16s var(--ease); }
+.tb-pass { display:grid; grid-template-columns:minmax(0,1fr) auto 176px; align-items:stretch; background:var(--coupon); border:1.5px solid var(--navy); }
+.tb-pass-main { padding:20px 28px; display:flex; flex-direction:column; justify-content:center; gap:8px; min-width:0; }
+.tb-route { font:600 13px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--grey); display:flex; align-items:center; gap:10px; }
+.tb-route svg { color:var(--red); width:16px; height:16px; }
+.tb h1 { font:800 clamp(32px,3.4vw,44px)/.95 var(--cond); text-transform:uppercase; color:var(--navy); letter-spacing:-.005em; text-wrap:balance; }
+.tb-acts { display:flex; align-items:center; gap:10px; padding:0 24px; }
+.tb-go { display:inline-flex; align-items:center; gap:14px; height:44px; padding:0 16px 0 18px; background:var(--red); color:#fff !important; font:700 16px/1 var(--cond); letter-spacing:.12em; text-transform:uppercase; white-space:nowrap; transition:background .16s var(--ease); }
 .tb-go:hover { background:var(--red-deep); }
 .tb-go svg { transition:transform .16s var(--ease); }
 .tb-go:hover svg { transform:translateX(4px); }
-.tb-tabcap { align-self:flex-start; margin-top:auto; display:inline-flex; align-items:center; height:36px; padding:0 18px; border:1.5px solid rgba(255,255,255,.7); border-bottom:0; font:700 15px/1 var(--cond); letter-spacing:.14em; text-transform:uppercase; color:#fff; transition:background .16s var(--ease); }
-.tb-tabcap:hover { background:rgba(255,255,255,.12); }
+.tb-ghost { display:inline-flex; align-items:center; height:44px; padding:0 16px; border:1.5px solid var(--navy); color:var(--navy); font:700 16px/1 var(--cond); letter-spacing:.12em; text-transform:uppercase; white-space:nowrap; transition:background .16s var(--ease),color .16s var(--ease); }
+.tb-ghost:hover { background:var(--navy); color:#fff; }
+.tb-stub { background:var(--lilac); border-left:2px dashed var(--lilac-rule); padding:16px 20px; display:flex; flex-direction:column; justify-content:center; gap:6px; color:var(--carbon); position:relative; }
+.tb-stub::before, .tb-stub::after { content:""; position:absolute; left:-13px; width:24px; height:24px; border-radius:50%; background:var(--ground); border:1.5px solid var(--navy); }
+.tb-stub::before { top:-13px; clip-path:inset(50% 0 0 0); }
+.tb-stub::after { bottom:-13px; clip-path:inset(0 0 50% 0); }
+.tb-stub .time { font:600 36px/1 var(--mono); letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
+.tb-stub .date { font:600 14px/1.2 var(--mono); font-variant-numeric:tabular-nums; }
 
 .tb-dept { margin-top:48px; }
 .tb-dept-head { display:flex; align-items:baseline; gap:16px; margin-bottom:16px; }
@@ -247,7 +200,7 @@ body { margin: 0; background: #EBEEF4; }
 .tb-cp { display:grid; grid-template-columns:92px 1fr; min-height:148px; position:relative; isolation:isolate; }
 .tb-cp-stub, .tb-cp-body { background:var(--coupon); border:1.5px solid var(--navy); }
 .tb-cp-stub { border-right:0; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--carbon); position:relative; transform-origin:100% 100%; transition:transform .16s var(--ease),background .16s var(--ease); }
-.tb-cp-stub b { font:600 34px/1 var(--mono); letter-spacing:-.04em; }
+.tb-cp-stub svg { width:32px; height:32px; }
 .tb-cp-body { border-left:2px dashed var(--perf); padding:20px 22px 0; display:flex; flex-direction:column; position:relative; }
 .tb-cp-body::before, .tb-cp-body::after { content:""; position:absolute; left:-12px; width:22px; height:22px; border-radius:50%; background:var(--ground); border:1.5px solid var(--navy); }
 .tb-cp-body::before { top:-12px; clip-path:inset(50% 0 0 0); }
@@ -271,38 +224,32 @@ body { margin: 0; background: #EBEEF4; }
 .tb-void-stamp { position:absolute; right:28px; top:22px; border:3px solid var(--red); color:var(--red); padding:6px 12px; font:800 26px/1 var(--cond); letter-spacing:.14em; text-transform:uppercase; transform:rotate(-7deg); }
 
 @media (max-width:1100px) {
-  .tb-pass, .tb-admin { grid-column:1/-1; }
+  .tb-pass { grid-template-columns:minmax(0,1fr) 176px; }
+  .tb-acts { grid-column:1/-1; grid-row:2; padding:0 28px 20px; }
   .tb-coupons { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (max-width:700px) {
-  .tb-main { padding-top:20px; }
+  .tb-main { padding-top:20px; padding-bottom:72px; }
   .tb-bar-in { gap:12px; }
   .tb-portal, .tb-who div { display:none; }
   .tb-out { padding:0 10px; }
   .tb-pass { grid-template-columns:1fr; }
-  .tb-route { padding:10px 16px; font-size:13px; }
-  .tb-day { padding:10px 16px; }
-  .tb-pass-main { padding:22px 20px 0; }
-  .tb-lede { display:none; }
-  .tb-fields { grid-template-columns:1fr 1fr; }
-  .tb-fields div:nth-child(3) { border-left:0; padding-left:0; }
-  .tb-stub { border-left:0; border-top:2px dashed var(--lilac-rule); flex-direction:row; flex-wrap:wrap; align-items:baseline; gap:4px 16px; padding:18px 20px; }
+  .tb-pass-main { padding:18px 20px; }
+  .tb-acts { grid-row:auto; padding:0 20px 18px; flex-wrap:wrap; }
+  .tb-go, .tb-ghost { height:42px; font-size:15px; }
+  .tb-stub { border-left:0; border-top:2px dashed var(--lilac-rule); flex-direction:row; align-items:baseline; gap:12px; padding:12px 20px; }
   .tb-stub::before, .tb-stub::after { display:none; }
-  .tb-stub .time { font-size:44px; margin:0; }
-  .tb-admin { order:-1; }
-  .tb-admin-body { padding:20px 20px 0; }
-  .tb-admin h2 { font-size:34px; }
+  .tb-stub .time { font-size:28px; }
   .tb-dept { margin-top:36px; }
   .tb-coupons { grid-template-columns:1fr; gap:14px; }
   .tb-cp { grid-template-columns:72px 1fr; min-height:0; }
-  .tb-cp-stub b { font-size:26px; }
+  .tb-cp-stub svg { width:26px; height:26px; }
   .tb-cp-body { padding:18px 18px 0; }
   .tb-cp-foot { margin:0 -18px 0; }
   .tb-cp-foot > span:first-child { padding:14px 18px; }
   .tb-void { grid-template-columns:72px 1fr; }
   .tb-void-body { padding:22px 20px; }
   .tb-void-stamp { position:static; display:inline-block; margin-bottom:12px; font-size:20px; }
-  .tb-main { padding-bottom:72px; }
 }
 @media (prefers-reduced-motion:reduce) {
   .tb * { transition:none !important; }

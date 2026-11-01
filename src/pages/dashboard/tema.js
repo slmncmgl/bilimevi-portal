@@ -48,21 +48,4 @@ export function departmanlaraAyir(moduller) {
   return gruplar.filter(g => g.mods.length);
 }
 
-// Bilet temasındaki kupon kodları. Listede olmayan modülde addan türetilir.
-const KODLAR = {
-  izin: "İZ", instagram: "DM", quiz: "SC", bulten: "BD", stm: "ST", kayitguncelle: "KF",
-  fiyatteklifi: "FT", katalogparse: "KP", performansanalizi: "PA", anketraporu: "AR",
-  kayitformlinkleri: "KL", kayittakip: "KT",
-};
-
-export function modulKodu(mod, isFortis) {
-  // Fortis'te İngilizce adı olan modülün kodu İngilizce addan türetilir.
-  const ingilizce = isFortis && mod.titleEn;
-  if (!ingilizce && KODLAR[mod.key]) return KODLAR[mod.key];
-  const ad = ingilizce ? mod.titleEn : mod.title;
-  const kelimeler = ad.split(/\s+/).filter(Boolean);
-  const kod = kelimeler.length > 1 ? kelimeler[0][0] + kelimeler[1][0] : ad.slice(0, 2);
-  return kod.toLocaleUpperCase(isFortis ? "en" : "tr");
-}
-
 export const YONETICI_ROLLERI = ["admin", "owner", "director", "manager"];
