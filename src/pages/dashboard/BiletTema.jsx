@@ -27,7 +27,7 @@ const METIN = {
   },
 };
 
-export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting, time, git, cikis, secici }) {
+export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting, time, git, cikis, secici, surum }) {
   const L = isFortis ? "en" : "tr";
   const t = METIN[L];
   const loc = isFortis ? "en-GB" : "tr-TR";
@@ -121,6 +121,7 @@ export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting,
             </div>
           </section>
         ))}
+        {surum}
       </main>
 
       {secici}

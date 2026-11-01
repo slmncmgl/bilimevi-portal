@@ -34,7 +34,7 @@ const METIN = {
 // Türkçe büyük/küçük harf farkını ve aksanları yok sayan karşılaştırma.
 const sade = s => (s || "").toLocaleLowerCase("tr").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ı/g, "i");
 
-export default function KategoriTema({ user, moduller, isFortis, isAdmin, greeting, time, git, cikis, secici }) {
+export default function KategoriTema({ user, moduller, isFortis, isAdmin, greeting, time, git, cikis, secici, surum }) {
   const L = isFortis ? "en" : "tr";
   const t = METIN[L];
   const [ara, setAra] = useState("");
@@ -130,6 +130,7 @@ export default function KategoriTema({ user, moduller, isFortis, isAdmin, greeti
               </div>
             </section>
           ))}
+          {surum}
         </div>
       </div>
 

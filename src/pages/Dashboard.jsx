@@ -1,3 +1,4 @@
+// v1.8: Ana sayfanın altında küçük sürüm etiketi (DASHBOARD_VERSION + Vercel commit kodu, vite.config.js define).
 // v1.7: Klasik temada kartlar masaüstünde sürüklenip sıralanabilir, sıra kullanıcı başına tarayıcıda saklanır (src/pages/dashboard/kartSirasi.js).
 // v1.6: Tema seçici varsayılan gizli, 1+2+3+0 tuşlarına birlikte 3 sn basınca açılır/kapanır.
 // v1.5: Dördüncü tema "Kurumsal" (Kurumsal Kimlik Kılavuzu, src/pages/dashboard/KimlikTema.jsx).
@@ -16,6 +17,14 @@ import BiletTema from "./dashboard/BiletTema";
 import KategoriTema from "./dashboard/KategoriTema";
 import KimlikTema from "./dashboard/KimlikTema";
 import { useKartSirasi } from "./dashboard/kartSirasi";
+import SurumEtiketi from "./dashboard/SurumEtiketi";
+
+// Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
+const DASHBOARD_VERSION = "v1.8";
+// eslint-disable-next-line no-undef
+const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
+const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
+if (typeof window !== "undefined") window.__DASHBOARD_VERSION = SURUM_METNI;
 // SİL: yerel const SCRIPT_URL tanımı kaldırıldı (eski/ölü deployment ID kullanıyordu) 
 
 const MODULE_CONFIG = [
@@ -285,6 +294,7 @@ export default function Dashboard() {
     window.scrollTo(0, 0);
   }
   const secici = <TemaSecici tema={tema} onChange={temaDegistir} isFortis={isFortis} />;
+  const surum = <SurumEtiketi surum={SURUM_METNI} />;
 
   const YENI_TEMALAR = { bilet: BiletTema, kategori: KategoriTema, kimlik: KimlikTema };
   if (YENI_TEMALAR[tema]) {
@@ -300,6 +310,7 @@ export default function Dashboard() {
         git={navigate}
         cikis={logout}
         secici={secici}
+        surum={surum}
       />
     );
   }
@@ -425,6 +436,7 @@ export default function Dashboard() {
         )}
 
 
+        <div style={{ color: "#94a3b8" }}>{surum}</div>
       </main>
 
 

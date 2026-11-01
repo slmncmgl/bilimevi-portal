@@ -22,7 +22,7 @@ const METIN = {
 
 const iki = n => String(n).padStart(2, "0");
 
-export default function KimlikTema({ user, moduller, isFortis, isAdmin, greeting, time, git, cikis, secici }) {
+export default function KimlikTema({ user, moduller, isFortis, isAdmin, greeting, time, git, cikis, secici, surum }) {
   const L = isFortis ? "en" : "tr";
   const t = METIN[L];
   const ad = user.name || "";
@@ -113,6 +113,7 @@ export default function KimlikTema({ user, moduller, isFortis, isAdmin, greeting
             </div>
           </section>
         ))}
+        {surum}
       </main>
 
       {secici}
