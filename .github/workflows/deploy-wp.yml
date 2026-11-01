@@ -1,18 +1,22 @@
-# Workflow version: v1.1
+# Workflow version: v1.2
 name: Deploy to WordPress
 on:
   push:
     branches:
       - main
-    # Bu yollar dışında bir dosya değişmediyse WordPress deploy'u çalışmaz.
-    # Bundle bu klasörlerden import etmiyor (kontrol 20.10.2026).
-    paths-ignore:
-      - '**/*.md'
-      - 'tests/**'
-      - 'n8n/**'
-      - 'api/**'
-      - 'vercel.json'
-      - 'apps-script/**'
+    # v1.2: sadece WordPress paketine giren dosyalar değişirse deploy çalışır.
+    # Zincir (kontrol 01.11.2026): wp-main.jsx -> pages/FiyatTeklifi.jsx -> utils/sheets.js -> config.js, artı assets/ logoları.
+    # FiyatTeklifi.jsx bu listede olmayan bir dosyadan import ederse o dosya buraya eklenmeli.
+    paths:
+      - 'src/wp-main.jsx'
+      - 'src/pages/FiyatTeklifi.jsx'
+      - 'src/utils/**'
+      - 'src/config.js'
+      - 'src/assets/**'
+      - 'vite.wp.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy-wp.yml'
   workflow_dispatch:
 jobs:
   build-and-deploy:
