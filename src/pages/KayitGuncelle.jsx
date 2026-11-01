@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.47
+// KayitGuncelle.jsx v1.48
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.47"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.48"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -771,13 +771,9 @@ export default function KayitGuncelle() {
     const fark = toplam - toplamUcret;
     if (Math.abs(fark) < 0.01) return null;
     const sonTaksit = parseFloat(kayit[`${adet}. Taksit Tutarı`]) || 0;
-    const programUcreti = parseFloat(kayit["Program Ücreti"]) || 0;
-    const konaklamaUcreti = parseFloat(kayit["Konaklama Ücreti"]) || 0;
     return {
       adet, toplam, toplamUcret, fark, sonTaksit,
       yeniSonTaksit: sonTaksit - fark,
-      programUcreti,
-      yeniProgramUcreti: toplam - konaklamaUcreti,
     };
   }
 
@@ -2111,39 +2107,12 @@ export default function KayitGuncelle() {
                 Fark: <strong>{taksitOneri.fark > 0 ? "+" : ""}{Math.round(taksitOneri.fark * 100) / 100}</strong>
               </div>
             </div>
+
             <div style={{
               background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px",
               padding: "12px", marginTop: "12px", fontSize: "13px", color: "#334155",
             }}>
-              <strong style={{ color: "#0e7490" }}>Öneri 1 — Program Ücretini Düzelt</strong>
-              <div style={{ marginTop: "5px" }}>
-                Program Ücreti <strong>{taksitOneri.programUcreti}</strong> yerine{" "}
-                <strong>{Math.round(taksitOneri.yeniProgramUcreti * 100) / 100}</strong> olsun.
-                Toplam <strong>{taksitOneri.toplam}</strong> olur, taksitlerle eşitlenir.
-              </div>
-              <button
-                onClick={async () => {
-                  const o = taksitOneri;
-                  setTaksitOneri(null);
-                  await sorgula(o.kayit["TC Kimlik No"]);
-                  setData(prev => prev ? {
-                    ...prev,
-                    "Program Ücreti": String(Math.round(o.yeniProgramUcreti * 100) / 100),
-                    "Toplam Program Ücreti": String(Math.round(o.toplam * 100) / 100),
-                  } : prev);
-                  setActiveTab("Taksit");
-                  setVurgulananAlan("Program Ücreti");
-                  setTimeout(() => setVurgulananAlan(null), 4000);
-                }}
-                style={{ ...s.modalBtn, marginTop: "10px", padding: "9px" }}
-              >Öneri 1'i Uygula</button>
-            </div>
-
-            <div style={{
-              background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px",
-              padding: "12px", marginTop: "10px", fontSize: "13px", color: "#334155",
-            }}>
-              <strong style={{ color: "#0e7490" }}>Öneri 2 — Son Taksiti Düzelt</strong>
+              <strong style={{ color: "#0e7490" }}>Öneri: Son Taksiti Düzelt</strong>
               <div style={{ marginTop: "5px" }}>
                 {taksitOneri.adet}. taksit <strong>{taksitOneri.sonTaksit}</strong> yerine{" "}
                 <strong>{Math.round(taksitOneri.yeniSonTaksit * 100) / 100}</strong> olsun.
@@ -2160,7 +2129,7 @@ export default function KayitGuncelle() {
                   setTimeout(() => setVurgulananAlan(null), 4000);
                 }}
                 style={{ ...s.modalBtn, marginTop: "10px", padding: "9px" }}
-              >Öneri 2'yi Uygula</button>
+              >Uygula</button>
             </div>
 
             <button onClick={() => setTaksitOneri(null)} style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: "12px" }}>İptal</button>
