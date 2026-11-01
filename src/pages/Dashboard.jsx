@@ -1,9 +1,14 @@
+// v1.2: Tema seçici eklendi (Klasik varsayılan, Bilet ve Menülü temaları src/pages/dashboard/ altında). Klasik görünüm değişmedi.
 // v1.1 — MODULE_CONFIG'e "kayittakip" (Kayıt Takip) kartı eklendi
 // v1.0 — SCRIPT_URL merkezi config.js'e taşındı (eski deployment ID yerine güncel olan kullanılıyor)
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 import { IZIN_YONETIM_SCRIPT_URL } from "../config";
+import { temaOku, temaKaydet, YONETICI_ROLLERI } from "./dashboard/tema";
+import TemaSecici from "./dashboard/TemaSecici";
+import BiletTema from "./dashboard/BiletTema";
+import KategoriTema from "./dashboard/KategoriTema";
 // SİL: yerel const SCRIPT_URL tanımı kaldırıldı (eski/ölü deployment ID kullanıyordu) 
 
 const MODULE_CONFIG = [
@@ -211,6 +216,7 @@ export default function Dashboard() {
   const [time, setTime] = useState(new Date());
   const [sozlesmeLoading, setSozlesmeLoading] = useState(false);
   const [sozlesmeHata, setSozlesmeHata] = useState(null);
+  const [tema, setTema] = useState(temaOku);
 
   useEffect(() => {
     const session = getSession();
@@ -264,6 +270,30 @@ export default function Dashboard() {
     : (time.getHours() < 12 ? "Günaydın" : time.getHours() < 18 ? "İyi günler" : "İyi akşamlar");
 
   if (!user) return null;
+
+  function temaDegistir(key) {
+    temaKaydet(key);
+    setTema(key);
+    window.scrollTo(0, 0);
+  }
+  const secici = <TemaSecici tema={tema} onChange={temaDegistir} isFortis={isFortis} />;
+
+  if (tema === "bilet" || tema === "kategori") {
+    const Tema = tema === "bilet" ? BiletTema : KategoriTema;
+    return (
+      <Tema
+        user={user}
+        moduller={allowedModules}
+        isFortis={isFortis}
+        isAdmin={YONETICI_ROLLERI.includes(user.rol)}
+        greeting={greeting}
+        time={time}
+        git={navigate}
+        cikis={logout}
+        secici={secici}
+      />
+    );
+  }
 
   return (
     <div style={styles.root}>
@@ -403,6 +433,8 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {secici}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
