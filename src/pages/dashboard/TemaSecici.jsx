@@ -21,6 +21,8 @@ export default function TemaSecici({ tema, onChange, isFortis }) {
         .tema-secici button[aria-pressed="true"] { background: #001A71; color: #fff; }
         .tema-secici button:focus-visible { outline: 2px solid #E50700; outline-offset: 1px; }
         @media (max-width: 640px) {
+          /* Seçici sayfanın son kartını örtmesin. */
+          body { padding-bottom: 56px; }
           .tema-secici { right: 8px; bottom: 8px; }
           .tema-secici span { display: none; }
         }

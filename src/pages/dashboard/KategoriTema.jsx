@@ -22,11 +22,11 @@ const EV = (
 
 const METIN = {
   tr: {
-    ana: "Ana sayfa", ara: "Modül ara", cikis: "Çıkış", panel: "Yönetici Paneli",
+    ana: "Ana sayfa", ara: "Modül ara…", bulundu: n => `${n} modül bulundu`, atla: "İçeriğe geç", cikis: "Çıkış", panel: "Yönetici Paneli",
     yok: "Aramana uyan modül yok.", bosBaslik: "Henüz erişim izniniz bulunmuyor.", bosMetin: "Yöneticinizle iletişime geçin.",
   },
   en: {
-    ana: "Home", ara: "Search modules", cikis: "Logout", panel: "Admin Panel",
+    ana: "Home", ara: "Search modules…", bulundu: n => `${n} modules found`, atla: "Skip to content", cikis: "Logout", panel: "Admin Panel",
     yok: "No modules match your search.", bosBaslik: "You don't have access to any modules yet.", bosMetin: "Please contact your manager.",
   },
 };
@@ -71,13 +71,14 @@ export default function KategoriTema({ user, moduller, isFortis, isAdmin, greeti
 
   return (
     <div className="tk" lang={L}>
+      <a className="tk-skip" href="#tk-main">{t.atla}</a>
       <aside className="tk-side">
-        <div className="tk-logo"><img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi" /></div>
+        <div className="tk-logo"><img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi" width={83} height={26} /></div>
         <nav aria-label={isFortis ? "Modules" : "Modüller"}>
           <a className="on" href="/dashboard" aria-current="page" onClick={e => e.preventDefault()}>{EV}{t.ana}</a>
           {gruplar.map(g => (
             <div key={g.key}>
-              <h6>{g[L]}</h6>
+              <p className="tk-navh">{g[L]}</p>
               {g.mods.map(m => (
                 <a key={m.key} {...link(m.path)}><span className="tk-nav-ic" aria-hidden="true">{m.icon}</span>{baslik(m)}</a>
               ))}
@@ -93,12 +94,12 @@ export default function KategoriTema({ user, moduller, isFortis, isAdmin, greeti
 
       <div className="tk-main">
         <div className="tk-top">
-          <img className="tk-mlogo" src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi" />
+          <img className="tk-mlogo" src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi" width={83} height={26} />
           {moduller.length > 0 && (
             <label className="tk-search">
               {ARA}
-              <input ref={araRef} type="search" value={ara} onChange={e => setAra(e.target.value)} placeholder={t.ara} aria-label={t.ara} />
-              <kbd>{isMac ? "⌘K" : "Ctrl K"}</kbd>
+              <input ref={araRef} type="search" value={ara} onChange={e => setAra(e.target.value)} placeholder={t.ara} aria-label={t.ara} name="modul-ara" autoComplete="off" spellCheck={false} />
+              <kbd>{isMac ? "⌘K" : "Ctrl\u00A0K"}</kbd>
             </label>
           )}
           <div className="tk-top-r">
@@ -107,14 +108,15 @@ export default function KategoriTema({ user, moduller, isFortis, isAdmin, greeti
           </div>
         </div>
 
-        <div className="tk-body">
+        <div className="tk-body" id="tk-main" tabIndex={-1}>
+          <p className="tk-sr" aria-live="polite">{q ? t.bulundu(gorunen.reduce((n, g) => n + g.mods.length, 0)) : ""}</p>
           <h1>{greeting}, {ad.split(" ")[0]}</h1>
           <div className="tk-date">{time.toLocaleDateString(isFortis ? "en-GB" : "tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</div>
 
           {moduller.length === 0 ? (
             <div className="tk-empty" role="status"><b>{t.bosBaslik}</b><span>{t.bosMetin}</span></div>
           ) : gorunen.length === 0 ? (
-            <div className="tk-empty" role="status"><b>{t.yok}</b></div>
+            <div className="tk-empty"><b>{t.yok}</b></div>
           ) : gorunen.map(g => (
             <section key={g.key} aria-labelledby={`tk-g-${g.key}`}>
               <h2 id={`tk-g-${g.key}`}>{g[L]}</h2>
@@ -139,6 +141,7 @@ export default function KategoriTema({ user, moduller, isFortis, isAdmin, greeti
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+html { scroll-padding-top: 80px; }
 body { margin: 0; background: #fff; }
 .tk { --ink:#0F172A; --navy:#001A71; --tint:#EEF1FA; --line:#E2E8F0; --mut:#64748B; --red:#E50700;
   display:flex; min-height:100vh; background:#fff; color:var(--ink); font:14px/1.4 'Inter',system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
@@ -156,7 +159,7 @@ body { margin: 0; background: #fff; }
 .tk-side nav a svg { width:16px; height:16px; flex:none; color:var(--mut); }
 .tk-side nav a.on svg, .tk-side nav a:hover svg { color:var(--navy); }
 .tk-nav-ic { display:flex; }
-.tk-side h6 { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--mut); padding:20px 10px 6px; }
+.tk-navh { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--mut); padding:20px 10px 6px; }
 .tk-user { border-top:1px solid var(--line); padding:14px 10px 18px; display:flex; align-items:center; gap:10px; }
 .tk-av { width:34px; height:34px; border-radius:50%; background:var(--tint); color:var(--navy); font-weight:600; font-size:13px; display:grid; place-items:center; flex:none; }
 .tk-user-txt { min-width:0; }
@@ -185,19 +188,25 @@ body { margin: 0; background: #fff; }
 .tk-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
 .tk-card { border:1px solid var(--line); border-radius:12px; padding:18px; background:#fff; display:flex; flex-direction:column; gap:14px; min-height:130px; transition:border-color .15s, box-shadow .15s; }
 .tk-card:hover { border-color:#B9C3E0; box-shadow:0 6px 18px -10px rgba(0,26,113,.25); }
-.tk-ic { width:36px; height:36px; border-radius:9px; background:var(--tint); color:var(--navy); display:grid; place-items:center; }
+.tk-ic { flex:none; width:36px; height:36px; border-radius:9px; background:var(--tint); color:var(--navy); display:grid; place-items:center; }
 .tk-ic svg { width:18px; height:18px; }
 .tk-card b { display:block; font-size:15px; font-weight:600; letter-spacing:-.01em; }
 .tk-card p { color:var(--mut); font-size:13px; margin-top:2px; }
 .tk-empty { margin-top:32px; border:1px dashed var(--line); border-radius:12px; padding:40px; display:flex; flex-direction:column; gap:6px; color:var(--mut); }
+.tk-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.tk-skip { position:absolute; left:16px; top:-60px; z-index:50; background:var(--navy); color:#fff !important; padding:10px 16px; border-radius:8px; font-weight:600; }
+.tk-skip:focus { top:12px; }
+.tk-body:focus { outline:0; }
 .tk-empty b { color:var(--ink); font-weight:600; font-size:15px; }
 
 @media (max-width:1100px) { .tk-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .tk-search { width:280px; } }
 @media (max-width:900px) {
   .tk-side { display:none; }
-  .tk-top { padding:0 16px; gap:12px; }
+  .tk-top { padding:12px 16px; gap:12px; height:auto; flex-wrap:wrap; }
   .tk-mlogo, .tk-mout { display:block; }
-  .tk-search { display:none; }
+  .tk-search { order:3; width:100%; }
+  html { scroll-padding-top:128px; }
+  .tk kbd { display:none; }
   .tk-body { padding:24px 16px 80px; }
   .tk h1 { font-size:28px; line-height:34px; }
   .tk-grid { grid-template-columns:1fr; gap:10px; }

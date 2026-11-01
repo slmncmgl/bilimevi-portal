@@ -25,6 +25,7 @@ const METIN = {
     alanlar: ["Personel", "Şube", "Rol", "Modül"], saat: "Saat", damga: "Yetkili",
     panel: "Yönetici Paneli", panelMetin: "Ekibinin izin talepleri tek yerde: onay bekleyenler, yaklaşanlar, geçmiş.",
     bekleyen: "Bekleyen onaylar", ac: "Paneli aç", adet: n => `${n} modül`, hepsi: "Modüllerin",
+    atla: "İçeriğe geç",
     bosBaslik: "Henüz erişim izniniz yok", bosMetin: "Yöneticinizle iletişime geçin, modüller açıldığında burada görünecek.", bosDamga: "Erişim yok",
   },
   en: {
@@ -32,6 +33,7 @@ const METIN = {
     alanlar: ["Staff", "Branch", "Role", "Modules"], saat: "Time", damga: "Authorised",
     panel: "Admin Panel", panelMetin: "Your team's leave requests in one place: pending, upcoming and past.",
     bekleyen: "Pending approvals", ac: "Open panel", adet: n => `${n} modules`, hepsi: "Your modules",
+    atla: "Skip to content",
     bosBaslik: "You don't have access to any modules yet", bosMetin: "Please contact your manager. Modules will appear here once they are enabled.", bosDamga: "No access",
   },
 };
@@ -65,9 +67,10 @@ export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting,
 
   return (
     <div className="tb" lang={L}>
+      <a className="tb-skip" href="#tb-main">{t.atla}</a>
       <header className="tb-bar">
         <div className="tb-bar-in">
-          <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi" />
+          <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi" width={83} height={26} />
           <span className="tb-portal">Portal</span>
           <span className="tb-sp" />
           <div className="tb-who">
@@ -81,7 +84,7 @@ export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting,
         </div>
       </header>
 
-      <main className="tb-main">
+      <main className="tb-main" id="tb-main" tabIndex={-1}>
         <div className={"tb-top" + (isAdmin ? "" : " solo")}>
           <section className="tb-pass" aria-labelledby="tb-hello">
             <div className="tb-pass-head">
@@ -158,6 +161,7 @@ export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting,
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=Overpass+Mono:wght@500;600&display=swap');
+html { scroll-padding-top: 80px; }
 body { margin: 0; background: #EBEEF4; }
 .tb {
   --navy:#001A71; --red:#E50700; --red-deep:#B80600;
@@ -182,8 +186,13 @@ body { margin: 0; background: #EBEEF4; }
 .tb-bar img { height:26px; filter:brightness(0) invert(1); }
 .tb-portal { font:700 18px/1 var(--cond); letter-spacing:.18em; text-transform:uppercase; padding-left:20px; border-left:1px solid rgba(255,255,255,.3); color:#E6E9F5; }
 .tb-sp { flex:1; }
-.tb-who { display:flex; align-items:center; gap:12px; text-align:right; }
+.tb-who { display:flex; align-items:center; gap:12px; text-align:right; min-width:0; }
+.tb-who div { min-width:0; max-width:280px; }
+.tb-who b, .tb-who div span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .tb-who b { display:block; font-weight:600; font-size:15px; line-height:1.2; }
+.tb-skip { position:absolute; left:16px; top:-60px; z-index:50; background:var(--red); color:#fff !important; padding:10px 16px; font:700 15px/1 var(--cond); letter-spacing:.12em; text-transform:uppercase; }
+.tb-skip:focus { top:12px; }
+.tb-main:focus { outline:0; }
 .tb-who div span { display:block; font-size:13px; color:#B8C1E0; }
 .tb-avatar { width:36px; height:36px; border-radius:50%; background:#fff; color:var(--navy); display:grid; place-items:center; font:800 17px/1 var(--cond); }
 .tb-out { display:inline-flex; align-items:center; gap:8px; height:36px; padding:0 14px; background:none; color:#fff; cursor:pointer; border:1px solid rgba(255,255,255,.45); font:700 14px/1 var(--cond); letter-spacing:.14em; text-transform:uppercase; transition:background .16s var(--ease),border-color .16s var(--ease); }
