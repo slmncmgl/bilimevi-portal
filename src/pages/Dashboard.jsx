@@ -1,3 +1,4 @@
+// v1.6: Tema seçici varsayılan gizli, 1+2+3+0 tuşlarına birlikte 3 sn basınca açılır/kapanır.
 // v1.5: Dördüncü tema "Kurumsal" (Kurumsal Kimlik Kılavuzu, src/pages/dashboard/KimlikTema.jsx).
 // v1.4: Bilet teması: üst bölüm tek şeride indirildi, kupon kodları yerine modül ikonları.
 // v1.3: Yeni temalarda erişilebilirlik düzeltmeleri (atlama linki, logo boyutu, arama kutusu, telefonda arama). Klasik görünüm değişmedi.

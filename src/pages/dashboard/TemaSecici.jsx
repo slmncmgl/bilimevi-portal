@@ -1,7 +1,53 @@
+import { useEffect, useState } from "react";
 import { TEMALAR } from "./tema";
 
-// Her temada sağ altta duran küçük görünüm seçici. Sayfa düzenine dokunmaz (position: fixed).
+// Sağ altta duran küçük görünüm seçici. Varsayılan gizli: 1, 2, 3 ve 0 tuşlarına birlikte 3 saniye basılınca
+// açılır, aynı hareket tekrar kapatır. Açık/kapalı durumu tarayıcıda saklanır. Sayfa düzenine dokunmaz (position: fixed).
+const GIZLI_TUSLAR = ["1", "2", "3", "0"];
+const BASILI_SURE = 3000;
+const ACIK_ANAHTARI = "portal-tema-secici-acik";
+
+function acikOku() {
+  try { return localStorage.getItem(ACIK_ANAHTARI) === "1"; } catch (e) { return false; }
+}
+
 export default function TemaSecici({ tema, onChange, isFortis }) {
+  const [acik, setAcik] = useState(acikOku);
+
+  useEffect(() => {
+    const basili = new Set();
+    let zamanlayici = null;
+    const durdur = () => { clearTimeout(zamanlayici); zamanlayici = null; };
+    // Numpad tuşları da sayılır (e.key yine "1" vb. gelir).
+    const asagi = e => {
+      if (!GIZLI_TUSLAR.includes(e.key)) return;
+      basili.add(e.key);
+      if (basili.size === GIZLI_TUSLAR.length && !zamanlayici) {
+        zamanlayici = setTimeout(() => {
+          zamanlayici = null;
+          basili.clear();
+          setAcik(a => {
+            try { localStorage.setItem(ACIK_ANAHTARI, a ? "0" : "1"); } catch (err) {}
+            return !a;
+          });
+        }, BASILI_SURE);
+      }
+    };
+    const yukari = e => { if (basili.delete(e.key)) durdur(); };
+    const sifirla = () => { basili.clear(); durdur(); };
+    window.addEventListener("keydown", asagi);
+    window.addEventListener("keyup", yukari);
+    window.addEventListener("blur", sifirla);
+    return () => {
+      durdur();
+      window.removeEventListener("keydown", asagi);
+      window.removeEventListener("keyup", yukari);
+      window.removeEventListener("blur", sifirla);
+    };
+  }, []);
+
+  if (!acik) return null;
+
   return (
     <div className="tema-secici" role="group" aria-label={isFortis ? "Layout" : "Görünüm"}>
       <span>{isFortis ? "Layout" : "Görünüm"}</span>
