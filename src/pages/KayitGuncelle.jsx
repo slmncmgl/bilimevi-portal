@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.49
+// KayitGuncelle.jsx v1.50
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.49"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.50"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1596,11 +1596,15 @@ export default function KayitGuncelle() {
                 aria-label="Aktivite grafiği"
                 style={{
                   marginLeft: "auto", display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  width: "28px", height: "24px", borderRadius: "6px", border: "none", cursor: "pointer", padding: 0,
-                  background: grafikAcik ? TEMA_RENKLERI[tema].rozet : "transparent", color: TEMA_RENKLERI[tema].yazi,
+                  // Kapalıyken yarı saydam zemin + ince çerçeve, açıkken beyaz zemin ve tema renginde ikon
+                  width: "34px", height: "28px", borderRadius: "8px", cursor: "pointer", padding: 0,
+                  border: `1px solid ${grafikAcik ? "#fff" : "rgba(255,255,255,0.45)"}`,
+                  background: grafikAcik ? "#fff" : TEMA_RENKLERI[tema].rozet,
+                  color: grafikAcik ? TEMA_RENKLERI[tema].nokta : TEMA_RENKLERI[tema].yazi,
+                  boxShadow: "0 1px 3px rgba(15,23,42,0.15)", transition: "background 0.15s, color 0.15s",
                 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                   <path d="M4 20h16" /><path d="M7 16v-4" /><path d="M12 16V7" /><path d="M17 16v-7" />
                 </svg>
               </button>
