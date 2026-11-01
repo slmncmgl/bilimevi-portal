@@ -1,10 +1,11 @@
-// Dashboard tema seçimi: klasik (varsayılan), bilet, kategori.
+// Dashboard tema seçimi: klasik (varsayılan), bilet, kategori, kimlik.
 // Seçim tarayıcıda saklanır (cihaz başına). ?tema=bilet gibi bir URL parametresi seçimi değiştirir.
 
 export const TEMALAR = [
   { key: "klasik", tr: "Klasik", en: "Classic" },
   { key: "bilet", tr: "Bilet", en: "Ticket" },
   { key: "kategori", tr: "Menülü", en: "Sidebar" },
+  { key: "kimlik", tr: "Kurumsal", en: "Corporate" },
 ];
 
 const TEMA_ANAHTARI = "portal-dashboard-tema";

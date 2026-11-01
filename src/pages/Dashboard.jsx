@@ -1,3 +1,4 @@
+// v1.5: Dördüncü tema "Kurumsal" (Kurumsal Kimlik Kılavuzu, src/pages/dashboard/KimlikTema.jsx).
 // v1.4: Bilet teması: üst bölüm tek şeride indirildi, kupon kodları yerine modül ikonları.
 // v1.3: Yeni temalarda erişilebilirlik düzeltmeleri (atlama linki, logo boyutu, arama kutusu, telefonda arama). Klasik görünüm değişmedi.
 // v1.2: Tema seçici eklendi (Klasik varsayılan, Bilet ve Menülü temaları src/pages/dashboard/ altında). Klasik görünüm değişmedi.
@@ -11,6 +12,7 @@ import { temaOku, temaKaydet, YONETICI_ROLLERI } from "./dashboard/tema";
 import TemaSecici from "./dashboard/TemaSecici";
 import BiletTema from "./dashboard/BiletTema";
 import KategoriTema from "./dashboard/KategoriTema";
+import KimlikTema from "./dashboard/KimlikTema";
 // SİL: yerel const SCRIPT_URL tanımı kaldırıldı (eski/ölü deployment ID kullanıyordu) 
 
 const MODULE_CONFIG = [
@@ -280,8 +282,9 @@ export default function Dashboard() {
   }
   const secici = <TemaSecici tema={tema} onChange={temaDegistir} isFortis={isFortis} />;
 
-  if (tema === "bilet" || tema === "kategori") {
-    const Tema = tema === "bilet" ? BiletTema : KategoriTema;
+  const YENI_TEMALAR = { bilet: BiletTema, kategori: KategoriTema, kimlik: KimlikTema };
+  if (YENI_TEMALAR[tema]) {
+    const Tema = YENI_TEMALAR[tema];
     return (
       <Tema
         user={user}
