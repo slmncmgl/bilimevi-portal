@@ -1,3 +1,4 @@
+// v1.7: Klasik temada kartlar masaüstünde sürüklenip sıralanabilir, sıra kullanıcı başına tarayıcıda saklanır (src/pages/dashboard/kartSirasi.js).
 // v1.6: Tema seçici varsayılan gizli, 1+2+3+0 tuşlarına birlikte 3 sn basınca açılır/kapanır.
 // v1.5: Dördüncü tema "Kurumsal" (Kurumsal Kimlik Kılavuzu, src/pages/dashboard/KimlikTema.jsx).
 // v1.4: Bilet teması: üst bölüm tek şeride indirildi, kupon kodları yerine modül ikonları.
@@ -14,6 +15,7 @@ import TemaSecici from "./dashboard/TemaSecici";
 import BiletTema from "./dashboard/BiletTema";
 import KategoriTema from "./dashboard/KategoriTema";
 import KimlikTema from "./dashboard/KimlikTema";
+import { useKartSirasi } from "./dashboard/kartSirasi";
 // SİL: yerel const SCRIPT_URL tanımı kaldırıldı (eski/ölü deployment ID kullanıyordu) 
 
 const MODULE_CONFIG = [
@@ -269,6 +271,7 @@ export default function Dashboard() {
   }
 
   const allowedModules = MODULE_CONFIG.filter(m => user?.modules?.[m.key]);
+  const kart = useKartSirasi(allowedModules, user ? `${user.company}|${user.name}` : "");
   const isFortis = user?.company === "Fortis";
   const greeting = isFortis
     ? (time.getHours() < 12 ? "Good morning" : time.getHours() < 18 ? "Good afternoon" : "Good evening")
@@ -378,15 +381,20 @@ export default function Dashboard() {
                                  allowedModules.length === 2 ? "repeat(2, 1fr)" :
                                  "repeat(2, 1fr)",
           }}>
-            {allowedModules.map((mod, i) => (
+            {kart.sirali.map((mod, i) => (
               <button
                 key={mod.key}
-                onClick={() => navigate(mod.path)}
+                {...kart.kartProps(mod.key)}
+                onClick={() => { if (!kart.tiklamaEngellendi()) navigate(mod.path); }}
                 className="dash-module-card" style={{
                   ...styles.moduleCard,
                   animationDelay: `${i * 0.08}s`,
                   "--hover-border": mod.color,
                   ...(mod.key === "fiyatteklifi" ? { gridColumn: 2, gridRow: 1, background: mod.bg, borderColor: mod.border } : {}),
+                  // Kullanıcı kendi sırasını kaydettiyse Fiyat Teklifi de sıraya girer, sabit konum kalkar.
+                  ...(kart.ozelSira ? { gridColumn: "auto", gridRow: "auto" } : {}),
+                  ...(kart.animasyonKapali ? { animation: "none" } : {}),
+                  ...(kart.suruklenen === mod.key ? { opacity: 0.5, cursor: "grabbing" } : {}),
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = "translateY(-4px)";
