@@ -24,6 +24,7 @@ Son güncelleme: 30 Ekim 2026 (staff portalı portal.bilimevi.com'a taşındı).
 - **JSX'e siteye özel kod yazılmaz.** Site farkı sadece shortcode parametreleri ve `BFT_CONFIG` ile gelir.
 - Hata yaptıysan açıkça söyle. Kullanıcı geçmişte yanlış kılavuz ve yarım düzeltme yüzünden zarar gördü.
 - Çalışan yapılandırmaya (özellikle `vite.wp.config.js`) gerekçesiz dokunma.
+- **Merge'leri Claude yönetir (kullanıcı kararı 02.11.2026).** Çözüm ve kapsam onayı kullanıcıda kalır: mimari anlatılır, onay alınır, PR test edilmiş olarak hazırlanır, merge'ü Claude yapar. main'e giden ve canlıyı değiştiren her merge'den sonra kullanıcıya `!!!` işaretli manuel kontrol listesi verilir: canlı sitede konsolda `[BFT] Build:` sürümü, gerekirse LiteSpeed cache temizliği, bir örnek teklifin tutar kontrolü.
 - **Commit kimliği her zaman `Selman C. <it@bilimevi.com>`.** Başka bir ad ya da e-posta ile yapılan commit'lerin Vercel önizlemesi engellenir (Hobby plan). Commit'ten önce `git config user.name` / `user.email` değerini kontrol et ya da `git -c user.name="Selman C." -c user.email="it@bilimevi.com" commit ...` kullan.
 
 ## Versiyon kuralı
@@ -63,7 +64,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - ingilteredil adımında `continue-on-error: true`, maltadil son adım ve hata verirse workflow kırmızı olur. Bilinçli tercih.
 - **almanyadil workflow'da yok.** Push ile güncellenmiyor. **Nasıl güncellendiğini kullanıcı da bilmiyor (20 Ekim 2026), sonra bakılacak.** Bakılana kadar almanyadil'deki sürümün repodakiyle aynı olduğunu varsayma. Elle yol: yerelde `npm run build:wp`, `dist-wp/` içeriğini almanyadil'in aynı plugin `assets/` klasörüne at.
 - Matrix job denendi ve reddedildi (çift build, secret'lara dinamik erişim yok). Yeni site = workflow'a yeni bir adım + o siteye ait 3 FTP secret'ı (`FTP_SERVER_X`, `FTP_USER_X`, `FTP_PASSWORD_X`).
-- **WordPress için preview/staging yok.** main'e giren her şey birkaç dakika içinde iki canlı sitede. Riskli işleri branch'te tut, main'e kullanıcı onayıyla al.
+- **WordPress için preview/staging yok.** main'e giren her şey birkaç dakika içinde iki canlı sitede. Riskli işleri branch'te tut; merge'ü Claude yönetir ve merge sonrası `!!!` manuel kontrol listesi kullanıcıya gider (Çalışma kuralları).
 - Deploy sonrası kontrol: sitede konsolda `[BFT] Build:` sürümüne bak. Eski sürüm görünüyorsa LiteSpeed cache temizlenmeli.
 - PHP plugin dosyaları bu akışa dahil değil, elle atılır.
 
