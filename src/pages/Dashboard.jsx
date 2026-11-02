@@ -1,3 +1,4 @@
+// v1.10: Klasik temada kartın üstüne gelince modül renginde daha güçlü, rastgele gezinen gölge (src/pages/dashboard/renkliGolge.js).
 // v1.9: Klasik temada sürükle-bırak için tek seferlik, 10 sn duran uyarı (src/pages/dashboard/SuruklemeIpucu.jsx).
 // v1.8: Ana sayfanın altında küçük sürüm etiketi (DASHBOARD_VERSION + Vercel commit kodu, vite.config.js define).
 // v1.7: Klasik temada kartlar masaüstünde sürüklenip sıralanabilir, sıra kullanıcı başına tarayıcıda saklanır (src/pages/dashboard/kartSirasi.js).
@@ -20,9 +21,10 @@ import KimlikTema from "./dashboard/KimlikTema";
 import { useKartSirasi } from "./dashboard/kartSirasi";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
+import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.9";
+const DASHBOARD_VERSION = "v1.10";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -413,9 +415,10 @@ export default function Dashboard() {
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = "translateY(-4px)";
                   e.currentTarget.style.borderColor = mod.color + "66";
-                  e.currentTarget.style.boxShadow = `0 20px 40px -12px ${mod.color}22`;
+                  golgeBaslat(e.currentTarget, mod.color);
                 }}
                 onMouseLeave={e => {
+                  golgeDurdur(e.currentTarget);
                   e.currentTarget.style.transform = "translateY(0)";
                   e.currentTarget.style.borderColor = "#e2e8f0";
                   e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
@@ -623,7 +626,8 @@ const styles = {
     borderRadius: "20px",
     padding: "24px 28px",
     cursor: "pointer",
-    transition: "all 0.2s ease",
+    // box-shadow yavaş: rastgele gezinen gölgenin konum değişimi yumuşak olsun (renkliGolge.js).
+    transition: "all 0.2s ease, box-shadow 1.2s ease-in-out",
     textAlign: "left",
     boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
     animation: "fadeUp 0.5s ease-out both",
