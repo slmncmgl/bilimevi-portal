@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.50
+// KayitGuncelle.jsx v1.51
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.50"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.51"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -747,6 +747,8 @@ export default function KayitGuncelle() {
   const [grafikAcik, setGrafikAcik] = useState(() => kayitliFiltre.grafikAcik ?? false);
   const [grafikMod, setGrafikMod] = useState(() => kayitliFiltre.grafikMod === "hafta" ? "hafta" : "gun");
   const [grafikHover, setGrafikHover] = useState(null);
+  // Grafikte seçili şubeler (çoklu); boş dizi = Tümü
+  const [grafikSubeler, setGrafikSubeler] = useState(() => Array.isArray(kayitliFiltre.grafikSubeler) ? kayitliFiltre.grafikSubeler : []);
   // Başlık şeridi rengi: kullanıcıya özel, tarayıcıda kalıcı
   const TEMA_ANAHTARI = `kayitGuncelleTema:${user?.name || ""}`;
   // yazi: şerit yazı rengi, rozet: sayaç zemini (açık temada koyu yazı)
@@ -1179,10 +1181,10 @@ export default function KayitGuncelle() {
     try {
       sessionStorage.setItem(FILTRE_ANAHTARI, JSON.stringify({
         sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim,
-        tarihFiltre, onayliGoster, grupDisiGoster, sayfaBoyutu, grafikAcik, grafikMod,
+        tarihFiltre, onayliGoster, grupDisiGoster, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler,
       }));
     } catch { /* depolama kapalıysa sessizce geç */ }
-  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim, tarihFiltre, onayliGoster, grupDisiGoster, sayfaBoyutu, grafikAcik, grafikMod]);
+  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim, tarihFiltre, onayliGoster, grupDisiGoster, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler]);
 
   // Hatırlanan sayfa numarası yeni listede yoksa son sayfaya çek
   useEffect(() => {
@@ -1297,16 +1299,29 @@ export default function KayitGuncelle() {
       return { anahtar: gunAnahtari(d), etiket: kisa(d), aralik: haftalik ? `${kisa(d)} - ${kisa(son)}` : kisa(d), sayi: 0 };
     });
     const indeks = Object.fromEntries(kovalar.map((k, i) => [k.anahtar, i]));
+    // Şube sayıları seçimden bağımsız (dönem içindeki tüm görünen kayıtlar); "" = Belirtilmemiş
+    const subeSayilari = {};
     siraliOgrenciler.forEach(o => {
       const z = eklenmeZamani(o);
       if (!z) return;
       const d = new Date(z);
       const i = indeks[gunAnahtari(haftalik ? pazartesi(d) : d)];
-      if (i !== undefined) kovalar[i].sayi += 1;
+      if (i === undefined) return;
+      const sube = temizMetin(o["Şube Adı"]);
+      subeSayilari[sube] = (subeSayilari[sube] || 0) + 1;
+      if (!grafikSubeler.length || grafikSubeler.includes(sube)) kovalar[i].sayi += 1;
     });
+    // Seçili ama bu dönemde kaydı olmayan şube de kaldırılabilsin diye listede kalır
+    grafikSubeler.forEach(sb => { if (!(sb in subeSayilari)) subeSayilari[sb] = 0; });
+    const subeler = Object.keys(subeSayilari).sort((a, b) =>
+      ((a === "") - (b === "")) || a.localeCompare(b, "tr", { sensitivity: "base" })
+    ).map(sb => ({
+      deger: sb, sayi: subeSayilari[sb],
+      etiket: sb ? sb.replace(/^Bilimevi\s*-\s*/i, "") : "Belirtilmemiş",
+    }));
     const enCok = Math.max(1, ...kovalar.map(k => k.sayi));
     const toplam = kovalar.reduce((a, k) => a + k.sayi, 0);
-    return { kovalar, enCok, toplam, haftalik };
+    return { kovalar, enCok, toplam, haftalik, subeler };
   })();
 
   return (
@@ -1629,6 +1644,35 @@ export default function KayitGuncelle() {
                       <button type="button" style={modBtn(g.haftalik)} onClick={() => { setGrafikMod("hafta"); setGrafikHover(null); }}>Haftalık</button>
                     </div>
                   </div>
+                  {g.subeler.length > 0 && (() => {
+                    // Şube hapları: çoklu seçim, seçili olan tema renginde; Tümü seçimi temizler
+                    const hap = secili => ({
+                      display: "inline-flex", alignItems: "center", gap: "5px",
+                      padding: "3px 10px", fontSize: "12px", borderRadius: "999px", cursor: "pointer",
+                      border: `1px solid ${secili ? renk : "#e2e8f0"}`,
+                      background: secili ? renk : "#f8fafc", color: secili ? "#fff" : "#475569",
+                      fontWeight: secili ? "700" : "500", transition: "background 0.15s, color 0.15s",
+                    });
+                    const sayiStil = secili => ({ fontSize: "11px", color: secili ? "rgba(255,255,255,0.85)" : "#94a3b8", fontVariantNumeric: "tabular-nums" });
+                    const tumuSecili = !grafikSubeler.length;
+                    return (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
+                        <button type="button" style={hap(tumuSecili)} onClick={() => { setGrafikSubeler([]); setGrafikHover(null); }}>Tümü</button>
+                        {g.subeler.map(sb => {
+                          const secili = grafikSubeler.includes(sb.deger);
+                          return (
+                            <button key={sb.deger || "_bos"} type="button" style={hap(secili)}
+                              onClick={() => {
+                                setGrafikSubeler(prev => prev.includes(sb.deger) ? prev.filter(x => x !== sb.deger) : [...prev, sb.deger]);
+                                setGrafikHover(null);
+                              }}>
+                              {sb.etiket}<span style={sayiStil(secili)}>{sb.sayi}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                   <div style={{ display: "flex", alignItems: "flex-end", gap: g.haftalik ? "6px" : (isMobile ? "2px" : "3px"), height: "110px" }}
                     onMouseLeave={() => setGrafikHover(null)}>
                     {g.kovalar.map((k, i) => (
