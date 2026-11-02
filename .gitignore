@@ -1,0 +1,4 @@
+node_modules/
+dist-wp/
+dist/
+package-lock.json

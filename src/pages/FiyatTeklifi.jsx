@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v118-portal-domain-2026-10-30";
+const BFT_BUILD_VERSION = "v119-turkce-ucret-adlari-2026-11-02";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -586,13 +586,178 @@ const FEE_NAME_MAP = {
   "Custodianship Fee": "Reşit Olmayan Vasi Ücreti",
   "PEL Protection of Enrolled Learners": "Öğrenci Koruma Ücreti",
   "Learners Protection Fee": "Öğrenci Koruma Ücreti",
-  "Booking with Confidence Plus": "Yönetim / İşlem Ücreti"
+  "Booking with Confidence Plus": "Yönetim / İşlem Ücreti",
+  // v119: 7 okulun fees taraması (143 ad, Selman onayı 02.11.2026) + CAVILAM 2027 (8 sınav ücreti)
+  "AY Exam Fee (non-EU)": "Sınav Ücreti (Akademik Yıl)",
+  "Accommodation 2027 Booking Surcharge": "Konaklama Ek Ücreti (2027 rezervasyonları)",
+  "Accommodation Arrival Transfer": "Havalimanı Karşılama Transferi",
+  "Accommodation Change Fee": "Değişiklik / İptal Ücreti",
+  "Accommodation Deposit (ActiLingua Apartment)": "Depozito / Teminat Ücreti (ActiLingua Apartment)",
+  "Accommodation Deposit (ActiLingua Penthouse)": "Depozito / Teminat Ücreti (ActiLingua Penthouse)",
+  "Accommodation Deposit (HANS-Y)": "Depozito / Teminat Ücreti (HANS-Y)",
+  "Accommodation Deposit (Refundable)": "Depozito / Teminat Ücreti (iade edilir)",
+  "Accommodation Eco Tax": "Devlet / Yerel Vergi",
+  "Accommodation Extension Fee": "Konaklama Uzatma Ücreti",
+  "Accommodation Move Fee": "Değişiklik / İptal Ücreti",
+  "Accommodation Placement Fee (Britannia Study Hotel)": "Konaklama Ayarlama Ücreti (Britannia Study Hotel)",
+  "Accommodation Placement Fee (Student Castle Residence)": "Konaklama Ayarlama Ücreti (Student Castle Residence)",
+  "Accommodation Placement Fee (Terrie & Detty's Shared Student House)": "Konaklama Ayarlama Ücreti (Terrie & Detty's Shared Student House)",
+  "Accommodation Placement Fee (Under 18)": "Konaklama Ayarlama Ücreti (18 yaş altı)",
+  "Accommodation Placement Fee (VITA Student Residence)": "Konaklama Ayarlama Ücreti (VITA Student Residence)",
+  "Accommodation Security Deposit (Refundable)": "Depozito / Teminat Ücreti (iade edilir)",
+  "Accommodation Summer Supplement": "Yaz Dönemi Ek Ücreti",
+  "Accommodation Urgent Placement Fee": "Acil Konaklama Ayarlama Ücreti",
+  "Aptis Exam": "Sınav Ücreti (Aptis)",
+  "Bayswater Cyprus Shuttle Bus (1-2 people)": "Okul Servisi (1-2 kişi)",
+  "Bayswater Cyprus Shuttle Bus (3-4 people)": "Okul Servisi (3-4 kişi)",
+  "Berlin City Tax": "Devlet / Yerel Vergi",
+  "Business English Material Fee": "Materyal / Kitap Ücreti",
+  "Cambridge English B1 Preliminary (PET) Exam": "Sınav Ücreti (Cambridge B1 Preliminary)",
+  "Cambridge English B2 First (FCE) Exam": "Sınav Ücreti (Cambridge B2 First)",
+  "Cambridge English C1 Advanced (CAE) Exam": "Sınav Ücreti (Cambridge C1 Advanced)",
+  "Cambridge, IELTS and Business English Coursebooks": "Materyal / Kitap Ücreti",
+  "Career Preparation Programme Fee": "Kariyer Hazırlık Programı Ücreti",
+  "Caregiver Placement Fee": "Refakatçi Aile Ayarlama Ücreti",
+  "Caregiver Weekly Fee": "Refakatçi Aile Haftalık Ücreti",
+  "Certificate Postal Delivery": "Evrak Kargo / Posta Ücreti",
+  "Change of Course/Campus": "Değişiklik / İptal Ücreti",
+  "Christmas Supplement (Half-Board)": "Noel Dönemi Ek Ücreti (yarım pansiyon)",
+  "Credit Card Fee (1.5%)": "Kredi Kartı Komisyonu (%1,5)",
+  "Culture Special": "Kültür Programı",
+  "Custodianship Document": "Vasilik Belgesi Ücreti",
+  "Custodianship Letter": "Vasilik Belgesi Ücreti",
+  "EAP + IELTS Material Fee": "Materyal / Kitap Ücreti",
+  "Emergency Health Insurance": "Sigorta Ücreti",
+  "Enrolment Fee - Student Visa": "Kayıt Ücreti",
+  "Enrolment Fee - Tourist / Working Holiday Visa": "Kayıt Ücreti",
+  "Enrolment Guidance Module": "Üniversite Kayıt Danışmanlığı Modülü",
+  "Exam Fee - CAE": "Sınav Ücreti (Cambridge C1 Advanced)",
+  "Exam Fee - Cambridge": "Sınav Ücreti (Cambridge)",
+  "Exam Fee - Cambridge & IELTS": "Sınav Ücreti (Cambridge ve IELTS)",
+  "Exam Fee - DALF C1": "Sınav Ücreti (DALF C1)",
+  "Exam Fee - DELF A2": "Sınav Ücreti (DELF A2)",
+  "Exam Fee - DELF B1": "Sınav Ücreti (DELF B1)",
+  "Exam Fee - DELF B2": "Sınav Ücreti (DELF B2)",
+  "Exam Fee - FCE": "Sınav Ücreti (Cambridge B2 First)",
+  "Exam Fee - IELTS": "Sınav Ücreti (IELTS)",
+  "Express Letter (DHL)": "Evrak Kargo / Posta Ücreti (DHL)",
+  "Full-day Excursion": "Aktivite / Gezi Ücreti (tam gün)",
+  "German and Acting Module": "Almanca ve Tiyatro Modülü",
+  "German and Music Module": "Almanca ve Müzik Modülü",
+  "Guaranteed Morning Classes Supplement": "Sabah Dersi Garantisi Ek Ücreti",
+  "Half-day Excursion": "Aktivite / Gezi Ücreti (yarım gün)",
+  "Homestay Accommodation Placement Fee": "Konaklama Ayarlama Ücreti",
+  "Homestay Additional Night": "Ek Gece Ücreti",
+  "Homestay Dietary Supplement": "Özel Diyet Ek Ücreti",
+  "Homestay Dietary Supplement (Bed & Breakfast)": "Özel Diyet Ek Ücreti (oda + kahvaltı)",
+  "Homestay Dietary Supplement (Half Board)": "Özel Diyet Ek Ücreti (yarım pansiyon)",
+  "Homestay Dietary Supplement (Semi Board)": "Özel Diyet Ek Ücreti (hafta içi yarım pansiyon)",
+  "Homestay Extra Night": "Ek Gece Ücreti",
+  "Homestay Extra Night (Bed & Breakfast)": "Ek Gece Ücreti (oda + kahvaltı)",
+  "Homestay Extra Night (Half Board)": "Ek Gece Ücreti (yarım pansiyon)",
+  "Homestay Extra Night (Semi Board)": "Ek Gece Ücreti (hafta içi yarım pansiyon)",
+  "Homestay Extra Night (Single Room)": "Ek Gece Ücreti (tek kişilik oda)",
+  "Homestay Extra Night (Twin Room)": "Ek Gece Ücreti (iki kişilik oda)",
+  "Homestay Late Check-in": "Geç Giriş Ücreti",
+  "Homestay Minor Fee (under 18)": "Reşit Olmayan (18 Altı) Ek Ücreti",
+  "Homestay Minor Fee (under 19)": "Reşit Olmayan (19 Altı) Ek Ücreti",
+  "Homestay Placement Fee": "Konaklama Ayarlama Ücreti",
+  "Homestay Private Bathroom": "Özel Banyo Ek Ücreti",
+  "Homestay Under 18 Supplement": "Reşit Olmayan (18 Altı) Ek Ücreti",
+  "Homestay Vegetarian Diet Supplement": "Vejetaryen Yemek Ek Ücreti",
+  "Homestay Winter Supplement": "Noel Dönemi Ek Ücreti",
+  "Hotel Half Board Supplement": "Yarım Pansiyon Ek Ücreti",
+  "IELTS / Cambridge Exam Materials (1-12 weeks)": "Sınav Hazırlık Materyali",
+  "IELTS Exam": "Sınav Ücreti (IELTS)",
+  "Insurance (65+)": "Sigorta Ücreti (65 yaş üstü)",
+  "Insurance for 25 week courses (non-EU)": "Sigorta Ücreti (25 haftalık kurslar)",
+  "Intensive Arabic Material Fee": "Materyal / Kitap Ücreti",
+  "Ivy Halls Weekly Bed Linen Change (Residence)": "Haftalık Nevresim Değişimi (Ivy Halls)",
+  "Ivy Halls Weekly Bedroom Cleaning (Residence)": "Haftalık Oda Temizliği (Ivy Halls)",
+  "Late Check-in (after 10pm)": "Geç Giriş Ücreti (22.00 sonrası)",
+  "Linguaskill Exam - Reading and Listening": "Sınav Ücreti (Linguaskill okuma ve dinleme)",
+  "Linguaskill Exam - Speaking": "Sınav Ücreti (Linguaskill konuşma)",
+  "Linguaskill Exam - Writing": "Sınav Ücreti (Linguaskill yazma)",
+  "Material Fee": "Materyal / Kitap Ücreti",
+  "Material Rental Fee": "Materyal / Kitap Ücreti (kiralık)",
+  "Medical Insurance": "Sigorta Ücreti",
+  "Medical Insurance (3 months)": "Sigorta Ücreti (3 ay)",
+  "Medical Insurance (8 months)": "Sigorta Ücreti (8 ay)",
+  "OSD Certificate Preparation Group Course (2 weeks)": "ÖSD Sınavına Hazırlık Grup Kursu (2 hafta)",
+  "OSD Certificate Preparation Individual Tuition (2 weeks)": "ÖSD Sınavına Hazırlık Özel Ders (2 hafta)",
+  "OSD Examination Fee A1": "Sınav Ücreti (ÖSD A1)",
+  "OSD Examination Fee A2": "Sınav Ücreti (ÖSD A2)",
+  "OSD Examination Fee B1": "Sınav Ücreti (ÖSD B1)",
+  "OSD Examination Fee B2": "Sınav Ücreti (ÖSD B2)",
+  "OSD Examination Fee C1": "Sınav Ücreti (ÖSD C1)",
+  "OSD Examination Fee C2": "Sınav Ücreti (ÖSD C2)",
+  "One to One Additional Person": "Birebir Derse Ek Kişi Ücreti",
+  "One to One Extra Lesson": "Birebir Özel Ders Ücreti",
+  "One to One Lessons (5 lessons)": "Birebir Özel Ders Ücreti (5 ders)",
+  "Overseas Student Health Cover (OSHC)": "Sigorta Ücreti (OSHC)",
+  "PEL Insurance (non-EU)": "Öğrenci Koruma Ücreti",
+  "PEL Learner Protection (non-EU)": "Öğrenci Koruma Ücreti",
+  "Private Lessons": "Birebir Özel Ders Ücreti",
+  "Professional Course Materials Fee": "Materyal / Kitap Ücreti",
+  "Public Transport Ticket": "Toplu Taşıma Kartı",
+  "Residence Accommodation Placement Fee (CASA)": "Konaklama Ayarlama Ücreti (CASA)",
+  "Residence Accommodation Placement Fee (Dream House)": "Konaklama Ayarlama Ücreti (Dream House)",
+  "Residence Amenities Fee": "Yurt Hizmet Ücreti",
+  "Residence Eco Tax": "Devlet / Yerel Vergi",
+  "Residence Extra Night": "Ek Gece Ücreti",
+  "Residence Hostel Breakfast": "Kahvaltı Ücreti",
+  "Residence Late Check-in Extra Night": "Geç Giriş Ek Gece Ücreti",
+  "Residence Lease Fee": "Yurt Kira Sözleşmesi Ücreti",
+  "Residence Linen Package": "Nevresim Paketi",
+  "Residence Security Deposit (Refundable)": "Depozito / Teminat Ücreti (iade edilir)",
+  "Residence Tourist Tax": "Devlet / Yerel Vergi",
+  "Residence Weekly Breakfast Supplement": "Haftalık Kahvaltı Ek Ücreti",
+  "Residence Weekly Cleaning Supplement": "Haftalık Temizlik Ek Ücreti",
+  "Standard Arabic Material Fee": "Materyal / Kitap Ücreti",
+  "Standard English Material Fee": "Materyal / Kitap Ücreti",
+  "Standard Material Fee": "Materyal / Kitap Ücreti",
+  "Summer Residence Full Board Supplement (packed lunch)": "Tam Pansiyon Ek Ücreti (öğle yemeği paket)",
+  "Super Intensive English Material Fee": "Materyal / Kitap Ücreti",
+  "Super Intensive Material Fee": "Materyal / Kitap Ücreti",
+  "TIE Exam": "Sınav Ücreti (TIE)",
+  "TOEIC Exam": "Sınav Ücreti (TOEIC)",
+  "Travel Insurance": "Sigorta Ücreti",
+  "University Pathway Add-on (10 lessons)": "Üniversite Hazırlık Ek Dersi (10 ders)",
+  "University Preparation Module": "Üniversite Hazırlık Modülü",
+  "Volunteering Placement Fee - Other Areas": "Gönüllü Çalışma Yerleştirme Ücreti (diğer alanlar)",
+  "Volunteering Placement Fee - Retail": "Gönüllü Çalışma Yerleştirme Ücreti (perakende)",
+  "Work & Study Final Exam - IELTS": "Bitirme Sınavı Ücreti (IELTS)",
+  "Work & Study Final Exam - TIE": "Bitirme Sınavı Ücreti (TIE)",
+  "Work & Study Insurance (Mandatory)": "Sigorta Ücreti",
+  "Work & Study PEL Fee (Mandatory)": "Öğrenci Koruma Ücreti",
+  "Work Experience Placement Fee": "Staj Yerleştirme Ücreti",
+  "DELF A2 Exam": "Sınav Ücreti (DELF A2)",
+  "DELF B1 Exam": "Sınav Ücreti (DELF B1)",
+  "DELF B2 Exam": "Sınav Ücreti (DELF B2)",
+  "DALF C1 Exam": "Sınav Ücreti (DALF C1)",
+  "TCF Basic Test": "Sınav Ücreti (TCF temel)",
+  "TCF Full Test": "Sınav Ücreti (TCF tam)",
+  "TCF IRN Exam": "Sınav Ücreti (TCF IRN)",
+  "DFP B1 or B2 Exam": "Sınav Ücreti (DFP B1 veya B2)",
 };
 
-// Ham fee ismini TR standart başlığa çevir (tam eşleşme; bulamazsa ham bırak)
+// v119: yedek kural sözlükleri (bilinen parantez içleri; (Mandatory)/(non-EU) atılır)
+const FEE_PAREN_TR = { "refundable": "iade edilir", "under 18": "18 yaş altı", "under 19": "19 yaş altı" };
+const FEE_PAREN_DROP = ["mandatory", "non-eu"];
+// Ham fee ismini TR standart başlığa çevir. Önce tam eşleşme; yoksa yedek kural (v119):
+// parantez öncesi haritadaysa TR karşılığı + parantez (bilinen iç çevrilir, DROP atılır,
+// diğerleri olduğu gibi kalır). O da yoksa ham ad döner.
 function normalizeFeeName(rawName) {
   const key = (rawName || "").trim();
-  return FEE_NAME_MAP[key] || key;
+  if (FEE_NAME_MAP[key]) return FEE_NAME_MAP[key];
+  const m = key.match(/^(.*?)\s*\(([^)]*)\)$/);
+  if (m && FEE_NAME_MAP[m[1].trim()]) {
+    const ic = m[2].trim(), icKucuk = ic.toLowerCase();
+    const tr = FEE_NAME_MAP[m[1].trim()];
+    if (FEE_PAREN_DROP.includes(icKucuk)) return tr;
+    return tr + " (" + (FEE_PAREN_TR[icKucuk] || ic) + ")";
+  }
+  return key;
 }
 // Aynı TR-standart isme sahip fee'leri tek satırda topla (tutarları toplar)
 // v117: Her satır, hangi ham (sheet'teki) ücretlerden oluştuğunu `parcalar` içinde taşır.
@@ -1152,7 +1317,7 @@ function computeDiscounts(discounts, course, weeks, startDate, targets) {
     if (d.max_weeks && weeks > d.max_weeks) return;
     if (d.eligible_courses && !courseInList(course?.name, d.eligible_courses)) return;
     if (d.excluded_courses && courseInList(course?.name, d.excluded_courses)) return;
-    let base = 0, label = "";
+    let base = 0, label = "", labelRaw = "";
     if (d.applies_to === "tuition") { base = targets.tuition || 0; label = "Kurs İndirimi"; }
     else if (d.applies_to === "accommodation") { base = targets.accommodation || 0; label = "Konaklama İndirimi"; }
     else if (d.applies_to === "fee") {
@@ -1163,12 +1328,14 @@ function computeDiscounts(discounts, course, weeks, startDate, targets) {
       let satir = null;
       (targets.fees || []).forEach(f => {
         const parcalar = f.parcalar || [{ name: f.name, amount: f.amount }];
-        const tutar = parcalar.filter(p => _norm(p.name) === hedef).reduce((t, p) => t + (p.amount || 0), 0);
-        if (!satir && tutar > 0) satir = { trAd: f.name, tutar };
+        const eslesen = parcalar.filter(p => _norm(p.name) === hedef);
+        const tutar = eslesen.reduce((t, p) => t + (p.amount || 0), 0);
+        if (!satir && tutar > 0) satir = { trAd: f.name, hamAd: eslesen[0].name, tutar };
       });
       if (!satir) return;
       base = satir.tutar;
-      label = satir.trAd;                                   // ekranda: "Materyal / Kitap Ücreti (Ücretsiz)"
+      label = satir.trAd;                                   // müşteri/PDF: "Konaklama Ayarlama Ücreti (X, ücretsiz)"
+      labelRaw = satir.hamAd;                               // v119: staff ham İngilizce adı görür
     }
     // SİL: eski tek satır -> const fee = (targets.fees || []).find(f => f.name === d.target_name); ... label = d.target_name + " İndirimi";
     else return;
@@ -1179,7 +1346,7 @@ function computeDiscounts(discounts, course, weeks, startDate, targets) {
     else if (d.value_type === "fixed") amount = Math.min(d.discount_value, base);
     else return;
     if (amount <= 0) return;
-    result.push({ label, applies_to: d.applies_to, target_name: d.target_name || "", value_type: d.value_type, value: d.discount_value, amount });
+    result.push({ label, labelRaw: labelRaw || label, applies_to: d.applies_to, target_name: d.target_name || "", value_type: d.value_type, value: d.discount_value, amount });
   });
   return result;
 }
@@ -1192,6 +1359,11 @@ function indirimEtiket(disc) {
     return `Promo: ${f(disc.normalHafta || 0)} yerine ${f(disc.value)}/hafta`;
   }
   return disc.value + " Sabit";
+}
+// v119: "Ad (X) (Ücretsiz)" yerine "Ad (X, ücretsiz)". Ad parantezle bitmiyorsa eski görünüm.
+function indirimliAd(ad, etiket) {
+  if ((ad || "").endsWith(")")) return ad.slice(0, -1) + ", " + (etiket === "Ücretsiz" ? "ücretsiz" : etiket) + ")";
+  return ad + " (" + etiket + ")";
 }
 // Bir destinasyon icin indirimleri + nihai toplami hesaplar (tek kaynak)
 function getDestinationTotals(d, fees) {
@@ -2125,7 +2297,7 @@ export default function FiyatTeklifi() {
             doc.setFontSize(9); doc.setTextColor(13, 148, 136);   // teal — HS amber / indirim yeşilinden ayrışır
             if (i === 0) doc.text("Ek Ücretler", MARGIN, y);
             const not = a.auto && a.weeks ? ` (${a.weeks} hafta)` : (a.notes ? ` — ${a.notes}` : "");
-            doc.text(a.name + not, MARGIN + 32, y);
+            doc.text(normalizeFeeName(a.name) + not, MARGIN + 32, y);   // v119: PDF Türkçe ad
             doc.text(money(a.totalAmount), PAGE_W - MARGIN, y, { align:"right" });
             doc.setFont(FONT, "normal");
             y += 5;
@@ -2149,7 +2321,7 @@ export default function FiyatTeklifi() {
             doc.setFont(FONT, "bold");
             doc.setFontSize(10); doc.setTextColor(22, 163, 74);
             if (i === 0) doc.text("İndirimler", MARGIN, y);
-            const dLabel = `${disc.label} (${indirimEtiket(disc)})`;   // v114: promo haftalik fiyat destegi
+            const dLabel = indirimliAd(disc.label, indirimEtiket(disc));   // v114 etiket + v119 tek parantez
             doc.text(dLabel, MARGIN + 32, y);
             doc.text(`-${money(disc.amount)}`, PAGE_W - MARGIN, y, { align:"right" });
             y += 5;
@@ -2946,7 +3118,7 @@ export default function FiyatTeklifi() {
                         {(cur.addons || []).filter(a => a.auto).map((a,i) => (
                           <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", background:"#eff6ff", borderRadius:10, border:"1px solid #bfdbfe", fontSize:13 }}>
                             <span>
-                              <span style={{ fontWeight:600, color:"#1e40af" }}>{a.name}</span>
+                              <span style={{ fontWeight:600, color:"#1e40af" }}>{isStaff ? a.name : normalizeFeeName(a.name)}</span>
                               <span style={{ display:"block", fontSize:11, color:"#3b82f6", marginTop:2 }}>Tarih aralığına denk geldi · {a.weeks} hafta</span>
                             </span>
                             <span style={{ fontWeight:700, color:"#1e40af", whiteSpace:"nowrap" }}>{a.currency} {roundHalf(a.totalAmount).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -2959,7 +3131,7 @@ export default function FiyatTeklifi() {
                     <div style={{ marginBottom:20 }}>
                       <p style={S.slbl}>Zorunlu Ücretler</p>
                       <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                        {compulsory.map((f,i) => (<div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", background:"#f8fafc", borderRadius:10, border:"1px solid #e2e8f0", fontSize:13 }}><span style={{ fontWeight:600 }}>{f.name}</span><span style={{ fontWeight:600, color:"#64748b" }}>{f.currency} {roundHalf(f.amount).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>))}
+                        {(isStaff ? compulsory.flatMap(f => (f.parcalar || [f]).map(p => ({ ...f, name: p.name, amount: p.amount }))) : compulsory).map((f,i) => (<div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 14px", background:"#f8fafc", borderRadius:10, border:"1px solid #e2e8f0", fontSize:13 }}><span style={{ fontWeight:600 }}>{f.name}</span><span style={{ fontWeight:600, color:"#64748b" }}>{f.currency} {roundHalf(f.amount).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>))}
                       </div>
                     </div>
                   )}
@@ -3063,7 +3235,7 @@ export default function FiyatTeklifi() {
                           return (<>
                             {_pd.packageHs?.amount > 0 && satir("hs", `Yaz zammı (${_pd.packageHs.weeks} hafta)`, _pd.packageHs.amount, "#b45309")}
                             {(_pd.packageUpgrades || []).map((u, ui) => satir("u" + ui, `Oda yükseltmesi: ${u.ad}`, u.amount))}
-                            {(_pd.packageFees || []).map((fi, fx) => satir("f" + fx, fi.name, fi.amount, "#475569"))}
+                            {(isStaff ? (_pd.packageFees || []).flatMap(fi => (fi.parcalar || [fi]).map(p => ({ name: p.name, amount: p.amount }))) : (_pd.packageFees || [])).map((fi, fx) => satir("f" + fx, fi.name, fi.amount, "#475569"))}
                           </>);
                         })()}
                       </>) : (<>
@@ -3096,12 +3268,12 @@ export default function FiyatTeklifi() {
                       </div>
                     )}
                     {!d.selectedPackage && <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:10 }}><span style={{ color:"#64748b" }}>Kayıt + Materyal</span>{isStaff && <span style={{ fontWeight:600 }}>{fmt(f.total, cur2)}</span>}</div>}
-                    {(d.addons||[]).map((a,ai) => (<div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#0d9488", fontWeight:600 }}><span>{a.name}{a.auto && a.weeks ? ` (${a.weeks} hafta)` : ""}</span>{isStaff && <span>{fmt(a.totalAmount, cur2)}</span>}</div>))}
+                    {(d.addons||[]).map((a,ai) => (<div key={ai} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#0d9488", fontWeight:600 }}><span>{(isStaff ? a.name : normalizeFeeName(a.name))}{a.auto && a.weeks ? ` (${a.weeks} hafta)` : ""}</span>{isStaff && <span>{fmt(a.totalAmount, cur2)}</span>}</div>))}
                     {d.transfer && (<div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6 }}><span style={{ color:"#64748b" }}>Transfer ({d.transfer.airport}{d.transferRoundTrip ? " · çift yön" : " · tek yön"})</span>{isStaff && <span>{fmt(transferPrice(d), d.transfer.currency)}</span>}</div>)}
                     {(() => { const _dt = getDestinationTotals(d, f); return (<>
                     {!_dt.isPackage && _dt.appliedDiscounts.map((disc, di) => (
                       <div key={di} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#16a34a", fontWeight:500 }}>
-                        <span>{disc.label} ({indirimEtiket(disc)})</span>
+                        <span>{indirimliAd(isStaff ? disc.labelRaw : disc.label, indirimEtiket(disc))}</span>
                         {isStaff && <span>- {fmt(disc.amount, cur2)}</span>}
                       </div>
                     ))}
