@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.51
+// KayitGuncelle.jsx v1.52
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.51"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.52"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -745,7 +745,12 @@ export default function KayitGuncelle() {
   const SAYFA_BOYUTU = sayfaBoyutu;
   // Aktivite grafiği: açık/kapalı ve günlük/haftalık seçimi oturum boyunca saklanır
   const [grafikAcik, setGrafikAcik] = useState(() => kayitliFiltre.grafikAcik ?? false);
-  const [grafikMod, setGrafikMod] = useState(() => kayitliFiltre.grafikMod === "hafta" ? "hafta" : "gun");
+  // Grafik dönemi: "7" / "30" gün ya da "tumu" (haftalık). Eski kayıtlı "hafta" Tümü'ye, "gun" 30 güne denk gelir.
+  const [grafikMod, setGrafikMod] = useState(() => {
+    const m = kayitliFiltre.grafikMod;
+    if (["7", "30", "tumu"].includes(m)) return m;
+    return m === "hafta" ? "tumu" : "30";
+  });
   const [grafikHover, setGrafikHover] = useState(null);
   // Grafikte seçili şubeler (çoklu); boş dizi = Tümü
   const [grafikSubeler, setGrafikSubeler] = useState(() => Array.isArray(kayitliFiltre.grafikSubeler) ? kayitliFiltre.grafikSubeler : []);
@@ -1280,16 +1285,22 @@ export default function KayitGuncelle() {
     eklenmeZamani(b) - eklenmeZamani(a)
   );
 
-  // Aktivite grafiği: listede görünen kayıtlar Eklenme Tarihi'ne göre son 30 gün ya da son 12 hafta
+  // Aktivite grafiği: listede görünen kayıtlar Eklenme Tarihi'ne göre son 7 gün, son 30 gün
+  // ya da tümü (ilk kaydın haftasından bu haftaya kadar haftalık)
   const grafikVerisi = (() => {
     if (!grafikAcik) return null;
     const bugun = new Date(); bugun.setHours(0, 0, 0, 0);
     const gunAnahtari = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
     const pazartesi = d => new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
     const kisa = d => d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
-    const haftalik = grafikMod === "hafta";
-    const adet = haftalik ? 12 : 30;
+    const haftalik = grafikMod === "tumu";
     const bas = haftalik ? pazartesi(bugun) : bugun;
+    let adet = grafikMod === "7" ? 7 : 30;
+    if (haftalik) {
+      const ilk = Math.min(...siraliOgrenciler.map(eklenmeZamani).filter(Boolean));
+      const ilkHafta = isFinite(ilk) ? pazartesi(new Date(ilk)) : bas;
+      adet = Math.max(1, Math.round((bas - ilkHafta) / (7 * 24 * 60 * 60 * 1000)) + 1);
+    }
     const kovalar = Array.from({ length: adet }, (_, i) => {
       const geri = adet - 1 - i;
       const d = haftalik
@@ -1321,7 +1332,7 @@ export default function KayitGuncelle() {
     }));
     const enCok = Math.max(1, ...kovalar.map(k => k.sayi));
     const toplam = kovalar.reduce((a, k) => a + k.sayi, 0);
-    return { kovalar, enCok, toplam, haftalik, subeler };
+    return { kovalar, enCok, toplam, haftalik, subeler, mod: grafikMod };
   })();
 
   return (
@@ -1627,7 +1638,9 @@ export default function KayitGuncelle() {
             {grafikVerisi && (() => {
               const g = grafikVerisi;
               const renk = TEMA_RENKLERI[tema].nokta;
-              const etiketAdim = g.haftalik ? (isMobile ? 3 : 2) : (isMobile ? 7 : 5);
+              const etiketAdim = g.haftalik
+                ? Math.max(1, Math.ceil(g.kovalar.length / (isMobile ? 5 : 8)))
+                : g.mod === "7" ? 1 : (isMobile ? 7 : 5);
               const modBtn = aktif => ({
                 padding: "4px 10px", fontSize: "12px", border: "none", cursor: "pointer", borderRadius: "6px",
                 background: aktif ? "#fff" : "transparent", color: aktif ? "#0f172a" : "#64748b",
@@ -1637,11 +1650,13 @@ export default function KayitGuncelle() {
                 <div style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px 14px 8px", marginBottom: "14px", background: "#fff" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
                     <span style={{ fontSize: "12.5px", color: "#475569" }}>
-                      {g.haftalik ? "Son 12 hafta" : "Son 30 gün"}: <strong style={{ color: "#0f172a" }}>{g.toplam} form</strong>
+                      {g.haftalik ? "Tümü" : `Son ${g.mod} gün`}: <strong style={{ color: "#0f172a" }}>{g.toplam} form</strong>
                     </span>
                     <div style={{ display: "inline-flex", background: "#f1f5f9", borderRadius: "8px", padding: "2px" }}>
-                      <button type="button" style={modBtn(!g.haftalik)} onClick={() => { setGrafikMod("gun"); setGrafikHover(null); }}>Günlük</button>
-                      <button type="button" style={modBtn(g.haftalik)} onClick={() => { setGrafikMod("hafta"); setGrafikHover(null); }}>Haftalık</button>
+                      {[["7", "Son 7 gün"], ["30", "Son 30 gün"], ["tumu", "Tümü"]].map(([deger, ad]) => (
+                        <button key={deger} type="button" style={modBtn(g.mod === deger)}
+                          onClick={() => { setGrafikMod(deger); setGrafikHover(null); }}>{ad}</button>
+                      ))}
                     </div>
                   </div>
                   {g.subeler.length > 0 && (() => {
@@ -1673,7 +1688,7 @@ export default function KayitGuncelle() {
                       </div>
                     );
                   })()}
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: g.haftalik ? "6px" : (isMobile ? "2px" : "3px"), height: "110px" }}
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: g.kovalar.length <= 16 ? "6px" : (isMobile ? "2px" : "3px"), height: "110px" }}
                     onMouseLeave={() => setGrafikHover(null)}>
                     {g.kovalar.map((k, i) => (
                       <div key={k.anahtar}
@@ -1698,7 +1713,7 @@ export default function KayitGuncelle() {
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: "flex", gap: g.haftalik ? "6px" : (isMobile ? "2px" : "3px"), marginTop: "4px" }}>
+                  <div style={{ display: "flex", gap: g.kovalar.length <= 16 ? "6px" : (isMobile ? "2px" : "3px"), marginTop: "4px" }}>
                     {g.kovalar.map((k, i) => (
                       <div key={k.anahtar} style={{ flex: 1, minWidth: 0, fontSize: "10.5px", color: "#94a3b8", whiteSpace: "nowrap", overflow: "visible" }}>
                         {(g.kovalar.length - 1 - i) % etiketAdim === 0 ? k.etiket : ""}
