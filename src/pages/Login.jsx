@@ -104,6 +104,7 @@ export default function Login() {
   const [showPass, setShowPass] = useState(false);
   const [remember, setRemember] = useState(false);
   const [sifrePopup, setSifrePopup] = useState(false);
+  const [forgotShake, setForgotShake] = useState(0);
   const [sifreUsername, setSifreUsername] = useState("");
   const [sifreLoading, setSifreLoading] = useState(false);
   const [sifreMesaj, setSifreMesaj] = useState(null);
@@ -234,6 +235,7 @@ export default function Login() {
       } else {
         durdurSlowMesajlar();
         setError(res.msg);
+        setForgotShake(n => n + 1);
         setLoading(false);
       }
     } catch (err) {
@@ -344,6 +346,8 @@ export default function Login() {
               {/* Şifremi Gönder */}
               <button
                 type="button"
+                key={forgotShake}
+                className={forgotShake ? "forgot-shake" : undefined}
                 onClick={() => {
                   setSifrePopup(true);
                   setSifreUsername("@bilimevi.com");
@@ -355,7 +359,7 @@ export default function Login() {
                     }
                   }, 0);
                 }}
-                style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "12px", cursor: "pointer", textAlign: "left", padding: "0", fontFamily: "'Inter', sans-serif", textDecoration: "underline", marginBottom: "8px" }}
+                style={{ background: "none", border: "none", color: "#2563eb", fontSize: "12px", fontWeight: "700", cursor: "pointer", textAlign: "left", padding: "0", fontFamily: "'Inter', sans-serif", textDecoration: "underline", marginBottom: "8px", alignSelf: "flex-start" }}
               >
                 {t.forgot}
               </button>
@@ -459,6 +463,9 @@ export default function Login() {
         body { font-family: 'Inter', sans-serif; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes forgotShake { 0%, 100% { transform: translateX(0); } 15%, 45%, 75% { transform: translateX(-5px); } 30%, 60%, 90% { transform: translateX(5px); } }
+        .forgot-shake { animation: forgotShake 0.6s ease-in-out; }
+        @media (prefers-reduced-motion: reduce) { .forgot-shake { animation: none; } }
       @media (max-width: 640px) {
           body > div > div { padding: 0 !important; } 
           .login-card { 
