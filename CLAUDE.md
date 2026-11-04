@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 2 Kasım 2026 (v119 Türkçe ücret adları). Repo'daki BFT sürümü: `v119-turkce-ucret-adlari-2026-11-02`.
+Son güncelleme: 4 Kasım 2026 (v120 hedefli konaklama indirimi). Repo'daki BFT sürümü: `v120-konaklama-indirimi-2026-11-04`.
 
 ## Kapsam
 
@@ -96,6 +96,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - Parse kuralı: broşürde olmayan rakam türetilmez (upgrade farkı, zincirleme indirim yüzdesi gibi). Gerekirse okula sorulur.
 - **Parantez kuralı:** ücret adındaki parantez içi, o şehrin bir `place_name` ya da `accommodation_type` değerine **birebir** (normalize) eşitse ücret sadece o konaklamada eklenir. Eşleşmeyen parantez (`(Refundable)`, `(Mandatory)`) yok sayılır. Kısmi eşleşme yok, bilinçli karar: gevşetilirse kısa etiketler başka yerlere yanlışlıkla uyar.
 - **`discount_type = percentage`** "indirim satırı" anlamına gelir, yüzde değil (karşılığı `fixed_package`). İndirimin türünü `value_type` belirler. Boş ya da farklı yazılırsa satır sessizce atlanır, büyük/küçük harf duyarlı.
+- **Konaklama indirimi (v120, kullanıcı onayı 04.11.2026, LSI Portland 55 kampanyası):** `applies_to=accommodation` satırında üç yeni sütun, üçü de boşsa eski davranış birebir: `target_name` doluysa indirim sadece `place_name`'i ona eşit (_norm, tam eşitlik) konaklamaya; `exclude_start`/`exclude_end` aralığıyla kesişen konaklama haftaları indirim tabanından oransal düşer (`kesisenHafta`); `max_stay_end` doluysa ve konaklama bitişi ondan sonraysa satır uygulanmaz. Konaklama indiriminde `min_weeks`/`max_weeks` artık KONAKLAMA haftasına bakar (kurs haftasına değil; mevcut hiçbir okulda applies_to=accommodation satırı olmadığı için davranış değişikliği kimseyi etkilemiyor). Testler `tests/test_v120.mjs` (LSI a-e senaryoları + v119 regresyonu).
 - **Ücret adları (v119, kullanıcı kararları 02.11.2026):** `FEE_NAME_MAP` 7 okulun tüm fees adlarını + CAVILAM'ı kapsar (244 anahtar). Tam ad haritada yoksa yedek kural: parantez öncesi haritadaysa TR karşılığı + parantez; `(Refundable)` → `(iade edilir)`, `(Mandatory)`/`(non-EU)` atılır, bilinmeyen parantez olduğu gibi kalır (`normalizeFeeName`). **Staff ücretleri ham İngilizce görür** (birleşen satırlar `parcalar` ile açılır), müşteri modu ve PDF Türkçe görür; kurs/konaklama adlarındaki staff=orig kuralının ücret karşılığı. Muafiyet etiketi tek parantez: `indirimliAd` → "Konaklama Ayarlama Ücreti (VITA Student Residence, ücretsiz)"; staff'ta ham ad (`labelRaw`). Aynı TR ada çevrilen ücretler müşteri/PDF'te tek satırda birleşir (tutar toplamı değişmez).
 - **Ücret muafiyeti (v117):** `applies_to = fee` satırının `target_name`'i fees sekmesindeki **ham** adla eşlenir (`_norm`), Türkçe gösterim adıyla değil. Birleşen ücretlerde (ör. Registration + Enrolment → "Kayıt Ücreti") sadece hedeflenen ham ücret düşer.
 - **Aynı kursa birden fazla yüzde indirim uyarsa toplanır** (her biri tam kurs fiyatı üzerinden, %30 + %5 = %35). Zincirleme ya da "en yükseği" kuralı yok. Tek istisna: `per_week_price` promo varsa yüzdeli kurs indirimleri uygulanmaz.
@@ -162,6 +163,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 - **v118 push edildi (30 Ekim):** staff portalı `portal.bilimevi.com`'a taşındı, `detectMode()` bu adı staff sayar. Sadece bu satır ve sürüm değişti.
 - **v117 push edildi.** Repo'daki `FiyatTeklifi.jsx`, sohbette teslim edilen v117 ile birebir aynı (commit 16 Ekim, "Update FiyatTeklifi.jsx"). Push otomatik deploy'u tetiklediği için ingilteredil ve maltadil'de v117 olmalı, almanyadil belirsiz.
+- **v120 push edildi (4 Kasım):** hedefli konaklama indirimi (yukarıdaki veri sözleşmesi maddesi). Parse tarafı: `parse_common` discounts'a 3 sütun ekleyecek (koordinatörde), LSI scriptine kampanya satırlarını LSI oturumu ekleyecek.
 - **v119 push edildi (2 Kasım):** Türkçe ücret adları (yukarıdaki veri sözleşmesi maddesi). Node testleri `tests/test_v119.mjs` (iki sürümle tutar regresyonu dahil); esbuild ve `npm run build:wp` temiz, customer bundle'da MASTER_ID izi main ile aynı (`void 0`).
 - **Kampanya takip K3** 16 Ekim'de teslim edildi. Repoda değil. `school_registry`'deki `-` değerleri K3'ün en az bir kez çalıştığını gösteriyor, ama editördeki kopya teslim edilen dosyayla aynı olmayabilir (`SABIT_SUTUN` farkı, tuzaklar bölümü).
 - **Teklif arşivi A2:** dosya hazır, canlı deploy edildi mi doğrulanmadı.

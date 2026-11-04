@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v119-turkce-ucret-adlari-2026-11-02";
+const BFT_BUILD_VERSION = "v120-konaklama-indirimi-2026-11-04";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -422,6 +422,9 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
       applies_to: (r.applies_to || "").trim(), target_name: r.target_name || "",
       discount_value: parseFloat(r.discount_value) || 0, value_type: (r.value_type || "").trim(),
       eligible_courses: r.eligible_courses || "", excluded_courses: r.excluded_courses || "",
+      // v120: hedefli konaklama kampanyası alanları (LSI Portland 55); boşsa eski davranış
+      exclude_start: (r.exclude_start || "").trim(), exclude_end: (r.exclude_end || "").trim(),
+      max_stay_end: (r.max_stay_end || "").trim(),
       // v116: fixed_package ek alanları (hepsi opsiyonel; boşsa eski davranış)
       package_acc_type: (r.package_acc_type || "").trim(),
       package_room_type: (r.package_room_type || "").trim(),
@@ -1313,13 +1316,26 @@ function computeDiscounts(discounts, course, weeks, startDate, targets) {
     if (d.discount_type !== "percentage") return;
     if (!inDateRange(today, d.reg_date_start, d.reg_date_end)) return;
     if (!inDateRange(startDate, d.arrival_start, d.arrival_end)) return;
-    if (d.min_weeks && weeks < d.min_weeks) return;
-    if (d.max_weeks && weeks > d.max_weeks) return;
+    const _hafta = d.applies_to === "accommodation" && targets.accWeeks ? targets.accWeeks : weeks;  // v120: konaklama indirimi konaklama haftasına bakar
+    if (d.min_weeks && _hafta < d.min_weeks) return;
+    if (d.max_weeks && _hafta > d.max_weeks) return;
     if (d.eligible_courses && !courseInList(course?.name, d.eligible_courses)) return;
     if (d.excluded_courses && courseInList(course?.name, d.excluded_courses)) return;
     let base = 0, label = "", labelRaw = "";
     if (d.applies_to === "tuition") { base = targets.tuition || 0; label = "Kurs İndirimi"; }
-    else if (d.applies_to === "accommodation") { base = targets.accommodation || 0; label = "Konaklama İndirimi"; }
+    else if (d.applies_to === "accommodation") {
+      base = targets.accommodation || 0; label = "Konaklama İndirimi";
+      // v120 (LSI Portland 55 kampanyası): üç alan da boşsa eski davranış birebir.
+      // target_name doluysa indirim sadece place_name'i eşit konaklamaya (tam eşitlik, _norm).
+      if (d.target_name && _norm(d.target_name) !== _norm(targets.accPlace || "")) return;
+      // Konaklama bitişi max_stay_end'den sonraysa kampanya uygulanmaz (örn. 2028'e sarkan kalışlar).
+      if (d.max_stay_end && targets.accEnd && targets.accEnd > new Date(d.max_stay_end)) return;
+      // exclude aralığıyla kesişen konaklama haftaları indirim tabanından düşer (oransal).
+      if ((d.exclude_start || d.exclude_end) && targets.accWeeks > 0 && targets.accStart && targets.accEnd) {
+        const haric = kesisenHafta(d.exclude_start, d.exclude_end, targets.accStart, targets.accEnd);
+        base = base * Math.max(0, targets.accWeeks - haric) / targets.accWeeks;
+      }
+    }
     else if (d.applies_to === "fee") {
       // v117: target_name, fees sekmesindeki HAM adla (_norm) eşlenir. Base sadece o ham ücretin tutarı;
       // aynı Türkçe satıra birleşen diğer ücretler (ör. iki ayrı kayıt ücreti) etkilenmez.
@@ -1389,7 +1405,10 @@ function getDestinationTotals(d, fees) {
       // v116: + paket yaz zammı + oda yükseltmesi + pakete dahil olmayan ücretler (fees burada zaten beyaz listeli)
       grandTotal: fixedPackage.package_price + yaz.amount + upgradesTotal + feesTotal + accForPackage + addonsCost + transferCost };
   }
-  const targets = { tuition: courseTotal, accommodation: accTotal, fees: fees?.items || [] };
+  const _accT = d.acc && !d.isOnline && d.startDate ? konaklamaTarihleri(new Date(d.startDate), d) : null;  // v120
+  const targets = { tuition: courseTotal, accommodation: accTotal, fees: fees?.items || [],
+    accPlace: d.acc?.name || "", accWeeks: d.acc ? konaklamaHafta(d) : 0,
+    accStart: _accT ? _accT.giris : null, accEnd: _accT ? _accT.cikis : null };
   const appliedDiscounts = d.isOnline ? [] : computeDiscounts(d.cityData?.discounts, d.course, d.weeks, d.startDate, targets);
   const discountsTotal = appliedDiscounts.reduce((s, x) => s + x.amount, 0);
   return { isPackage: false, appliedDiscounts, discountsTotal,
