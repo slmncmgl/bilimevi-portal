@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.54
+// KayitGuncelle.jsx v1.55
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.54"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.55"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1047,11 +1047,11 @@ export default function KayitGuncelle() {
 
   const onayliMi = k => String(k["Onay Durumu"] || "").toLocaleLowerCase("tr-TR").indexOf("onayland") > -1;
 
-  // Liste rozeti için tek tip durum: Onaylı > Gönderilmedi (danışman yok) > Beklemede
+  // Liste rozeti için tek tip durum: Onaylı > Gönderilmedi (danışman yok) > Onay Bekliyor
   const sozlesmeDurumu = k => {
     if (onayliMi(k)) return { metin: k["Onay Durumu"], simge: "onay", renk: "#16a34a" };
     if (!String(k["Danışman Adı"] || "").trim()) return { metin: "Gönderilmedi", simge: "yok", renk: "#94a3b8" };
-    return { metin: "Beklemede", simge: "bekle", renk: "#ea580c" };
+    return { metin: "Onay Bekliyor", simge: "bekle", renk: "#ea580c" };
   };
 
   // Şimdilik listede gösterilmeyen sözleşme türleri
@@ -1103,7 +1103,7 @@ export default function KayitGuncelle() {
     if (!aramaTerimi) {
       if (sadeceGrup && gizliTurMu(o)) return false;
       if (onayliGoster && !onayliMi(o)) return false;
-      if (beklemedeGoster && sozlesmeDurumu(o).metin !== "Beklemede") return false;
+      if (beklemedeGoster && sozlesmeDurumu(o).simge !== "bekle") return false;
       if (sozlesmesizGoster && gecerliLink(o["Sözleşme Onay Linki"])) return false;
       if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     }
@@ -1123,7 +1123,7 @@ export default function KayitGuncelle() {
     if (!erisebilir(o)) return false;
     if (a.sadeceGrup && gizliTurMu(o)) return false;
     if (a.onayli && !onayliMi(o)) return false;
-    if (a.bekleyen && sozlesmeDurumu(o).metin !== "Beklemede") return false;
+    if (a.bekleyen && sozlesmeDurumu(o).simge !== "bekle") return false;
     if (a.hazirlanacak && gecerliLink(o["Sözleşme Onay Linki"])) return false;
     if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     const benimMi = normalize(o["Danışman Adı"]).trim() === normalize(user?.name).trim();
