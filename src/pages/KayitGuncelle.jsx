@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.53
+// KayitGuncelle.jsx v1.54
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.53"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.54"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -739,7 +739,8 @@ export default function KayitGuncelle() {
   const [tarihFiltre, setTarihFiltre] = useState(() => kayitliFiltre.tarihFiltre ?? "2026-08-01");
   const [onayliGoster, setOnayliGoster] = useState(() => kayitliFiltre.onayliGoster ?? false); // sadece onaylılar
   // Varsayılan kapalı: Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmeleri gizli kalır
-  const [grupDisiGoster, setGrupDisiGoster] = useState(() => kayitliFiltre.grupDisiGoster ?? false); // açıkken sadece Bireysel/Yetişkin, kapalıyken sadece gruplar
+  // Açıkken (varsayılan) sadece grup kayıtları, kapalıyken tüm kayıt türleri (Grup, Bireysel, Yetişkin)
+  const [sadeceGrup, setSadeceGrup] = useState(() => kayitliFiltre.sadeceGrup ?? true);
   const [listeFlash, setListeFlash] = useState(false);
   const [sayfaBoyutu, setSayfaBoyutu] = useState(() => [10, 20, 30, 50].includes(kayitliFiltre.sayfaBoyutu) ? kayitliFiltre.sayfaBoyutu : 10);
   const SAYFA_BOYUTU = sayfaBoyutu;
@@ -1061,10 +1062,10 @@ export default function KayitGuncelle() {
   ) || !temizMetin(k["TR_Okul_Default"]);
 
   const VARSAYILAN_TARIH = "2026-08-01";
-  const filtreDegisti = sadeceBenim || onayliGoster || grupDisiGoster || beklemedeGoster
+  const filtreDegisti = sadeceBenim || onayliGoster || !sadeceGrup || beklemedeGoster
     || sozlesmesizGoster || !!formFiltre || !!tc || tarihFiltre !== VARSAYILAN_TARIH;
   const filtreleriTemizle = () => {
-    setSadeceBenim(false); setOnayliGoster(false); setGrupDisiGoster(false);
+    setSadeceBenim(false); setOnayliGoster(false); setSadeceGrup(true);
     setBeklemedeGoster(false); setSozlesmesizGoster(false);
     setFormFiltre(""); setTc(""); setTarihFiltre(VARSAYILAN_TARIH); setSayfa(1);
   };
@@ -1100,8 +1101,7 @@ export default function KayitGuncelle() {
     // Form Yetkisi kısıtı aramada da geçerli, hiçbir filtreyle aşılamaz
     if (!erisebilir(o)) return false;
     if (!aramaTerimi) {
-      // Kapalıyken sadece grup kayıtları, açıkken sadece grup dışı (Bireysel / Yetişkin) kayıtlar
-      if (grupDisiGoster ? !gizliTurMu(o) : gizliTurMu(o)) return false;
+      if (sadeceGrup && gizliTurMu(o)) return false;
       if (onayliGoster && !onayliMi(o)) return false;
       if (beklemedeGoster && sozlesmeDurumu(o).metin !== "Beklemede") return false;
       if (sozlesmesizGoster && gecerliLink(o["Sözleşme Onay Linki"])) return false;
@@ -1121,7 +1121,7 @@ export default function KayitGuncelle() {
   // onFiltreli'ye dokunulmadan aynı kurallar ayrı uygulanır; aramada sayılar gizlenir.
   const kutuUygun = (o, a) => {
     if (!erisebilir(o)) return false;
-    if (a.grupDisi ? !gizliTurMu(o) : gizliTurMu(o)) return false;
+    if (a.sadeceGrup && gizliTurMu(o)) return false;
     if (a.onayli && !onayliMi(o)) return false;
     if (a.bekleyen && sozlesmeDurumu(o).metin !== "Beklemede") return false;
     if (a.hazirlanacak && gecerliLink(o["Sözleşme Onay Linki"])) return false;
@@ -1133,7 +1133,7 @@ export default function KayitGuncelle() {
     return true;
   };
   const mevcutKutular = {
-    grupDisi: grupDisiGoster, onayli: onayliGoster, bekleyen: beklemedeGoster,
+    sadeceGrup, onayli: onayliGoster, bekleyen: beklemedeGoster,
     hazirlanacak: sozlesmesizGoster, benim: sadeceBenim, okul: formFiltre,
   };
   const kutuSay = ayar => ogrencilerim.filter(o => kutuUygun(o, { ...mevcutKutular, ...ayar })).length;
@@ -1141,8 +1141,8 @@ export default function KayitGuncelle() {
   const kutuSayilari = aramaTerimi || !ogrencilerim.length ? null : {
     benim: kutuSay({ benim: true }),
     onayli: kutuSay({ ...DURUM_KAPALI, onayli: true }),
-    // Grup dışına geçince okul seçenekleri değiştiği için okul filtresi sayılmaz
-    grupDisi: kutuSay({ grupDisi: true, okul: "" }),
+    // Kutu açılınca okul seçenekleri değişebildiği için okul filtresi sayılmaz
+    sadeceGrup: kutuSay({ sadeceGrup: true, okul: "" }),
     bekleyen: kutuSay({ ...DURUM_KAPALI, bekleyen: true }),
     hazirlanacak: kutuSay({ ...DURUM_KAPALI, hazirlanacak: true }),
   };
@@ -1220,10 +1220,10 @@ export default function KayitGuncelle() {
     try {
       sessionStorage.setItem(FILTRE_ANAHTARI, JSON.stringify({
         sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim,
-        tarihFiltre, onayliGoster, grupDisiGoster, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler,
+        tarihFiltre, onayliGoster, sadeceGrup, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler,
       }));
     } catch { /* depolama kapalıysa sessizce geç */ }
-  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim, tarihFiltre, onayliGoster, grupDisiGoster, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler]);
+  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim, tarihFiltre, onayliGoster, sadeceGrup, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler]);
 
   // Hatırlanan sayfa numarası yeni listede yoksa son sayfaya çek
   useEffect(() => {
@@ -1318,6 +1318,17 @@ export default function KayitGuncelle() {
   const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) =>
     eklenmeZamani(b) - eklenmeZamani(a)
   );
+
+  // Liste başlığındaki aktif filtre özeti (tarih ve okul seçimi yazılmaz)
+  const listeOzeti = aramaTerimi
+    ? `"${tc.trim()}" araması, tüm kayıtlarda`
+    : [
+        sadeceGrup ? "Grup kayıtları" : "Tüm kayıt türleri (Grup, Bireysel, Yetişkin)",
+        sadeceBenim && "Kendi öğrencilerim",
+        onayliGoster && "Onaylı sözleşmeler",
+        beklemedeGoster && "Onay bekleyenler",
+        sozlesmesizGoster && "Hazırlanacak sözleşmeler",
+      ].filter(Boolean).join(" · ");
 
   // Aktivite grafiği: listede görünen kayıtlar Eklenme Tarihi'ne göre son 7 gün, son 30 gün
   // ya da tümü (ilk kaydın haftasından bu haftaya kadar haftalık)
@@ -1512,14 +1523,14 @@ export default function KayitGuncelle() {
                 Onaylı Sözleşmeler{kutuSayisi("onayli")}
               </label>
 
-              <label style={s.filtreLabel} title="Bireysel yaz okulu, yetişkin dil okulu ve okulu belirtilmemiş kayıtları gösterir">
+              <label style={s.filtreLabel} title="İşaret kaldırılınca bireysel yaz okulu, yetişkin dil okulu ve okulu belirtilmemiş kayıtlar da listelenir">
                 <input
                   type="checkbox"
-                  checked={grupDisiGoster}
-                  onChange={e => { setGrupDisiGoster(e.target.checked); setSayfa(1); }}
+                  checked={sadeceGrup}
+                  onChange={e => { setSadeceGrup(e.target.checked); setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Grup Kayıtları Hariç{kutuSayisi("grupDisi")}
+                Sadece Grup Kayıtları{kutuSayisi("sadeceGrup")}
               </label>
               </div>
 
@@ -1649,6 +1660,12 @@ export default function KayitGuncelle() {
                 padding: "2px 10px", borderRadius: "20px", fontSize: "12px",
                 transition: "background 0.4s, color 0.4s",
               }}>{siraliOgrenciler.length}</span>
+              {listeOzeti && (
+                <span title={listeOzeti} style={{
+                  fontSize: "12px", fontWeight: 400, opacity: 0.85, minWidth: 0,
+                  ...(isMobile ? { lineHeight: 1.3 } : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }),
+                }}>{listeOzeti}</span>
+              )}
               <button
                 type="button"
                 onClick={() => { setGrafikAcik(v => !v); setGrafikHover(null); }}
@@ -1767,7 +1784,7 @@ export default function KayitGuncelle() {
                   <th style={{ ...s.th, whiteSpace: "nowrap" }}>Form Tarihi</th>
                   <th style={s.th}>Öğrenci Adı Soyadı</th>
                   <th style={s.th}>TR Okul Adı</th>
-                  {!isMobile && <th style={s.th}>{grupDisiGoster ? "Dil Okulu Adı" : "Yaz Okulu Adı"}</th>}
+                  {!isMobile && <th style={s.th}>{sadeceGrup ? "Yaz Okulu Adı" : "Yaz / Dil Okulu Adı"}</th>}
                   <th style={s.th}>Danışman</th>
                   <th style={{ ...s.th, textAlign: "center" }}>Sözleşme</th>
                   <th style={s.th}></th>
