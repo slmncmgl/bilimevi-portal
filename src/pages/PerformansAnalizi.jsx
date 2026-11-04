@@ -1,6 +1,8 @@
+// v1.0: iki sekme. Varsayılan "CRM Raporu" (CrmRaporu.jsx), ikinci "Quiz Skorları" (önceki içerik, davranışı aynı)
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
+import CrmRaporu from "./CrmRaporu";
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -127,6 +129,7 @@ export default function PerformansAnalizi() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [seciliDanisman, setSeciliDanisman] = useState(null);
+  const [sekme, setSekme] = useState("crm");
 
   useEffect(() => {
     if (!user) { navigate("/"); return; }
@@ -202,7 +205,7 @@ export default function PerformansAnalizi() {
             </div>
             <div>
               <div style={s.headerTitleText}>Performans Analizi</div>
-              <div style={s.headerSub}>Sınav sonuçları ve başarı takibi</div>
+              <div style={s.headerSub}>CRM raporu ve sınav sonuçları</div>
             </div>
           </div>
           <div style={s.headerUser}>
@@ -213,6 +216,15 @@ export default function PerformansAnalizi() {
       </header>
 
       <main style={s.main}>
+        <div style={s.sekmeler}>
+          {[["crm", "CRM Raporu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
+            <button key={k} onClick={() => setSekme(k)} style={sekme === k ? s.sekmeAktif : s.sekme}>{ad}</button>
+          ))}
+        </div>
+
+        {sekme === "crm" && <CrmRaporu user={user} isAdmin={isAdmin} isManager={isManager} />}
+
+        {sekme === "quiz" && (<>
         {loading && (
           <div style={s.loadingWrap}>
             <span style={s.spinner} />
@@ -296,6 +308,7 @@ export default function PerformansAnalizi() {
             </div>
           )
         )}
+        </>)}
       </main>
 
       <style>{`
@@ -313,7 +326,7 @@ const s = {
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   bgGlow: { position: "fixed", top: "-10%", right: "-5%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, #cffafe44 0%, transparent 70%)", zIndex: 0 },
   header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "900px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", gap: "16px" },
+  headerInner: { maxWidth: "1100px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", gap: "16px" },
   backBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#475569", fontFamily: "'Sora', sans-serif", transition: "border-color 0.2s", whiteSpace: "nowrap" },
   headerTitle: { display: "flex", alignItems: "center", gap: "10px", flex: 1 },
   headerIcon: { width: "36px", height: "36px", borderRadius: "10px", background: "#ecfeff", border: "1px solid #a5f3fc", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
@@ -322,7 +335,7 @@ const s = {
   headerUser: { display: "flex", alignItems: "center", gap: "8px" },
   avatar: { width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #0891b2, #0e7490)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "700" },
   userName: { fontSize: "13px", fontWeight: "600", color: "#0f172a" },
-  main: { maxWidth: "900px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
+  main: { maxWidth: "1100px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
   loadingWrap: { display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", padding: "80px 0" },
   spinner: { display: "inline-block", width: "20px", height: "20px", border: "2px solid #e2e8f0", borderTopColor: "#0891b2", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
   errorCard: { display: "flex", alignItems: "center", gap: "10px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "12px", padding: "16px 20px", color: "#991b1b", fontSize: "13px", fontWeight: "500" },
@@ -335,4 +348,7 @@ const s = {
   tableTitle: { fontSize: "14px", fontWeight: "700", color: "#0f172a" },
   th: { padding: "10px 16px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" },
   td: { padding: "12px 16px", verticalAlign: "middle" },
+  sekmeler: { display: "inline-flex", gap: "4px", padding: "4px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", marginBottom: "20px" },
+  sekme: { padding: "8px 18px", border: "none", borderRadius: "8px", background: "transparent", color: "#64748b", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  sekmeAktif: { padding: "8px 18px", border: "none", borderRadius: "8px", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
 };
