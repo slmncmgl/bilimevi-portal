@@ -1,3 +1,6 @@
+// v1.1 (Güvenlik Faz 1): Google girişinde oturum token'ı da döner (SESSION_SECRET yoksa token null, eski davranış)
+import { tokenUret } from "./_oturum.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
@@ -27,7 +30,11 @@ export default async function handler(req, res) {
     });
     const userInfo = await userRes.json();
 
-    return res.status(200).json({ email: userInfo.email, name: userInfo.name });
+    if (!userInfo.email || userInfo.verified_email === false) {
+      return res.status(200).json({ email: userInfo.email, name: userInfo.name, token: null });
+    }
+    const token = tokenUret({ email: userInfo.email, name: userInfo.name });
+    return res.status(200).json({ email: userInfo.email, name: userInfo.name, token });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

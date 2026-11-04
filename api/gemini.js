@@ -1,7 +1,11 @@
+// v1.1 (Güvenlik Faz 1): oturum kontrolü eklendi (AUTH_ENFORCE=1 olana kadar sadece loglanır)
+import { oturumKontrol } from "./_oturum.js";
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
+  if (!oturumKontrol(req, res, "gemini")) return;
 
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   const DEFAULT_MODEL = "gemini-3.6-flash";

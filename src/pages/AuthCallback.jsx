@@ -1,7 +1,9 @@
+// v1.2 (Güvenlik Faz 1): /api/auth cevabındaki oturum token'ı kaydediliyor
 // v1.1 — title Personel'deki küçük harfli "title" sütunundan da okunuyor
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { saveSession } from "../utils/sheets";
+import { tokenKaydet, tokenSil } from "../lib/oturum.js";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 
@@ -52,6 +54,7 @@ export default function AuthCallback() {
 
     (async () => {
       try {
+        tokenSil();
         const res = await fetch("/api/auth", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -98,6 +101,7 @@ export default function AuthCallback() {
           },
         };
         saveSession(user);
+        tokenKaydet(data.token);
         navigate("/dashboard");
       } catch (err) {
         setMsg("Bir hata oluştu. Lütfen tekrar deneyin.");

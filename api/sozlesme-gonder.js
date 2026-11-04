@@ -1,5 +1,8 @@
 // Portal "Sözleşmeyi Gönder" butonu -> n8n "Sözleşme Gönder (Portal)" workflow'u
 // Token tarayıcıya hiç gitmez; isteği bu sunucu fonksiyonu atar.
+// v1.1 (Güvenlik Faz 1): oturum kontrolü eklendi. Origin kontrolü curl ile atlatılabildiği için tek başına yetmiyor.
+import { oturumKontrol } from "./_oturum.js";
+
 const N8N_URL = "https://n8n.bilimevi.cloud/webhook/sozlesme-gonder";
 
 export default async function handler(req, res) {
@@ -10,6 +13,7 @@ export default async function handler(req, res) {
   if (origin && origin !== `https://${req.headers.host}` && !origin.startsWith("http://localhost")) {
     return res.status(403).json({ ok: false, hata: "Bu istek portal dışından geldi." });
   }
+  if (!oturumKontrol(req, res, "sozlesme-gonder")) return;
 
   // dry_run bilinçli olarak iletilmiyor: önizleme yanıtı öğrencinin telefon/mail bilgisini içeriyor
   const { tc, tally_submission_id, gonderen } = req.body || {};

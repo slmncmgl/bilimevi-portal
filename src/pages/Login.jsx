@@ -1,8 +1,10 @@
+// v1.0 (Güvenlik Faz 1): başarılı girişten sonra oturum token'ı arka planda alınır (tokenIste)
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginWithCredentials, saveSession, getSession } from "../utils/sheets";
 import logo from "../assets/Bilimevi_study_abroad.png";
 import { LOGIN_SCRIPT_URL } from "../config";
+import { tokenIste, tokenSil } from "../lib/oturum.js";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "931368494993-gahav7fg7ss663e3v82enk2e6au6onfa.apps.googleusercontent.com";
 const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "https://bilimevi-portal.vercel.app/auth/callback";
@@ -213,9 +215,12 @@ export default function Login() {
     setError("");
     if (!isRetryAttempt) baslatSlowMesajlar();
     try {
+      tokenSil();
       const res = await loginWithCredentials(username, password);
       if (res.success) {
         durdurSlowMesajlar();
+        // Güvenlik Faz 1: oturum token'ı arka planda alınır, girişi bekletmez ve bozmaz
+        tokenIste(username, password);
         if (remember) {
           localStorage.setItem("bilimevi_remember", JSON.stringify({ username, password }));
         } else {
