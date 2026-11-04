@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.52
+// KayitGuncelle.jsx v1.53
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.52"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.53"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -939,6 +939,40 @@ export default function KayitGuncelle() {
       }
     } catch {
       showToast("Gönderim başarısız", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Popup'taki "Sözleşmeyi Gönder": hazır sözleşme linkini n8n "Sözleşme Gönder (Portal)" ile gönderir, sözleşme yeniden üretilmez
+  async function sozlesmeyiGonder(kayit) {
+    setSubmitting(true);
+    showToast("Sözleşme gönderiliyor...");
+    try {
+      const res = await fetch("/api/sozlesme-gonder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tc: String(kayit["TC Kimlik No"] || "").replace(/\D/g, ""),
+          tally_submission_id: kayit["Tally Submission ID"] || "",
+          gonderen: user?.name || user?.email || "",
+        }),
+      });
+      const sonuc = await res.json().catch(() => ({ ok: false, hata: `Beklenmeyen yanıt (HTTP ${res.status})` }));
+      if (sonuc.ok) {
+        setGonderilenTC(kayit["TC Kimlik No"]);
+        setSuccessModal(sonuc);
+      } else if (sonuc.mail || sonuc.whatsapp) {
+        // Biri gitti, diğeri gitmedi
+        if (sonuc.mail?.ok || sonuc.whatsapp?.ok) setGonderilenTC(kayit["TC Kimlik No"]);
+        const mail = sonuc.mail?.ok ? "Mail ✓" : "Mail ✗";
+        const wp = sonuc.whatsapp?.ok ? "WhatsApp ✓" : "WhatsApp ✗";
+        showToast(`${mail} · ${wp} ${sonuc.mail?.hata || sonuc.whatsapp?.hata || ""}`, "error");
+      } else {
+        showToast(sonuc.hata || "Sözleşme gönderilemedi", "error");
+      }
+    } catch {
+      showToast("Bağlantı hatası, sözleşme gönderilemedi", "error");
     } finally {
       setSubmitting(false);
     }
@@ -2400,7 +2434,7 @@ export default function KayitGuncelle() {
           <div style={s.modal}>
             <h3 style={{ margin: "0 0 10px" }}>Sözleşme Gönderilsin mi?</h3>
             <p style={{ fontSize: "13px", color: "#475569", margin: "0 0 10px" }}>
-              <strong>{gonderOnay["Öğrenci Adı Soyadı"]}</strong> için sözleşme e-postası gönderilecek.
+              <strong>{gonderOnay["Öğrenci Adı Soyadı"]}</strong> için sözleşme linki e-posta ve WhatsApp ile gönderilecek.
             </p>
             <div style={{
               background: mail ? "#ecfeff" : "#fef2f2",
@@ -2416,8 +2450,7 @@ export default function KayitGuncelle() {
                 onClick={async () => {
                   const kayit = gonderOnay;
                   setGonderOnay(null);
-                  await gonder(kayit);
-                  setGonderilenTC(kayit["TC Kimlik No"]);
+                  await sozlesmeyiGonder(kayit);
                 }}
                 disabled={submitting}
                 style={{ ...s.modalBtn, marginTop: 0 }}
@@ -2433,6 +2466,11 @@ export default function KayitGuncelle() {
           <div style={s.modal}>
             <h3>Başarılı!</h3>
             <p>Sözleşme tekrar gönderildi.</p>
+            {successModal?.mail && (
+              <p style={{ fontSize: "13px", color: "#475569", wordBreak: "break-all" }}>
+                Mail ✓ {successModal.mail.adres}<br />WhatsApp ✓ {successModal.whatsapp.telefon}
+              </p>
+            )}
             <button onClick={() => { setSuccessModal(false); if (data) { setData(null); setTc(""); } }} style={s.modalBtn}>Tamam</button>
           </div>
         </div>
