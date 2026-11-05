@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.56
+// KayitGuncelle.jsx v1.57
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.56"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.57"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1130,6 +1130,7 @@ export default function KayitGuncelle() {
     return normalize(o["Öğrenci Adı Soyadı"]).includes(aramaTerimi) ||
            String(o["TC Kimlik No"] || "").includes(aramaTerimi) ||
            normalize(o["Türkiye'de Eğitim Aldığı Okul"]).includes(aramaTerimi) ||
+           normalize(o["TR_Okul_Default"]).includes(aramaTerimi) ||
            normalize(o["Kaynak Form Adı"]).includes(aramaTerimi);
   });
 
@@ -1171,7 +1172,8 @@ export default function KayitGuncelle() {
     if (aramaTerimi.length < 2 || data) return [];
     const KAYNAKLAR = [
       ["Öğrenci", "Öğrenci Adı Soyadı"],
-      ["Okul", "Türkiye'de Eğitim Aldığı Okul"],
+      // Okul önerisi sabit TR okul adından (TR_Okul_Default); öğrencinin elle yazdığı okul adı önerilmez
+      ["Okul", "TR_Okul_Default"],
       ["Form", "Kaynak Form Adı"],
     ];
     const gorulen = new Set();
