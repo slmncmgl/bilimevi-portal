@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.55
+// KayitGuncelle.jsx v1.56
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.55"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.56"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -557,6 +557,8 @@ export default function KayitGuncelle() {
   const beklemeRef = useRef(null); // { tc, eskiLink, baslangic }
   // Kayıt açıldığındaki / son kaydedildiğindeki hali; kaydedilmemiş değişiklik kontrolü için
   const kayitliHalRef = useRef(null);
+  // Listeden kayıt açılırken arama metni, sayfa ve kaydırma konumu; "Listeye Dön" bunlara geri döner
+  const listeHaliRef = useRef(null);
   const kayitOzeti = k => JSON.stringify(
     Object.fromEntries(Object.entries(k || {}).filter(([a]) => a !== "Sözleşme Onay Linki" && a !== "Notlar").sort())
   );
@@ -813,6 +815,8 @@ export default function KayitGuncelle() {
     // Harf içeriyorsa listede filtreleme yapılır, sorgu atılmaz
     if (!tcParam && /[^\d\s]/.test(ham)) return;
     if (!targetTC) return;
+    if (tcParam && !data) listeHaliRef.current = { tc, sayfa, kaydirma: window.scrollY };
+    if (!tcParam) listeHaliRef.current = null;
     if (tcParam) setTc(targetTC);
     setLoading(true);
     try {
@@ -830,6 +834,18 @@ export default function KayitGuncelle() {
       showToast("Bağlantı hatası", "error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Kayıttan listeye dönüş: listeden açıldıysa önceki arama, sayfa ve kaydırma konumu geri gelir
+  function listeyeDon() {
+    const hal = listeHaliRef.current;
+    listeHaliRef.current = null;
+    setData(null); setSaltOkunur(false);
+    setTc(hal ? hal.tc : "");
+    if (hal) {
+      setSayfa(hal.sayfa);
+      setTimeout(() => window.scrollTo(0, hal.kaydirma), 0);
     }
   }
 
@@ -1414,7 +1430,7 @@ export default function KayitGuncelle() {
 
       <header style={s.header}>
         <div style={s.headerInner}>
-          <button onClick={() => data ? (setData(null), setTc(""), setSaltOkunur(false)) : navigate("/dashboard")} style={s.backBtn}>
+          <button onClick={() => data ? listeyeDon() : navigate("/dashboard")} style={s.backBtn}>
             {data ? "← Listeye Dön" : "Geri"}
           </button>
           <div style={s.headerTitle}>
@@ -1450,6 +1466,7 @@ export default function KayitGuncelle() {
                     const degisti = !saltOkunur && kayitliHalRef.current !== null && kayitOzeti(data) !== kayitliHalRef.current;
                     if (degisti && !window.confirm("Kaydedilmemiş değişiklikler kaybolacak, devam edilsin mi?")) return;
                     setData(null); setSaltOkunur(false);
+                    listeHaliRef.current = null;
                   }
                   setTc(e.target.value); setSayfa(1); setOneriAcik(true);
                 }}
@@ -2488,7 +2505,7 @@ export default function KayitGuncelle() {
                 Mail ✓ {successModal.mail.adres}<br />WhatsApp ✓ {successModal.whatsapp.telefon}
               </p>
             )}
-            <button onClick={() => { setSuccessModal(false); if (data) { setData(null); setTc(""); } }} style={s.modalBtn}>Tamam</button>
+            <button onClick={() => { setSuccessModal(false); if (data) listeyeDon(); }} style={s.modalBtn}>Tamam</button>
           </div>
         </div>
       )}
