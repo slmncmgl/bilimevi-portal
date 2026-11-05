@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.58
+// KayitGuncelle.jsx v1.59
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.58"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.59"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -791,15 +791,50 @@ export default function KayitGuncelle() {
     };
   }
 
+  // Liste ne zaman çekildi; başlıkta "x dk önce" olarak gösterilir, metin 30 sn'de bir tazelenir
+  const [listeZamani, setListeZamani] = useState(null);
+  const [yenileniyor, setYenileniyor] = useState(false);
+  const [simdi, setSimdi] = useState(() => Date.now());
   useEffect(() => {
+    const t = setInterval(() => setSimdi(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  // elle = true: yenile butonu. Arama, filtreler ve kaydırma korunur, sonuç bildirimle söylenir.
+  async function listeyiGetir(elle = false) {
     if (!user?.name) return;
-    setOgrencilerLoading(true);
-    fetch(`${FETCH_URL}?danisman=${encodeURIComponent(user.name)}&_t=${Date.now()}`, { cache: "no-store" })
-      .then(r => r.json())
-      .then(json => { if (json.found && json.list) setOgrencilerim(json.list); })
-      .catch(() => {})
-      .finally(() => setOgrencilerLoading(false));
-  }, [user?.name]);
+    if (elle) setYenileniyor(true); else setOgrencilerLoading(true);
+    try {
+      const res = await fetch(`${FETCH_URL}?danisman=${encodeURIComponent(user.name)}&_t=${Date.now()}`, { cache: "no-store" });
+      const json = await res.json();
+      if (json.found && json.list) {
+        if (elle) {
+          const eskiler = new Set(ogrencilerim.map(satirAnahtari));
+          const yeni = json.list.filter(o => !eskiler.has(satirAnahtari(o))).length;
+          showToast(yeni ? `Liste güncellendi, ${yeni} yeni kayıt` : "Liste güncellendi, yeni kayıt yok");
+        }
+        setOgrencilerim(json.list);
+        setListeZamani(Date.now());
+        setSimdi(Date.now());
+      } else if (elle) {
+        showToast("Liste alınamadı", "error");
+      }
+    } catch {
+      if (elle) showToast("Bağlantı hatası", "error");
+    } finally {
+      if (elle) setYenileniyor(false); else setOgrencilerLoading(false);
+    }
+  }
+
+  useEffect(() => { listeyiGetir(); }, [user?.name]);
+
+  const sonGuncelleme = (() => {
+    if (!listeZamani) return "";
+    const dk = Math.floor((simdi - listeZamani) / 60000);
+    if (dk < 1) return "az önce";
+    if (dk < 60) return `${dk} dk önce`;
+    return `${Math.floor(dk / 60)} sa önce`;
+  })();
 
   function showToast(msg, type = "success") {
     setToast({ msg, type });
@@ -1686,13 +1721,42 @@ export default function KayitGuncelle() {
                   ...(isMobile ? { lineHeight: 1.3 } : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }),
                 }}>{listeOzeti}</span>
               )}
+              {/* Son güncelleme zamanı + yenile butonu (grafik butonunun solunda) */}
+              <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                {sonGuncelleme && (
+                  <span style={{ fontSize: "11.5px", fontWeight: 400, opacity: 0.85, whiteSpace: "nowrap" }}>
+                    Son güncelleme: {sonGuncelleme}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => !yenileniyor && listeyiGetir(true)}
+                  disabled={yenileniyor}
+                  title="Listeyi yenile"
+                  aria-label="Listeyi yenile"
+                  style={{
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    width: "34px", height: "28px", borderRadius: "8px", padding: 0,
+                    cursor: yenileniyor ? "default" : "pointer",
+                    border: "1px solid rgba(255,255,255,0.45)",
+                    background: TEMA_RENKLERI[tema].rozet, color: TEMA_RENKLERI[tema].yazi,
+                    boxShadow: "0 1px 3px rgba(15,23,42,0.15)",
+                  }}
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+                    strokeLinecap="round" strokeLinejoin="round"
+                    style={{ animation: yenileniyor ? "spin 0.8s linear infinite" : "none" }}>
+                    <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
+                  </svg>
+                </button>
+              </span>
               <button
                 type="button"
                 onClick={() => { setGrafikAcik(v => !v); setGrafikHover(null); }}
                 title={grafikAcik ? "Grafiği kapat" : "Aktivite grafiği"}
                 aria-label="Aktivite grafiği"
                 style={{
-                  marginLeft: "auto", display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
                   // Kapalıyken yarı saydam zemin + ince çerçeve, açıkken beyaz zemin ve tema renginde ikon
                   width: "34px", height: "28px", borderRadius: "8px", cursor: "pointer", padding: 0,
                   border: `1px solid ${grafikAcik ? "#fff" : "rgba(255,255,255,0.45)"}`,
