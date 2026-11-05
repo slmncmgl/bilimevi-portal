@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.59
+// KayitGuncelle.jsx v1.60
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.59"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.60"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -835,6 +835,8 @@ export default function KayitGuncelle() {
     if (dk < 60) return `${dk} dk önce`;
     return `${Math.floor(dk / 60)} sa önce`;
   })();
+  // 10 dakikadan eski liste: zaman çipindeki nokta yeşilden turuncuya döner
+  const listeEski = !!listeZamani && simdi - listeZamani >= 10 * 60 * 1000;
 
   function showToast(msg, type = "success") {
     setToast({ msg, type });
@@ -1438,6 +1440,10 @@ export default function KayitGuncelle() {
     <div style={s.root}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        .listeKapsul { transition: transform 0.15s, box-shadow 0.15s; }
+        .listeKapsul:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,0.28); }
+        .listeKapsulBtn { transition: background 0.15s, color 0.15s; }
+        .listeKapsulBtn:hover { background: #eef2f7; }
         @keyframes notBalonGiris {
           from { opacity: 0; transform: translateY(-4px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -1721,54 +1727,66 @@ export default function KayitGuncelle() {
                   ...(isMobile ? { lineHeight: 1.3 } : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }),
                 }}>{listeOzeti}</span>
               )}
-              {/* Son güncelleme zamanı + yenile butonu (grafik butonunun solunda) */}
+              {/* Sağda: son güncelleme çipi (10 dk'yı geçince nokta turuncu) + Yenile / Rapor kapsülü */}
               <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "8px" }}>
                 {sonGuncelleme && (
-                  <span style={{ fontSize: "11.5px", fontWeight: 400, opacity: 0.85, whiteSpace: "nowrap" }}>
-                    Son güncelleme: {sonGuncelleme}
+                  <span
+                    title={listeEski ? "Liste 10 dakikadan eski, yenileyebilirsin" : "Son güncelleme"}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: "6px", whiteSpace: "nowrap",
+                      background: "rgba(255,255,255,0.14)", borderRadius: "999px", padding: "3px 10px",
+                      fontSize: "11.5px", fontWeight: 400,
+                    }}>
+                    <span style={{
+                      width: "7px", height: "7px", borderRadius: "50%", flexShrink: 0,
+                      background: listeEski ? "#f59e0b" : "#34d399", transition: "background 0.3s",
+                    }} />
+                    {sonGuncelleme}
                   </span>
                 )}
-                <button
-                  type="button"
-                  onClick={() => !yenileniyor && listeyiGetir(true)}
-                  disabled={yenileniyor}
-                  title="Listeyi yenile"
-                  aria-label="Listeyi yenile"
-                  style={{
-                    display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    width: "34px", height: "28px", borderRadius: "8px", padding: 0,
-                    cursor: yenileniyor ? "default" : "pointer",
-                    border: "1px solid rgba(255,255,255,0.45)",
-                    background: TEMA_RENKLERI[tema].rozet, color: TEMA_RENKLERI[tema].yazi,
-                    boxShadow: "0 1px 3px rgba(15,23,42,0.15)",
-                  }}
-                >
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-                    strokeLinecap="round" strokeLinejoin="round"
-                    style={{ animation: yenileniyor ? "spin 0.8s linear infinite" : "none" }}>
-                    <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
-                  </svg>
-                </button>
+                {(() => {
+                  const renk = TEMA_RENKLERI[tema].nokta;
+                  const btn = aktif => ({
+                    display: "inline-flex", alignItems: "center", gap: "5px", border: "none", margin: 0,
+                    padding: isMobile ? "6px 9px" : "5px 11px", fontSize: "12px", fontWeight: 600,
+                    cursor: "pointer", color: aktif ? "#fff" : renk,
+                    ...(aktif ? { background: renk } : { background: "transparent" }),
+                  });
+                  return (
+                    <span className="listeKapsul" style={{
+                      display: "inline-flex", alignItems: "stretch", background: "#fff",
+                      borderRadius: "9px", overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
+                    }}>
+                      <button
+                        type="button" className={yenileniyor ? undefined : "listeKapsulBtn"}
+                        onClick={() => !yenileniyor && listeyiGetir(true)}
+                        title="Listeyi yenile" aria-label="Listeyi yenile"
+                        style={{ ...btn(false), cursor: yenileniyor ? "default" : "pointer" }}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3"
+                          strokeLinecap="round" strokeLinejoin="round"
+                          style={{ animation: yenileniyor ? "spin 0.8s linear infinite" : "none" }}>
+                          <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
+                        </svg>
+                        {!isMobile && (yenileniyor ? "Yenileniyor" : "Yenile")}
+                      </button>
+                      <span style={{ width: "1px", background: "#e2e8f0" }} />
+                      <button
+                        type="button" className={grafikAcik ? undefined : "listeKapsulBtn"}
+                        onClick={() => { setGrafikAcik(v => !v); setGrafikHover(null); }}
+                        title={grafikAcik ? "Raporu kapat" : "Aktivite raporu"} aria-label="Aktivite raporu"
+                        aria-pressed={grafikAcik}
+                        style={btn(grafikAcik)}
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
+                          <path d="M4 20h16" /><path d="M7 16v-4" /><path d="M12 16V7" /><path d="M17 16v-7" />
+                        </svg>
+                        {!isMobile && "Rapor"}
+                      </button>
+                    </span>
+                  );
+                })()}
               </span>
-              <button
-                type="button"
-                onClick={() => { setGrafikAcik(v => !v); setGrafikHover(null); }}
-                title={grafikAcik ? "Grafiği kapat" : "Aktivite grafiği"}
-                aria-label="Aktivite grafiği"
-                style={{
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  // Kapalıyken yarı saydam zemin + ince çerçeve, açıkken beyaz zemin ve tema renginde ikon
-                  width: "34px", height: "28px", borderRadius: "8px", cursor: "pointer", padding: 0,
-                  border: `1px solid ${grafikAcik ? "#fff" : "rgba(255,255,255,0.45)"}`,
-                  background: grafikAcik ? "#fff" : TEMA_RENKLERI[tema].rozet,
-                  color: grafikAcik ? TEMA_RENKLERI[tema].nokta : TEMA_RENKLERI[tema].yazi,
-                  boxShadow: "0 1px 3px rgba(15,23,42,0.15)", transition: "background 0.15s, color 0.15s",
-                }}
-              >
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                  <path d="M4 20h16" /><path d="M7 16v-4" /><path d="M12 16V7" /><path d="M17 16v-7" />
-                </svg>
-              </button>
             </div>
             {grafikVerisi && (() => {
               const g = grafikVerisi;
