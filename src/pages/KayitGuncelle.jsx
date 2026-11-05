@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.57
+// KayitGuncelle.jsx v1.58
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.57"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.58"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -908,8 +908,9 @@ export default function KayitGuncelle() {
       const fields = [
         { label: "Öğrenci Kayıt Formu Otomatik Gönderilsin Mi?", value: sozlesmeGonder ? "evet" : "hayır" },
         { label: "Sözleşme İmza Tarihi", value: new Date().toISOString().split("T")[0] },
+        // Eklenme Tarihi gönderilmez: n8n sheet'e geri yazınca Sheets "2-11-2026"yı ay-gün okuyup tarihi bozuyordu
         ...Object.entries(kayitData)
-          .filter(([k]) => !HIDDEN_FIELDS.includes(k) && k !== "row_number")
+          .filter(([k]) => !HIDDEN_FIELDS.includes(k) && k !== "row_number" && k !== "Eklenme Tarihi")
           .map(([label, value]) => ({ label: LABEL_MAP[label] || label, value: value ?? "" })),
       ];
 
