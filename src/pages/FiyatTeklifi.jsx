@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v123-surum-etiketi-2026-11-06";
+const BFT_BUILD_VERSION = "v124-ek-ucret-atla-2026-11-06";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1439,6 +1439,39 @@ function elleIndirimSatiri(ei, bases) {
   return { label, labelRaw: label + " (elle)", applies_to: ei.hedef, target_name: "", value_type: ei.tur,
     value: deger, amount, elle: true, not: ei.not || "" };
 }
+// v124: Ek Ücretler adımının listeleri (zorunlu ücretler + seçilebilir add-on'lar). Adımın ekranı ve
+// "gösterilecek bir şey yok, adımı atla" kararı aynı hesabı kullanır. Gövde v123'teki satır içi hesapla birebir aynı.
+function ekUcretListeleri(cur, age) {
+  const allFees = cur.cityData?.fees || [];
+  const startD = cur.startDate ? new Date(cur.startDate) : null;
+  const compulsory = calcFees(allFees, cur.weeks, age, cur.acc?.type, cur.accWeeks || cur.weeks, !!cur.acc, feeBaglami(cur)).items;
+  const optional = allFees.filter(f => {
+    if (!["optional_service","supplement","upgrade","course_addon","post_departure"].includes(f.addon_type)) return false;
+    // Otomatik eklenenler (yılbaşı/sezon supplement'leri) listede GÖSTERİLMEZ:
+    // zaten teklife dahil; burada durursa danışman ikinci kez ekleyebilir.
+    if (otomatikSupplementMi(f)) return false;
+    if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
+    if (f.min_age && age < f.min_age) return false;
+    if (f.max_age && age > f.max_age) return false;
+    // Tarih kontrolü: ücretin aralığı, öğrencinin KALIŞ aralığıyla kesişiyor mu?
+    // (Eskiden yalnızca başlangıç gününe bakılıyordu; kurs ortasına denk gelen
+    //  Christmas/Peak Season gibi ücretler bu yüzden hiç görünmüyordu.)
+    if ((f.date_start || f.date_end) && startD) {
+      const kalisHafta = Math.max(cur.weeks || 0, cur.accWeeks || 0) || (cur.weeks || 1);
+      const bitisD = addWeeksToDate(startD, kalisHafta);
+      if (f.date_start && new Date(f.date_start) > bitisD) return false;
+      if (f.date_end && new Date(f.date_end) < startD) return false;
+    }
+    return true;
+  });
+  return { allFees, startD, compulsory, optional };
+}
+// v124: "Bu kurs ve tarih için eklenebilecek add-on bulunmuyor" durumu (staff). Şehir verisi yüklenmeden true dönmez.
+function ekUcretBosMu(cur, age) {
+  if (!cur.cityData || cur.cityLoading) return false;
+  const { compulsory, optional } = ekUcretListeleri(cur, age);
+  return compulsory.length === 0 && (cur.addons || []).filter(a => a.auto).length === 0 && optional.length === 0;
+}
 // Bir destinasyon icin indirimleri + nihai toplami hesaplar (tek kaynak)
 function getDestinationTotals(d, fees) {
   const courseTotal = d.courseTotalPrice || 0;
@@ -1856,7 +1889,8 @@ export default function FiyatTeklifi() {
   const skipAccommodation = (cur.selectedPackage?.package_type === "with_accommodation" && !paketEslesmeliMi(cur.selectedPackage)) || cur.isOnline || onlineDest;
   // "Ek Ücretler" adimi: pakette gizli (paket her sey dahil), online'da gizli.
   // Staff'ta zorunlu ucret/opsiyonel gosterilir; customer'da opsiyonel gizli oldugu icin genelde bos -> yine de zorunlu ucret varsa gosterilebilir ama customer'da bu adim gizlenir.
-  const skipAddons = !!cur.selectedPackage || cur.isOnline || !isStaff;
+  // v124: staff'ta gösterilecek ücret/add-on yoksa ("eklenebilecek add-on bulunmuyor") adım da atlanır.
+  const skipAddons = !!cur.selectedPackage || cur.isOnline || !isStaff || ekUcretBosMu(cur, parseInt(student.age) || 0);
   // "Transfer" adimi: transfer verisi varsa VE paket transfer icermiyorsa gosterilir
   const hasTransfers = (cur.cityData?.transfers?.length > 0) && !packageIncludesTransfer(cur.selectedPackage) && !cur.isOnline && !onlineDest;
   const STEPS = ["Genel Bilgi","Destinasyon","Kurs","Konaklama","Ek Ücretler","Transfer","Özet"].filter(s => {
@@ -3200,29 +3234,8 @@ export default function FiyatTeklifi() {
             <div style={{ animation:"fadeUp 0.3s" }}>
               <h2 style={S.ttl}>Ek Ücretler — {cur.brand} {cur.city}</h2>
               {(() => {
-                const allFees = cur.cityData?.fees || [];
                 const age = parseInt(student.age) || 0;
-                const startD = cur.startDate ? new Date(cur.startDate) : null;
-                const compulsory = calcFees(allFees, cur.weeks, parseInt(student.age)||0, cur.acc?.type, cur.accWeeks || cur.weeks, !!cur.acc, feeBaglami(cur)).items;
-                const optional = allFees.filter(f => {
-                  if (!["optional_service","supplement","upgrade","course_addon","post_departure"].includes(f.addon_type)) return false;
-                  // Otomatik eklenenler (yılbaşı/sezon supplement'leri) listede GÖSTERİLMEZ —
-                  // zaten teklife dahil; burada durursa danışman ikinci kez ekleyebilir.
-                  if (otomatikSupplementMi(f)) return false;
-                  if (f.eligible_courses && !f.eligible_courses.split(",").map(s=>s.trim()).includes(cur.course?.name)) return false;
-                  if (f.min_age && age < f.min_age) return false;
-                  if (f.max_age && age > f.max_age) return false;
-                  // Tarih kontrolü: ücretin aralığı, öğrencinin KALIŞ aralığıyla kesişiyor mu?
-                  // (Eskiden yalnızca başlangıç gününe bakılıyordu; kurs ortasına denk gelen
-                  //  Christmas/Peak Season gibi ücretler bu yüzden hiç görünmüyordu.)
-                  if ((f.date_start || f.date_end) && startD) {
-                    const kalisHafta = Math.max(cur.weeks || 0, cur.accWeeks || 0) || (cur.weeks || 1);
-                    const bitisD = addWeeksToDate(startD, kalisHafta);
-                    if (f.date_start && new Date(f.date_start) > bitisD) return false;
-                    if (f.date_end && new Date(f.date_end) < startD) return false;
-                  }
-                  return true;
-                });
+                const { allFees, startD, compulsory, optional } = ekUcretListeleri(cur, age);   // v124: ortak hesap
                 // Paket secildiyse zorunlu ucret + opsiyonel gizli (paket her sey dahil) — sadece Transfer gosterilir
                 if (cur.selectedPackage) return <p style={{ color:"#64748b", fontSize:13 }}>🎁 Paket programında kurs ücretleri dahildir. Aşağıdan dilerseniz transfer ekleyebilirsiniz.</p>;
                 if (compulsory.length === 0 && (cur.addons || []).filter(a => a.auto).length === 0 && (isStaff ? optional.length === 0 : true)) return <p style={{ color:"#94a3b8", fontSize:13 }}>Bu kurs ve tarih için eklenebilecek add-on bulunmuyor.</p>;

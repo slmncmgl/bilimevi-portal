@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 6 Kasım 2026 (v122 elle indirim). Repo'daki BFT sürümü: `v122-elle-indirim-2026-11-06`.
+Son güncelleme: 6 Kasım 2026 (v124 boş Ek Ücretler adımı atlanır). Repo'daki BFT sürümü: `v124-ek-ucret-atla-2026-11-06`.
 
 ## Kapsam
 
@@ -124,7 +124,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - LiteSpeed Cache: BFT sayfasında **Guest Optimization ve JS Combine kapalı** olmalı, açılırsa portal kırılır. Lokal testte görünmez.
 - Türkçe karşılaştırmada `toLocaleLowerCase("tr")` kullanma ("Intensive" → "ıntensive" olur). `_norm()` kullan.
 - `fetchCityData` hata durumunda boş obje döndürmemeli, hata fırlatmalı. Boş dönerse kurs listesi kalıcı boş kalıyordu.
-- Adım listesi dinamik: `setStep`'e sabit numara verme, adımı adıyla bul.
+- Adım listesi dinamik: `setStep`'e sabit numara verme, adımı adıyla bul. v124'ten beri staff'ta Ek Ücretler adımı, gösterilecek zorunlu ücret, otomatik supplement ya da seçilebilir add-on yoksa (`ekUcretBosMu`, ekranla aynı hesap `ekUcretListeleri`) STEPS'ten çıkar; İleri ve Geri ikisi de atlar. Şehir verisi yüklenmeden atlanmaz.
 - Otomatik eşleşen paket ile elle seçilen paketi karıştırma (`paketOtomatik`).
 - Ülke adı "UK" / "United Kingdom" farkı indirimleri sessizce bozmuştu, `normCountry()` kullan.
 - Yedekten kurulan site eski sitenin `sub_source`'unu taşır (almanyadil maltadil yedeğinden kuruldu, lead'ler yanlış kaynağa gitti). Yeni sitede ilk iş shortcode parametrelerini kontrol et.
@@ -163,6 +163,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 ## Durum (30 Ekim 2026)
 
+- **v124 (6 Kasım):** boş Ek Ücretler adımı otomatik atlanır (`tests/test_v124.mjs`). **v123:** staff sayfasının altında sürüm etiketi.
 - **v122 (6 Kasım):** elle indirim + mail bildirimi (veri sözleşmesi maddesi). Uçtan uca mail testi canlıda kullanıcıyla yapılacak.
 - **v121 (6 Kasım):** staff `master_index` / `city_description` Sheets API ile (`api/sheet.js`). `GOOGLE_SHEETS_API_KEY` Vercel'e girilene kadar gviz yedeği çalışır. `data-proxy.php` v1.1 (6 Kasım) teslim edildi: `master` ve `city_description` Sheets API ile, key wp-config'de `BFT_SHEETS_KEY`, yoksa gviz. Sitelere atıldığı doğrulanmadı (ingilteredil, maltadil, almanyadil).
 - **v118 push edildi (30 Ekim):** staff portalı `portal.bilimevi.com`'a taşındı, `detectMode()` bu adı staff sayar. Sadece bu satır ve sürüm değişti.
