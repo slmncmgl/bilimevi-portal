@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v121-sheets-api-2026-11-06";
+const BFT_BUILD_VERSION = "v122-elle-indirim-2026-11-06";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1414,6 +1414,27 @@ function indirimliAd(ad, etiket) {
   if ((ad || "").endsWith(")")) return ad.slice(0, -1) + ", " + (etiket === "Ücretsiz" ? "ücretsiz" : etiket) + ")";
   return ad + " (" + etiket + ")";
 }
+// v122: Danışmanın Özet'te elle girdiği indirim (sadece staff; customer'da d.elleIndirim hiç oluşmaz).
+// ei = { hedef: "tuition"|"accommodation"|"total", tur: "percentage"|"fixed", deger, not }
+// bases = { tuition, accommodation, total }. total: sheet indirimleri düşülmüş toplam.
+// Yüzde seçilen kalemin tutarı üzerinden; sabit tutar o kalemi geçemez. Uygulanamazsa null.
+const ELLE_HEDEF_ETIKET = { tuition: "Kurs İndirimi", accommodation: "Konaklama İndirimi", total: "İndirim" };
+function elleIndirimSatiri(ei, bases) {
+  if (!ei || !ELLE_HEDEF_ETIKET[ei.hedef]) return null;
+  const deger = parseFloat(ei.deger);
+  if (!(deger > 0)) return null;
+  const base = bases[ei.hedef] || 0;
+  if (base <= 0) return null;
+  let amount = 0;
+  if (ei.tur === "percentage") amount = base * Math.min(deger, 100) / 100;
+  else if (ei.tur === "fixed") amount = Math.min(deger, base);
+  else return null;
+  if (amount <= 0) return null;
+  const label = ELLE_HEDEF_ETIKET[ei.hedef];
+  // PDF/müşteri: sheet indirimleriyle aynı görünüm ("Kurs İndirimi (%10)"). Staff: "Kurs İndirimi (elle, %10)".
+  return { label, labelRaw: label + " (elle)", applies_to: ei.hedef, target_name: "", value_type: ei.tur,
+    value: deger, amount, elle: true, not: ei.not || "" };
+}
 // Bir destinasyon icin indirimleri + nihai toplami hesaplar (tek kaynak)
 function getDestinationTotals(d, fees) {
   const courseTotal = d.courseTotalPrice || 0;
@@ -1443,6 +1464,11 @@ function getDestinationTotals(d, fees) {
     accPlace: d.acc?.name || "", accWeeks: d.acc ? konaklamaHafta(d) : 0,
     accStart: _accT ? _accT.giris : null, accEnd: _accT ? _accT.cikis : null };
   const appliedDiscounts = d.isOnline ? [] : computeDiscounts(d.cityData?.discounts, d.course, d.weeks, d.startDate, targets);
+  // v122: elle indirim en sona eklenir; "total" tabanı sheet indirimleri düşülmüş toplamdır
+  const _sheetIndirim = appliedDiscounts.reduce((s, x) => s + x.amount, 0);
+  const _elle = d.isOnline ? null : elleIndirimSatiri(d.elleIndirim, { tuition: courseTotal, accommodation: d.acc ? accTotal : 0,
+    total: courseTotal + accTotal + feesTotal + addonsCost + transferCost - _sheetIndirim });
+  if (_elle) appliedDiscounts.push(_elle);
   const discountsTotal = appliedDiscounts.reduce((s, x) => s + x.amount, 0);
   return { isPackage: false, appliedDiscounts, discountsTotal,
     grandTotal: courseTotal + accTotal + feesTotal + addonsCost + transferCost - discountsTotal };
@@ -1518,6 +1544,10 @@ export default function FiyatTeklifi() {
   const [step, setStep] = useState(0);
   const [student, setStudent] = useState({ name:"", age:"", gender:"" });
   const [destinations, setDestinations] = useState([]);
+  // v122: Özet'te açık olan elle indirim formu (sadece staff). { i, hedef, tur, deger, not } ya da null
+  const [elleForm, setElleForm] = useState(null);
+  const elleIndirimYaz = (i, ei) => setDestinations(p => p.map((x, idx) => idx === i ? { ...x, elleIndirim: ei } : x));
+  useEffect(() => { setElleForm(null); }, [destinations.length]);   // kart silinir/eklenirse açık form başka karta kaymasın
   const [cur, setCur] = useState(emptyDest());
   // Hafta alanının ham metni. null → cur.weeks gösterilir. Kullanıcı alanı tamamen
   // silebilsin diye ayrı tutulur (aksi halde boş değer anında 1'e sıçrıyordu).
@@ -2609,6 +2639,36 @@ export default function FiyatTeklifi() {
           console.warn("[BFT] Drive arşiv hazırlanamadı:", e);
         }
       }
+
+      // ─── v122: elle indirim bildirimi (sadece staff) ───
+      // Teklifte elle indirim varsa it@bilimevi.com'a tek mail (api/indirim-bildirim → n8n).
+      // Ghost istek: await YOK, PDF zaten indi. Öğrenci kişisel verisi gönderilmez.
+      if (isStaff) {
+        try {
+          const okullar = destinations.map(d => {
+            const _f = d.isOnline ? { items:[], total:65 } : calcFees(d.cityData?.fees, d.weeks, parseInt(student.age)||0, d.acc?.type, d.accWeeks || d.weeks, !!d.acc, feeBaglami(d));
+            const _dt = getDestinationTotals(d, _f);
+            const e = _dt.isPackage ? null : _dt.appliedDiscounts.find(x => x.elle);
+            if (!e) return null;
+            return { okul: d.brand || "", sehir: d.city || "", kurs: d.course?.name || "", hafta: d.weeks || "",
+              baslangic: d.startDate || "", paraBirimi: d.course?.currency || _f.currency || "",
+              hedef: e.label, tur: e.value_type === "percentage" ? "yuzde" : "tutar", deger: e.value,
+              indirim: roundHalf(e.amount), toplamOnce: roundHalf(_dt.grandTotal + e.amount), toplamSonra: roundHalf(_dt.grandTotal),
+              not: e.not || "" };
+          }).filter(Boolean);
+          if (okullar.length) {
+            fetch("/api/indirim-bildirim", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ danisman: user?.name || "", danismanMail: user?.email || "", surum: BFT_BUILD_VERSION, okullar }),
+            })
+              .then(r => r.json()).then(j => console.log("[BFT] Elle indirim bildirimi:", j))
+              .catch(e => console.warn("[BFT] Elle indirim bildirimi gönderilemedi:", e));
+          }
+        } catch (e) {
+          console.warn("[BFT] Elle indirim bildirimi hazırlanamadı:", e);
+        }
+      }
     } catch (err) {
       console.error("[BFT] PDF HATASI:", err);
       const msg = err?.message || err?.toString?.() || "Bilinmeyen hata";
@@ -3325,10 +3385,60 @@ export default function FiyatTeklifi() {
                     {(() => { const _dt = getDestinationTotals(d, f); return (<>
                     {!_dt.isPackage && _dt.appliedDiscounts.map((disc, di) => (
                       <div key={di} style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#16a34a", fontWeight:500 }}>
-                        <span>{indirimliAd(isStaff ? disc.labelRaw : disc.label, indirimEtiket(disc))}</span>
-                        {isStaff && <span>- {fmt(disc.amount, cur2)}</span>}
+                        <span>{indirimliAd(isStaff ? disc.labelRaw : disc.label, indirimEtiket(disc))}{isStaff && disc.elle && disc.not ? <span style={{ color:"#64748b", fontWeight:400 }}> · {disc.not}</span> : null}</span>
+                        {isStaff && <span style={{ display:"flex", alignItems:"center", gap:8, whiteSpace:"nowrap" }}>- {fmt(disc.amount, cur2)}
+                          {disc.elle && <button onClick={() => elleIndirimYaz(i, null)} title="Elle indirimi kaldır" style={{ border:"none", background:"none", color:"#dc2626", cursor:"pointer", fontSize:15, lineHeight:1, padding:0 }}>×</button>}
+                        </span>}
                       </div>
                     ))}
+                    {/* v122: elle indirim (sadece staff, paket ve online hariç) */}
+                    {isStaff && !_dt.isPackage && !d.isOnline && (() => {
+                      const uygulandi = _dt.appliedDiscounts.some(x => x.elle);
+                      if (d.elleIndirim && !uygulandi) return (
+                        <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:6, color:"#b45309" }}>
+                          <span>Elle indirim uygulanamadı (seçilen kalemin tutarı yok)</span>
+                          <button onClick={() => elleIndirimYaz(i, null)} style={{ border:"none", background:"none", color:"#dc2626", cursor:"pointer", fontSize:12, padding:0, fontFamily:"inherit" }}>Kaldır</button>
+                        </div>
+                      );
+                      if (d.elleIndirim) return null;
+                      if (!elleForm || elleForm.i !== i) return (
+                        <button onClick={() => setElleForm({ i, hedef:"tuition", tur:"percentage", deger:"", not:"" })}
+                          style={{ display:"block", marginBottom:8, padding:0, border:"none", background:"none", color:"#16a34a", cursor:"pointer", fontSize:12, fontWeight:600, fontFamily:"inherit" }}>
+                          + Elle indirim ekle
+                        </button>
+                      );
+                      const ef = elleForm;
+                      const set = (k, v) => setElleForm(p => ({ ...p, [k]: v }));
+                      const degerNum = parseFloat(String(ef.deger).replace(",", "."));
+                      const gecerli = degerNum > 0 && (ef.tur !== "percentage" || degerNum <= 100);
+                      const kutu = { padding:"7px 9px", border:"1.5px solid #e2e8f0", borderRadius:8, fontSize:12, fontFamily:"inherit", background:"#fff", boxSizing:"border-box" };
+                      const secim = (aktif) => ({ ...kutu, cursor:"pointer", fontWeight:600, border:`1.5px solid ${aktif ? "#16a34a" : "#e2e8f0"}`, color: aktif ? "#16a34a" : "#475569", background: aktif ? "#f0fdf4" : "#fff" });
+                      return (
+                        <div style={{ border:"1.5px solid #bbf7d0", background:"#f8fafc", borderRadius:10, padding:10, marginBottom:10, display:"flex", flexDirection:"column", gap:8 }}>
+                          <div style={{ fontSize:12, fontWeight:600, color:"#0f172a" }}>Elle indirim</div>
+                          <select value={ef.hedef} onChange={e => set("hedef", e.target.value)} style={kutu}>
+                            <option value="tuition">Kurs ücreti</option>
+                            {d.acc && <option value="accommodation">Konaklama</option>}
+                            <option value="total">Genel toplam</option>
+                          </select>
+                          <div style={{ display:"flex", gap:6 }}>
+                            <button type="button" onClick={() => set("tur", "percentage")} style={secim(ef.tur === "percentage")}>%</button>
+                            <button type="button" onClick={() => set("tur", "fixed")} style={secim(ef.tur === "fixed")}>Tutar ({cur2})</button>
+                            <input type="text" inputMode="decimal" placeholder={ef.tur === "percentage" ? "Örn. 10" : "Örn. 150"} value={ef.deger}
+                              onChange={e => set("deger", e.target.value.replace(/[^0-9.,]/g, ""))} style={{ ...kutu, flex:1, minWidth:0 }} />
+                          </div>
+                          <input type="text" placeholder="Not (isteğe bağlı, PDF'te görünmez)" value={ef.not} maxLength={200}
+                            onChange={e => set("not", e.target.value)} style={kutu} />
+                          {ef.tur === "percentage" && degerNum > 100 && <div style={{ fontSize:11, color:"#dc2626" }}>Yüzde 100'den büyük olamaz.</div>}
+                          <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                            <button type="button" onClick={() => setElleForm(null)} style={{ ...kutu, cursor:"pointer", color:"#475569" }}>Vazgeç</button>
+                            <button type="button" disabled={!gecerli}
+                              onClick={() => { elleIndirimYaz(i, { hedef: ef.hedef, tur: ef.tur, deger: degerNum, not: ef.not.trim() }); setElleForm(null); }}
+                              style={{ ...kutu, cursor: gecerli ? "pointer" : "not-allowed", opacity: gecerli ? 1 : 0.5, border:"none", background:"#16a34a", color:"#fff", fontWeight:600 }}>Uygula</button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {isStaff
                       ? <div style={{ borderTop:`1.5px solid #0f172a`, paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700 }}><span>Toplam</span><span style={{ color:CYAN }}>{fmt(_dt.grandTotal, cur2)}</span></div>
                       : <div style={{ borderTop:`1.5px solid #e2e8f0`, paddingTop:10, marginTop:4, fontSize:12, color:"#64748b", textAlign:"center" }}>Fiyat detayları PDF teklifinizde yer alacaktır.</div>
