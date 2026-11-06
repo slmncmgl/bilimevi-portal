@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.63
+// KayitGuncelle.jsx v1.64
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.63"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.64"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -204,6 +204,29 @@ const TAB_FIELDS = {
   ],
 };
 
+// Ön kayıt (Tally) alanları: n8n sözleşme workflow'larındaki "Ön Kayıt Verisini Map Et" kodunun sheet'e yazdığı alanlar
+// (Grup + Bireysel + Yetişkin birleşimi). Sözleşme Onay Linki oluşana kadar yalnızca bunlar düzenlenebilir;
+// program, ücret, taksit gibi danışmanın sözleşmede gireceği alanlar kilitli kalır. Forma yeni alan eklenirse buraya da ekle.
+const ON_KAYIT_ALANLARI = new Set([
+  "Öğrenci Adı Soyadı", "Öğrenci Doğum Tarihi", "Öğrenci Cep Telefonu", "İkamet Adresi", "Yaşadığı Adres",
+  "Hangi Ek Program", "Hangi Ek Gezi 1", "Hangi Ek Gezi 2", "Hangi Vize Hizmeti", "Hangi Konaklama",
+  "Öğrencinin Cinsiyeti", "Pasaportu Var Mı", "Pasaport Türü", "Okul Adı", "Sınıfı-Şubesi",
+  "Miles & Smiles Üyelik Numarası", "Alerji durumu", "Sürekli kullanılan ilaç", "Kronik hastalık",
+  "Anne Adı Soyadı", "Anne TC", "Anne Telefon", "Anne Mail", "Baba Adı Soyadı", "Baba TC", "Baba Telefon",
+  "Baba Mail", "İmzalayacak Ebeveyn", "Konsolosluğa verilecek mail kime ait", "Ödeme Velisi",
+  "Formu Dolduran Ebeveynin Adı", "Taksit Dönemi Tercihi", "Tercih Edilen Bankalar",
+  "Eklemek İstedikleriniz", "Pasaport Fotoğrafı", "TC Kimlik Fotoğrafı", "Anne TC Kimlik fotoğrafı",
+  "Baba TC Kimlik fotoğrafı", "Öğrenci Mail Adresi", "Kimlik ID", "TC Vatandaşı mısınız?",
+  "TC Dışında Diğer Ülke Vatandaşlığınız Var Mı?", "Diğer Ülke Vatandaşlığınızı Belirtiniz:",
+  "Resmi İşlemlerde Kullanılacak ve Konsolosluğa Verilecek Mail Adresi", "Çalışma Durumu", "Mesleği",
+  "(Üniversitedeyse) Bölümü", "Dil Seviyesi:", "Medeni Durum", "Eşinin Adı – Soyadı", "Eşinin Cep Telefonu",
+  "Eşinin Mail Adresi (varsa)", "Konaklama Tipi", "Özel Diyet", "Diyetinizle İlgili Detaylı Bilgi Veriniz",
+  "Evcil Hayvan Korkusu", "Sağlık Sigortası İstiyor Musunuz? (zorunlu değil)",
+  "Havaalanı Transferi İstiyor musunuz?", "Sigara Kullanıyor Musunuz?", "Kronik Sağlık Probleminiz Var Mı?",
+  "Bu Formdaki Tüm Bilgilerin Doğruluğunu Onaylıyorum.",
+  "Bu Formdaki Tüm Bilgilerin Doğruluğunu Onaylıyorum. (Evet)",
+]);
+
 const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı", "Okul Lokasyonu", "Formu Dolduran Ebeveynin Adı"];
 const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi", "Haftalık Ders Saati", "Öğrenci Cep Telefonu", "Konaklama Süresi (Accommodation Duration)"];
 const FOTO_FIELDS = ["Pasaport Fotoğrafı", "TC Kimlik Fotoğrafı"];
@@ -287,7 +310,7 @@ function Toast({ toast }) {
   );
 }
 
-function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur }) {
+function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur, kilitli }) {
   const isDropdown = !!DROPDOWN_OPTIONS[label];
 
   const taksitIndex = (() => {
@@ -297,7 +320,8 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
   const isTaksitField = taksitIndex !== null;
   const taksitPasif = isTaksitField && taksitIndex > (parseInt(taksitSayisi, 10) || 0);
 
-  const isReadonly = saltOkunur || READONLY_FIELDS.includes(label) || taksitPasif;
+  const isReadonly = saltOkunur || kilitli || READONLY_FIELDS.includes(label) || taksitPasif;
+  const kilitIpucu = kilitli ? "Sözleşme oluşunca düzenlenebilir" : undefined;
   const isOnlyLetters = ONLY_LETTERS.includes(label);
   const isOnlyNumbers = ONLY_NUMBERS.includes(label) || TAKSIT_TUTAR.includes(label);
   const isDate = ["Öğrenci Doğum Tarihi", "Program Başlangıç Tarihi", "Program Bitiş Tarihi"].includes(label) || TAKSIT_DONEM.includes(label);
@@ -351,7 +375,7 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
       <div style={{ position: "relative" }}>
         <textarea
           value={value || ""} onChange={e => onChange(e.target.value)}
-          readOnly={isReadonly} rows={3}
+          readOnly={isReadonly} rows={3} title={kilitIpucu}
           style={{ ...baseStyle, resize: "vertical", paddingRight: "42px" }}
         />
         <KopyalaButonu deger={value} style={{ position: "absolute", right: "6px", top: "6px" }} />
@@ -370,7 +394,7 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur 
         if (isOnlyNumbers) val = val.replace(/\D/g, "");
         onChange(val);
       }}
-      readOnly={isReadonly}
+      readOnly={isReadonly} title={kilitIpucu}
       style={isDate ? baseStyle : { ...baseStyle, paddingRight: "42px" }}
     />
   );
@@ -765,6 +789,9 @@ export default function KayitGuncelle() {
   const tema = "lacivert";
   const bant = { ...s.baslikBant, background: TEMA_RENKLERI[tema].bant, color: TEMA_RENKLERI[tema].yazi };
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+  // Sözleşme Onay Linki yoksa yalnızca ön kayıt alanları düzenlenebilir
+  const sozlesmeVar = !!gecerliLink(data?.["Sözleşme Onay Linki"]);
+  const alanKilitli = key => !sozlesmeVar && !ON_KAYIT_ALANLARI.has(key) && !READONLY_FIELDS.includes(key);
 
   // Bir kaydın taksit toplamı ile program ücreti uyuşuyor mu?
   function taksitFarki(kayit) {
@@ -2019,7 +2046,7 @@ export default function KayitGuncelle() {
                         >
                           <NotIkonu dolu={notSatirlari(ogr["Notlar"]).length > 0} boyut={20} />
                         </button>
-                        {taksitFarki(ogr) && (
+                        {taksitFarki(ogr) && gecerliLink(ogr["Sözleşme Onay Linki"]) && (
                           <button
                             onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
                             title="Taksit toplamı program ücreti ile eşleşmiyor"
@@ -2162,7 +2189,18 @@ export default function KayitGuncelle() {
             <div style={s.formCard}>
               {activeTab === "Özet" ? <OzetPaneli data={data} /> : (
               <>
-              {activeTab === "Taksit" && !saltOkunur && (
+              {/* Sözleşme oluşmadan sadece ön kayıt alanları açık */}
+              {!sozlesmeVar && !saltOkunur && (
+                <div style={{
+                  display: "flex", alignItems: "flex-start", gap: "8px", marginBottom: "14px",
+                  padding: "10px 12px", borderRadius: "8px", fontSize: "12.5px", lineHeight: 1.5,
+                  background: "#f8fafc", border: "1px solid #e2e8f0", color: "#1e3a5f",
+                }}>
+                  <span aria-hidden="true">🔒</span>
+                  <span>Sözleşme henüz oluşmadı. Şimdilik yalnızca ön kayıt bilgileri düzenlenebilir; program, ücret ve taksit alanları sözleşme oluşunca açılır.</span>
+                </div>
+              )}
+              {activeTab === "Taksit" && !saltOkunur && sozlesmeVar && (
                 <label style={{
                   ...s.filtreLabel, fontWeight: "600", whiteSpace: "normal", marginBottom: "14px", color: "#e11d48",
                   padding: "10px 12px", borderRadius: "8px",
@@ -2185,8 +2223,13 @@ export default function KayitGuncelle() {
                       // Aktif taksitlerin "Tutarı" etiketinin yanında sil ikonu
                       const m = key.match(/^(\d+)\. Taksit Tutarı$/);
                       const no = m ? parseInt(m[1], 10) : 0;
-                      const silinebilir = no > 0 && !saltOkunur && no <= (parseInt(data["Taksit Sayısı"], 10) || 0);
-                      if (!silinebilir) return <label style={s.fieldLabel}>{alanEtiketi(key)}</label>;
+                      const silinebilir = no > 0 && !saltOkunur && sozlesmeVar && no <= (parseInt(data["Taksit Sayısı"], 10) || 0);
+                      if (!silinebilir) return (
+                        <label style={s.fieldLabel}>
+                          {alanEtiketi(key)}
+                          {alanKilitli(key) && <span title="Sözleşme oluşunca düzenlenebilir" style={{ marginLeft: "4px", fontSize: "11px" }}>🔒</span>}
+                        </label>
+                      );
                       return (
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
                           <label style={s.fieldLabel}>{alanEtiketi(key)}</label>
@@ -2204,7 +2247,7 @@ export default function KayitGuncelle() {
                         </div>
                       );
                     })()}
-                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} saltOkunur={saltOkunur} />
+                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} saltOkunur={saltOkunur} kilitli={alanKilitli(key)} />
                   </div>
                 ))}
               </div>
