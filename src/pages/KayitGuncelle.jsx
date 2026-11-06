@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.62
+// KayitGuncelle.jsx v1.63
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.62"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.63"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1439,13 +1439,13 @@ export default function KayitGuncelle() {
         .listeKapsul { transition: transform 0.15s, box-shadow 0.15s; }
         .listeKapsul:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,0.28); }
         .listeKapsulBtn { transition: background 0.15s, color 0.15s; }
-        .listeKapsulBtn:hover { background: #eef2f7; }
+        .listeKapsulBtn:hover { background: #eef2f7 !important; }
         /* Yenile: işlem sürerken butonun çevresinde dönen yeşil neon çizgi, bitince yavaşça söner */
         @property --neonAci { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
         @keyframes neonDon { to { --neonAci: 360deg; } }
         .yenileNeon { position: relative; }
         .yenileNeon::before {
-          content: ""; position: absolute; inset: -2px; border-radius: 10px 2px 2px 10px; padding: 2px;
+          content: ""; position: absolute; inset: -2px; border-radius: 11px; padding: 2px;
           background: conic-gradient(from var(--neonAci), transparent 0deg 200deg, #22c55e 290deg, #a7f3d0 345deg, #ecfdf5 360deg);
           -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           -webkit-mask-composite: xor; mask-composite: exclude;
@@ -1725,7 +1725,7 @@ export default function KayitGuncelle() {
                   ...(isMobile ? { lineHeight: 1.3 } : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }),
                 }}>{listeOzeti}</span>
               )}
-              {/* Sağda: son güncelleme çipi (10 dk'yı geçince nokta turuncu) + Yenile / Rapor kapsülü */}
+              {/* Sağda: son güncelleme çipi (10 dk'yı geçince nokta turuncu) + ayrı Yenile ve Rapor butonları */}
               <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: "8px" }}>
                 {sonGuncelleme && (
                   <span
@@ -1744,24 +1744,22 @@ export default function KayitGuncelle() {
                 )}
                 {(() => {
                   const renk = TEMA_RENKLERI[tema].nokta;
+                  // Her buton kendi beyaz kartı; açık Rapor tema renginde dolu
                   const btn = aktif => ({
                     display: "inline-flex", alignItems: "center", gap: "5px", border: "none", margin: 0,
                     padding: isMobile ? "6px 9px" : "5px 11px", fontSize: "12px", fontWeight: 600,
-                    cursor: "pointer", color: aktif ? "#fff" : renk,
-                    ...(aktif ? { background: renk } : { background: "transparent" }),
+                    cursor: "pointer", color: aktif ? "#fff" : renk, background: aktif ? renk : "#fff",
+                    borderRadius: "9px", boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
                   });
                   return (
-                    <span className="listeKapsul" style={{
-                      display: "inline-flex", alignItems: "stretch", background: "#fff",
-                      borderRadius: "9px", boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
-                    }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                       <button
-                        type="button" className={yenileniyor ? "yenileNeon aktif" : "yenileNeon listeKapsulBtn"}
+                        type="button" className={yenileniyor ? "yenileNeon aktif" : "yenileNeon listeKapsul listeKapsulBtn"}
                         onClick={() => listeyiGetir(true)}
                         disabled={yenileniyor}
                         title="Listeyi yenile" aria-label="Listeyi yenile" aria-busy={yenileniyor}
                         style={{
-                          ...btn(false), borderRadius: "9px 0 0 9px",
+                          ...btn(false),
                           cursor: yenileniyor ? "default" : "pointer",
                           color: yenileniyor ? "#94a3b8" : TEMA_RENKLERI[tema].nokta,
                         }}
@@ -1773,13 +1771,12 @@ export default function KayitGuncelle() {
                         </svg>
                         {!isMobile && "Yenile"}
                       </button>
-                      <span style={{ width: "1px", background: "#e2e8f0" }} />
                       <button
-                        type="button" className={grafikAcik ? undefined : "listeKapsulBtn"}
+                        type="button" className={grafikAcik ? "listeKapsul" : "listeKapsul listeKapsulBtn"}
                         onClick={() => { setGrafikAcik(v => !v); setGrafikHover(null); }}
                         title={grafikAcik ? "Raporu kapat" : "Aktivite raporu"} aria-label="Aktivite raporu"
                         aria-pressed={grafikAcik}
-                        style={{ ...btn(grafikAcik), borderRadius: "0 9px 9px 0" }}
+                        style={btn(grafikAcik)}
                       >
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
                           <path d="M4 20h16" /><path d="M7 16v-4" /><path d="M12 16V7" /><path d="M17 16v-7" />
