@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.60
+// KayitGuncelle.jsx v1.61
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.60"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.61"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -757,20 +757,12 @@ export default function KayitGuncelle() {
   const [grafikHover, setGrafikHover] = useState(null);
   // Grafikte seçili şubeler (çoklu); boş dizi = Tümü
   const [grafikSubeler, setGrafikSubeler] = useState(() => Array.isArray(kayitliFiltre.grafikSubeler) ? kayitliFiltre.grafikSubeler : []);
-  // Başlık şeridi rengi: kullanıcıya özel, tarayıcıda kalıcı
-  const TEMA_ANAHTARI = `kayitGuncelleTema:${user?.name || ""}`;
-  // yazi: şerit yazı rengi, rozet: sayaç zemini (açık temada koyu yazı)
+  // Başlık şeritleri tek renk lacivert (tema seçici v1.61'de kaldırıldı)
+  // yazi: şerit yazı rengi, rozet: sayaç zemini
   const TEMA_RENKLERI = {
-    lacivert: { ad: "Lacivert", bant: "linear-gradient(90deg, #1e3a5f, #0891b2)", nokta: "#1e3a5f", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
-    geceMavisi: { ad: "Gece Mavisi", bant: "linear-gradient(90deg, #312e81, #3b82f6)", nokta: "#4338ca", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
-    petrol: { ad: "Petrol", bant: "linear-gradient(90deg, #134e4a, #0f766e)", nokta: "#0f766e", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
-    bordo: { ad: "Bordo", bant: "linear-gradient(90deg, #881337, #be185d)", nokta: "#9f1239", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
-    antrasit: { ad: "Antrasit", bant: "linear-gradient(90deg, #1f2937, #0e7490)", nokta: "#1f2937", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
+    lacivert: { ad: "Lacivert", bant: "#1e3a5f", nokta: "#1e3a5f", yazi: "#fff", rozet: "rgba(255,255,255,0.25)" },
   };
-  const [tema, setTema] = useState(() => {
-    try { const v = localStorage.getItem(TEMA_ANAHTARI); return TEMA_RENKLERI[v] ? v : "lacivert"; } catch { return "lacivert"; }
-  });
-  const temaSec = v => { setTema(v); try { localStorage.setItem(TEMA_ANAHTARI, v); } catch { /* depolama kapalı */ } };
+  const tema = "lacivert";
   const bant = { ...s.baslikBant, background: TEMA_RENKLERI[tema].bant, color: TEMA_RENKLERI[tema].yazi };
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
@@ -1481,18 +1473,6 @@ export default function KayitGuncelle() {
             <div style={s.headerTitleText}>Doldurulan Kayıt Formları</div>
             <div style={s.headerSub}>{user?.name} | Bilimevi</div>
           </div>
-          <div style={{ display: "flex", gap: "6px", alignItems: "center" }} aria-label="Başlık rengi">
-            {Object.entries(TEMA_RENKLERI).map(([k, v]) => (
-              <button
-                key={k} type="button" onClick={() => temaSec(k)} title={`Başlık rengi: ${v.ad}`}
-                style={{
-                  width: "14px", height: "14px", borderRadius: "50%", padding: 0, cursor: "pointer",
-                  background: v.nokta, border: "2px solid #fff",
-                  boxShadow: tema === k ? `0 0 0 1.5px ${v.nokta}` : "0 0 0 1px #e2e8f0",
-                }}
-              />
-            ))}
-          </div>
           <div style={{ color: "#94a3b8", fontSize: "11px", whiteSpace: "nowrap" }}>{SURUM}</div>
         </div>
       </header>
@@ -1622,7 +1602,7 @@ export default function KayitGuncelle() {
                 onClick={filtreleriTemizle}
                 disabled={!filtreDegisti}
                 style={{
-                  // Başlık şeritleriyle aynı lacivert-turkuaz gradyan
+                  // Başlık şeritleriyle aynı düz lacivert
                   // Yükseklik eski boyutta, genişlik eskinin ~1,5 katı
                   alignSelf: "flex-start", marginTop: "2px", padding: "6px 18px", minWidth: "245px",
                   justifyContent: "center",
@@ -2651,7 +2631,7 @@ const s = {
   },
   // Bölüm başlıkları: lacivertten turkuaza gradyan şerit, beyaz yazı (genel form başlık stili)
   baslikBant: {
-    background: "linear-gradient(90deg, #1e3a5f, #0891b2)", color: "#fff",
+    background: "#1e3a5f", color: "#fff",
     fontSize: "13px", fontWeight: "700", letterSpacing: "0.3px", lineHeight: "1.35",
     padding: "9px 12px", borderRadius: "9px", boxSizing: "border-box",
     display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap",
