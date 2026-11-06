@@ -1,9 +1,11 @@
+// v1.1: grid görünüm; sayılar tıklanabilir, tıklanınca o danışman + aşama için lead listesi (LeadPaneli) açılır.
+//       Lead ID Kylas'ta yeni sekmede açılır, not ikonunun üzerine gelince son 3 not görünür (NotBalonu).
 // v1.0: Performans Analizi > CRM Raporu sekmesi
 // Veri kaynağı seçilir, o kaynaktaki Bilimevi pipeline lead'leri danışman x aşama tablosunda sayılır.
 // Sayılar /api/crm-rapor'dan gelir. Danışman adı ve şubesi İzin Yönetimi'ndeki ID (e-posta -> Kylas ID)
 // ve Personel sekmelerinden eşlenir; ID sekmesinde olmayan sahipler "Diğer" satırında toplanır.
 // Rol kuralı Quiz Skorları ile aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const csvUrl = sekme => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sekme)}`;
@@ -25,6 +27,22 @@ const KAYNAKLAR = [
   { id: 2941507, ad: "Websitesi" },
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
+
+const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
+
+async function apiCagir(govde) {
+  const r = await fetch("/api/crm-rapor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(govde) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || `İstek başarısız (HTTP ${r.status})`);
+  return d;
+}
+
+function tarih(v, saatli = false) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (isNaN(d)) return "";
+  return d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", ...(saatli ? { hour: "2-digit", minute: "2-digit" } : {}) });
+}
 
 const ARALIKLAR = [
   { gun: 90, ad: "Son 90 gün" },
@@ -62,6 +80,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [rapor, setRapor] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
+  const [secim, setSecim] = useState(null); // { baslik, ownerIds, asama, asamaAd }
 
   useEffect(() => {
     Promise.all([fetch(csvUrl("ID")).then(r => r.text()), fetch(csvUrl("Personel")).then(r => r.text())])
@@ -81,20 +100,12 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   }, []);
 
   useEffect(() => {
+    setSecim(null);
     if (!kaynak) return;
     let iptal = false;
     setYukleniyor(true);
     setHata(null);
-    fetch("/api/crm-rapor", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kaynak, gun }),
-    })
-      .then(async r => {
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.error || `Rapor alınamadı (HTTP ${r.status})`);
-        return d;
-      })
+    apiCagir({ kaynak, gun })
       .then(d => { if (!iptal) setRapor(d); })
       .catch(e => { if (!iptal) { setRapor(null); setHata(e.message); } })
       .finally(() => { if (!iptal) setYukleniyor(false); });
@@ -104,11 +115,12 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   // Satırları kur: tanınan danışmanlar ayrı, diğer sahipler tek "Diğer" satırında
   const satirlar = [];
   if (rapor && kisiler) {
-    const diger = { ad: "Diğer", sube: "", sayilar: {}, diger: true };
+    const diger = { ad: "Diğer", sube: "", sayilar: {}, diger: true, ownerIds: [] };
     Object.entries(rapor.danismanlar).forEach(([ownerId, sayilar]) => {
       const k = kisiler[ownerId];
-      if (k) satirlar.push({ ...k, sayilar });
-      else Object.entries(sayilar).forEach(([st, n]) => { diger.sayilar[st] = (diger.sayilar[st] || 0) + n; });
+      if (k) { satirlar.push({ ...k, sayilar, ownerIds: [Number(ownerId)] }); return; }
+      if (Number.isInteger(Number(ownerId))) diger.ownerIds.push(Number(ownerId));
+      Object.entries(sayilar).forEach(([st, n]) => { diger.sayilar[st] = (diger.sayilar[st] || 0) + n; });
     });
     if (Object.keys(diger.sayilar).length) satirlar.push(diger);
   }
@@ -127,6 +139,20 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   const asamalar = rapor?.asamalar || [];
   const sutunToplam = id => gorunen.reduce((a, r) => a + (r.sayilar[id] || 0), 0);
   const genelToplam = gorunen.reduce((a, r) => a + r.toplam, 0);
+
+  function hucreSec(r, asama) {
+    if (!r.ownerIds.length) return;
+    setSecim({ anahtar: `${r.ad}:${asama?.id || "tumu"}`, baslik: r.ad, ownerIds: r.ownerIds, asama: asama?.id || null, asamaAd: asama?.ad || "Tüm aşamalar" });
+  }
+  const seciliMi = (r, asama) => secim?.anahtar === `${r.ad}:${asama?.id || "tumu"}`;
+  const sayiHucresi = (r, asama, n, ekStil = {}) => (
+    n ? (
+      <button onClick={() => hucreSec(r, asama)} title="Lead listesini aç"
+        style={{ ...c.sayiBtn, ...ekStil, ...(seciliMi(r, asama) ? c.sayiBtnSecili : {}) }}>
+        {n.toLocaleString("tr-TR")}
+      </button>
+    ) : <span style={{ color: "#cbd5e1" }}>·</span>
+  );
 
   return (
     <>
@@ -180,33 +206,33 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
               </span>
             </div>
             <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <table style={c.grid}>
                 <thead>
-                  <tr style={{ borderBottom: "1.5px solid #e2e8f0" }}>
-                    <th style={{ ...c.th, textAlign: "left", position: "sticky", left: 0, background: "#fff" }}>Danışman</th>
+                  <tr>
+                    <th style={{ ...c.th, ...c.ilkSutun, textAlign: "left", background: "#f8fafc", zIndex: 2 }}>Danışman</th>
                     {asamalar.map(a => <th key={a.id} style={c.th}>{a.ad}</th>)}
-                    <th style={c.th}>Toplam</th>
+                    <th style={{ ...c.th, background: "#ecfeff", color: "#0e7490" }}>Toplam</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {gorunen.map(r => (
-                    <tr key={r.diger ? "diger" : r.email} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ ...c.td, textAlign: "left", position: "sticky", left: 0, background: "#fff", fontWeight: 600, color: r.diger ? "#94a3b8" : "#0f172a", whiteSpace: "nowrap" }}>
-                        {r.ad}
-                        {isAdmin && r.sube && <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 500 }}> · {r.sube}</span>}
-                      </td>
-                      {asamalar.map(a => {
-                        const n = r.sayilar[a.id] || 0;
-                        return <td key={a.id} style={{ ...c.td, color: n ? "#0f172a" : "#cbd5e1" }}>{n ? n.toLocaleString("tr-TR") : "·"}</td>;
-                      })}
-                      <td style={{ ...c.td, fontWeight: 700, color: "#0891b2" }}>{r.toplam.toLocaleString("tr-TR")}</td>
-                    </tr>
-                  ))}
+                  {gorunen.map((r, i) => {
+                    const zemin = i % 2 ? "#fbfdff" : "#fff";
+                    return (
+                      <tr key={r.diger ? "diger" : r.email} style={{ background: zemin }}>
+                        <td style={{ ...c.td, ...c.ilkSutun, textAlign: "left", background: zemin, fontWeight: 600, color: r.diger ? "#94a3b8" : "#0f172a", whiteSpace: "nowrap" }}>
+                          {r.ad}
+                          {isAdmin && r.sube && <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 500 }}> · {r.sube}</span>}
+                        </td>
+                        {asamalar.map(a => <td key={a.id} style={c.td}>{sayiHucresi(r, a, r.sayilar[a.id] || 0)}</td>)}
+                        <td style={{ ...c.td, background: "#f0fdff" }}>{sayiHucresi(r, null, r.toplam, { fontWeight: 700, color: "#0891b2" })}</td>
+                      </tr>
+                    );
+                  })}
                   {gorunen.length > 1 && (
-                    <tr style={{ borderTop: "1.5px solid #e2e8f0", background: "#f8fafc" }}>
-                      <td style={{ ...c.td, textAlign: "left", position: "sticky", left: 0, background: "#f8fafc", fontWeight: 700, color: "#0f172a" }}>Toplam</td>
+                    <tr style={{ background: "#f8fafc" }}>
+                      <td style={{ ...c.td, ...c.ilkSutun, textAlign: "left", background: "#f8fafc", fontWeight: 700, color: "#0f172a" }}>Toplam</td>
                       {asamalar.map(a => <td key={a.id} style={{ ...c.td, fontWeight: 700, color: "#0f172a" }}>{sutunToplam(a.id).toLocaleString("tr-TR")}</td>)}
-                      <td style={{ ...c.td, fontWeight: 700, color: "#0891b2" }}>{genelToplam.toLocaleString("tr-TR")}</td>
+                      <td style={{ ...c.td, fontWeight: 700, color: "#0891b2", background: "#ecfeff" }}>{genelToplam.toLocaleString("tr-TR")}</td>
                     </tr>
                   )}
                 </tbody>
@@ -215,7 +241,127 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
           </div>
         )
       )}
+
+      {secim && kaynak && (
+        <LeadPaneli key={`${secim.anahtar}:${kaynak}:${gun}`} secim={secim} kaynak={kaynak} gun={gun}
+          kaynakAd={KAYNAKLAR.find(k => k.id === kaynak)?.ad} asamalar={asamalar} onKapat={() => setSecim(null)} />
+      )}
     </>
+  );
+}
+
+// Tıklanan hücrenin lead listesi. Sadece açılınca çekilir.
+function LeadPaneli({ secim, kaynak, gun, kaynakAd, asamalar, onKapat }) {
+  const [veri, setVeri] = useState(null);
+  const [hata, setHata] = useState(null);
+  const ref = useRef(null);
+  const notOnbellek = useRef({});
+
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    apiCagir({ islem: "liste", kaynak, gun, ownerIds: secim.ownerIds, asama: secim.asama })
+      .then(setVeri)
+      .catch(e => setHata(e.message));
+  }, []);
+
+  const asamaAdi = id => asamalar.find(a => a.id === id)?.ad || "";
+
+  return (
+    <div ref={ref} style={{ ...c.tablo, marginTop: "20px", scrollMarginTop: "80px" }}>
+      <div style={c.tabloBaslik}>
+        <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
+          {secim.baslik} · {secim.asamaAd} <span style={{ color: "#94a3b8", fontWeight: 500 }}>· {kaynakAd}</span>
+        </span>
+        <span style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {veri && <span style={{ fontSize: "12px", color: "#94a3b8" }}>{veri.toplam.toLocaleString("tr-TR")} lead{veri.toplam > veri.leadler.length ? `, ilk ${veri.leadler.length} gösteriliyor` : ""}</span>}
+          <button onClick={onKapat} style={c.kapatBtn} title="Kapat">✕</button>
+        </span>
+      </div>
+      {!veri && !hata && <div style={c.bos}><span style={c.spinner} /> Lead'ler alınıyor...</div>}
+      {hata && <div style={{ ...c.hata, margin: "16px" }}>{hata}</div>}
+      {veri && (
+        <div style={{ overflowX: "auto", maxHeight: "560px", overflowY: "auto" }}>
+          <table style={c.grid}>
+            <thead>
+              <tr>
+                <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Lead ID</th>
+                <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Ad Soyad</th>
+                {!secim.asama && <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Aşama</th>}
+                <th style={{ ...c.th, position: "sticky", top: 0 }}>Oluşturma</th>
+                <th style={{ ...c.th, position: "sticky", top: 0 }}>Son aktivite</th>
+                <th style={{ ...c.th, position: "sticky", top: 0 }}>Sonraki task</th>
+                <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Notlar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {veri.leadler.map((l, i) => (
+                <tr key={l.id} style={{ background: i % 2 ? "#fbfdff" : "#fff" }}>
+                  <td style={{ ...c.td, textAlign: "left" }}>
+                    <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={c.link}>{l.id}</a>
+                  </td>
+                  <td style={{ ...c.td, textAlign: "left", color: "#0f172a", fontWeight: 600, whiteSpace: "nowrap" }}>{l.ad || <span style={{ color: "#cbd5e1" }}>İsimsiz</span>}</td>
+                  {!secim.asama && <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>{asamaAdi(l.asama)}</td>}
+                  <td style={c.td}>{tarih(l.olusturma)}</td>
+                  <td style={c.td}>{tarih(l.sonAktivite) || <span style={{ color: "#cbd5e1" }}>·</span>}</td>
+                  <td style={{ ...c.td, color: l.sonrakiTask && new Date(l.sonrakiTask) < new Date() ? "#dc2626" : undefined }}>
+                    {tarih(l.sonrakiTask) || <span style={{ color: "#cbd5e1" }}>·</span>}
+                  </td>
+                  <td style={{ ...c.td, textAlign: "center" }}><NotBalonu lead={l} onbellek={notOnbellek} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Not ikonu: üzerine gelince lead'in son 3 notu çekilir (bir kez) ve balonda gösterilir.
+function NotBalonu({ lead, onbellek }) {
+  const [konum, setKonum] = useState(null);
+  const [durum, setDurum] = useState(onbellek.current[lead.id] || null);
+  const zamanlayici = useRef(null);
+
+  function ac(e) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const genislik = 360;
+    setKonum({ left: Math.max(12, Math.min(r.right - genislik, window.innerWidth - genislik - 12)), top: r.bottom + 6, alttan: window.innerHeight - r.top + 6, yukari: r.bottom > window.innerHeight - 260 });
+    if (onbellek.current[lead.id]) { setDurum(onbellek.current[lead.id]); return; }
+    setDurum({ yukleniyor: true });
+    apiCagir({ islem: "notlar", leadId: lead.id, ownerId: lead.ownerId })
+      .then(d => { onbellek.current[lead.id] = d; setDurum(d); })
+      .catch(err => setDurum({ hata: err.message }));
+  }
+
+  return (
+    <span style={{ display: "inline-block" }}
+      onMouseEnter={e => { clearTimeout(zamanlayici.current); ac(e); }}
+      onMouseLeave={() => { zamanlayici.current = setTimeout(() => setKonum(null), 150); }}>
+      <span style={c.notIkon} aria-label="Son notlar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>
+        </svg>
+      </span>
+      {konum && (
+        <div style={{ ...c.balon, left: konum.left, ...(konum.yukari ? { bottom: konum.alttan } : { top: konum.top }) }}
+          onMouseEnter={() => clearTimeout(zamanlayici.current)}
+          onMouseLeave={() => setKonum(null)}>
+          {durum?.yukleniyor && <div style={{ color: "#64748b" }}>Notlar alınıyor...</div>}
+          {durum?.hata && <div style={{ color: "#991b1b" }}>{durum.hata}</div>}
+          {durum?.notlar && durum.notlar.length === 0 && <div style={{ color: "#64748b" }}>Bu lead'de not yok.</div>}
+          {durum?.notlar?.map((n, i) => (
+            <div key={i} style={{ paddingBottom: "10px", marginBottom: "10px", borderBottom: i < durum.notlar.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+              <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>{tarih(n.tarih, true)}{n.yazan ? ` · ${n.yazan}` : ""}</div>
+              <div style={{ whiteSpace: "pre-wrap", color: "#0f172a" }}>{n.metin || <span style={{ color: "#cbd5e1" }}>Boş not</span>}</div>
+            </div>
+          ))}
+          {durum?.toplam > (durum?.notlar?.length || 0) && (
+            <div style={{ fontSize: "11px", color: "#94a3b8" }}>Toplam {durum.toplam} not, son {durum.notlar.length} tanesi gösteriliyor.</div>
+          )}
+        </div>
+      )}
+    </span>
   );
 }
 
@@ -231,6 +377,14 @@ const c = {
   spinner: { display: "inline-block", width: "18px", height: "18px", border: "2px solid #e2e8f0", borderTopColor: "#0891b2", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
   tablo: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", animation: "fadeUp 0.4s ease-out" },
   tabloBaslik: { padding: "18px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" },
-  th: { padding: "10px 12px", textAlign: "right", fontSize: "11px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.4px", whiteSpace: "nowrap" },
-  td: { padding: "11px 12px", textAlign: "right", fontVariantNumeric: "tabular-nums" },
+  grid: { width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: "13px" },
+  th: { padding: "10px 12px", textAlign: "right", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.4px", whiteSpace: "nowrap", background: "#f8fafc", borderBottom: "1.5px solid #e2e8f0", borderRight: "1px solid #e2e8f0", zIndex: 1 },
+  td: { padding: "8px 12px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: "#334155", borderBottom: "1px solid #eef2f6", borderRight: "1px solid #eef2f6" },
+  ilkSutun: { position: "sticky", left: 0, borderRight: "1.5px solid #e2e8f0" },
+  sayiBtn: { background: "none", border: "none", padding: "3px 6px", margin: "-3px -6px", borderRadius: "6px", cursor: "pointer", font: "inherit", color: "#0f172a", fontVariantNumeric: "tabular-nums", textDecoration: "underline", textDecorationColor: "#cbd5e1", textUnderlineOffset: "3px" },
+  sayiBtnSecili: { background: "#0891b2", color: "#fff", textDecoration: "none" },
+  kapatBtn: { width: "28px", height: "28px", borderRadius: "8px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", cursor: "pointer", fontSize: "12px" },
+  link: { color: "#0891b2", fontWeight: 600, textDecoration: "none", fontVariantNumeric: "tabular-nums" },
+  notIkon: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "8px", color: "#64748b", cursor: "default", background: "#f1f5f9" },
+  balon: { position: "fixed", width: "360px", maxHeight: "320px", overflowY: "auto", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 12px 32px rgba(15,23,42,0.16)", padding: "14px 16px", fontSize: "13px", lineHeight: 1.5, textAlign: "left", zIndex: 50 },
 };
