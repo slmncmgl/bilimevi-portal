@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.61
+// KayitGuncelle.jsx v1.62
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.61"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.62"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -797,7 +797,11 @@ export default function KayitGuncelle() {
     if (!user?.name) return;
     if (elle) setYenileniyor(true); else setOgrencilerLoading(true);
     try {
-      const res = await fetch(`${FETCH_URL}?danisman=${encodeURIComponent(user.name)}&_t=${Date.now()}`, { cache: "no-store" });
+      const [res] = await Promise.all([
+        fetch(`${FETCH_URL}?danisman=${encodeURIComponent(user.name)}&_t=${Date.now()}`, { cache: "no-store" }),
+        // Elle yenilemede neon çizgi en az bir tur dönsün
+        new Promise(r => setTimeout(r, elle ? 1000 : 0)),
+      ]);
       const json = await res.json();
       if (json.found && json.list) {
         if (elle) {
@@ -1369,13 +1373,13 @@ export default function KayitGuncelle() {
 
   // Liste başlığındaki aktif filtre özeti (tarih ve okul seçimi yazılmaz)
   const listeOzeti = aramaTerimi
-    ? `"${tc.trim()}" araması, tüm kayıtlarda`
+    ? `"${tc.trim()}" Araması, Tüm Kayıtlarda`
     : [
-        sadeceGrup ? "Grup kayıtları" : "Tüm kayıt türleri (Grup, Bireysel, Yetişkin)",
-        sadeceBenim && "Kendi öğrencilerim",
-        onayliGoster && "Onaylı sözleşmeler",
-        beklemedeGoster && "Onay bekleyenler",
-        sozlesmesizGoster && "Hazırlanacak sözleşmeler",
+        sadeceGrup ? "Grup Kayıtları" : "Tüm Kayıt Türleri (Grup, Bireysel, Yetişkin)",
+        sadeceBenim && "Kendi Öğrencilerim",
+        onayliGoster && "Onaylı Sözleşmeler",
+        beklemedeGoster && "Onay Bekleyenler",
+        sozlesmesizGoster && "Hazırlanacak Sözleşmeler",
       ].filter(Boolean).join(" · ");
 
   // Aktivite grafiği: listede görünen kayıtlar Eklenme Tarihi'ne göre son 7 gün, son 30 gün
@@ -1436,6 +1440,20 @@ export default function KayitGuncelle() {
         .listeKapsul:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,0.28); }
         .listeKapsulBtn { transition: background 0.15s, color 0.15s; }
         .listeKapsulBtn:hover { background: #eef2f7; }
+        /* Yenile: işlem sürerken butonun çevresinde dönen yeşil neon çizgi, bitince yavaşça söner */
+        @property --neonAci { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+        @keyframes neonDon { to { --neonAci: 360deg; } }
+        .yenileNeon { position: relative; }
+        .yenileNeon::before {
+          content: ""; position: absolute; inset: -2px; border-radius: 10px 2px 2px 10px; padding: 2px;
+          background: conic-gradient(from var(--neonAci), transparent 0deg 200deg, #22c55e 290deg, #a7f3d0 345deg, #ecfdf5 360deg);
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor; mask-composite: exclude;
+          filter: drop-shadow(0 0 3px #4ade80) drop-shadow(0 0 7px rgba(74,222,128,0.7));
+          animation: neonDon 0.9s linear infinite;
+          opacity: 0; transition: opacity 1.4s ease-out; pointer-events: none;
+        }
+        .yenileNeon.aktif::before { opacity: 1; transition: opacity 0.25s ease-in; }
         @keyframes notBalonGiris {
           from { opacity: 0; transform: translateY(-4px); }
           to   { opacity: 1; transform: translateY(0); }
@@ -1735,20 +1753,25 @@ export default function KayitGuncelle() {
                   return (
                     <span className="listeKapsul" style={{
                       display: "inline-flex", alignItems: "stretch", background: "#fff",
-                      borderRadius: "9px", overflow: "hidden", boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
+                      borderRadius: "9px", boxShadow: "0 1px 3px rgba(15,23,42,0.18)",
                     }}>
                       <button
-                        type="button" className={yenileniyor ? undefined : "listeKapsulBtn"}
-                        onClick={() => !yenileniyor && listeyiGetir(true)}
-                        title="Listeyi yenile" aria-label="Listeyi yenile"
-                        style={{ ...btn(false), cursor: yenileniyor ? "default" : "pointer" }}
+                        type="button" className={yenileniyor ? "yenileNeon aktif" : "yenileNeon listeKapsulBtn"}
+                        onClick={() => listeyiGetir(true)}
+                        disabled={yenileniyor}
+                        title="Listeyi yenile" aria-label="Listeyi yenile" aria-busy={yenileniyor}
+                        style={{
+                          ...btn(false), borderRadius: "9px 0 0 9px",
+                          cursor: yenileniyor ? "default" : "pointer",
+                          color: yenileniyor ? "#94a3b8" : TEMA_RENKLERI[tema].nokta,
+                        }}
                       >
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3"
                           strokeLinecap="round" strokeLinejoin="round"
-                          style={{ animation: yenileniyor ? "spin 0.8s linear infinite" : "none" }}>
+                          >
                           <path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" />
                         </svg>
-                        {!isMobile && (yenileniyor ? "Yenileniyor" : "Yenile")}
+                        {!isMobile && "Yenile"}
                       </button>
                       <span style={{ width: "1px", background: "#e2e8f0" }} />
                       <button
@@ -1756,7 +1779,7 @@ export default function KayitGuncelle() {
                         onClick={() => { setGrafikAcik(v => !v); setGrafikHover(null); }}
                         title={grafikAcik ? "Raporu kapat" : "Aktivite raporu"} aria-label="Aktivite raporu"
                         aria-pressed={grafikAcik}
-                        style={btn(grafikAcik)}
+                        style={{ ...btn(grafikAcik), borderRadius: "0 9px 9px 0" }}
                       >
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
                           <path d="M4 20h16" /><path d="M7 16v-4" /><path d="M12 16V7" /><path d="M17 16v-7" />
@@ -2620,7 +2643,7 @@ const s = {
     color: "#3d5a8a", background: "#eef2f9", borderRadius: "6px", padding: "3px 6px",
   },
   searchInput: { flex: 1, padding: "10px", borderRadius: "10px", border: "1px solid #e2e8f0", outline: "none", position: "relative", zIndex: 20 },
-  searchBtn: { padding: "10px 20px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "600", position: "relative", zIndex: 20 },
+  searchBtn: { padding: "10px 20px", background: "#2c5282", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "600", position: "relative", zIndex: 20 },
   listCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
   listHeader: { fontWeight: "700", marginBottom: "15px", fontSize: "14px" },
   filtreSelect: {
