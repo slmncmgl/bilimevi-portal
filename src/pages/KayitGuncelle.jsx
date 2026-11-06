@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.66
+// KayitGuncelle.jsx v1.67
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.66"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.67"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1911,15 +1911,17 @@ export default function KayitGuncelle() {
                 uzun metin "…" ile kesilir. Mobilde tablo eskisi gibi içeriğe göre genişler, yana kayar. */}
             <table style={isMobile ? s.table : { ...s.table, tableLayout: "fixed" }}>
               {!isMobile && (
+                // Sadece kısa sütunlar sabit px; Öğrenci, TR Okul ve Yaz Okulu kalan alanı eşit paylaşır.
+                // (v1.66'daki yüzde + px toplamı dar ekranda tabloyu aşıp Yaz Okulu sütununu sıfırlıyordu)
                 <colgroup>
-                  <col style={{ width: "48px" }} />
-                  <col style={{ width: "108px" }} />
-                  <col style={{ width: "19%" }} />
-                  <col style={{ width: "17%" }} />
+                  <col style={{ width: "40px" }} />
+                  <col style={{ width: "88px" }} />
                   <col />
-                  <col style={{ width: "13%" }} />
-                  <col style={{ width: "82px" }} />
-                  <col style={{ width: "300px" }} />
+                  <col />
+                  <col />
+                  <col style={{ width: "120px" }} />
+                  <col style={{ width: "68px" }} />
+                  <col style={{ width: "292px" }} />
                 </colgroup>
               )}
               <thead>
