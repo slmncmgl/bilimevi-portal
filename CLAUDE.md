@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 4 Kasım 2026 (v120 hedefli konaklama indirimi). Repo'daki BFT sürümü: `v120-konaklama-indirimi-2026-11-04`.
+Son güncelleme: 6 Kasım 2026 (v121 master_index Sheets API). Repo'daki BFT sürümü: `v121-sheets-api-2026-11-06`.
 
 ## Kapsam
 
@@ -71,7 +71,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 ### Vercel (staff modu)
 
 - Staff portalı Vercel'de, adres **`https://portal.bilimevi.com`** (30 Ekim 2026'dan beri; eskiden `bilimevi-portal.vercel.app`). BFT: `/fiyat-teklifi`. `vercel.json` SPA rewrite ve `api/` serverless fonksiyonları (`auth.js`, `gemini.js`, `kylas.js`).
-- Env: `VITE_MASTER_ID`, `VITE_TEKLIF_ARSIV_URL`, `VITE_GOOGLE_CLIENT_ID`, `VITE_REDIRECT_URI`, `GOOGLE_CLIENT_SECRET`, `GEMINI_API_KEY`, `KYLAS_API_KEY`.
+- Env: `VITE_MASTER_ID`, `VITE_TEKLIF_ARSIV_URL`, `VITE_GOOGLE_CLIENT_ID`, `VITE_REDIRECT_URI`, `GOOGLE_CLIENT_SECRET`, `GEMINI_API_KEY`, `KYLAS_API_KEY`, `GOOGLE_SHEETS_API_KEY` (v121, `api/sheet.js`; sadece Sheets API'ye kısıtlı key, `VITE_` ön eki yok).
 - **Her dal için önizleme var:** `bilimevi-portal-git-<dal>-....vercel.app`. Staff tarafındaki değişiklikler merge'den önce bu adreste denenebilir. WordPress tarafının önizlemesi yok, o sadece main'den deploy olur.
 - main'e her push'un staff portalını da canlıya çıkardığını varsay. WordPress'teki `paths-ignore` filtresi Vercel'i etkilemez; sadece md değişse de Vercel build alır. Bilerek dokunulmadı (kullanıcı kararı 20 Ekim 2026). İstenirse Vercel ayarlarındaki "Ignored Build Step" ile yapılır.
 - **Hobby plan:** commit yazarı Vercel hesabının sahibi değilse deploy "Blocked" olur. Bu yüzden commit kimliği her zaman `Selman C. <it@bilimevi.com>` olmalı (bkz. Çalışma kuralları).
@@ -117,6 +117,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 ## Bilinen tuzaklar
 
+- **gviz/tq sheet'te açık filtreyi uygular** (v121): `master_index`'te biri filtre açınca portal sadece görünen satırları alıyordu, okullar ve fiyatlar kayboluyordu. gviz ayrıca karışık tipli sütunlarda azınlık tipindeki değerleri boş döndürür (`parse_last_updated`'da görüldü). Staff `master_index` ve `city_description`'ı artık `api/sheet.js` (Sheets API v4, `FORMATTED_VALUE`) ile okur; key yoksa ya da API hata verirse gviz'e düşer ve konsola `[BFT] Sheets API okunamadı` yazar. **Okul sheet'leri bilerek gviz'de:** 29 onaylı okulun 23'ü Drive'da .xlsx dosyası, Sheets API onları okuyamıyor (6 Kasım 2026). Okul sheet'lerinde normal filtre açılmamalı. **Customer modu (`data-proxy.php`) hâlâ gviz ile okuyor**, WordPress sitelerinde master filtresi sorunu PHP güncellenene kadar sürer.
 - **Staff adresi değişirse `detectMode()` güncellenmeli.** `BFT_CONFIG.mode` yoksa mod `hostname`'den bulunur: `portal.bilimevi.com` (birebir), `vercel.app` ve `localhost` staff, gerisi customer. Listede olmayan bir staff adresinde portal sessizce customer moduna düşer ve veriyi `/wp-json` proxy'sinden okumaya çalışır. `.bilimevi.com` ile biten her adresi staff sayma, WordPress siteleri customer kalmalı. Aynı değişiklikte Vercel'deki `VITE_REDIRECT_URI` ve Google OAuth izinli adresleri de güncellenir (`Login.jsx`'teki yedek adres hâlâ eski Vercel adresi, env doluyken kullanılmaz).
 - `minify: true` yapma: canlıda React #31 / "Cannot access '_' before initialization" geri gelir. Kök neden 3 tur sonra DEBUG build ile bulundu.
 - LiteSpeed Cache: BFT sayfasında **Guest Optimization ve JS Combine kapalı** olmalı, açılırsa portal kırılır. Lokal testte görünmez.
@@ -161,6 +162,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 ## Durum (30 Ekim 2026)
 
+- **v121 (6 Kasım):** staff `master_index` / `city_description` Sheets API ile (`api/sheet.js`). `GOOGLE_SHEETS_API_KEY` Vercel'e girilene kadar gviz yedeği çalışır. Bekleyen: `data-proxy.php`'de master okumasının Sheets API'ye geçmesi (kullanıcıdan güncel dosya istenecek).
 - **v118 push edildi (30 Ekim):** staff portalı `portal.bilimevi.com`'a taşındı, `detectMode()` bu adı staff sayar. Sadece bu satır ve sürüm değişti.
 - **v117 push edildi.** Repo'daki `FiyatTeklifi.jsx`, sohbette teslim edilen v117 ile birebir aynı (commit 16 Ekim, "Update FiyatTeklifi.jsx"). Push otomatik deploy'u tetiklediği için ingilteredil ve maltadil'de v117 olmalı, almanyadil belirsiz.
 - **v120 push edildi (4 Kasım):** hedefli konaklama indirimi (yukarıdaki veri sözleşmesi maddesi). Parse tarafı: `parse_common` discounts'a 3 sütun ekleyecek (koordinatörde), LSI scriptine kampanya satırlarını LSI oturumu ekleyecek.

@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v120-konaklama-indirimi-2026-11-04";
+const BFT_BUILD_VERSION = "v121-sheets-api-2026-11-06";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -228,11 +228,44 @@ function parseCSV(csv) {
 // Staff (Vercel): doğrudan gviz. Customer (WordPress): proxy (Sheet ID gizli).
 // desc: { kind:"master"|"city_description"|"school", brand?, tab? } — customer için
 //       staff için ayrıca sheetId + sheetName kullanılır.
-async function fetchCSVStaff(sheetId, sheetName) {
+// v121: master_index (MASTER_ID) staff'ta /api/sheet (Sheets API v4) ile okunur. gviz sheet'te açık filtreyi
+// uyguluyordu: master_index'te filtre açılınca portal sadece görünen satırları alıyor, okullar/fiyatlar kayboluyordu.
+// API filtreleri dikkate almaz. Key tanımlı değilse ya da API hata verirse eski gviz yoluna düşer.
+// Okul sheet'leri bilerek gviz'de kalır: çoğu Drive'da .xlsx dosyası, Sheets API onları okuyamıyor.
+// Sekme yoksa (kod: tab_yok) hata fırlatır: gviz olmayan sekmede ilk sekmeyi döndürüyordu.
+function valuesToRows(values) {
+  if (!Array.isArray(values) || !values.length) return [];
+  const headers = (values[0] || []).map(h => String(h ?? "").replace(/"/g, "").trim());
+  return values.slice(1).map(cols => {
+    const row = {};
+    headers.forEach((h, i) => { row[h] = String((cols && cols[i]) ?? "").trim(); });
+    return row;
+  });
+}
+
+async function fetchCSVStaffGviz(sheetId, sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error("Sheet okunamadi: " + sheetName);
   return parseCSV(await res.text());
+}
+
+async function fetchCSVStaffApi(sheetId, sheetName) {
+  let res, data;
+  try {
+    res = await fetch("/api/sheet", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sheetId, tab: sheetName }),
+    });
+    data = await res.json().catch(() => null);
+  } catch (e) {
+    res = null;
+  }
+  if (res && res.ok && data && Array.isArray(data.values)) return valuesToRows(data.values);
+  if (data && data.kod === "tab_yok") throw new Error("Sekme bulunamadı: " + sheetName);
+  console.warn(`[BFT] Sheets API okunamadı (${sheetName}: ${data?.kod || res?.status || "ağ hatası"}), gviz ile okunuyor. Sheet'te filtre açıksa satırlar eksik gelebilir.`);
+  return fetchCSVStaffGviz(sheetId, sheetName);
 }
 
 async function fetchCSVProxy(desc) {
@@ -255,15 +288,15 @@ async function fetchCSVProxy(desc) {
 }
 
 async function fetchNav(isStaff) {
-  // Staff: doğrudan gviz (MASTER_ID kodda). Customer: proxy (ID gizli).
+  // Staff: /api/sheet (Sheets API, v121), olmazsa gviz. Customer: proxy (ID gizli).
   const rows = isStaff
-    ? await fetchCSVStaff(MASTER_ID, "master_index")
+    ? await fetchCSVStaffApi(MASTER_ID, "master_index")
     : await fetchCSVProxy({ sheet: "master" });
   // Okul+şehir açıklamaları (city_description sekmesi); hata olursa boş geç
   let descriptions = {};
   try {
     const descRows = isStaff
-      ? await fetchCSVStaff(MASTER_ID, "city_description")
+      ? await fetchCSVStaffApi(MASTER_ID, "city_description")
       : await fetchCSVProxy({ sheet: "city_description" });
     descRows.forEach(r => {
       const brand = (r.school_brand || "").trim();
@@ -340,7 +373,7 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
   if (!window._CITY_CACHE) window._CITY_CACHE = {};
   if (window._CITY_CACHE[key]) return window._CITY_CACHE[key];
   const getTab = (tab) => isStaff
-    ? fetchCSVStaff(sheetId, tab)
+    ? fetchCSVStaffGviz(sheetId, tab)   // v121: okul sheet'leri gviz'de kalır (.xlsx, API okuyamaz)
     : fetchCSVProxy({ sheet: "school", brand, tab });
   // Kritik sekmeler için tek seferlik yeniden deneme.
   // Google gviz / proxy ara sıra yavaş yanıtlıyor veya rate-limit uyguluyor;
