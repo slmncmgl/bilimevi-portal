@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.65
+// KayitGuncelle.jsx v1.66
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.65"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.66"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1907,7 +1907,21 @@ export default function KayitGuncelle() {
             {/* Satırlar tek satırda kalır; mobilde tablo yana kayar, sayfa taşmaz.
                 Masaüstünde kaydırma kapalı ki not ve program balonları kırpılmasın. */}
             <div style={isMobile ? { overflowX: "auto", WebkitOverflowScrolling: "touch" } : undefined}>
-            <table style={s.table}>
+            {/* Masaüstünde sütun genişlikleri sabit (table-layout: fixed): sayfadaki değerler değişince sütunlar kaymaz,
+                uzun metin "…" ile kesilir. Mobilde tablo eskisi gibi içeriğe göre genişler, yana kayar. */}
+            <table style={isMobile ? s.table : { ...s.table, tableLayout: "fixed" }}>
+              {!isMobile && (
+                <colgroup>
+                  <col style={{ width: "48px" }} />
+                  <col style={{ width: "108px" }} />
+                  <col style={{ width: "19%" }} />
+                  <col style={{ width: "17%" }} />
+                  <col />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "82px" }} />
+                  <col style={{ width: "300px" }} />
+                </colgroup>
+              )}
               <thead>
                 <tr style={{ borderBottom: "2px solid #e2e8f0" }}>
                   <th style={{ ...s.th, width: "1%", textAlign: "right" }}>#</th>
@@ -1939,7 +1953,7 @@ export default function KayitGuncelle() {
                       {formTarihiMetni(ogr)}
                     </td>
                     <td style={{ ...s.td, position: "relative", whiteSpace: "nowrap" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "nowrap", whiteSpace: "nowrap" }}>
+                      <span title={basHarfBuyuk(ogr["Öğrenci Adı Soyadı"])} style={s.hucreKes}>
                         {basHarfBuyuk(ogr["Öğrenci Adı Soyadı"])}
                       </span>
                       {/* Satırda başka bir balon (Yaz Okulu, durum) açıkken not balonu gizlenir: aynı anda tek balon */}
@@ -1963,10 +1977,10 @@ export default function KayitGuncelle() {
                         const acik = programHover === anahtar;
                         return (
                           <span
-                            style={{ position: "relative", cursor: "default" }}
+                            style={{ position: "relative", cursor: "default", display: "block" }}
                             onClick={() => isMobile && setProgramHover(acik ? null : anahtar)}
                           >
-                            {programKisa(ad)}
+                            <span title={ad} style={s.hucreKes}>{programKisa(ad)}</span>
                             {acik && tam && (
                               <span style={s.programBalon}>{tam}</span>
                             )}
@@ -1985,11 +1999,11 @@ export default function KayitGuncelle() {
                           const acik = programHover === anahtar;
                           return (
                             <span
-                              style={{ position: "relative", cursor: "default" }}
+                              style={{ position: "relative", cursor: "default", display: "block" }}
                               onMouseEnter={() => setProgramHover(anahtar)}
                               onMouseLeave={() => setProgramHover(null)}
                             >
-                              {programKisa(yazOkulu)}
+                              <span style={s.hucreKes}>{programKisa(yazOkulu)}</span>
                               {acik && tamForm && tamForm !== "-" && (
                                 <span style={s.programBalon}>{tamForm}</span>
                               )}
@@ -1999,7 +2013,9 @@ export default function KayitGuncelle() {
                       </td>
                     )}
                     <td style={{ ...s.td, color: ogr["Danışman Adı"] ? "#0f172a" : "#94a3b8" }}>
-                      {basHarfBuyuk(ogr["Danışman Adı"]) || "Atanmamış"}
+                      <span title={basHarfBuyuk(ogr["Danışman Adı"]) || undefined} style={s.hucreKes}>
+                        {basHarfBuyuk(ogr["Danışman Adı"]) || "Atanmamış"}
+                      </span>
                     </td>
                     <td style={{ ...s.td, textAlign: "center" }}>
                       {(() => {
@@ -2703,6 +2719,8 @@ const s = {
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
   th: { padding: "10px 12px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#64748b" },
   td: { padding: "8px 10px", fontSize: "13px", color: "#0f172a", verticalAlign: "middle" },
+  // Sabit genişlikli hücrede taşan metni "…" ile keser (balonlar dış span'de olduğu için kırpılmaz)
+  hucreKes: { display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   pagination: { display: "flex", gap: "6px", justifyContent: "center", alignItems: "center", marginTop: "18px", flexWrap: "wrap" },
   pageBtn: { minWidth: "34px", height: "34px", padding: "0 8px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontFamily: "'Sora', sans-serif", background: "transparent" },
   pageNav: { height: "34px", padding: "0 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", color: "#1e3a5f", fontSize: "13px", fontWeight: "600", fontFamily: "'Sora', sans-serif" },
