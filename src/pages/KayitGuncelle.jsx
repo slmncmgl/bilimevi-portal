@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.64
+// KayitGuncelle.jsx v1.65
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.64"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.65"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1579,7 +1579,8 @@ export default function KayitGuncelle() {
             }}>
               {/* Kutucuklar iki sütunda: solda 3, sağda Beklemede + Hazırlanmamış (mobilde alt alta) */}
               <div style={{ display: "flex", gap: isMobile ? "10px" : "32px", flexDirection: isMobile ? "column" : "row" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {/* Sol sütun sabit genişlikte: sayılar değişince sağ sütun kaymaz */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", ...(isMobile ? {} : { width: "230px", flexShrink: 0 }) }}>
               <label
                 style={{
                   ...s.filtreLabel,
