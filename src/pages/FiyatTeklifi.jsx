@@ -17,11 +17,15 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v122-elle-indirim-2026-11-06";
+const BFT_BUILD_VERSION = "v123-surum-etiketi-2026-11-06";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
 }
+// v123: staff sayfasının altında görünen sürüm etiketi (Dashboard'daki gibi): "Fiyat Teklifi v123 · <commit>".
+// Commit kodu Vercel build'inde vite.config.js'teki __BUILD_SHA__'dan gelir. Etiket sadece staff'ta görünür (WordPress'te yok).
+const BFT_BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
+const BFT_SURUM_METNI = `Fiyat Teklifi ${BFT_BUILD_VERSION.split("-")[0]}${BFT_BUILD_SHA ? ` · ${BFT_BUILD_SHA}` : ""}`;
 
 // Logolar: customer modda WordPress plugin assets URL'inden yüklenir
 const ASSETS_URL = (typeof window !== "undefined" && window.BFT_CONFIG?.assetsUrl) || null;
@@ -3514,6 +3518,7 @@ export default function FiyatTeklifi() {
           )}
         </aside>}
       </div>
+      {isStaff && <div style={{ textAlign:"center", fontSize:11, color:"#94a3b8", padding:"16px 0 8px" }}>{BFT_SURUM_METNI}</div>}
     </div>
 
     <PdfTemplate destinations={destinations} student={student} user={user} logoSrc={logoSrc} />

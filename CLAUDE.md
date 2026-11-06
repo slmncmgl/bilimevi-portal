@@ -30,7 +30,7 @@ Son güncelleme: 6 Kasım 2026 (v122 elle indirim). Repo'daki BFT sürümü: `v1
 ## Versiyon kuralı
 
 - Her kod değişikliğinde sürüm yükselir, istisna yok.
-- JSX: `FiyatTeklifi.jsx` 18. satır, `const BFT_BUILD_VERSION = "vNNN-kisa-aciklama-YYYY-MM-DD";`. Numara bir artar (v117 → v118). Bu değer tarayıcı konsoluna `[BFT] Build: ...` olarak yazılır ve `window.__BFT_VERSION`'da durur. Canlıda hangi sürümün çalıştığı buradan kontrol edilir.
+- JSX: `FiyatTeklifi.jsx` 18. satır, `const BFT_BUILD_VERSION = "vNNN-kisa-aciklama-YYYY-MM-DD";`. Numara bir artar (v117 → v118). Bu değer tarayıcı konsoluna `[BFT] Build: ...` olarak yazılır ve `window.__BFT_VERSION`'da durur. Canlıda hangi sürümün çalıştığı buradan kontrol edilir. v123'ten beri staff sayfasının en altında küçük puntoyla da görünür (`Fiyat Teklifi v123 · <commit>`, `BFT_SURUM_METNI`); kullanıcıya canlı kontrolde konsol değil bu etiket söylenir.
 - Dashboard'un kendi serisi var: `src/pages/Dashboard.jsx` başındaki `// vX.Y:` notları ve aynı dosyadaki `const DASHBOARD_VERSION`. İkisi birlikte yükselir. Değer ana sayfanın en altında küçük puntoyla (Vercel commit kodu ile birlikte, ör. `Dashboard v1.8 · d19d176`) ve `window.__DASHBOARD_VERSION`'da görünür. Commit kodu `vite.config.js`'teki `__BUILD_SHA__` ile Vercel'in `VERCEL_GIT_COMMIT_SHA` değişkeninden gelir.
 - Bir numara tek bir işe verilir. v112'de aynı numara iki işe verilmişti, karışıklık çıktı.
 - Apps Script'lerin kendi serisi var: teklif arşivi `A1, A2...` (`ARSIV_VERSION`), kampanya takip `K1, K2, K3...` (`TAKIP_VERSION`). Dosya başındaki başlık yorumunu da güncelle.
