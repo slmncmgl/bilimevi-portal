@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.67
+// KayitGuncelle.jsx v1.68
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.67"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.68"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1911,16 +1911,16 @@ export default function KayitGuncelle() {
                 uzun metin "…" ile kesilir. Mobilde tablo eskisi gibi içeriğe göre genişler, yana kayar. */}
             <table style={isMobile ? s.table : { ...s.table, tableLayout: "fixed" }}>
               {!isMobile && (
-                // Sadece kısa sütunlar sabit px; Öğrenci, TR Okul ve Yaz Okulu kalan alanı eşit paylaşır.
-                // (v1.66'daki yüzde + px toplamı dar ekranda tabloyu aşıp Yaz Okulu sütununu sıfırlıyordu)
+                // Kısa sütunlar sabit px, Öğrenci %13,5; TR Okul ve Yaz Okulu kalan alanı eşit paylaşır.
+                // Toplam dar ekranda da tabloyu aşmaz (v1.66'da aşınca Yaz Okulu sütunu sıfırlanıyordu).
                 <colgroup>
                   <col style={{ width: "40px" }} />
                   <col style={{ width: "88px" }} />
-                  <col />
+                  <col style={{ width: "13.5%" }} />
                   <col />
                   <col />
                   <col style={{ width: "120px" }} />
-                  <col style={{ width: "68px" }} />
+                  <col style={{ width: "56px" }} />
                   <col style={{ width: "292px" }} />
                 </colgroup>
               )}
@@ -1932,7 +1932,7 @@ export default function KayitGuncelle() {
                   <th style={s.th}>TR Okul Adı</th>
                   {!isMobile && <th style={s.th}>{sadeceGrup ? "Yaz Okulu Adı" : "Yaz / Dil Okulu Adı"}</th>}
                   <th style={s.th}>Danışman</th>
-                  <th style={{ ...s.th, textAlign: "center" }}>Sözleşme</th>
+                  <th style={{ ...s.th, textAlign: "center", padding: "10px 0", fontSize: "11px" }}>Sözleşme</th>
                   <th style={s.th}></th>
                 </tr>
               </thead>
