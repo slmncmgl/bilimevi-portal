@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.68
+// KayitGuncelle.jsx v1.69
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.68"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.69"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1921,7 +1921,7 @@ export default function KayitGuncelle() {
                   <col />
                   <col style={{ width: "120px" }} />
                   <col style={{ width: "56px" }} />
-                  <col style={{ width: "292px" }} />
+                  <col style={{ width: "250px" }} />
                 </colgroup>
               )}
               <thead>
@@ -2065,18 +2065,22 @@ export default function KayitGuncelle() {
                         >
                           <NotIkonu dolu={notSatirlari(ogr["Notlar"]).length > 0} boyut={20} />
                         </button>
-                        {taksitFarki(ogr) && gecerliLink(ogr["Sözleşme Onay Linki"]) && (
+                        {/* ⚠️ taksit uyarısı ayrı buton değil, Düzenle'nin sağ üst köşesinde rozet: buton sütunu daralır */}
+                        <span style={{ position: "relative", display: "inline-flex" }}>
                           <button
-                            onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
-                            title="Taksit toplamı program ücreti ile eşleşmiyor"
-                            style={{ ...s.warnBtn, ...s.aksiyonBtn, width: s.aksiyonBtn.height, padding: 0 }}
-                          >⚠️</button>
-                        )}
-                        <button
-                          // Danışmanı olmayan kayıtlar da düzenlenebilir açılır
-                          onClick={() => sorgula(ogr["TC Kimlik No"])}
-                          style={{ ...s.editBtn, ...s.aksiyonBtn, minWidth: "76px" }}
-                        >{ogr["Danışman Adı"] ? "Düzenle" : "Görüntüle"}</button>
+                            // Danışmanı olmayan kayıtlar da düzenlenebilir açılır
+                            onClick={() => sorgula(ogr["TC Kimlik No"])}
+                            style={{ ...s.editBtn, ...s.aksiyonBtn, minWidth: "76px" }}
+                          >{ogr["Danışman Adı"] ? "Düzenle" : "Görüntüle"}</button>
+                          {taksitFarki(ogr) && gecerliLink(ogr["Sözleşme Onay Linki"]) && (
+                            <button
+                              onClick={() => setTaksitOneri({ ...taksitFarki(ogr), kayit: ogr })}
+                              title="Taksit toplamı program ücreti ile eşleşmiyor"
+                              aria-label="Taksit uyarısı"
+                              style={s.taksitRozet}
+                            >⚠️</button>
+                          )}
+                        </span>
                         {(() => {
                           // Tek sözleşme butonu: link varsa Göster, danışman yoksa Oluştur, danışman var link yoksa Hazırlanıyor (pasif)
                           const link = gecerliLink(ogr["Sözleşme Onay Linki"]);
@@ -2784,6 +2788,13 @@ const s = {
     boxSizing: "border-box", resize: "vertical", lineHeight: "1.5",
   },
   formBtn: { padding: "5px 12px", background: "#fffbeb", color: "#92400e", border: "1px solid #fcd34d", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
+  taksitRozet: {
+    position: "absolute", top: "-7px", right: "-7px", zIndex: 2,
+    width: "22px", height: "22px", padding: 0, borderRadius: "50%",
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+    background: "#fef2f2", border: "1px solid #fca5a5", fontSize: "11px", lineHeight: 1,
+    cursor: "pointer", boxShadow: "0 1px 3px rgba(15,23,42,0.15)",
+  },
   warnBtn: { padding: "5px 8px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "6px", cursor: "pointer", fontSize: "12px", lineHeight: 1 },
   viewBtn: { padding: "5px 12px", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", whiteSpace: "nowrap" },
   sendBtn: { padding: "5px 12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
