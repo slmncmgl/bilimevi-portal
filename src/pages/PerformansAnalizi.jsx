@@ -1,3 +1,4 @@
+// v1.2: "Takip Raporu" sekmesinin adı "Aktivite Tablosu" oldu; en soldaki ve varsayılan sekme o
 // v1.1: üçüncü sekme "Takip Raporu" (TakipRaporu.jsx)
 // v1.0: iki sekme. Varsayılan "CRM Raporu" (CrmRaporu.jsx), ikinci "Quiz Skorları" (önceki içerik, davranışı aynı)
 import { useState, useEffect } from "react";
@@ -131,7 +132,7 @@ export default function PerformansAnalizi() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [seciliDanisman, setSeciliDanisman] = useState(null);
-  const [sekme, setSekme] = useState("crm");
+  const [sekme, setSekme] = useState("takip");
 
   useEffect(() => {
     if (!user) { navigate("/"); return; }
@@ -219,7 +220,7 @@ export default function PerformansAnalizi() {
 
       <main style={s.main}>
         <div style={s.sekmeler}>
-          {[["crm", "CRM Raporu"], ["takip", "Takip Raporu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
+          {[["takip", "Aktivite Tablosu"], ["crm", "CRM Raporu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
             <button key={k} onClick={() => setSekme(k)} style={sekme === k ? s.sekmeAktif : s.sekme}>{ad}</button>
           ))}
         </div>

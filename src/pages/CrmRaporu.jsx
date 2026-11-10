@@ -1,3 +1,5 @@
+// v1.4: birden fazla veri kaynağı seçilebilir (✓ ile işaretlenir, "Tümü" hepsini seçer, "Temizle" boşaltır).
+//       Seçim değişince istek 400 ms bekleyip gider, art arda tıklamalar tek istek olur.
 // v1.3: satış ekibi listesi (SATIS_EKIBI). Tabloda sadece satış danışmanları ayrı satır, diğer sahipler "Diğer" satırında.
 //       Staff her durumda kendi satırını görür. Sunucu da artık rolü kontrol ediyor (api/_yetki.js).
 // v1.2: kişi yükleme, NotBalonu ve yardımcılar TakipRaporu.jsx için dışa açıldı (davranış aynı)
@@ -103,13 +105,19 @@ export async function kisileriYukle() {
 export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null); // kylasId -> { ad, sube, email }
   const [kisiHata, setKisiHata] = useState(null);
-  const [kaynak, setKaynak] = useState(null);
+  const [kaynaklar, setKaynaklar] = useState([]); // seçili kaynak id'leri
   const [gun, setGun] = useState(90);
   const [sube, setSube] = useState("Tümü");
   const [rapor, setRapor] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
   const [secim, setSecim] = useState(null); // { baslik, ownerIds, asama, asamaAd }
+
+  const kaynakAnahtari = [...kaynaklar].sort((a, b) => a - b).join(",");
+  const kaynakDegistir = id => setKaynaklar(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
+  const seciliAdlar = KAYNAKLAR.filter(k => kaynaklar.includes(k.id)).map(k => k.ad);
+  const kaynakAdlari = seciliAdlar.length === KAYNAKLAR.length ? "Tüm kaynaklar"
+    : seciliAdlar.length > 3 ? `${seciliAdlar.slice(0, 3).join(", ")} +${seciliAdlar.length - 3}` : seciliAdlar.join(", ");
 
   useEffect(() => {
     kisileriYukle()
@@ -119,16 +127,18 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
 
   useEffect(() => {
     setSecim(null);
-    if (!kaynak) return;
+    if (!kaynaklar.length) { setRapor(null); return; }
     let iptal = false;
     setYukleniyor(true);
     setHata(null);
-    apiCagir({ kaynak, gun })
-      .then(d => { if (!iptal) setRapor(d); })
-      .catch(e => { if (!iptal) { setRapor(null); setHata(e.message); } })
-      .finally(() => { if (!iptal) setYukleniyor(false); });
-    return () => { iptal = true; };
-  }, [kaynak, gun]);
+    const zamanlayici = setTimeout(() => {
+      apiCagir({ kaynaklar, gun })
+        .then(d => { if (!iptal) setRapor(d); })
+        .catch(e => { if (!iptal) { setRapor(null); setHata(e.message); } })
+        .finally(() => { if (!iptal) setYukleniyor(false); });
+    }, 400);
+    return () => { iptal = true; clearTimeout(zamanlayici); };
+  }, [kaynakAnahtari, gun]);
 
   // Satırları kur: tanınan danışmanlar ayrı, diğer sahipler tek "Diğer" satırında
   const satirlar = [];
@@ -176,10 +186,14 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   return (
     <>
       <div style={c.panel}>
-        <div style={c.etiket}>Veri kaynağı</div>
+        <div style={c.etiket}>Veri kaynağı (birden fazla seçilebilir)</div>
         <div style={c.chipSatir}>
+          <button onClick={() => setKaynaklar(KAYNAKLAR.map(k => k.id))} style={kaynaklar.length === KAYNAKLAR.length ? c.chipAktif : c.chip}>Tümü</button>
+          {kaynaklar.length > 0 && <button onClick={() => setKaynaklar([])} style={{ ...c.chip, color: "#dc2626", borderColor: "#fecaca" }}>Temizle</button>}
           {KAYNAKLAR.map(k => (
-            <button key={k.id} onClick={() => setKaynak(k.id)} style={kaynak === k.id ? c.chipAktif : c.chip}>{k.ad}</button>
+            <button key={k.id} onClick={() => kaynakDegistir(k.id)} style={kaynaklar.includes(k.id) ? c.chipAktif : c.chip}>
+              {kaynaklar.includes(k.id) ? "✓ " : ""}{k.ad}
+            </button>
           ))}
         </div>
         <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", marginTop: "16px" }}>
@@ -205,20 +219,20 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
       </div>
 
       {kisiHata && <div style={c.hata}>{kisiHata}</div>}
-      {!kaynak && <div style={c.bos}>Raporu görmek için bir veri kaynağı seçin.</div>}
-      {kaynak && yukleniyor && (
+      {!kaynaklar.length && <div style={c.bos}>Raporu görmek için bir ya da birden fazla veri kaynağı seçin.</div>}
+      {kaynaklar.length > 0 && yukleniyor && (
         <div style={c.bos}><span style={c.spinner} /> Kylas'tan sayılar alınıyor...</div>
       )}
-      {kaynak && !yukleniyor && hata && <div style={c.hata}>{hata}</div>}
+      {kaynaklar.length > 0 && !yukleniyor && hata && <div style={c.hata}>{hata}</div>}
 
-      {kaynak && !yukleniyor && !hata && rapor && kisiler && (
+      {kaynaklar.length > 0 && !yukleniyor && !hata && rapor && kisiler && (
         gorunen.length === 0 ? (
           <div style={c.bos}>Bu kaynakta size ait lead bulunmuyor.</div>
         ) : (
           <div style={c.tablo}>
             <div style={c.tabloBaslik}>
               <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
-                {KAYNAKLAR.find(k => k.id === kaynak)?.ad} · Bilimevi pipeline
+                {kaynakAdlari} · Bilimevi pipeline
               </span>
               <span style={{ fontSize: "12px", color: "#94a3b8" }}>
                 {genelToplam.toLocaleString("tr-TR")} lead · {new Date(rapor.guncellendi).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} itibarıyla
@@ -261,16 +275,16 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
         )
       )}
 
-      {secim && kaynak && (
-        <LeadPaneli key={`${secim.anahtar}:${kaynak}:${gun}`} secim={secim} kaynak={kaynak} gun={gun}
-          kaynakAd={KAYNAKLAR.find(k => k.id === kaynak)?.ad} asamalar={asamalar} onKapat={() => setSecim(null)} />
+      {secim && kaynaklar.length > 0 && (
+        <LeadPaneli key={`${secim.anahtar}:${kaynakAnahtari}:${gun}`} secim={secim} kaynaklar={kaynaklar} gun={gun}
+          kaynakAd={kaynakAdlari} asamalar={asamalar} onKapat={() => setSecim(null)} />
       )}
     </>
   );
 }
 
 // Tıklanan hücrenin lead listesi. Sadece açılınca çekilir.
-function LeadPaneli({ secim, kaynak, gun, kaynakAd, asamalar, onKapat }) {
+function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat }) {
   const [veri, setVeri] = useState(null);
   const [hata, setHata] = useState(null);
   const ref = useRef(null);
@@ -278,7 +292,7 @@ function LeadPaneli({ secim, kaynak, gun, kaynakAd, asamalar, onKapat }) {
 
   useEffect(() => {
     ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    apiCagir({ islem: "liste", kaynak, gun, ownerIds: secim.ownerIds, asama: secim.asama })
+    apiCagir({ islem: "liste", kaynaklar, gun, ownerIds: secim.ownerIds, asama: secim.asama })
       .then(setVeri)
       .catch(e => setHata(e.message));
   }, []);

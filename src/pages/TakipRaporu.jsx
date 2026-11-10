@@ -1,3 +1,5 @@
+// v1.5: "Sessizlik süresi" başlığı "Son Etkinlik Tarihi" oldu. "VIP Datalar" düğmesi öne çıkarıldı: etrafında dönen neon çerçeve ve hafif parıltı (hareket azaltma açıksa durur)
+// v1.4: ekrandaki adı "Aktivite Tablosu" (dosya adı aynı kaldı)
 // v1.3: "Gecikmiş task" ve "Takipsiz" kartları tıklanabilir; tıklanan kartın lead'leri aşağıda listelenir
 //       (gecikmiş listede task tarihi ve kaç gün geciktiği görünür). Filtreler ve sayfalama iki listede de geçerli.
 // v1.2: aşama filtresi çoklu seçim (hiçbiri seçili değilse hepsi), kaynak filtresi Tümü / VIP Datalar.
@@ -97,6 +99,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
   return (
     <>
+      <style>{VIP_CSS}</style>
       <div style={c.panel}>
         {isAdmin && subeler.length > 2 && (
           <div style={{ marginBottom: "16px" }}>
@@ -116,7 +119,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           </div>
         )}
         <div>
-          <div style={c.etiket}>Sessizlik süresi</div>
+          <div style={c.etiket}>Son Etkinlik Tarihi</div>
           <div style={c.chipSatir}>
             {SESSIZ_SECENEKLER.map(g => <button key={g} onClick={() => setSessizGun(g)} style={sessizGun === g ? c.chipAktif : c.chip}>{g} günden eski</button>)}
           </div>
@@ -159,9 +162,13 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               <div>
                 <div style={c.etiket}>Kaynak</div>
                 <div style={c.chipSatir}>
-                  {KAYNAK_FILTRELERI.map(f => (
+                  {KAYNAK_FILTRELERI.map(f => (f.k === "vip" ? (
+                    <button key={f.k} onClick={() => setKaynakFiltre(f.k)} className={`vip-neon${kaynakFiltre === f.k ? " vip-neon-aktif" : ""}`}>
+                      <span>★ {f.ad} ({kaynakSayisi(f)})</span>
+                    </button>
+                  ) : (
                     <button key={f.k} onClick={() => setKaynakFiltre(f.k)} style={kaynakFiltre === f.k ? c.chipAktif : c.chip}>{f.ad} ({kaynakSayisi(f)})</button>
-                  ))}
+                  )))}
                 </div>
               </div>
             </div>
@@ -253,6 +260,23 @@ function Kart({ sayi, etiket, alt, renk = "#0f172a", zemin = "#fff", cerceve = "
     </div>
   );
 }
+
+// VIP Datalar düğmesi: arkada dönen konik renk geçişi 2px'lik neon çerçeve gibi görünür, dışta altın parıltı nefes alır
+const VIP_CSS = `
+.vip-neon { position: relative; isolation: isolate; overflow: hidden; padding: 2px; border: none; border-radius: 999px;
+  background: transparent; cursor: pointer; font-family: 'Sora', sans-serif; animation: vipParilti 2.4s ease-in-out infinite; }
+.vip-neon::before { content: ""; position: absolute; inset: -200%; z-index: -1;
+  background: conic-gradient(from 0deg, transparent 0 55%, #f59e0b 65%, #fde047 72%, #f472b6 80%, #a855f7 88%, transparent 95%);
+  animation: vipDon 2.4s linear infinite; }
+.vip-neon > span { display: block; padding: 5px 14px; border-radius: 999px; background: #fffbeb; color: #92400e;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.2px; transition: all 0.15s; }
+.vip-neon:hover > span { background: #fef3c7; }
+.vip-neon-aktif > span { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
+.vip-neon-aktif:hover > span { background: linear-gradient(135deg, #f59e0b, #b45309); }
+@keyframes vipDon { to { transform: rotate(360deg); } }
+@keyframes vipParilti { 0%, 100% { box-shadow: 0 0 6px rgba(245, 158, 11, 0.35); } 50% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.75), 0 0 28px rgba(244, 114, 182, 0.3); } }
+@media (prefers-reduced-motion: reduce) { .vip-neon, .vip-neon::before { animation: none; } .vip-neon::before { background: linear-gradient(90deg, #f59e0b, #f472b6); } }
+`;
 
 const t = {
   kartlar: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px", animation: "fadeUp 0.4s ease-out" },

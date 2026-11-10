@@ -1,3 +1,4 @@
+// v1.5: birden fazla veri kaynağı: { kaynaklar: [id, ..] } (eski tek "kaynak" da kabul edilir)
 // v1.4: islem "takip" gecikmiş task'lı lead'leri de döndürür (gecikmis: en eski task önce)
 // v1.3: sunucu tarafı rol kontrolü (api/_yetki.js): staff sadece kendi, manager kendi şubesinin lead'lerini alabilir.
 //       Şimdilik izleme modunda: kural dışı istekler "[yetki]" önekiyle loglanır, geçer. CRM_YETKI_ENFORCE=1 ile zorunlu olur.
@@ -168,12 +169,14 @@ export default async function handler(req, res) {
     try { return await notlar(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
   }
 
-  const kaynak = Number(req.body?.kaynak);
+  const hamKaynaklar = Array.isArray(req.body?.kaynaklar) ? req.body.kaynaklar : [req.body?.kaynak];
+  const kaynaklar = [...new Set(hamKaynaklar.map(Number))].filter(k => Number.isInteger(k) && k > 0).sort((a, b) => a - b);
   const gun = req.body?.gun ? Number(req.body.gun) : null;
-  if (!Number.isInteger(kaynak) || kaynak <= 0) return res.status(400).json({ error: "Geçerli bir veri kaynağı seçin." });
+  if (!kaynaklar.length || kaynaklar.length !== hamKaynaklar.length) return res.status(400).json({ error: "Geçerli bir veri kaynağı seçin." });
+  if (kaynaklar.length > 30) return res.status(400).json({ error: "En fazla 30 kaynak seçilebilir." });
   if (gun !== null && (!Number.isInteger(gun) || gun < 1 || gun > 3650)) return res.status(400).json({ error: "Geçersiz gün aralığı." });
 
-  const kurallar = [kural("source", "equal", kaynak), kural("pipeline", "equal", PIPELINE_ID)];
+  const kurallar = [kaynaklar.length === 1 ? kural("source", "equal", kaynaklar[0]) : kural("source", "in", kaynaklar), kural("pipeline", "equal", PIPELINE_ID)];
   if (gun) kurallar.push(kural("createdAt", "last_n_days", gun, "date"));
 
   if (req.body?.islem === "liste") {
@@ -189,7 +192,7 @@ export default async function handler(req, res) {
   };
   if (yetki.tur !== "admin" && !["manager", "staff"].includes(yetki.tur) && !yetkiKontrol(yetki, [], res, "crm-rapor özet")) return;
 
-  const anahtar = `${kaynak}:${gun || "tumu"}`;
+  const anahtar = `${kaynaklar.join(",")}:${gun || "tumu"}`;
   const kayit = onbellek.get(anahtar);
   if (kayit && Date.now() - kayit.zaman < ONBELLEK_MS) return res.status(200).json(suz(kayit.veri));
 
@@ -213,7 +216,7 @@ export default async function handler(req, res) {
       danismanlar[o][st] = (danismanlar[o][st] || 0) + 1;
     }
 
-    const veri = { kaynak, gun, toplam: leadler.length, asamalar: ASAMALAR, danismanlar, guncellendi: new Date().toISOString() };
+    const veri = { kaynaklar, gun, toplam: leadler.length, asamalar: ASAMALAR, danismanlar, guncellendi: new Date().toISOString() };
     onbellek.set(anahtar, { zaman: Date.now(), veri });
     return res.status(200).json(suz(veri));
   } catch (err) {
