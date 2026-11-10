@@ -74,6 +74,15 @@ assert.equal(await durum("yabanci@x.com", { islem: "takip", ownerId: 101 }), 403
 assert.equal(await durum(null, { islem: "takip", ownerId: 101 }), 401, "token'sız reddedilir");
 assert.equal(await durum(null, { kaynak: 2675584, gun: 90 }), 401, "token'sız özet de reddedilir");
 
+// 2b. Çoklu danışman (Aktivite Tablosu)
+assert.equal(await durum("mehmet@x.com", { islem: "takip", ownerIds: [100, 101, 102] }), 200, "manager şubesindekileri birlikte görür");
+assert.equal(await durum("mehmet@x.com", { islem: "takip", ownerIds: [101, 200] }), 403, "içinde başka şube varsa red");
+assert.equal(await durum("su@x.com", { islem: "takip", ownerIds: [101] }), 200);
+assert.equal(await durum("ali@x.com", { islem: "takip", ownerIds: [100, 200] }), 200);
+assert.equal(await durum("ali@x.com", { islem: "takip", ownerIds: [] }), 400, "boş liste 400");
+r = await iste("ali@x.com", { islem: "takip", ownerIds: [101, 200] });
+assert.ok(r.body.danismanlar["101"] && r.body.danismanlar["200"], "danışman başına özet"); // sahte arama sahibe göre süzmez
+
 // 3. Özet tablo süzülür
 r = await iste("mehmet@x.com", { kaynak: 2675584, gun: 90 });
 assert.deepEqual(Object.keys(r.body.danismanlar).sort(), ["100", "101"], "manager sadece Kadıköy'ü alır");

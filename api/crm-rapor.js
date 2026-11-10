@@ -1,3 +1,7 @@
+// v1.8: task sadece Görüşme ve İlgili'de beklenir. ileriTask, gecikmisTask, taskYok ve gecikmiş listesi bu iki aşamadan;
+//       taskBeklenen = Görüşme + İlgili lead sayısı. toplam ve takipsiz tanımı değişmedi (Na1-İlgili, task yok + sessiz).
+// v1.7: islem "takip" birden fazla danışman alır: { ownerIds: [..] } (eski tek "ownerId" de geçer).
+//       Cevapta danışman başına özet de var: danismanlar { ownerId: { toplam, ileriTask, gecikmisTask, taskYok, takipsiz } }
 // v1.6: islem "takip" isteğe bağlı { kaynaklar: [..] } alır (boşsa tüm kaynaklar)
 // v1.5: birden fazla veri kaynağı: { kaynaklar: [id, ..] } (eski tek "kaynak" da kabul edilir)
 // v1.4: islem "takip" gecikmiş task'lı lead'leri de döndürür (gecikmis: en eski task önce)
@@ -98,26 +102,32 @@ async function notlar(req, res, yetki) {
 
 // Takip edilmesi gereken açık aşamalar: Na1, Na2, Na3, Görüşme, İlgili
 const TAKIP_ASAMALARI = [222366, 253357, 253358, 218701, 218702];
+// Task beklenen aşamalar: Görüşme, İlgili (Na1-Na3'te task beklenmez)
+const TASK_ASAMALARI = [218701, 218702];
 
 async function takip(req, res, yetki) {
-  const ownerId = Number(req.body?.ownerId);
+  const hamSahipler = Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : [req.body?.ownerId];
+  const ownerIds = [...new Set(hamSahipler.map(Number))].filter(Number.isInteger);
   const sessizGun = req.body?.sessizGun ? Number(req.body.sessizGun) : 14;
-  if (!Number.isInteger(ownerId)) return res.status(400).json({ error: "Danışman seçilmedi." });
+  if (!ownerIds.length || ownerIds.length !== hamSahipler.length) return res.status(400).json({ error: "Danışman seçilmedi." });
+  if (ownerIds.length > 100) return res.status(400).json({ error: "En fazla 100 danışman seçilebilir." });
   if (!Number.isInteger(sessizGun) || sessizGun < 1 || sessizGun > 365) return res.status(400).json({ error: "Geçersiz gün." });
   const hamKaynaklar = Array.isArray(req.body?.kaynaklar) ? req.body.kaynaklar : [];
   const kaynaklar = [...new Set(hamKaynaklar.map(Number))].filter(k => Number.isInteger(k) && k > 0);
   if (kaynaklar.length !== hamKaynaklar.length || kaynaklar.length > 30) return res.status(400).json({ error: "Geçersiz veri kaynağı." });
-  if (!yetkiKontrol(yetki, [ownerId], res, "crm-rapor takip")) return;
+  if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor takip")) return;
 
-  const kurallar = [kural("ownerId", "equal", ownerId), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", TAKIP_ASAMALARI)];
+  const kurallar = [ownerIds.length === 1 ? kural("ownerId", "equal", ownerIds[0]) : kural("ownerId", "in", ownerIds), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", TAKIP_ASAMALARI)];
   if (kaynaklar.length) kurallar.push(kural("source", "in", kaynaklar));
   const leadler = await hepsiniCek(kurallar, [...LISTE_ALANLARI, "source"]);
-  if (leadler === null) return res.status(422).json({ error: "Bu danışmanda 10.000'den fazla açık lead var." });
+  if (leadler === null) return res.status(422).json({ error: "Seçimde 10.000'den fazla açık lead var, daha az danışman ya da kaynak seçin." });
 
   const simdi = Date.now();
   const sinir = simdi - sessizGun * 24 * 60 * 60 * 1000;
   const zaman = v => (v ? new Date(v).getTime() : null);
-  const ozet = { toplam: leadler.length, ileriTask: 0, gecikmisTask: 0, taskYok: 0, takipsiz: 0 };
+  const bosOzet = () => ({ toplam: 0, taskBeklenen: 0, ileriTask: 0, gecikmisTask: 0, taskYok: 0, takipsiz: 0 });
+  const ozet = bosOzet();
+  const danismanlar = Object.fromEntries(ownerIds.map(id => [id, bosOzet()]));
   const takipsiz = [];
   const gecikmis = [];
   const satir = l => ({
@@ -125,19 +135,25 @@ async function takip(req, res, yetki) {
     olusturma: l.createdAt || null, sonAktivite: l.latestActivityCreatedAt || null, sonrakiTask: l.taskDueOn || null,
   });
   for (const l of leadler) {
+    const d = danismanlar[l.ownerId] || (danismanlar[l.ownerId] = bosOzet());
+    const say = alan => { ozet[alan]++; d[alan]++; };
+    say("toplam");
     const task = zaman(l.taskDueOn);
-    if (task && task >= simdi) ozet.ileriTask++;
-    else if (task) { ozet.gecikmisTask++; gecikmis.push(satir(l)); }
-    else ozet.taskYok++;
+    if (TASK_ASAMALARI.includes(l.pipelineStage)) {
+      say("taskBeklenen");
+      if (task && task >= simdi) say("ileriTask");
+      else if (task) { say("gecikmisTask"); gecikmis.push(satir(l)); }
+      else say("taskYok");
+    }
     const akt = zaman(l.latestActivityCreatedAt);
     if (!task && (!akt || akt < sinir)) {
-      ozet.takipsiz++;
+      say("takipsiz");
       takipsiz.push(satir(l));
     }
   }
   takipsiz.sort((a, b) => (zaman(a.sonAktivite) || 0) - (zaman(b.sonAktivite) || 0));
   gecikmis.sort((a, b) => zaman(a.sonrakiTask) - zaman(b.sonrakiTask));
-  return res.status(200).json({ ozet, sessizGun, kaynaklar, takipsiz, gecikmis, guncellendi: new Date().toISOString() });
+  return res.status(200).json({ ozet, danismanlar, sessizGun, kaynaklar, takipsiz, gecikmis, guncellendi: new Date().toISOString() });
 }
 
 async function liste(req, res, kurallar, yetki) {
