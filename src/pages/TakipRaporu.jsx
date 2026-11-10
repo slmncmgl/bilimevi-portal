@@ -1,3 +1,4 @@
+// v2.0: ekran açılınca görebildiği tüm danışmanlar ve VIP Datalar seçili gelir
 // v1.9: task sadece Görüşme ve İlgili'de beklenir: "Task beklenen" kartı eklendi; ileri/gecikmiş task ve takip oranı
 //       bu iki aşamadan hesaplanır (sunucu crm-rapor v1.8). Açık lead ve takipsiz Na1-İlgili kapsamında kaldı.
 // v1.8: danışman çoklu seçim (Tümünü seç / Temizle). Birden fazla danışman seçiliyse kartlar toplamı gösterir,
@@ -22,7 +23,7 @@ import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v1.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v2.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -44,7 +45,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
   const [asamaSecim, setAsamaSecim] = useState([]); // boşsa tüm aşamalar
-  const [kaynaklar, setKaynaklar] = useState([]); // boşsa tüm kaynaklar
+  const [kaynaklar, setKaynaklar] = useState(VIP_KAYNAKLAR); // varsayılan VIP Datalar; boşsa tüm kaynaklar
   const [sayfaBoyu, setSayfaBoyu] = useState(20);
   const [sayfa, setSayfa] = useState(1);
   const [gorunum, setGorunum] = useState("takipsiz"); // "takipsiz" | "gecikmis"
@@ -67,9 +68,9 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const subeler = ["Tümü", ...[...new Set(satisci.map(k => k.sube).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"))];
 
-  // Staff tek kişidir, doğrudan kendi raporu açılır
+  // Varsayılan: görebildiği tüm danışmanlar seçili (admin satış ekibi, manager şubesi, staff kendisi)
   useEffect(() => {
-    if (!isAdmin && !isManager && !danismanlar.length && secilebilir.length === 1) setDanismanlar([secilebilir[0].id]);
+    if (kisiler && !danismanlar.length && secilebilir.length) setDanismanlar(secilebilir.map(k => k.id));
   }, [kisiler]);
   // Şube değişince görünmeyen danışmanlar seçimden düşer
   const secilebilirAnahtar = secilebilir.map(k => k.id).join(",");

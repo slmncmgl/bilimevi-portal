@@ -1,3 +1,4 @@
+// v1.8: ekran açılınca VIP Datalar seçili gelir (danışmanlar zaten hepsi görünür); tablo başlığı menüdeki özetle aynı (★ VIP Datalar gibi)
 // v1.7: menüdeki VIP Datalar hızlı seçimine Setrow Marketing eklendi
 // v1.6: veri kaynağı açılır çoklu seçim menüsünde (KaynakSecici.jsx); tarih ve şube aynı satırda.
 // v1.5: kaynak düğmeleri eşit genişlikte ızgarada; Tümü / Temizle başlık satırının sağında. Sürüm etiketi için CRM_SURUM.
@@ -14,7 +15,7 @@
 // ve Personel sekmelerinden eşlenir; ID sekmesinde olmayan sahipler "Diğer" satırında toplanır.
 // Rol kuralı Quiz Skorları ile aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
 import { useState, useEffect, useRef } from "react";
-import KaynakSecici from "./KaynakSecici";
+import KaynakSecici, { VIP_KAYNAKLAR, kaynakOzeti } from "./KaynakSecici";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const csvUrl = sekme => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sekme)}`;
@@ -37,7 +38,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v1.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v1.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -111,7 +112,7 @@ export async function kisileriYukle() {
 export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null); // kylasId -> { ad, sube, email }
   const [kisiHata, setKisiHata] = useState(null);
-  const [kaynaklar, setKaynaklar] = useState([]); // seçili kaynak id'leri
+  const [kaynaklar, setKaynaklar] = useState(VIP_KAYNAKLAR); // seçili kaynak id'leri, varsayılan VIP Datalar
   const [gun, setGun] = useState(90);
   const [sube, setSube] = useState("Tümü");
   const [rapor, setRapor] = useState(null);
@@ -120,9 +121,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [secim, setSecim] = useState(null); // { baslik, ownerIds, asama, asamaAd }
 
   const kaynakAnahtari = [...kaynaklar].sort((a, b) => a - b).join(",");
-  const seciliAdlar = KAYNAKLAR.filter(k => kaynaklar.includes(k.id)).map(k => k.ad);
-  const kaynakAdlari = seciliAdlar.length === KAYNAKLAR.length ? "Tüm kaynaklar"
-    : seciliAdlar.length > 3 ? `${seciliAdlar.slice(0, 3).join(", ")} +${seciliAdlar.length - 3}` : seciliAdlar.join(", ");
+  const kaynakAdlari = kaynakOzeti(KAYNAKLAR, kaynaklar, "");
 
   useEffect(() => {
     kisileriYukle()

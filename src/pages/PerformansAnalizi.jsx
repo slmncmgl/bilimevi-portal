@@ -1,3 +1,4 @@
+// v1.7: iki sekmede de varsayılan VIP Datalar, Aktivite Tablosu'nda tüm danışmanlar seçili
 // v1.6: Aktivite Tablosu v1.8 (danışman çoklu seçim, karşılaştırma tablosu)
 // v1.5: VIP Datalar'a Setrow Marketing (Aktivite Tablosu v1.7, CRM Raporu v1.7)
 // v1.4: CRM Raporu v1.6 ve Aktivite Tablosu v1.6 (açılır kaynak seçimi)
@@ -12,7 +13,7 @@ import CrmRaporu, { CRM_SURUM } from "./CrmRaporu";
 import TakipRaporu, { AKTIVITE_SURUM } from "./TakipRaporu";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v1.6"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v1.7"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · CRM Raporu ${CRM_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
