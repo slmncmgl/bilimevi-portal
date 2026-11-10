@@ -1,3 +1,4 @@
+// v2.1: ekrandaki "lead" yazıları "Data" oldu. Task sadece İlgili'de beklenir (Görüşme de çıkarıldı, sunucu crm-rapor v1.9)
 // v2.0: ekran açılınca görebildiği tüm danışmanlar ve VIP Datalar seçili gelir
 // v1.9: task sadece Görüşme ve İlgili'de beklenir: "Task beklenen" kartı eklendi; ileri/gecikmiş task ve takip oranı
 //       bu iki aşamadan hesaplanır (sunucu crm-rapor v1.8). Açık lead ve takipsiz Na1-İlgili kapsamında kaldı.
@@ -23,7 +24,7 @@ import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v2.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v2.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -123,7 +124,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const gecerliSayfa = Math.min(sayfa, sayfaSayisi);
   const sayfaListesi = liste.slice((gecerliSayfa - 1) * sayfaBoyu, gecerliSayfa * sayfaBoyu);
   const o = rapor?.ozet;
-  // Takip oranı: Görüşme + İlgili lead'lerinden ileri tarihli task'ı olanların payı
+  // Takip oranı: İlgili aşamasındaki datalardan ileri tarihli task'ı olanların payı
   const takipOrani = o && o.taskBeklenen ? Math.round((o.ileriTask / o.taskBeklenen) * 100) : 0;
 
   return (
@@ -179,16 +180,16 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
       {kisiHata && <div style={c.hata}>{kisiHata}</div>}
       {kisiler && !danismanlar.length && <div style={c.bos}>Raporu görmek için bir ya da birden fazla danışman seçin.</div>}
-      {danismanlar.length > 0 && yukleniyor && <div style={c.bos}><span style={c.spinner} /> Kylas'tan lead'ler alınıyor...</div>}
+      {danismanlar.length > 0 && yukleniyor && <div style={c.bos}><span style={c.spinner} /> Kylas'tan Datalar alınıyor...</div>}
       {danismanlar.length > 0 && !yukleniyor && hata && <div style={c.hata}>{hata}</div>}
 
       {danismanlar.length > 0 && !yukleniyor && !hata && rapor && (
         <>
           <div style={t.kartlar}>
-            <Kart sayi={o.toplam} etiket="Açık lead (Na1-İlgili)" />
-            <Kart sayi={o.taskBeklenen} etiket="Task beklenen" alt="Görüşme + İlgili" />
-            <Kart sayi={o.ileriTask} etiket="İleri tarihli task" alt="Görüşme + İlgili" renk="#166534" zemin="#f0fdf4" cerceve="#86efac" />
-            <Kart sayi={o.gecikmisTask} etiket="Gecikmiş task" alt="Görüşme + İlgili" renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
+            <Kart sayi={o.toplam} etiket="Açık Data (Na1-İlgili)" />
+            <Kart sayi={o.taskBeklenen} etiket="Task beklenen" alt="Sadece İlgili" />
+            <Kart sayi={o.ileriTask} etiket="İleri tarihli task" alt="Sadece İlgili" renk="#166534" zemin="#f0fdf4" cerceve="#86efac" />
+            <Kart sayi={o.gecikmisTask} etiket="Gecikmiş task" alt="Sadece İlgili" renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
               secili={gecikmisGorunum} onClick={() => setGorunum("gecikmis")} />
             <Kart sayi={o.takipsiz} etiket={`Takipsiz (${sessizGun}+ gün)`} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
               secili={!gecikmisGorunum} onClick={() => setGorunum("takipsiz")} />
@@ -206,7 +207,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   <thead>
                     <tr>
                       <th style={{ ...c.th, textAlign: "left" }}>Danışman</th>
-                      {["Açık lead", "Task beklenen", "İleri task", "Gecikmiş task", `Takipsiz (${sessizGun}+ gün)`, "Takip oranı"].map(b => <th key={b} style={c.th}>{b}</th>)}
+                      {["Açık Data", "Task beklenen", "İleri task", "Gecikmiş task", `Takipsiz (${sessizGun}+ gün)`, "Takip oranı"].map(b => <th key={b} style={c.th}>{b}</th>)}
                     </tr>
                   </thead>
                   <tbody>
@@ -233,7 +234,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
           <div style={c.tablo}>
             <div style={c.tabloBaslik}>
-              <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{listeSahip ? kisiAdi(listeSahip) : secimBasligi} · {gecikmisGorunum ? "Gecikmiş task'lı lead'ler" : `Takipsiz lead'ler (${sessizGun}+ gün)`} ({liste.length})</span>
+              <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{listeSahip ? kisiAdi(listeSahip) : secimBasligi} · {gecikmisGorunum ? "Gecikmiş task'lı Datalar" : `Takipsiz Datalar (${sessizGun}+ gün)`} ({liste.length})</span>
               {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
             </div>
             <div style={t.filtreler}>
@@ -250,14 +251,14 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               </div>
             </div>
             {liste.length === 0 ? (
-              <div style={c.bos}>Bu raporda lead yok.</div>
+              <div style={c.bos}>Bu raporda Data yok.</div>
             ) : (
               <>
               <div style={{ overflowX: "auto" }}>
                 <table style={c.grid}>
                   <thead>
                     <tr>
-                      {["Lead ID", "Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
+                      {["Data ID", "Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}>Oluşturma</th>
                       {gecikmisGorunum && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}>Son aktivite</th>
@@ -328,7 +329,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 function Kart({ sayi, etiket, alt, renk = "#0f172a", zemin = "#fff", cerceve = "#e2e8f0", onClick, secili }) {
   const tiklanir = !!onClick;
   return (
-    <div onClick={onClick} role={tiklanir ? "button" : undefined} title={tiklanir ? "Lead'leri aşağıda listele" : undefined}
+    <div onClick={onClick} role={tiklanir ? "button" : undefined} title={tiklanir ? "Dataları aşağıda listele" : undefined}
       style={{ ...t.kart, background: zemin, borderColor: secili ? renk : cerceve, cursor: tiklanir ? "pointer" : "default",
         boxShadow: secili ? `0 0 0 3px ${cerceve}` : t.kart.boxShadow }}>
       <div style={{ ...t.kartSayi, color: renk }}>{typeof sayi === "number" ? sayi.toLocaleString("tr-TR") : sayi}</div>

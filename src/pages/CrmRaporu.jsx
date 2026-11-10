@@ -1,3 +1,4 @@
+// v1.9: ekrandaki "lead" yazıları "Data" oldu (Lead ID -> Data ID vb.)
 // v1.8: ekran açılınca VIP Datalar seçili gelir (danışmanlar zaten hepsi görünür); tablo başlığı menüdeki özetle aynı (★ VIP Datalar gibi)
 // v1.7: menüdeki VIP Datalar hızlı seçimine Setrow Marketing eklendi
 // v1.6: veri kaynağı açılır çoklu seçim menüsünde (KaynakSecici.jsx); tarih ve şube aynı satırda.
@@ -38,7 +39,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v1.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v1.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -180,7 +181,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   const seciliMi = (r, asama) => secim?.anahtar === `${r.ad}:${asama?.id || "tumu"}`;
   const sayiHucresi = (r, asama, n, ekStil = {}) => (
     n ? (
-      <button onClick={() => hucreSec(r, asama)} title="Lead listesini aç"
+      <button onClick={() => hucreSec(r, asama)} title="Data listesini aç"
         style={{ ...c.sayiBtn, ...ekStil, ...(seciliMi(r, asama) ? c.sayiBtnSecili : {}) }}>
         {n.toLocaleString("tr-TR")}
       </button>
@@ -196,7 +197,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
             <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Kaynak seçin (birden fazla olabilir)" />
           </div>
           <div>
-            <div style={c.etiket}>Lead oluşturma tarihi</div>
+            <div style={c.etiket}>Data oluşturma tarihi</div>
             <div style={c.chipSatir}>
               {ARALIKLAR.map(a => (
                 <button key={a.ad} onClick={() => setGun(a.gun)} style={gun === a.gun ? c.chipAktif : c.chip}>{a.ad}</button>
@@ -225,7 +226,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
 
       {kaynaklar.length > 0 && !yukleniyor && !hata && rapor && kisiler && (
         gorunen.length === 0 ? (
-          <div style={c.bos}>Bu kaynakta size ait lead bulunmuyor.</div>
+          <div style={c.bos}>Bu kaynakta size ait Data bulunmuyor.</div>
         ) : (
           <div style={c.tablo}>
             <div style={c.tabloBaslik}>
@@ -233,7 +234,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
                 {kaynakAdlari} · Bilimevi pipeline
               </span>
               <span style={{ fontSize: "12px", color: "#94a3b8" }}>
-                {genelToplam.toLocaleString("tr-TR")} lead · {new Date(rapor.guncellendi).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} itibarıyla
+                {genelToplam.toLocaleString("tr-TR")} Data · {new Date(rapor.guncellendi).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })} itibarıyla
               </span>
             </div>
             <div style={{ overflowX: "auto" }}>
@@ -304,18 +305,18 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat }) {
           {secim.baslik} · {secim.asamaAd} <span style={{ color: "#94a3b8", fontWeight: 500 }}>· {kaynakAd}</span>
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {veri && <span style={{ fontSize: "12px", color: "#94a3b8" }}>{veri.toplam.toLocaleString("tr-TR")} lead{veri.toplam > veri.leadler.length ? `, ilk ${veri.leadler.length} gösteriliyor` : ""}</span>}
+          {veri && <span style={{ fontSize: "12px", color: "#94a3b8" }}>{veri.toplam.toLocaleString("tr-TR")} Data{veri.toplam > veri.leadler.length ? `, ilk ${veri.leadler.length} gösteriliyor` : ""}</span>}
           <button onClick={onKapat} style={c.kapatBtn} title="Kapat">✕</button>
         </span>
       </div>
-      {!veri && !hata && <div style={c.bos}><span style={c.spinner} /> Lead'ler alınıyor...</div>}
+      {!veri && !hata && <div style={c.bos}><span style={c.spinner} /> Datalar alınıyor...</div>}
       {hata && <div style={{ ...c.hata, margin: "16px" }}>{hata}</div>}
       {veri && (
         <div style={{ overflowX: "auto", maxHeight: "560px", overflowY: "auto" }}>
           <table style={c.grid}>
             <thead>
               <tr>
-                <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Lead ID</th>
+                <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Data ID</th>
                 <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Ad Soyad</th>
                 {!secim.asama && <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Aşama</th>}
                 <th style={{ ...c.th, position: "sticky", top: 0 }}>Oluşturma</th>
@@ -380,7 +381,7 @@ export function NotBalonu({ lead, onbellek }) {
           onMouseLeave={() => setKonum(null)}>
           {durum?.yukleniyor && <div style={{ color: "#64748b" }}>Notlar alınıyor...</div>}
           {durum?.hata && <div style={{ color: "#991b1b" }}>{durum.hata}</div>}
-          {durum?.notlar && durum.notlar.length === 0 && <div style={{ color: "#64748b" }}>Bu lead'de not yok.</div>}
+          {durum?.notlar && durum.notlar.length === 0 && <div style={{ color: "#64748b" }}>Bu Data'da not yok.</div>}
           {durum?.notlar?.map((n, i) => (
             <div key={i} style={{ paddingBottom: "10px", marginBottom: "10px", borderBottom: i < durum.notlar.length - 1 ? "1px solid #f1f5f9" : "none" }}>
               <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>{tarih(n.tarih, true)}{n.yazan ? ` · ${n.yazan}` : ""}</div>

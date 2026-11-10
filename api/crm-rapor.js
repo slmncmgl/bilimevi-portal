@@ -1,3 +1,4 @@
+// v1.9: task sadece İlgili'de beklenir (Görüşme çıkarıldı). Hata mesajlarında "lead" yerine "Data".
 // v1.8: task sadece Görüşme ve İlgili'de beklenir. ileriTask, gecikmisTask, taskYok ve gecikmiş listesi bu iki aşamadan;
 //       taskBeklenen = Görüşme + İlgili lead sayısı. toplam ve takipsiz tanımı değişmedi (Na1-İlgili, task yok + sessiz).
 // v1.7: islem "takip" birden fazla danışman alır: { ownerIds: [..] } (eski tek "ownerId" de geçer).
@@ -83,7 +84,7 @@ async function notlar(req, res, yetki) {
   if (yetki.tur !== "admin") {
     const d = await kylasAra([kural("id", "equal", leadId)], 0, ["id", "ownerId"]);
     const lead = (d.content || [])[0];
-    if (!lead) return res.status(404).json({ error: "Lead bulunamadı." });
+    if (!lead) return res.status(404).json({ error: "Data bulunamadı." });
     ownerId = Number(lead.ownerId);
     if (!yetkiKontrol(yetki, [ownerId], res, "crm-rapor notlar")) return;
   }
@@ -102,8 +103,8 @@ async function notlar(req, res, yetki) {
 
 // Takip edilmesi gereken açık aşamalar: Na1, Na2, Na3, Görüşme, İlgili
 const TAKIP_ASAMALARI = [222366, 253357, 253358, 218701, 218702];
-// Task beklenen aşamalar: Görüşme, İlgili (Na1-Na3'te task beklenmez)
-const TASK_ASAMALARI = [218701, 218702];
+// Task beklenen aşama: sadece İlgili (Na1-Na3 ve Görüşme'de task beklenmez)
+const TASK_ASAMALARI = [218702];
 
 async function takip(req, res, yetki) {
   const hamSahipler = Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : [req.body?.ownerId];
@@ -120,7 +121,7 @@ async function takip(req, res, yetki) {
   const kurallar = [ownerIds.length === 1 ? kural("ownerId", "equal", ownerIds[0]) : kural("ownerId", "in", ownerIds), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", TAKIP_ASAMALARI)];
   if (kaynaklar.length) kurallar.push(kural("source", "in", kaynaklar));
   const leadler = await hepsiniCek(kurallar, [...LISTE_ALANLARI, "source"]);
-  if (leadler === null) return res.status(422).json({ error: "Seçimde 10.000'den fazla açık lead var, daha az danışman ya da kaynak seçin." });
+  if (leadler === null) return res.status(422).json({ error: "Seçimde 10.000'den fazla açık Data var, daha az danışman ya da kaynak seçin." });
 
   const simdi = Date.now();
   const sinir = simdi - sessizGun * 24 * 60 * 60 * 1000;
@@ -224,7 +225,7 @@ export default async function handler(req, res) {
       leadler = [];
       for (const a of ASAMALAR) {
         const parca = await hepsiniCek([...kurallar, kural("pipelineStage", "equal", a.id)]);
-        if (parca === null) return res.status(422).json({ error: `"${a.ad}" aşamasında 10.000'den fazla lead var, daha kısa bir tarih aralığı seçin.` });
+        if (parca === null) return res.status(422).json({ error: `"${a.ad}" aşamasında 10.000'den fazla Data var, daha kısa bir tarih aralığı seçin.` });
         leadler.push(...parca);
       }
     }
