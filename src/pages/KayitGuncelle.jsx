@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.69
+// KayitGuncelle.jsx v1.70
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.69"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.70"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1122,13 +1122,21 @@ export default function KayitGuncelle() {
 
   const tarihSiniri = tarihFiltre ? new Date(`${tarihFiltre}T00:00:00`).getTime() : null;
 
-  const onayliMi = k => String(k["Onay Durumu"] || "").toLocaleLowerCase("tr-TR").indexOf("onayland") > -1;
+  const onayliMi = k => sadelestir(k["Onay Durumu"]).includes("onayland");
 
-  // Liste rozeti için tek tip durum: Onaylı > Gönderilmedi (danışman yok) > Onay Bekliyor
+  // Liste rozeti: durum "Onay Durumu" sütunundan okunur. n8n'in yazdığı aşamalar (10.11.2026 kararı):
+  // Form Doldurdu → Hazırlandı (otomatik gönderim kapalı) → Onay Bekliyor (gönderildi) → Sözleşme ve KVKK Onaylandı.
+  // Eski yazımlar da tanınır ("ÖĞRENCİ FORM DOLDURDU", "BEKLEMEDE", "İPTAL ETTİ").
+  // Sütun boşsa eski kayıt sayılır: sözleşme linki varsa Onay Bekliyor, yoksa Form Doldurdu.
   const sozlesmeDurumu = k => {
-    if (onayliMi(k)) return { metin: k["Onay Durumu"], simge: "onay", renk: "#16a34a" };
-    if (!String(k["Danışman Adı"] || "").trim()) return { metin: "Gönderilmedi", simge: "yok", renk: "#94a3b8" };
-    return { metin: "Onay Bekliyor", simge: "bekle", renk: "#ea580c" };
+    const d = sadelestir(k["Onay Durumu"]);
+    if (d.includes("onayland")) return { metin: "Sözleşme ve KVKK Onaylandı", simge: "onay", renk: "#16a34a" };
+    if (d.includes("iptal")) return { metin: "İptal Etti", simge: "iptal", renk: "#dc2626" };
+    if (d.includes("onay bekl") || d.includes("beklemede")) return { metin: "Onay Bekliyor", simge: "bekle", renk: "#ea580c" };
+    if (d.includes("hazirland")) return { metin: "Hazırlandı, gönderilmedi", simge: "hazir", renk: "#2c5282" };
+    if (d.includes("form doldurdu")) return { metin: "Form Doldurdu", simge: "form", renk: "#94a3b8" };
+    if (gecerliLink(k["Sözleşme Onay Linki"])) return { metin: "Onay Bekliyor", simge: "bekle", renk: "#ea580c" };
+    return { metin: "Form Doldurdu", simge: "form", renk: "#94a3b8" };
   };
 
   // Şimdilik listede gösterilmeyen sözleşme türleri
@@ -2032,13 +2040,15 @@ export default function KayitGuncelle() {
                             onMouseLeave={() => !isMobile && setProgramHover(null)}
                             onClick={() => isMobile && setProgramHover(acik ? null : anahtar)}
                           >
-                            {/* Minimal çizgi ikon: onaylı tik, beklemede saat, gönderilmedi boş daire */}
+                            {/* Minimal çizgi ikon: onaylı tik, onay bekliyor saat, hazırlandı belge, form doldurdu kesikli daire, iptal çarpı */}
                             <svg className="durumRozet" role="img" aria-label={d.metin} width="20" height="20" viewBox="0 0 24 24"
                               fill="none" stroke={d.renk} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
                               style={{ display: "block", cursor: "default" }}>
                               {d.simge === "onay" && <path d="M5 12.5l4.5 4.5L19 7.5" />}
                               {d.simge === "bekle" && <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>}
-                              {d.simge === "yok" && <circle cx="12" cy="12" r="7" strokeDasharray="3 3.2" />}
+                              {d.simge === "form" && <circle cx="12" cy="12" r="7" strokeDasharray="3 3.2" />}
+                              {d.simge === "hazir" && <><path d="M7 3.5h7l4 4V20.5H7z" /><path d="M14 3.5v4h4" /><path d="M10 13h5" /><path d="M10 16.5h5" /></>}
+                              {d.simge === "iptal" && <><circle cx="12" cy="12" r="8.5" /><path d="M9 9l6 6" /><path d="M15 9l-6 6" /></>}
                             </svg>
                             {acik && <span style={{ ...s.programBalon, whiteSpace: "nowrap" }}>{d.metin}</span>}
                           </span>
