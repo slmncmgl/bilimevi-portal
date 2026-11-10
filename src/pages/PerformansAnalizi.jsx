@@ -1,11 +1,18 @@
+// v1.3: sayfanın en altında sürüm etiketi (Performans Analizi, Aktivite Tablosu, CRM Raporu sürümleri ve commit)
 // v1.2: "Takip Raporu" sekmesinin adı "Aktivite Tablosu" oldu; en soldaki ve varsayılan sekme o
 // v1.1: üçüncü sekme "Takip Raporu" (TakipRaporu.jsx)
 // v1.0: iki sekme. Varsayılan "CRM Raporu" (CrmRaporu.jsx), ikinci "Quiz Skorları" (önceki içerik, davranışı aynı)
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
-import CrmRaporu from "./CrmRaporu";
-import TakipRaporu from "./TakipRaporu";
+import CrmRaporu, { CRM_SURUM } from "./CrmRaporu";
+import TakipRaporu, { AKTIVITE_SURUM } from "./TakipRaporu";
+import SurumEtiketi from "./dashboard/SurumEtiketi";
+
+const PERFORMANS_SURUM = "v1.3"; // 1. satırdaki sürümle aynı tut
+// eslint-disable-next-line no-undef
+const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
+const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · CRM Raporu ${CRM_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -313,6 +320,7 @@ export default function PerformansAnalizi() {
           )
         )}
         </>)}
+        <SurumEtiketi surum={SURUM_METNI} />
       </main>
 
       <style>{`

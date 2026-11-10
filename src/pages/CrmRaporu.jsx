@@ -1,3 +1,4 @@
+// v1.5: kaynak düğmeleri eşit genişlikte ızgarada; Tümü / Temizle başlık satırının sağında. Sürüm etiketi için CRM_SURUM.
 // v1.4: birden fazla veri kaynağı seçilebilir (✓ ile işaretlenir, "Tümü" hepsini seçer, "Temizle" boşaltır).
 //       Seçim değişince istek 400 ms bekleyip gider, art arda tıklamalar tek istek olur.
 // v1.3: satış ekibi listesi (SATIS_EKIBI). Tabloda sadece satış danışmanları ayrı satır, diğer sahipler "Diğer" satırında.
@@ -32,6 +33,8 @@ export const KAYNAKLAR = [
   { id: 2941507, ad: "Websitesi" },
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
+
+export const CRM_SURUM = "v1.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -186,12 +189,18 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   return (
     <>
       <div style={c.panel}>
-        <div style={c.etiket}>Veri kaynağı (birden fazla seçilebilir)</div>
-        <div style={c.chipSatir}>
-          <button onClick={() => setKaynaklar(KAYNAKLAR.map(k => k.id))} style={kaynaklar.length === KAYNAKLAR.length ? c.chipAktif : c.chip}>Tümü</button>
-          {kaynaklar.length > 0 && <button onClick={() => setKaynaklar([])} style={{ ...c.chip, color: "#dc2626", borderColor: "#fecaca" }}>Temizle</button>}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
+          <div style={{ ...c.etiket, marginBottom: 0 }}>Veri kaynağı (birden fazla seçilebilir)</div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button onClick={() => setKaynaklar(KAYNAKLAR.map(k => k.id))} style={kaynaklar.length === KAYNAKLAR.length ? c.chipAktif : c.chip}>Tümünü seç</button>
+            <button onClick={() => setKaynaklar([])} disabled={!kaynaklar.length}
+              style={{ ...c.chip, color: "#dc2626", borderColor: "#fecaca", opacity: kaynaklar.length ? 1 : 0.4, cursor: kaynaklar.length ? "pointer" : "default" }}>Temizle</button>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "8px" }}>
           {KAYNAKLAR.map(k => (
-            <button key={k.id} onClick={() => kaynakDegistir(k.id)} style={kaynaklar.includes(k.id) ? c.chipAktif : c.chip}>
+            <button key={k.id} onClick={() => kaynakDegistir(k.id)}
+              style={{ ...(kaynaklar.includes(k.id) ? c.chipAktif : c.chip), width: "100%", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {kaynaklar.includes(k.id) ? "✓ " : ""}{k.ad}
             </button>
           ))}
