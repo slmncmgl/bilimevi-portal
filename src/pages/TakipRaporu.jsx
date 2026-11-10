@@ -1,3 +1,4 @@
+// v1.1: danışman seçicide sadece satış ekibi (SATIS_EKIBI, CrmRaporu.jsx). Staff her durumda kendi raporunu görür.
 // v1.0: Performans Analizi > Takip Raporu sekmesi
 // Danışman seçilir; Bilimevi pipeline'da Na1, Na2, Na3, Görüşme, İlgili aşamalarındaki lead'lerinin takip durumu gösterilir.
 // Takipsiz = açık task'ı yok ve son aktivitesi seçilen günden eski. Alt raporlar: İlgili aşaması ve VIP Datalar.
@@ -37,16 +38,17 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   }, []);
 
   // Rolüne göre seçilebilir danışmanlar
-  // Personel sekmesinde olmayan ID kayıtları (test hesapları vb.) seçicide gösterilmez
+  // Admin ve manager seçicisinde sadece satış ekibi; staff kendini görür
   const tumu = kisiler ? Object.entries(kisiler).map(([id, k]) => ({ id, ...k })).filter(k => k.personelde) : [];
-  const secilebilir = tumu
+  const satisci = tumu.filter(k => k.satis);
+  const secilebilir = (isAdmin || isManager ? satisci : tumu)
     .filter(k => {
       if (isAdmin) return sube === "Tümü" || kucuk(k.sube) === kucuk(sube);
       if (isManager) return kucuk(k.sube) === kucuk(user?.branch);
       return k.email === kucuk(user?.email) || kucuk(k.ad) === kucuk(user?.name);
     })
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
-  const subeler = ["Tümü", ...[...new Set(tumu.map(k => k.sube).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"))];
+  const subeler = ["Tümü", ...[...new Set(satisci.map(k => k.sube).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"))];
 
   // Staff tek kişidir, doğrudan kendi raporu açılır
   useEffect(() => {

@@ -1,3 +1,6 @@
+// v1.3: sunucu tarafı rol kontrolü (api/_yetki.js): staff sadece kendi, manager kendi şubesinin lead'lerini alabilir.
+//       Şimdilik izleme modunda: kural dışı istekler "[yetki]" önekiyle loglanır, geçer. CRM_YETKI_ENFORCE=1 ile zorunlu olur.
+//       Zorunlu modda özet tablo da yetkiye göre süzülür; notlarda lead'in gerçek sahibi Kylas'tan kontrol edilir.
 // v1.2: islem "takip" (Takip Raporu sekmesi): bir danışmanın aşama 2-6 lead'leri, task ve sessizlik durumu
 // v1.1: islem "liste" (hücreye tıklanınca lead listesi) ve "notlar" (lead'in son 3 notu) eklendi
 // v1.0: Performans Analizi > CRM Raporu
@@ -8,6 +11,7 @@
 //   islem "takip": { ownerId, sessizGun: 14 } -> özet + takipsiz lead'ler (task yok, son aktivite sessizGun'den eski)
 //   islem "notlar": { leadId, ownerId } -> son 3 not (HTML temizlenmiş düz metin)
 import { oturumKontrol } from "./_oturum.js";
+import { yetkiBul, yetkiKontrol, zorunluMu } from "./_yetki.js";
 
 const PIPELINE_ID = 31227; // Bilimevi
 const ASAMALAR = [
@@ -64,10 +68,18 @@ function metneCevir(html) {
     .replace(/\n{3,}/g, "\n\n").trim();
 }
 
-async function notlar(req, res) {
+async function notlar(req, res, yetki) {
   const leadId = Number(req.body?.leadId);
-  const ownerId = Number(req.body?.ownerId);
+  let ownerId = Number(req.body?.ownerId);
   if (!Number.isInteger(leadId) || !Number.isInteger(ownerId)) return res.status(400).json({ error: "leadId ve ownerId gerekli." });
+  // Admin değilse istekteki ownerId'ye güvenilmez, lead'in gerçek sahibi Kylas'tan okunur
+  if (yetki.tur !== "admin") {
+    const d = await kylasAra([kural("id", "equal", leadId)], 0, ["id", "ownerId"]);
+    const lead = (d.content || [])[0];
+    if (!lead) return res.status(404).json({ error: "Lead bulunamadı." });
+    ownerId = Number(lead.ownerId);
+    if (!yetkiKontrol(yetki, [ownerId], res, "crm-rapor notlar")) return;
+  }
   // targetEntityOwnerId olmadan Kylas 400 döner
   const r = await fetch(`https://api.kylas.io/v1/notes/relation?targetEntityId=${leadId}&targetEntityType=LEAD&targetEntityOwnerId=${ownerId}&sort=createdAt,desc&page=0&size=3`, {
     headers: { "api-key": process.env.KYLAS_API_KEY, Accept: "application/json" },
@@ -84,11 +96,12 @@ async function notlar(req, res) {
 // Takip edilmesi gereken açık aşamalar: Na1, Na2, Na3, Görüşme, İlgili
 const TAKIP_ASAMALARI = [222366, 253357, 253358, 218701, 218702];
 
-async function takip(req, res) {
+async function takip(req, res, yetki) {
   const ownerId = Number(req.body?.ownerId);
   const sessizGun = req.body?.sessizGun ? Number(req.body.sessizGun) : 14;
   if (!Number.isInteger(ownerId)) return res.status(400).json({ error: "Danışman seçilmedi." });
   if (!Number.isInteger(sessizGun) || sessizGun < 1 || sessizGun > 365) return res.status(400).json({ error: "Geçersiz gün." });
+  if (!yetkiKontrol(yetki, [ownerId], res, "crm-rapor takip")) return;
 
   const kurallar = [kural("ownerId", "equal", ownerId), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", TAKIP_ASAMALARI)];
   const leadler = await hepsiniCek(kurallar, [...LISTE_ALANLARI, "source"]);
@@ -117,10 +130,11 @@ async function takip(req, res) {
   return res.status(200).json({ ozet, sessizGun, takipsiz, guncellendi: new Date().toISOString() });
 }
 
-async function liste(req, res, kurallar) {
+async function liste(req, res, kurallar, yetki) {
   const ownerIds = (Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : []).map(Number).filter(Number.isInteger);
   const asama = req.body?.asama ? Number(req.body.asama) : null;
   if (!ownerIds.length) return res.status(400).json({ error: "Danışman seçilmedi." });
+  if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor liste")) return;
   if (asama !== null && !ASAMALAR.some(a => a.id === asama)) return res.status(400).json({ error: "Geçersiz aşama." });
 
   const k = [...kurallar, kural("ownerId", "in", ownerIds)];
@@ -141,12 +155,13 @@ async function liste(req, res, kurallar) {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   if (!oturumKontrol(req, res, "crm-rapor")) return;
+  const yetki = await yetkiBul(req);
 
   if (req.body?.islem === "takip") {
-    try { return await takip(req, res); } catch (err) { return res.status(502).json({ error: err.message }); }
+    try { return await takip(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
   }
   if (req.body?.islem === "notlar") {
-    try { return await notlar(req, res); } catch (err) { return res.status(502).json({ error: err.message }); }
+    try { return await notlar(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
   }
 
   const kaynak = Number(req.body?.kaynak);
@@ -158,12 +173,21 @@ export default async function handler(req, res) {
   if (gun) kurallar.push(kural("createdAt", "last_n_days", gun, "date"));
 
   if (req.body?.islem === "liste") {
-    try { return await liste(req, res, kurallar); } catch (err) { return res.status(502).json({ error: err.message }); }
+    try { return await liste(req, res, kurallar, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
   }
+
+  // Zorunlu modda admin olmayan sadece görebildiği danışmanların satırlarını alır
+  const suz = veri => {
+    if (yetki.tur === "admin" || !zorunluMu()) return veri;
+    const danismanlar = Object.fromEntries(Object.entries(veri.danismanlar).filter(([o]) => yetki.idler.has(Number(o))));
+    const toplam = Object.values(danismanlar).reduce((a, s) => a + Object.values(s).reduce((x, y) => x + y, 0), 0);
+    return { ...veri, danismanlar, toplam };
+  };
+  if (yetki.tur !== "admin" && !["manager", "staff"].includes(yetki.tur) && !yetkiKontrol(yetki, [], res, "crm-rapor özet")) return;
 
   const anahtar = `${kaynak}:${gun || "tumu"}`;
   const kayit = onbellek.get(anahtar);
-  if (kayit && Date.now() - kayit.zaman < ONBELLEK_MS) return res.status(200).json(kayit.veri);
+  if (kayit && Date.now() - kayit.zaman < ONBELLEK_MS) return res.status(200).json(suz(kayit.veri));
 
   try {
     let leadler = await hepsiniCek(kurallar);
@@ -187,7 +211,7 @@ export default async function handler(req, res) {
 
     const veri = { kaynak, gun, toplam: leadler.length, asamalar: ASAMALAR, danismanlar, guncellendi: new Date().toISOString() };
     onbellek.set(anahtar, { zaman: Date.now(), veri });
-    return res.status(200).json(veri);
+    return res.status(200).json(suz(veri));
   } catch (err) {
     return res.status(502).json({ error: err.message });
   }

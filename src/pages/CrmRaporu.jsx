@@ -1,3 +1,5 @@
+// v1.3: satış ekibi listesi (SATIS_EKIBI). Tabloda sadece satış danışmanları ayrı satır, diğer sahipler "Diğer" satırında.
+//       Staff her durumda kendi satırını görür. Sunucu da artık rolü kontrol ediyor (api/_yetki.js).
 // v1.2: kişi yükleme, NotBalonu ve yardımcılar TakipRaporu.jsx için dışa açıldı (davranış aynı)
 // v1.1: grid görünüm; sayılar tıklanabilir, tıklanınca o danışman + aşama için lead listesi (LeadPaneli) açılır.
 //       Lead ID Kylas'ta yeni sekmede açılır, not ikonunun üzerine gelince son 3 not görünür (NotBalonu).
@@ -72,6 +74,17 @@ function satirlariOku(csv) {
 
 export const kucuk = v => String(v || "").trim().toLocaleLowerCase("tr-TR");
 
+// Satış danışmanları (Kasım 2026, Selman'ın listesi). Ad Soyad Personel sekmesiyle eşleşmeli.
+// Ekip değişince bu listeyi güncelleyin.
+export const SATIS_EKIBI = [
+  "Pınar Aydın", "Bahriye Günsel",                                        // Ankara
+  "Barış Gümüşlü", "Nil Özer", "Rukiye Özdemir", "Özgür Koç",             // Kadıköy
+  "Nur Alpay", "Sibel Özel",                                              // İzmir
+  "Zeynep Çırak", "Uğurcan Eneç",                                         // Bahçeşehir
+  "Mina Karimzadeh", "Tevhide Döner",                                     // Taksim
+];
+const SATIS_SET = new Set(SATIS_EKIBI.map(kucuk));
+
 // Kylas ID -> { ad, sube, email }: İzin Yönetimi ID sekmesi (e-posta -> Kylas ID) + Personel sekmesi
 export async function kisileriYukle() {
   const [idCsv, personelCsv] = await Promise.all([fetch(csvUrl("ID")).then(r => r.text()), fetch(csvUrl("Personel")).then(r => r.text())]);
@@ -82,7 +95,7 @@ export async function kisileriYukle() {
     const id = String(r.ID || "").trim();
     if (!email || !id) return;
     const p = personel.find(x => kucuk(x["E-posta"]) === email);
-    harita[id] = { ad: p?.["Ad Soyad"] || email.split("@")[0], sube: p?.["Şube"] || "", email, personelde: !!p };
+    harita[id] = { ad: p?.["Ad Soyad"] || email.split("@")[0], sube: p?.["Şube"] || "", email, personelde: !!p, satis: !!p && SATIS_SET.has(kucuk(p["Ad Soyad"])) };
   });
   return harita;
 }
@@ -119,23 +132,24 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
 
   // Satırları kur: tanınan danışmanlar ayrı, diğer sahipler tek "Diğer" satırında
   const satirlar = [];
+  const kendiEmail = kucuk(user?.email);
+  const kendisiMi = k => k.email === kendiEmail || kucuk(k.ad) === kucuk(user?.name);
   if (rapor && kisiler) {
     const diger = { ad: "Diğer", sube: "", sayilar: {}, diger: true, ownerIds: [] };
     Object.entries(rapor.danismanlar).forEach(([ownerId, sayilar]) => {
       const k = kisiler[ownerId];
-      if (k) { satirlar.push({ ...k, sayilar, ownerIds: [Number(ownerId)] }); return; }
+      if (k && (k.satis || kendisiMi(k))) { satirlar.push({ ...k, sayilar, ownerIds: [Number(ownerId)] }); return; }
       if (Number.isInteger(Number(ownerId))) diger.ownerIds.push(Number(ownerId));
       Object.entries(sayilar).forEach(([st, n]) => { diger.sayilar[st] = (diger.sayilar[st] || 0) + n; });
     });
     if (Object.keys(diger.sayilar).length) satirlar.push(diger);
   }
 
-  const kendiEmail = kucuk(user?.email);
   const gorunen = satirlar
     .filter(r => {
       if (isAdmin) return sube === "Tümü" || (!r.diger && kucuk(r.sube) === kucuk(sube));
       if (isManager) return !r.diger && kucuk(r.sube) === kucuk(user?.branch);
-      return !r.diger && (r.email === kendiEmail || kucuk(r.ad) === kucuk(user?.name));
+      return !r.diger && kendisiMi(r);
     })
     .map(r => ({ ...r, toplam: Object.values(r.sayilar).reduce((a, b) => a + b, 0) }))
     .sort((a, b) => (a.diger ? 1 : b.diger ? -1 : b.toplam - a.toplam));
