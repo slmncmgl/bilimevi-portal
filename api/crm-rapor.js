@@ -1,3 +1,4 @@
+// v1.4: islem "takip" gecikmiş task'lı lead'leri de döndürür (gecikmis: en eski task önce)
 // v1.3: sunucu tarafı rol kontrolü (api/_yetki.js): staff sadece kendi, manager kendi şubesinin lead'lerini alabilir.
 //       Şimdilik izleme modunda: kural dışı istekler "[yetki]" önekiyle loglanır, geçer. CRM_YETKI_ENFORCE=1 ile zorunlu olur.
 //       Zorunlu modda özet tablo da yetkiye göre süzülür; notlarda lead'in gerçek sahibi Kylas'tan kontrol edilir.
@@ -112,22 +113,25 @@ async function takip(req, res, yetki) {
   const zaman = v => (v ? new Date(v).getTime() : null);
   const ozet = { toplam: leadler.length, ileriTask: 0, gecikmisTask: 0, taskYok: 0, takipsiz: 0 };
   const takipsiz = [];
+  const gecikmis = [];
+  const satir = l => ({
+    id: l.id, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), ownerId: l.ownerId, asama: l.pipelineStage, kaynak: l.source,
+    olusturma: l.createdAt || null, sonAktivite: l.latestActivityCreatedAt || null, sonrakiTask: l.taskDueOn || null,
+  });
   for (const l of leadler) {
     const task = zaman(l.taskDueOn);
     if (task && task >= simdi) ozet.ileriTask++;
-    else if (task) ozet.gecikmisTask++;
+    else if (task) { ozet.gecikmisTask++; gecikmis.push(satir(l)); }
     else ozet.taskYok++;
     const akt = zaman(l.latestActivityCreatedAt);
     if (!task && (!akt || akt < sinir)) {
       ozet.takipsiz++;
-      takipsiz.push({
-        id: l.id, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), ownerId: l.ownerId, asama: l.pipelineStage, kaynak: l.source,
-        olusturma: l.createdAt || null, sonAktivite: l.latestActivityCreatedAt || null,
-      });
+      takipsiz.push(satir(l));
     }
   }
   takipsiz.sort((a, b) => (zaman(a.sonAktivite) || 0) - (zaman(b.sonAktivite) || 0));
-  return res.status(200).json({ ozet, sessizGun, takipsiz, guncellendi: new Date().toISOString() });
+  gecikmis.sort((a, b) => zaman(a.sonrakiTask) - zaman(b.sonrakiTask));
+  return res.status(200).json({ ozet, sessizGun, takipsiz, gecikmis, guncellendi: new Date().toISOString() });
 }
 
 async function liste(req, res, kurallar, yetki) {

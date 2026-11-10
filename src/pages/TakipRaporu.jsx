@@ -1,3 +1,7 @@
+// v1.3: "Gecikmiş task" ve "Takipsiz" kartları tıklanabilir; tıklanan kartın lead'leri aşağıda listelenir
+//       (gecikmiş listede task tarihi ve kaç gün geciktiği görünür). Filtreler ve sayfalama iki listede de geçerli.
+// v1.2: aşama filtresi çoklu seçim (hiçbiri seçili değilse hepsi), kaynak filtresi Tümü / VIP Datalar.
+//       "İlgili" alt raporu aşama filtresine taşındı. Liste sayfalı: sayfa başına 10 / 20 / 30 / 50 (varsayılan 20).
 // v1.1: danışman seçicide sadece satış ekibi (SATIS_EKIBI, CrmRaporu.jsx). Staff her durumda kendi raporunu görür.
 // v1.0: Performans Analizi > Takip Raporu sekmesi
 // Danışman seçilir; Bilimevi pipeline'da Na1, Na2, Na3, Görüşme, İlgili aşamalarındaki lead'lerinin takip durumu gösterilir.
@@ -12,11 +16,12 @@ const ILGILI = 218702;
 // VIP Datalar: Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci
 const VIP_KAYNAKLAR = [2614512, 2650986, 2614514, 2614515, 3005340];
 const SESSIZ_SECENEKLER = [7, 14, 30];
-const ALT_RAPORLAR = [
-  { k: "tumu", ad: "Tüm takipsizler", suz: () => true },
-  { k: "ilgili", ad: "İlgili", suz: l => l.asama === ILGILI },
+const ASAMA_SIRASI = [222366, 253357, 253358, 218701, 218702];
+const KAYNAK_FILTRELERI = [
+  { k: "tumu", ad: "Tüm kaynaklar", suz: () => true },
   { k: "vip", ad: "VIP Datalar", suz: l => VIP_KAYNAKLAR.includes(l.kaynak) },
 ];
+const SAYFA_BOYLARI = [10, 20, 30, 50];
 
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const gunOnce = v => (v ? Math.floor((Date.now() - new Date(v).getTime()) / 86400000) : null);
@@ -30,7 +35,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [rapor, setRapor] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
-  const [alt, setAlt] = useState("tumu");
+  const [asamaSecim, setAsamaSecim] = useState([]); // boşsa tüm aşamalar
+  const [kaynakFiltre, setKaynakFiltre] = useState("tumu");
+  const [sayfaBoyu, setSayfaBoyu] = useState(20);
+  const [sayfa, setSayfa] = useState(1);
+  const [gorunum, setGorunum] = useState("takipsiz"); // "takipsiz" | "gecikmis"
   const notOnbellek = useRef({});
 
   useEffect(() => {
@@ -68,8 +77,21 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   }, [danisman, sessizGun]);
 
   const secili = danisman && kisiler?.[danisman];
-  const altRapor = ALT_RAPORLAR.find(a => a.k === alt);
-  const liste = rapor ? rapor.takipsiz.filter(altRapor.suz) : [];
+  // Filtreler: aşama (çoklu) ve kaynak. Sayaçlar diğer filtreye göre hesaplanır.
+  const kaynakSuz = KAYNAK_FILTRELERI.find(f => f.k === kaynakFiltre).suz;
+  const asamaSuz = l => !asamaSecim.length || asamaSecim.includes(l.asama);
+  const gecikmisGorunum = gorunum === "gecikmis";
+  const tumTakipsiz = (gecikmisGorunum ? rapor?.gecikmis : rapor?.takipsiz) || [];
+  const liste = tumTakipsiz.filter(l => kaynakSuz(l) && asamaSuz(l));
+  const asamaSayisi = id => tumTakipsiz.filter(l => kaynakSuz(l) && (id === null || l.asama === id)).length;
+  const kaynakSayisi = f => tumTakipsiz.filter(l => f.suz(l) && asamaSuz(l)).length;
+  const asamaDegistir = id => setAsamaSecim(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
+
+  // Sayfalama: filtre, sayfa boyu ya da rapor değişince ilk sayfaya dön
+  useEffect(() => { setSayfa(1); }, [asamaSecim, kaynakFiltre, sayfaBoyu, rapor, gorunum]);
+  const sayfaSayisi = Math.max(1, Math.ceil(liste.length / sayfaBoyu));
+  const gecerliSayfa = Math.min(sayfa, sayfaSayisi);
+  const sayfaListesi = liste.slice((gecerliSayfa - 1) * sayfaBoyu, gecerliSayfa * sayfaBoyu);
   const o = rapor?.ozet;
   const takipOrani = o && o.toplam ? Math.round((o.ileriTask / o.toplam) * 100) : 0;
 
@@ -111,37 +133,55 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           <div style={t.kartlar}>
             <Kart sayi={o.toplam} etiket="Açık lead (Na1-İlgili)" />
             <Kart sayi={o.ileriTask} etiket="İleri tarihli task" renk="#166534" zemin="#f0fdf4" cerceve="#86efac" />
-            <Kart sayi={o.gecikmisTask} etiket="Gecikmiş task" renk="#92400e" zemin="#fffbeb" cerceve="#fde68a" />
-            <Kart sayi={o.takipsiz} etiket={`Takipsiz (${sessizGun}+ gün)`} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5" />
+            <Kart sayi={o.gecikmisTask} etiket="Gecikmiş task" renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
+              secili={gecikmisGorunum} onClick={() => setGorunum("gecikmis")} />
+            <Kart sayi={o.takipsiz} etiket={`Takipsiz (${sessizGun}+ gün)`} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
+              secili={!gecikmisGorunum} onClick={() => setGorunum("takipsiz")} />
             <Kart sayi={`%${takipOrani}`} etiket="Takip oranı" alt="ileri task'lı / açık lead" />
           </div>
 
           <div style={c.tablo}>
             <div style={c.tabloBaslik}>
-              <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{secili?.ad} · Takipsiz lead'ler</span>
-              <div style={c.chipSatir}>
-                {ALT_RAPORLAR.map(a => (
-                  <button key={a.k} onClick={() => setAlt(a.k)} style={alt === a.k ? c.chipAktif : c.chip}>
-                    {a.ad} ({rapor.takipsiz.filter(a.suz).length})
-                  </button>
-                ))}
+              <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{secili?.ad} · {gecikmisGorunum ? "Gecikmiş task'lı lead'ler" : `Takipsiz lead'ler (${sessizGun}+ gün)`} ({liste.length})</span>
+            </div>
+            <div style={t.filtreler}>
+              <div>
+                <div style={c.etiket}>Aşama (birden fazla seçilebilir)</div>
+                <div style={c.chipSatir}>
+                  <button onClick={() => setAsamaSecim([])} style={!asamaSecim.length ? c.chipAktif : c.chip}>Tümü ({asamaSayisi(null)})</button>
+                  {ASAMA_SIRASI.map(id => (
+                    <button key={id} onClick={() => asamaDegistir(id)} style={asamaSecim.includes(id) ? c.chipAktif : c.chip}>
+                      {asamaSecim.includes(id) ? "✓ " : ""}{ASAMA_ADLARI[id]} ({asamaSayisi(id)})
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={c.etiket}>Kaynak</div>
+                <div style={c.chipSatir}>
+                  {KAYNAK_FILTRELERI.map(f => (
+                    <button key={f.k} onClick={() => setKaynakFiltre(f.k)} style={kaynakFiltre === f.k ? c.chipAktif : c.chip}>{f.ad} ({kaynakSayisi(f)})</button>
+                  ))}
+                </div>
               </div>
             </div>
             {liste.length === 0 ? (
               <div style={c.bos}>Bu raporda lead yok.</div>
             ) : (
-              <div style={{ overflowX: "auto", maxHeight: "620px", overflowY: "auto" }}>
+              <>
+              <div style={{ overflowX: "auto" }}>
                 <table style={c.grid}>
                   <thead>
                     <tr>
                       {["Lead ID", "Ad Soyad", "Aşama", "Kaynak"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}>Oluşturma</th>
+                      {gecikmisGorunum && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}>Son aktivite</th>
                       <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Notlar</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {liste.map((l, i) => {
+                    {sayfaListesi.map((l, i) => {
                       const g = gunOnce(l.sonAktivite);
                       return (
                         <tr key={l.id} style={{ background: i % 2 ? "#fbfdff" : "#fff" }}>
@@ -155,6 +195,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                             {VIP_KAYNAKLAR.includes(l.kaynak) && <span style={t.vip}>VIP</span>}
                           </td>
                           <td style={c.td}>{tarih(l.olusturma)}</td>
+                          {gecikmisGorunum && (
+                            <td style={{ ...c.td, whiteSpace: "nowrap", color: "#b45309", fontWeight: 600 }}>
+                              {tarih(l.sonrakiTask)} <span style={{ fontSize: "11px", fontWeight: 400 }}>· {gunOnce(l.sonrakiTask)} gün gecikti</span>
+                            </td>
+                          )}
                           <td style={{ ...c.td, whiteSpace: "nowrap" }}>
                             {l.sonAktivite ? <>{tarih(l.sonAktivite)} <span style={{ color: g > 30 ? "#dc2626" : "#94a3b8", fontSize: "11px" }}>· {g} gün</span></> : <span style={{ color: "#dc2626" }}>Hiç yok</span>}
                           </td>
@@ -165,6 +210,25 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   </tbody>
                 </table>
               </div>
+              <div style={t.sayfalama}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>Sayfa başına</span>
+                  {SAYFA_BOYLARI.map(n => (
+                    <button key={n} onClick={() => setSayfaBoyu(n)} style={sayfaBoyu === n ? t.kucukAktif : t.kucuk}>{n}</button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "12px", color: "#64748b", fontVariantNumeric: "tabular-nums" }}>
+                    {(gecerliSayfa - 1) * sayfaBoyu + 1}-{Math.min(gecerliSayfa * sayfaBoyu, liste.length)} / {liste.length}
+                  </span>
+                  <button onClick={() => setSayfa(1)} disabled={gecerliSayfa === 1} style={{ ...t.kucuk, opacity: gecerliSayfa === 1 ? 0.4 : 1, cursor: gecerliSayfa === 1 ? "default" : "pointer" }} title="İlk sayfa">«</button>
+                  <button onClick={() => setSayfa(gecerliSayfa - 1)} disabled={gecerliSayfa === 1} style={{ ...t.kucuk, opacity: gecerliSayfa === 1 ? 0.4 : 1, cursor: gecerliSayfa === 1 ? "default" : "pointer" }} title="Önceki sayfa">‹</button>
+                  <span style={{ fontSize: "12px", color: "#0f172a", fontWeight: 600, minWidth: "64px", textAlign: "center" }}>Sayfa {gecerliSayfa} / {sayfaSayisi}</span>
+                  <button onClick={() => setSayfa(gecerliSayfa + 1)} disabled={gecerliSayfa === sayfaSayisi} style={{ ...t.kucuk, opacity: gecerliSayfa === sayfaSayisi ? 0.4 : 1, cursor: gecerliSayfa === sayfaSayisi ? "default" : "pointer" }} title="Sonraki sayfa">›</button>
+                  <button onClick={() => setSayfa(sayfaSayisi)} disabled={gecerliSayfa === sayfaSayisi} style={{ ...t.kucuk, opacity: gecerliSayfa === sayfaSayisi ? 0.4 : 1, cursor: gecerliSayfa === sayfaSayisi ? "default" : "pointer" }} title="Son sayfa">»</button>
+                </div>
+              </div>
+              </>
             )}
           </div>
           <div style={t.dipnot}>
@@ -176,12 +240,16 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   );
 }
 
-function Kart({ sayi, etiket, alt, renk = "#0f172a", zemin = "#fff", cerceve = "#e2e8f0" }) {
+function Kart({ sayi, etiket, alt, renk = "#0f172a", zemin = "#fff", cerceve = "#e2e8f0", onClick, secili }) {
+  const tiklanir = !!onClick;
   return (
-    <div style={{ ...t.kart, background: zemin, borderColor: cerceve }}>
+    <div onClick={onClick} role={tiklanir ? "button" : undefined} title={tiklanir ? "Lead'leri aşağıda listele" : undefined}
+      style={{ ...t.kart, background: zemin, borderColor: secili ? renk : cerceve, cursor: tiklanir ? "pointer" : "default",
+        boxShadow: secili ? `0 0 0 3px ${cerceve}` : t.kart.boxShadow }}>
       <div style={{ ...t.kartSayi, color: renk }}>{typeof sayi === "number" ? sayi.toLocaleString("tr-TR") : sayi}</div>
       <div style={t.kartEtiket}>{etiket}</div>
       {alt && <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "2px" }}>{alt}</div>}
+      {tiklanir && <div style={{ fontSize: "10px", color: renk, marginTop: "4px", fontWeight: 600 }}>{secili ? "▼ Aşağıda listeleniyor" : "Listelemek için tıklayın"}</div>}
     </div>
   );
 }
@@ -192,5 +260,9 @@ const t = {
   kartSayi: { fontSize: "26px", fontWeight: 700, marginBottom: "4px", fontVariantNumeric: "tabular-nums" },
   kartEtiket: { fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4px" },
   vip: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
+  filtreler: { display: "flex", gap: "24px", flexWrap: "wrap", padding: "14px 24px", borderBottom: "1px solid #f1f5f9", background: "#fafcff" },
+  sayfalama: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", padding: "12px 24px", borderTop: "1px solid #f1f5f9" },
+  kucuk: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
+  kucukAktif: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #0891b2", background: "#0891b2", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
   dipnot: { fontSize: "11px", color: "#94a3b8", marginTop: "10px", textAlign: "right" },
 };
