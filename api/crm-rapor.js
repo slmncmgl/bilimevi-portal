@@ -1,3 +1,4 @@
+// v1.6: islem "takip" isteğe bağlı { kaynaklar: [..] } alır (boşsa tüm kaynaklar)
 // v1.5: birden fazla veri kaynağı: { kaynaklar: [id, ..] } (eski tek "kaynak" da kabul edilir)
 // v1.4: islem "takip" gecikmiş task'lı lead'leri de döndürür (gecikmis: en eski task önce)
 // v1.3: sunucu tarafı rol kontrolü (api/_yetki.js): staff sadece kendi, manager kendi şubesinin lead'lerini alabilir.
@@ -103,9 +104,13 @@ async function takip(req, res, yetki) {
   const sessizGun = req.body?.sessizGun ? Number(req.body.sessizGun) : 14;
   if (!Number.isInteger(ownerId)) return res.status(400).json({ error: "Danışman seçilmedi." });
   if (!Number.isInteger(sessizGun) || sessizGun < 1 || sessizGun > 365) return res.status(400).json({ error: "Geçersiz gün." });
+  const hamKaynaklar = Array.isArray(req.body?.kaynaklar) ? req.body.kaynaklar : [];
+  const kaynaklar = [...new Set(hamKaynaklar.map(Number))].filter(k => Number.isInteger(k) && k > 0);
+  if (kaynaklar.length !== hamKaynaklar.length || kaynaklar.length > 30) return res.status(400).json({ error: "Geçersiz veri kaynağı." });
   if (!yetkiKontrol(yetki, [ownerId], res, "crm-rapor takip")) return;
 
   const kurallar = [kural("ownerId", "equal", ownerId), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", TAKIP_ASAMALARI)];
+  if (kaynaklar.length) kurallar.push(kural("source", "in", kaynaklar));
   const leadler = await hepsiniCek(kurallar, [...LISTE_ALANLARI, "source"]);
   if (leadler === null) return res.status(422).json({ error: "Bu danışmanda 10.000'den fazla açık lead var." });
 
@@ -132,7 +137,7 @@ async function takip(req, res, yetki) {
   }
   takipsiz.sort((a, b) => (zaman(a.sonAktivite) || 0) - (zaman(b.sonAktivite) || 0));
   gecikmis.sort((a, b) => zaman(a.sonrakiTask) - zaman(b.sonrakiTask));
-  return res.status(200).json({ ozet, sessizGun, takipsiz, gecikmis, guncellendi: new Date().toISOString() });
+  return res.status(200).json({ ozet, sessizGun, kaynaklar, takipsiz, gecikmis, guncellendi: new Date().toISOString() });
 }
 
 async function liste(req, res, kurallar, yetki) {

@@ -1,3 +1,4 @@
+// v1.4: CRM Raporu v1.6 ve Aktivite Tablosu v1.6 (açılır kaynak seçimi)
 // v1.3: sayfanın en altında sürüm etiketi (Performans Analizi, Aktivite Tablosu, CRM Raporu sürümleri ve commit)
 // v1.2: "Takip Raporu" sekmesinin adı "Aktivite Tablosu" oldu; en soldaki ve varsayılan sekme o
 // v1.1: üçüncü sekme "Takip Raporu" (TakipRaporu.jsx)
@@ -9,7 +10,7 @@ import CrmRaporu, { CRM_SURUM } from "./CrmRaporu";
 import TakipRaporu, { AKTIVITE_SURUM } from "./TakipRaporu";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v1.3"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v1.4"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · CRM Raporu ${CRM_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;

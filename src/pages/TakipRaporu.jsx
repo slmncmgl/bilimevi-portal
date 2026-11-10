@@ -1,3 +1,6 @@
+// v1.6: veri kaynağı seçimi (açılır çoklu seçim, KaynakSecici.jsx) üst panelde; boşsa tüm kaynaklar.
+//       Kaynak sunucuda süzülür, kartlar da seçime göre değişir. VIP Datalar neon düğmesi VIP kaynakları tek tıkla seçer/bırakır.
+//       Listedeki ayrı "Kaynak" filtresi kaldırıldı.
 // v1.5: "Sessizlik süresi" başlığı "Son Etkinlik Tarihi" oldu. "VIP Datalar" düğmesi öne çıkarıldı: etrafında dönen neon çerçeve ve hafif parıltı (hareket azaltma açıksa durur)
 // v1.4: ekrandaki adı "Aktivite Tablosu" (dosya adı aynı kaldı)
 // v1.3: "Gecikmiş task" ve "Takipsiz" kartları tıklanabilir; tıklanan kartın lead'leri aşağıda listelenir
@@ -11,20 +14,15 @@
 // Not: Kylas'ın "son aktivite" tarihi otomasyon güncellemeleriyle de değişir, sessizlik süresi gerçekte daha uzun olabilir.
 // Rol kuralı diğer sekmelerle aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
 import { useState, useEffect, useRef } from "react";
+import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v1.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v1.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
-// VIP Datalar: Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci
-const VIP_KAYNAKLAR = [2614512, 2650986, 2614514, 2614515, 3005340];
 const SESSIZ_SECENEKLER = [7, 14, 30];
 const ASAMA_SIRASI = [222366, 253357, 253358, 218701, 218702];
-const KAYNAK_FILTRELERI = [
-  { k: "tumu", ad: "Tüm kaynaklar", suz: () => true },
-  { k: "vip", ad: "VIP Datalar", suz: l => VIP_KAYNAKLAR.includes(l.kaynak) },
-];
 const SAYFA_BOYLARI = [10, 20, 30, 50];
 
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
@@ -40,7 +38,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
   const [asamaSecim, setAsamaSecim] = useState([]); // boşsa tüm aşamalar
-  const [kaynakFiltre, setKaynakFiltre] = useState("tumu");
+  const [kaynaklar, setKaynaklar] = useState([]); // boşsa tüm kaynaklar
   const [sayfaBoyu, setSayfaBoyu] = useState(20);
   const [sayfa, setSayfa] = useState(1);
   const [gorunum, setGorunum] = useState("takipsiz"); // "takipsiz" | "gecikmis"
@@ -68,31 +66,34 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     if (!isAdmin && !isManager && !danisman && secilebilir.length === 1) setDanisman(secilebilir[0].id);
   }, [kisiler]);
 
+  // Kaynak seçimi art arda değişebilir: istek 400 ms bekleyip tek seferde gider
+  const kaynakAnahtari = [...kaynaklar].sort((a, b) => a - b).join(",");
+  const vipSecili = kaynaklar.length === VIP_KAYNAKLAR.length && VIP_KAYNAKLAR.every(id => kaynaklar.includes(id));
   useEffect(() => {
     if (!danisman) return;
     let iptal = false;
     setYukleniyor(true);
     setHata(null);
-    apiCagir({ islem: "takip", ownerId: Number(danisman), sessizGun })
-      .then(d => { if (!iptal) setRapor(d); })
-      .catch(e => { if (!iptal) { setRapor(null); setHata(e.message); } })
-      .finally(() => { if (!iptal) setYukleniyor(false); });
-    return () => { iptal = true; };
-  }, [danisman, sessizGun]);
+    const zamanlayici = setTimeout(() => {
+      apiCagir({ islem: "takip", ownerId: Number(danisman), sessizGun, kaynaklar })
+        .then(d => { if (!iptal) setRapor(d); })
+        .catch(e => { if (!iptal) { setRapor(null); setHata(e.message); } })
+        .finally(() => { if (!iptal) setYukleniyor(false); });
+    }, 400);
+    return () => { iptal = true; clearTimeout(zamanlayici); };
+  }, [danisman, sessizGun, kaynakAnahtari]);
 
   const secili = danisman && kisiler?.[danisman];
-  // Filtreler: aşama (çoklu) ve kaynak. Sayaçlar diğer filtreye göre hesaplanır.
-  const kaynakSuz = KAYNAK_FILTRELERI.find(f => f.k === kaynakFiltre).suz;
+  // Liste filtresi: aşama (çoklu). Kaynak sunucuda süzülür.
   const asamaSuz = l => !asamaSecim.length || asamaSecim.includes(l.asama);
   const gecikmisGorunum = gorunum === "gecikmis";
   const tumTakipsiz = (gecikmisGorunum ? rapor?.gecikmis : rapor?.takipsiz) || [];
-  const liste = tumTakipsiz.filter(l => kaynakSuz(l) && asamaSuz(l));
-  const asamaSayisi = id => tumTakipsiz.filter(l => kaynakSuz(l) && (id === null || l.asama === id)).length;
-  const kaynakSayisi = f => tumTakipsiz.filter(l => f.suz(l) && asamaSuz(l)).length;
+  const liste = tumTakipsiz.filter(asamaSuz);
+  const asamaSayisi = id => tumTakipsiz.filter(l => id === null || l.asama === id).length;
   const asamaDegistir = id => setAsamaSecim(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
 
   // Sayfalama: filtre, sayfa boyu ya da rapor değişince ilk sayfaya dön
-  useEffect(() => { setSayfa(1); }, [asamaSecim, kaynakFiltre, sayfaBoyu, rapor, gorunum]);
+  useEffect(() => { setSayfa(1); }, [asamaSecim, sayfaBoyu, rapor, gorunum]);
   const sayfaSayisi = Math.max(1, Math.ceil(liste.length / sayfaBoyu));
   const gecerliSayfa = Math.min(sayfa, sayfaSayisi);
   const sayfaListesi = liste.slice((gecerliSayfa - 1) * sayfaBoyu, gecerliSayfa * sayfaBoyu);
@@ -120,10 +121,22 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             </div>
           </div>
         )}
-        <div>
-          <div style={c.etiket}>Son Etkinlik Tarihi</div>
-          <div style={c.chipSatir}>
-            {SESSIZ_SECENEKLER.map(g => <button key={g} onClick={() => setSessizGun(g)} style={sessizGun === g ? c.chipAktif : c.chip}>{g} günden eski</button>)}
+        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div>
+            <div style={c.etiket}>Veri kaynağı</div>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+              <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Tüm kaynaklar" />
+              <button onClick={() => setKaynaklar(vipSecili ? [] : VIP_KAYNAKLAR)} className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}
+                title={vipSecili ? "VIP filtresini kaldır" : "Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci"}>
+                <span>★ VIP Datalar</span>
+              </button>
+            </div>
+          </div>
+          <div>
+            <div style={c.etiket}>Son Etkinlik Tarihi</div>
+            <div style={c.chipSatir}>
+              {SESSIZ_SECENEKLER.map(g => <button key={g} onClick={() => setSessizGun(g)} style={sessizGun === g ? c.chipAktif : c.chip}>{g} günden eski</button>)}
+            </div>
           </div>
         </div>
       </div>
@@ -159,18 +172,6 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                       {asamaSecim.includes(id) ? "✓ " : ""}{ASAMA_ADLARI[id]} ({asamaSayisi(id)})
                     </button>
                   ))}
-                </div>
-              </div>
-              <div>
-                <div style={c.etiket}>Kaynak</div>
-                <div style={c.chipSatir}>
-                  {KAYNAK_FILTRELERI.map(f => (f.k === "vip" ? (
-                    <button key={f.k} onClick={() => setKaynakFiltre(f.k)} className={`vip-neon${kaynakFiltre === f.k ? " vip-neon-aktif" : ""}`}>
-                      <span>★ {f.ad} ({kaynakSayisi(f)})</span>
-                    </button>
-                  ) : (
-                    <button key={f.k} onClick={() => setKaynakFiltre(f.k)} style={kaynakFiltre === f.k ? c.chipAktif : c.chip}>{f.ad} ({kaynakSayisi(f)})</button>
-                  )))}
                 </div>
               </div>
             </div>

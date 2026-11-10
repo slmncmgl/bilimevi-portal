@@ -1,3 +1,4 @@
+// v1.6: veri kaynağı açılır çoklu seçim menüsünde (KaynakSecici.jsx); tarih ve şube aynı satırda.
 // v1.5: kaynak düğmeleri eşit genişlikte ızgarada; Tümü / Temizle başlık satırının sağında. Sürüm etiketi için CRM_SURUM.
 // v1.4: birden fazla veri kaynağı seçilebilir (✓ ile işaretlenir, "Tümü" hepsini seçer, "Temizle" boşaltır).
 //       Seçim değişince istek 400 ms bekleyip gider, art arda tıklamalar tek istek olur.
@@ -12,6 +13,7 @@
 // ve Personel sekmelerinden eşlenir; ID sekmesinde olmayan sahipler "Diğer" satırında toplanır.
 // Rol kuralı Quiz Skorları ile aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
 import { useState, useEffect, useRef } from "react";
+import KaynakSecici from "./KaynakSecici";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const csvUrl = sekme => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sekme)}`;
@@ -34,7 +36,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v1.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v1.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -117,7 +119,6 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [secim, setSecim] = useState(null); // { baslik, ownerIds, asama, asamaAd }
 
   const kaynakAnahtari = [...kaynaklar].sort((a, b) => a - b).join(",");
-  const kaynakDegistir = id => setKaynaklar(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
   const seciliAdlar = KAYNAKLAR.filter(k => kaynaklar.includes(k.id)).map(k => k.ad);
   const kaynakAdlari = seciliAdlar.length === KAYNAKLAR.length ? "Tüm kaynaklar"
     : seciliAdlar.length > 3 ? `${seciliAdlar.slice(0, 3).join(", ")} +${seciliAdlar.length - 3}` : seciliAdlar.join(", ");
@@ -189,23 +190,11 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   return (
     <>
       <div style={c.panel}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
-          <div style={{ ...c.etiket, marginBottom: 0 }}>Veri kaynağı (birden fazla seçilebilir)</div>
-          <div style={{ display: "flex", gap: "6px" }}>
-            <button onClick={() => setKaynaklar(KAYNAKLAR.map(k => k.id))} style={kaynaklar.length === KAYNAKLAR.length ? c.chipAktif : c.chip}>Tümünü seç</button>
-            <button onClick={() => setKaynaklar([])} disabled={!kaynaklar.length}
-              style={{ ...c.chip, color: "#dc2626", borderColor: "#fecaca", opacity: kaynaklar.length ? 1 : 0.4, cursor: kaynaklar.length ? "pointer" : "default" }}>Temizle</button>
+        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div>
+            <div style={c.etiket}>Veri kaynağı</div>
+            <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Kaynak seçin (birden fazla olabilir)" />
           </div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "8px" }}>
-          {KAYNAKLAR.map(k => (
-            <button key={k.id} onClick={() => kaynakDegistir(k.id)}
-              style={{ ...(kaynaklar.includes(k.id) ? c.chipAktif : c.chip), width: "100%", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {kaynaklar.includes(k.id) ? "✓ " : ""}{k.ad}
-            </button>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", marginTop: "16px" }}>
           <div>
             <div style={c.etiket}>Lead oluşturma tarihi</div>
             <div style={c.chipSatir}>
