@@ -1,9 +1,11 @@
+// v1.2: islem "takip" (Takip Raporu sekmesi): bir danışmanın aşama 2-6 lead'leri, task ve sessizlik durumu
 // v1.1: islem "liste" (hücreye tıklanınca lead listesi) ve "notlar" (lead'in son 3 notu) eklendi
 // v1.0: Performans Analizi > CRM Raporu
 // Seçilen veri kaynağındaki Bilimevi pipeline lead'lerini danışman x aşama olarak sayar.
 // Kylas'tan sadece ownerId ve pipelineStage çekilir (isim, telefon, mail tarayıcıya gitmez), sadece sayılar döner.
 // Girdi: { kaynak: <source id>, gun: 90 | null }  (gun boşsa tüm zamanlar)
 //   islem "liste": + { ownerIds: [..], asama: <stage id> | null } -> lead listesi (en fazla LISTE_SINIR)
+//   islem "takip": { ownerId, sessizGun: 14 } -> özet + takipsiz lead'ler (task yok, son aktivite sessizGun'den eski)
 //   islem "notlar": { leadId, ownerId } -> son 3 not (HTML temizlenmiş düz metin)
 import { oturumKontrol } from "./_oturum.js";
 
@@ -41,15 +43,15 @@ async function kylasAra(kurallar, page, alanlar = ["id", "ownerId", "pipelineSta
 }
 
 // Tüm sayfaları çeker (4'erli paralel). Toplam 10.000'i aşarsa null döner, çağıran parçalar.
-async function hepsiniCek(kurallar) {
-  const ilk = await kylasAra(kurallar, 0);
+async function hepsiniCek(kurallar, alanlar) {
+  const ilk = await kylasAra(kurallar, 0, alanlar);
   const toplam = ilk.totalElements || 0;
   if (toplam > KYLAS_LIMIT) return null;
   const satirlar = [...(ilk.content || [])];
   const sayfaSayisi = Math.ceil(toplam / SAYFA);
   for (let p = 1; p < sayfaSayisi; p += 4) {
     const grup = [];
-    for (let q = p; q < Math.min(p + 4, sayfaSayisi); q++) grup.push(kylasAra(kurallar, q));
+    for (let q = p; q < Math.min(p + 4, sayfaSayisi); q++) grup.push(kylasAra(kurallar, q, alanlar));
     (await Promise.all(grup)).forEach(d => satirlar.push(...(d.content || [])));
   }
   return satirlar;
@@ -79,6 +81,42 @@ async function notlar(req, res) {
   });
 }
 
+// Takip edilmesi gereken açık aşamalar: Na1, Na2, Na3, Görüşme, İlgili
+const TAKIP_ASAMALARI = [222366, 253357, 253358, 218701, 218702];
+
+async function takip(req, res) {
+  const ownerId = Number(req.body?.ownerId);
+  const sessizGun = req.body?.sessizGun ? Number(req.body.sessizGun) : 14;
+  if (!Number.isInteger(ownerId)) return res.status(400).json({ error: "Danışman seçilmedi." });
+  if (!Number.isInteger(sessizGun) || sessizGun < 1 || sessizGun > 365) return res.status(400).json({ error: "Geçersiz gün." });
+
+  const kurallar = [kural("ownerId", "equal", ownerId), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", TAKIP_ASAMALARI)];
+  const leadler = await hepsiniCek(kurallar, [...LISTE_ALANLARI, "source"]);
+  if (leadler === null) return res.status(422).json({ error: "Bu danışmanda 10.000'den fazla açık lead var." });
+
+  const simdi = Date.now();
+  const sinir = simdi - sessizGun * 24 * 60 * 60 * 1000;
+  const zaman = v => (v ? new Date(v).getTime() : null);
+  const ozet = { toplam: leadler.length, ileriTask: 0, gecikmisTask: 0, taskYok: 0, takipsiz: 0 };
+  const takipsiz = [];
+  for (const l of leadler) {
+    const task = zaman(l.taskDueOn);
+    if (task && task >= simdi) ozet.ileriTask++;
+    else if (task) ozet.gecikmisTask++;
+    else ozet.taskYok++;
+    const akt = zaman(l.latestActivityCreatedAt);
+    if (!task && (!akt || akt < sinir)) {
+      ozet.takipsiz++;
+      takipsiz.push({
+        id: l.id, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), ownerId: l.ownerId, asama: l.pipelineStage, kaynak: l.source,
+        olusturma: l.createdAt || null, sonAktivite: l.latestActivityCreatedAt || null,
+      });
+    }
+  }
+  takipsiz.sort((a, b) => (zaman(a.sonAktivite) || 0) - (zaman(b.sonAktivite) || 0));
+  return res.status(200).json({ ozet, sessizGun, takipsiz, guncellendi: new Date().toISOString() });
+}
+
 async function liste(req, res, kurallar) {
   const ownerIds = (Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : []).map(Number).filter(Number.isInteger);
   const asama = req.body?.asama ? Number(req.body.asama) : null;
@@ -104,6 +142,9 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   if (!oturumKontrol(req, res, "crm-rapor")) return;
 
+  if (req.body?.islem === "takip") {
+    try { return await takip(req, res); } catch (err) { return res.status(502).json({ error: err.message }); }
+  }
   if (req.body?.islem === "notlar") {
     try { return await notlar(req, res); } catch (err) { return res.status(502).json({ error: err.message }); }
   }

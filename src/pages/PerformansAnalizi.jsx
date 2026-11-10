@@ -1,8 +1,10 @@
+// v1.1: üçüncü sekme "Takip Raporu" (TakipRaporu.jsx)
 // v1.0: iki sekme. Varsayılan "CRM Raporu" (CrmRaporu.jsx), ikinci "Quiz Skorları" (önceki içerik, davranışı aynı)
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 import CrmRaporu from "./CrmRaporu";
+import TakipRaporu from "./TakipRaporu";
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -217,12 +219,13 @@ export default function PerformansAnalizi() {
 
       <main style={s.main}>
         <div style={s.sekmeler}>
-          {[["crm", "CRM Raporu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
+          {[["crm", "CRM Raporu"], ["takip", "Takip Raporu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
             <button key={k} onClick={() => setSekme(k)} style={sekme === k ? s.sekmeAktif : s.sekme}>{ad}</button>
           ))}
         </div>
 
         {sekme === "crm" && <CrmRaporu user={user} isAdmin={isAdmin} isManager={isManager} />}
+        {sekme === "takip" && <TakipRaporu user={user} isAdmin={isAdmin} isManager={isManager} />}
 
         {sekme === "quiz" && (<>
         {loading && (

@@ -1,3 +1,4 @@
+// v1.2: kişi yükleme, NotBalonu ve yardımcılar TakipRaporu.jsx için dışa açıldı (davranış aynı)
 // v1.1: grid görünüm; sayılar tıklanabilir, tıklanınca o danışman + aşama için lead listesi (LeadPaneli) açılır.
 //       Lead ID Kylas'ta yeni sekmede açılır, not ikonunun üzerine gelince son 3 not görünür (NotBalonu).
 // v1.0: Performans Analizi > CRM Raporu sekmesi
@@ -11,7 +12,7 @@ const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const csvUrl = sekme => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sekme)}`;
 
 // Kylas "Kaynak" picklist ID'leri, lead sayısına göre sıralı (Kasım 2026)
-const KAYNAKLAR = [
+export const KAYNAKLAR = [
   { id: 2675584, ad: "Instagram" },
   { id: 2650987, ad: "Fuar" },
   { id: 2753894, ad: "Imports" },
@@ -28,16 +29,16 @@ const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
+export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
-async function apiCagir(govde) {
+export async function apiCagir(govde) {
   const r = await fetch("/api/crm-rapor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(govde) });
   const d = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(d.error || `İstek başarısız (HTTP ${r.status})`);
   return d;
 }
 
-function tarih(v, saatli = false) {
+export function tarih(v, saatli = false) {
   if (!v) return "";
   const d = new Date(v);
   if (isNaN(d)) return "";
@@ -69,7 +70,22 @@ function satirlariOku(csv) {
   return rows.slice(1).map(r => Object.fromEntries(h.map((k, i) => [k, r[i] || ""])));
 }
 
-const kucuk = v => String(v || "").trim().toLocaleLowerCase("tr-TR");
+export const kucuk = v => String(v || "").trim().toLocaleLowerCase("tr-TR");
+
+// Kylas ID -> { ad, sube, email }: İzin Yönetimi ID sekmesi (e-posta -> Kylas ID) + Personel sekmesi
+export async function kisileriYukle() {
+  const [idCsv, personelCsv] = await Promise.all([fetch(csvUrl("ID")).then(r => r.text()), fetch(csvUrl("Personel")).then(r => r.text())]);
+  const personel = satirlariOku(personelCsv);
+  const harita = {};
+  satirlariOku(idCsv).forEach(r => {
+    const email = kucuk(r.Email);
+    const id = String(r.ID || "").trim();
+    if (!email || !id) return;
+    const p = personel.find(x => kucuk(x["E-posta"]) === email);
+    harita[id] = { ad: p?.["Ad Soyad"] || email.split("@")[0], sube: p?.["Şube"] || "", email, personelde: !!p };
+  });
+  return harita;
+}
 
 export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null); // kylasId -> { ad, sube, email }
@@ -83,19 +99,8 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [secim, setSecim] = useState(null); // { baslik, ownerIds, asama, asamaAd }
 
   useEffect(() => {
-    Promise.all([fetch(csvUrl("ID")).then(r => r.text()), fetch(csvUrl("Personel")).then(r => r.text())])
-      .then(([idCsv, personelCsv]) => {
-        const personel = satirlariOku(personelCsv);
-        const harita = {};
-        satirlariOku(idCsv).forEach(r => {
-          const email = kucuk(r.Email);
-          const id = String(r.ID || "").trim();
-          if (!email || !id) return;
-          const p = personel.find(x => kucuk(x["E-posta"]) === email);
-          harita[id] = { ad: p?.["Ad Soyad"] || email.split("@")[0], sube: p?.["Şube"] || "", email };
-        });
-        setKisiler(harita);
-      })
+    kisileriYukle()
+      .then(setKisiler)
       .catch(() => setKisiHata("Danışman listesi okunamadı."));
   }, []);
 
@@ -318,7 +323,7 @@ function LeadPaneli({ secim, kaynak, gun, kaynakAd, asamalar, onKapat }) {
 }
 
 // Not ikonu: üzerine gelince lead'in son 3 notu çekilir (bir kez) ve balonda gösterilir.
-function NotBalonu({ lead, onbellek }) {
+export function NotBalonu({ lead, onbellek }) {
   const [konum, setKonum] = useState(null);
   const [durum, setDurum] = useState(onbellek.current[lead.id] || null);
   const zamanlayici = useRef(null);
@@ -366,7 +371,7 @@ function NotBalonu({ lead, onbellek }) {
 }
 
 const chipTemel = { padding: "7px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif", transition: "all 0.15s" };
-const c = {
+export const c = {
   panel: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "20px 24px", marginBottom: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
   etiket: { fontSize: "11px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" },
   chipSatir: { display: "flex", flexWrap: "wrap", gap: "8px" },
