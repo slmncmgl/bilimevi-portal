@@ -1,3 +1,4 @@
+// v1.7: menüdeki VIP Datalar hızlı seçimine Setrow Marketing eklendi
 // v1.6: veri kaynağı açılır çoklu seçim menüsünde (KaynakSecici.jsx); tarih ve şube aynı satırda.
 // v1.5: kaynak düğmeleri eşit genişlikte ızgarada; Tümü / Temizle başlık satırının sağında. Sürüm etiketi için CRM_SURUM.
 // v1.4: birden fazla veri kaynağı seçilebilir (✓ ile işaretlenir, "Tümü" hepsini seçer, "Temizle" boşaltır).
@@ -36,7 +37,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v1.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v1.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 

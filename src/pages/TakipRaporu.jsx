@@ -1,3 +1,4 @@
+// v1.7: VIP Datalar'a Setrow Marketing eklendi (liste KaynakSecici.jsx'te)
 // v1.6: veri kaynağı seçimi (açılır çoklu seçim, KaynakSecici.jsx) üst panelde; boşsa tüm kaynaklar.
 //       Kaynak sunucuda süzülür, kartlar da seçime göre değişir. VIP Datalar neon düğmesi VIP kaynakları tek tıkla seçer/bırakır.
 //       Listedeki ayrı "Kaynak" filtresi kaldırıldı.
@@ -17,7 +18,7 @@ import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v1.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v1.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -127,7 +128,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
               <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Tüm kaynaklar" />
               <button onClick={() => setKaynaklar(vipSecili ? [] : VIP_KAYNAKLAR)} className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}
-                title={vipSecili ? "VIP filtresini kaldır" : "Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci"}>
+                title={vipSecili ? "VIP filtresini kaldır" : "Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing"}>
                 <span>★ VIP Datalar</span>
               </button>
             </div>
