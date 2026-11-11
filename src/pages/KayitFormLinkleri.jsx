@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
+import YeniFormTalebi, { TALEP_ALANLARI } from "./YeniFormTalebi";
 
-const VERSION = "v2.2";
+const VERSION = "v2.3";
 // Danışman formu + 3 öğrenci formu bu kaynaktan gelir
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
@@ -142,11 +143,14 @@ async function loadSchools() {
   if (idx.name === -1) throw new Error("'OKULLAR' sütunu bulunamadı");
 
   const get = (r, i) => (i === -1 ? "" : clean(r[i]));
+  // Yeni form talebinde klonlama için ham değerler (satır sonları korunur)
+  const rawIdx = TALEP_ALANLARI.map(a => [a.ad, col(a.ad)]);
   const formTitleIdx = idx.formTitle;
 
   return rows.slice(1)
     .map((r, i) => {
       const s = { id: i };
+      s.raw = Object.fromEntries(rawIdx.map(([ad, j]) => [ad, j === -1 ? "" : (r[j] || "").replace(/\r/g, "").trim()]));
       Object.keys(idx).forEach(k => { s[k] = get(r, idx[k]); });
       s.url = isUrl(s.form) ? s.form : "";
       // Form Başlığı çok satırlı; etikette sadece ilk satır, aramada tamamı
@@ -175,6 +179,7 @@ export default function KayitFormLinkleri() {
   const [selectedSchool, setSelectedSchool] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
+  const [talepAcik, setTalepAcik] = useState(false);
   const comboRef = useRef(null);
   const inputRef = useRef(null);
   const listRef = useRef(null);
@@ -316,6 +321,19 @@ export default function KayitFormLinkleri() {
     return s[key] || "-";
   }
 
+  function renderTags(s) {
+    return (
+      <span style={styles.optionTags}>
+        {SCHOOL_TAGS.filter(t => s[t.key]).map(t => (
+          <span key={t.key} style={styles.tagRow}>
+            <span style={{ ...styles.tagLabel, background: t.bg, color: t.text }}>{t.label}</span>
+            <span style={styles.tagValue}>{s[t.key]}</span>
+          </span>
+        ))}
+      </span>
+    );
+  }
+
   function renderRow(link, colors, withOpenBtn) {
     return (
       <div
@@ -402,6 +420,10 @@ export default function KayitFormLinkleri() {
             )}
 
             <h2 style={styles.groupTitle}>Okul Kayıt Formları</h2>
+            <button onClick={() => setTalepAcik(true)} style={styles.newRequestBtn} className="kfl-new-request">
+              <span style={styles.newRequestPlus} aria-hidden="true">+</span>
+              Yeni Kayıt Formu Talebi
+            </button>
             {schoolError ? (
               <div style={styles.errorBox}>
                 <strong>Okul listesi yüklenemedi.</strong>
@@ -452,14 +474,7 @@ export default function KayitFormLinkleri() {
                             ...(selectedSchool?.id === s.id ? styles.optionSelected : {}),
                           }}
                         >
-                          <span style={styles.optionTags}>
-                            {SCHOOL_TAGS.filter(t => s[t.key]).map(t => (
-                              <span key={t.key} style={styles.tagRow}>
-                                <span style={{ ...styles.tagLabel, background: t.bg, color: t.text }}>{t.label}</span>
-                                <span style={styles.tagValue}>{s[t.key]}</span>
-                              </span>
-                            ))}
-                          </span>
+                          {renderTags(s)}
                           <span style={styles.optionMeta}>
                             {s.meta}
                             {!s.url && <span style={styles.noFormBadge}>Form yok</span>}
@@ -491,6 +506,15 @@ export default function KayitFormLinkleri() {
           </>
         )}
       </main>
+
+      {talepAcik && (
+        <YeniFormTalebi
+          schools={schools}
+          renderTags={renderTags}
+          talepEden={getSession()?.name || ""}
+          onClose={() => setTalepAcik(false)}
+        />
+      )}
 
       {showUsage && (
         <div onClick={() => setShowUsage(false)} style={styles.popupOverlay}>
@@ -545,6 +569,7 @@ export default function KayitFormLinkleri() {
           .kfl-usage-btn { animation: none; }
         }
         .kfl-combo-input:focus { outline: none; border-color: #0d9488 !important; box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
+        .kfl-new-request:hover { background: #ccfbf1 !important; border-color: #2dd4bf !important; }
         .kfl-detail-row:last-child { border-bottom: none !important; }
         @media (max-width: 640px) {
           .kfl-header-inner { padding: 12px 16px !important; }
@@ -582,6 +607,8 @@ const styles = {
   option: { display: "flex", flexDirection: "column", gap: "8px", minHeight: "44px", padding: "10px 12px", borderRadius: "8px", cursor: "pointer" },
   optionActive: { background: "#f0fdfa" },
   optionSelected: { boxShadow: "inset 3px 0 0 #0d9488" },
+  newRequestBtn: { width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", minHeight: "56px", marginBottom: "14px", padding: "14px 20px", border: "2px dashed #5eead4", borderRadius: "14px", background: "#f0fdfa", color: "#0f766e", fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" },
+  newRequestPlus: { width: "30px", height: "30px", borderRadius: "50%", background: "#0d9488", color: "#fff", fontSize: "22px", fontWeight: 600, lineHeight: "30px", textAlign: "center" },
   optionTags: { display: "flex", flexDirection: "column", gap: "6px" },
   tagRow: { display: "flex", alignItems: "center", gap: "10px", minWidth: 0 },
   tagLabel: { flex: "0 0 58px", textAlign: "center", fontSize: "11px", fontWeight: "700", padding: "3px 0", borderRadius: "6px", whiteSpace: "nowrap" },
