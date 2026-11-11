@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.72
+// KayitGuncelle.jsx v1.73
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.72"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.73"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -801,8 +801,9 @@ export default function KayitGuncelle() {
   // Sözleşme Onay Linki yoksa yalnızca ön kayıt alanları düzenlenebilir
   const sozlesmeVar = !!gecerliLink(data?.["Sözleşme Onay Linki"]);
   const alanKilitli = key => !sozlesmeVar && !ON_KAYIT_ALANLARI.has(key) && !READONLY_FIELDS.includes(key);
-  // Sunum Yapılan Okul (TR_Okul_Default) sadece öğrenci formu doldurmuşken (Form Doldurdu) düzeltilebilir; rol fark etmez
-  const alanZorlaAcik = key => key === "TR_Okul_Default" && !!data && sozlesmeDurumu(data).simge === "form";
+  // Sunum Yapılan Okul (TR_Okul_Default) her aşamada ve her rolde düzeltilebilir (n8n bu alanı sadece ön kayıtta yazar,
+  // sözleşme üretiminde kullanmaz). Diğer READONLY_FIELDS kilitli kalır.
+  const alanZorlaAcik = key => key === "TR_Okul_Default";
 
   // Bir kaydın taksit toplamı ile program ücreti uyuşuyor mu?
   function taksitFarki(kayit) {
