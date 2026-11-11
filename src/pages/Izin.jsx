@@ -1157,6 +1157,7 @@ function YaklasanIzinRow({ iz, user, birim, onEdit, onCancel }) {
 }
 
 function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, adminTab, setAdminTab, isFortis, isManagerOnly }) {
+  const navigate = useNavigate();
   const [roller, setRoller] = useState([]);
   useEffect(() => { fetchRoller().then(setRoller).catch(() => setRoller(["staff","manager","director","owner","admin"])); }, []);
   const [bekleyenIzinler, setBekleyenIzinler] = useState([]);
@@ -1956,6 +1957,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               <button onClick={e => { e.stopPropagation(); setShowModal(true); }}
                 style={{ padding: "6px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
                 + Yeni Kullanıcı
+              </button>
+              {/* Test Login: başka bir kullanıcının hesabıyla yan sekmede giriş (sunucu ayrıca admin/owner kontrolü yapar) */}
+              <button onClick={e => { e.stopPropagation(); navigate("/test-login"); }}
+                title="Bir kullanıcının hesabıyla yan sekmede giriş yap"
+                style={{ padding: "6px 12px", background: "#fff", color: "#c2410c", border: "1px solid #fdba74", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
+                Test Login
               </button>
             </div>
           </div>
