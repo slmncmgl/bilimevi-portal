@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v2.0";
+const VERSION = "v2.1";
 // Danışman formu + 3 öğrenci formu bu kaynaktan gelir
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
@@ -27,6 +27,14 @@ const TR_MONTHS = {
   ocak: 0, şubat: 1, mart: 2, nisan: 3, mayıs: 4, haziran: 5,
   temmuz: 6, ağustos: 7, eylül: 8, ekim: 9, kasım: 10, aralık: 11,
 };
+
+// Okul listesindeki mini etiketler: arama yapılan dört alan, her biri kendi renginde
+const SCHOOL_TAGS = [
+  { key: "trSchool", label: "TR Okul", bg: "#eef2ff", border: "#c7d2fe", text: "#4338ca" },
+  { key: "name", label: "Okul", bg: "#f0fdfa", border: "#99f6e4", text: "#0f766e" },
+  { key: "location", label: "Konum", bg: "#fff7ed", border: "#fed7aa", text: "#c2410c" },
+  { key: "formTitleShort", label: "Form", bg: "#fdf2f8", border: "#fbcfe8", text: "#be185d" },
+];
 
 // Öğrenci formlarına sırayla atanan pastel renk paleti (liste uzarsa başa döner)
 const ROW_PALETTE = [
@@ -119,6 +127,7 @@ async function loadSchools() {
   const col = name => headers.indexOf(norm(name));
   const idx = {
     form: col("Bilgi Formu"),
+    trSchool: col("Tr Okulu"),
     name: col("OKULLAR"),
     location: col("Konum"),
     country: col("Bulunduğu Ülke"),
@@ -128,21 +137,25 @@ async function loadSchools() {
     program: col("Program Seçimi (varsa)"),
     duration: col("Kurs Süresi (Hafta veya Gün)"),
     lessons: col("Ders Sayısı"),
+    formTitle: col("Form Başlığı"),
   };
   if (idx.name === -1) throw new Error("'OKULLAR' sütunu bulunamadı");
 
   const get = (r, i) => (i === -1 ? "" : clean(r[i]));
+  const formTitleIdx = idx.formTitle;
 
   return rows.slice(1)
     .map((r, i) => {
       const s = { id: i };
       Object.keys(idx).forEach(k => { s[k] = get(r, idx[k]); });
       s.url = isUrl(s.form) ? s.form : "";
+      // Form Başlığı çok satırlı; etikette sadece ilk satır, aramada tamamı
+      s.formTitleShort = formTitleIdx === -1 ? "" : clean((r[formTitleIdx] || "").split("\n")[0]);
       s.startTs = parseTrDate(s.start);
       const dates = s.start && s.end ? `${s.start} - ${s.end}` : s.start || s.end;
       s.label = [s.name, s.country, dates, s.duration].filter(Boolean).join(" · ");
       s.meta = [s.country, dates, s.duration].filter(Boolean).join(" · ");
-      s.searchText = norm([s.label, s.location].join(" "));
+      s.searchText = norm([s.label, s.location, s.trSchool, s.formTitle].join(" "));
       return s;
     })
     .filter(s => s.name)
@@ -220,7 +233,7 @@ export default function KayitFormLinkleri() {
     .map(t => nonAdvisor.find(l => norm(l.title) === norm(t)))
     .filter(Boolean);
 
-  // Okul araması: her kelime etiket veya konumda geçmeli. Seçili etiket input'tayken tüm liste görünür.
+  // Okul araması: her kelime okul, ülke/tarih, konum, TR okulu veya form başlığında geçmeli. Seçili etiket input'tayken tüm liste görünür.
   const words = norm(search).split(" ").filter(Boolean);
   const showAll = !words.length || (selectedSchool && search === selectedSchool.label);
   const visibleSchools = showAll
@@ -414,7 +427,7 @@ export default function KayitFormLinkleri() {
                     onChange={e => { setSearch(e.target.value); setSelectedSchool(null); setHighlight(0); setDropdownOpen(true); }}
                     onFocus={onComboFocus}
                     onKeyDown={onComboKeyDown}
-                    placeholder="Okul, ülke veya tarih yazın..."
+                    placeholder="TR okulu, okul, konum veya form başlığı yazın..."
                     style={styles.searchInput}
                     className="kfl-combo-input"
                   />
@@ -439,7 +452,14 @@ export default function KayitFormLinkleri() {
                             ...(selectedSchool?.id === s.id ? styles.optionSelected : {}),
                           }}
                         >
-                          <span style={styles.optionName}>{s.name}</span>
+                          <span style={styles.optionTags}>
+                            {SCHOOL_TAGS.filter(t => s[t.key]).map(t => (
+                              <span key={t.key} style={{ ...styles.tag, background: t.bg, borderColor: t.border, color: t.text }}>
+                                <span style={styles.tagLabel}>{t.label}</span>
+                                <span style={t.key === "name" ? styles.tagValueStrong : styles.tagValue}>{s[t.key]}</span>
+                              </span>
+                            ))}
+                          </span>
                           <span style={styles.optionMeta}>
                             {s.meta}
                             {!s.url && <span style={styles.noFormBadge}>Form yok</span>}
@@ -562,6 +582,11 @@ const styles = {
   option: { display: "flex", flexDirection: "column", gap: "3px", minHeight: "44px", padding: "10px 12px", borderRadius: "8px", cursor: "pointer" },
   optionActive: { background: "#f0fdfa" },
   optionSelected: { boxShadow: "inset 3px 0 0 #0d9488" },
+  optionTags: { display: "flex", flexWrap: "wrap", gap: "5px" },
+  tag: { display: "inline-flex", alignItems: "baseline", gap: "5px", maxWidth: "100%", border: "1px solid", borderRadius: "6px", padding: "2px 7px", fontSize: "12.5px", lineHeight: 1.4 },
+  tagLabel: { fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.03em", opacity: 0.75, whiteSpace: "nowrap" },
+  tagValue: { fontWeight: "500", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 },
+  tagValueStrong: { fontWeight: "600", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 },
   optionName: { fontSize: "14px", fontWeight: "600", color: "#0f172a", lineHeight: 1.4 },
   optionMeta: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", fontSize: "12.5px", color: "#64748b", lineHeight: 1.4 },
   noFormBadge: { fontSize: "11px", fontWeight: "700", color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", padding: "1px 7px", borderRadius: "6px", whiteSpace: "nowrap" },
