@@ -9,7 +9,7 @@ const N8N_URL = "https://n8n.bilimevi.cloud/webhook/kayit-formu-talebi";
 const ALANLAR = [
   "Atanacak Sabit Danışman (varsa)", "Tr Okulu", "OKULLAR", "Konum", "Bulunduğu Ülke",
   "Başlangıç Tarihi", "Bitiş Tarihi", "Kurs Süresi (Hafta veya Gün)", "Program Adı",
-  "Ders Sayısı", "Yaş", "Form Başlığı", "Program Seçimi (varsa)",
+  "Ders Sayısı", "Form Başlığı", "Program Seçimi (varsa)",
 ];
 const ZORUNLU = ["Tr Okulu", "OKULLAR", "Başlangıç Tarihi", "Bitiş Tarihi"];
 

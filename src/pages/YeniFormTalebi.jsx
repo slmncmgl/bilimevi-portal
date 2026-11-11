@@ -15,7 +15,6 @@ export const TALEP_ALANLARI = [
   { ad: "Kurs Süresi (Hafta veya Gün)", ipucu: "ör. 2 hafta" },
   { ad: "Program Adı" },
   { ad: "Ders Sayısı" },
-  { ad: "Yaş", ipucu: "ör. 12 - 17 yaş" },
   { ad: "Form Başlığı", cokSatir: true, tamGenislik: true },
   { ad: "Program Seçimi (varsa)", cokSatir: true, tamGenislik: true },
 ];

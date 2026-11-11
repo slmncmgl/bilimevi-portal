@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 import YeniFormTalebi, { TALEP_ALANLARI } from "./YeniFormTalebi";
 
-const VERSION = "v2.7";
+const VERSION = "v2.8";
 // Danışman formu + 3 öğrenci formu bu kaynaktan gelir
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
