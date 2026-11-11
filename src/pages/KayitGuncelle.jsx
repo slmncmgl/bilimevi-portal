@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.74
+// KayitGuncelle.jsx v1.75
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.74"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.75"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -310,7 +310,52 @@ function Toast({ toast }) {
   );
 }
 
-function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur, kilitli, zorlaAcik }) {
+// Yazarken öneri listesi (Sunum Yapılan Okul / TR_Okul_Default): harf ve Türkçe karakter duyarsız, ortadan da eşleşir.
+// Listede olmayan değer de yazılabilir; Güncelle'de sheet'e öyle kaydedilir. ↑/↓ gezinir, Enter seçer, Esc kapatır.
+function OneriliGirdi({ value, onChange, oneriler, style }) {
+  const [acik, setAcik] = useState(false);
+  const [aktif, setAktif] = useState(-1);
+  const q = sadelestir(value);
+  const mevcut = String(value || "").trim();
+  const liste = oneriler.filter(o => (!q || o.anahtar.includes(q)) && o.deger !== mevcut).slice(0, 8);
+  const sec = o => { onChange(o.deger); setAcik(false); setAktif(-1); };
+  return (
+    <div style={{ position: "relative" }}>
+      <input
+        type="text" value={value || ""} autoComplete="off"
+        onChange={e => { onChange(e.target.value); setAcik(true); setAktif(-1); }}
+        onFocus={() => setAcik(true)}
+        onBlur={() => { setAcik(false); setAktif(-1); }}
+        onKeyDown={e => {
+          if (e.key === "Escape") { setAcik(false); return; }
+          if (!acik || !liste.length) return;
+          if (e.key === "ArrowDown") { e.preventDefault(); setAktif(i => (i + 1) % liste.length); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); setAktif(i => (i <= 0 ? liste.length - 1 : i - 1)); }
+          else if (e.key === "Enter" && aktif >= 0) { e.preventDefault(); sec(liste[aktif]); }
+        }}
+        style={{ ...style, paddingRight: "42px" }}
+      />
+      <KopyalaButonu deger={value} style={{ position: "absolute", right: "6px", top: "50%", transform: "translateY(-50%)" }} />
+      {acik && liste.length > 0 && (
+        <div style={s.oneriKutusu}>
+          {liste.map((o, i) => (
+            <div
+              key={o.anahtar}
+              onMouseDown={e => { e.preventDefault(); sec(o); }}
+              onMouseEnter={() => setAktif(i)}
+              style={{ ...s.oneriSatir, background: i === aktif ? "#f1f5f9" : "transparent" }}
+            >
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.deger}</span>
+              <span style={{ flexShrink: 0, fontSize: "11px", color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}>{o.sayi} kayıt</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur, kilitli, zorlaAcik, oneriler }) {
   const isDropdown = !!DROPDOWN_OPTIONS[label];
 
   const taksitIndex = (() => {
@@ -357,6 +402,10 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur,
         }}
       >Fotoğrafı Aç</a>
     );
+  }
+
+  if (oneriler && !isReadonly) {
+    return <OneriliGirdi value={value} onChange={onChange} oneriler={oneriler} style={baseStyle} />;
   }
 
   if (isDropdown && !isReadonly) {
@@ -1423,6 +1472,24 @@ export default function KayitGuncelle() {
     eklenmeZamani(b) - eklenmeZamani(a)
   ), [filtreliOgrenciler]);
 
+  // Sunum Yapılan Okul önerileri: sheet'teki tüm TR_Okul_Default değerleri, harf/Türkçe karakter farkı birleşik.
+  // Her okul için en çok kullanılan yazım gösterilir; en çok kaydı olan okul en üstte.
+  const okulOnerileri = useMemo(() => {
+    const gruplar = new Map();
+    for (const k of ogrencilerim) {
+      const deger = temizMetin(k["TR_Okul_Default"]);
+      if (!deger) continue;
+      const anahtar = sadelestir(deger);
+      const g = gruplar.get(anahtar) || { anahtar, sayi: 0, yazimlar: new Map() };
+      g.sayi += 1;
+      g.yazimlar.set(deger, (g.yazimlar.get(deger) || 0) + 1);
+      gruplar.set(anahtar, g);
+    }
+    return [...gruplar.values()]
+      .map(g => ({ anahtar: g.anahtar, sayi: g.sayi, deger: [...g.yazimlar].sort((a, b) => b[1] - a[1])[0][0] }))
+      .sort((a, b) => b.sayi - a.sayi || a.deger.localeCompare(b.deger, "tr"));
+  }, [ogrencilerim]);
+
   // Liste başlığındaki aktif filtre özeti (tarih ve okul seçimi yazılmaz)
   const listeOzeti = aramaTerimi
     ? `"${tc.trim()}" Araması, Tüm Kayıtlarda`
@@ -2299,7 +2366,8 @@ export default function KayitGuncelle() {
                         </div>
                       );
                     })()}
-                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} saltOkunur={saltOkunur} kilitli={alanKilitli(key)} zorlaAcik={alanZorlaAcik(key)} />
+                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} saltOkunur={saltOkunur} kilitli={alanKilitli(key)} zorlaAcik={alanZorlaAcik(key)}
+                      oneriler={key === "TR_Okul_Default" ? okulOnerileri : undefined} />
                   </div>
                 ))}
               </div>
