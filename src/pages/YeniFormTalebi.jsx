@@ -8,9 +8,10 @@ export const TALEP_ALANLARI = [
   { ad: "Tr Okulu", zorunlu: true },
   { ad: "OKULLAR", etiket: "Okul (OKULLAR)", zorunlu: true },
   { ad: "Konum" },
+  // İki tarih formda tek blokta alt alta durur (Başlangıç bloğu çizer, Bitiş atlanır)
+  { ad: "Başlangıç Tarihi", zorunlu: true, tarih: true },
+  { ad: "Bitiş Tarihi", zorunlu: true, tarih: true },
   { ad: "Bulunduğu Ülke" },
-  { ad: "Başlangıç Tarihi", zorunlu: true, ipucu: "ör. 1 Temmuz 2027" },
-  { ad: "Bitiş Tarihi", zorunlu: true, ipucu: "ör. 15 Temmuz 2027" },
   { ad: "Kurs Süresi (Hafta veya Gün)", ipucu: "ör. 2 hafta" },
   { ad: "Program Adı" },
   { ad: "Ders Sayısı" },
@@ -18,6 +19,22 @@ export const TALEP_ALANLARI = [
   { ad: "Form Başlığı", cokSatir: true, tamGenislik: true },
   { ad: "Program Seçimi (varsa)", cokSatir: true, tamGenislik: true },
 ];
+
+// Tarih seçici ISO (2027-07-01) ile çalışır; sheet'e "1 Temmuz 2027" yazılır, klonlanan satırdaki metin ISO'ya çevrilir
+const TR_AYLAR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+
+function trToIso(metin) {
+  const m = String(metin || "").replace(/\s+/g, " ").trim().toLocaleLowerCase("tr-TR").match(/^(\d{1,2}) (\S+) (\d{4})$/);
+  if (!m) return "";
+  const ay = TR_AYLAR.findIndex(a => a.toLocaleLowerCase("tr-TR") === m[2]);
+  if (ay === -1 || +m[1] < 1 || +m[1] > 31) return "";
+  return `${m[3]}-${String(ay + 1).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+}
+
+function isoToTr(iso) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${+m[3]} ${TR_AYLAR[+m[2] - 1]} ${m[1]}` : "";
+}
 
 const bosForm = () => Object.fromEntries(TALEP_ALANLARI.map(a => [a.ad, ""]));
 
@@ -57,7 +74,10 @@ export default function YeniFormTalebi({ schools, renderTags, talepEden, onClose
 
   function ornekSec(s) {
     setOrnek(s);
-    setAlanlar({ ...bosForm(), ...Object.fromEntries(TALEP_ALANLARI.map(a => [a.ad, s.raw?.[a.ad] || ""])) });
+    setAlanlar({ ...bosForm(), ...Object.fromEntries(TALEP_ALANLARI.map(a => {
+      const v = s.raw?.[a.ad] || "";
+      return [a.ad, a.tarih ? trToIso(v) : v];
+    })) });
     setAdim("form");
   }
 
@@ -71,6 +91,8 @@ export default function YeniFormTalebi({ schools, renderTags, talepEden, onClose
 
   async function gonder() {
     if (eksik.length) { setHata(`Zorunlu alanları doldurun: ${eksik.join(", ")}`); return; }
+    if (alanlar["Bitiş Tarihi"] < alanlar["Başlangıç Tarihi"]) { setHata("Bitiş tarihi başlangıç tarihinden önce olamaz."); return; }
+    const gonderilecek = Object.fromEntries(TALEP_ALANLARI.map(a => [a.ad, a.tarih ? isoToTr(alanlar[a.ad]) : alanlar[a.ad]]));
     setGonderiliyor(true);
     setHata(null);
     try {
@@ -80,7 +102,7 @@ export default function YeniFormTalebi({ schools, renderTags, talepEden, onClose
         body: JSON.stringify({
           talepEden,
           ornekForm: ornek ? [ornek.name, ornek.meta, ornek.url].filter(Boolean).join(" · ") : "",
-          alanlar,
+          alanlar: gonderilecek,
           not,
         }),
       });
@@ -93,6 +115,32 @@ export default function YeniFormTalebi({ schools, renderTags, talepEden, onClose
     } finally {
       setGonderiliyor(false);
     }
+  }
+
+  function alanCiz(a) {
+    const deger = alanlar[a.ad];
+    const eksikMi = a.zorunlu && hata && !deger.trim();
+    const degistir = e => setAlanlar(v => ({ ...v, [a.ad]: e.target.value }));
+    return (
+      <label key={a.ad} style={{ ...s.field, ...(a.tamGenislik ? s.fieldFull : {}) }} className={a.tamGenislik ? "yft-full" : ""}>
+        <span style={s.label}>{a.etiket || a.ad}{a.zorunlu && <span style={s.req}> *</span>}</span>
+        {a.cokSatir ? (
+          <textarea value={deger} onChange={degistir} rows={a.ad === "Form Başlığı" ? 5 : 3} style={{ ...s.input, ...s.textarea }} className="yft-input" />
+        ) : a.tarih ? (
+          <input
+            type="date"
+            lang="tr"
+            value={deger}
+            onChange={degistir}
+            min={a.ad === "Bitiş Tarihi" ? alanlar["Başlangıç Tarihi"] || undefined : undefined}
+            style={{ ...s.input, ...s.dateInput, ...(eksikMi ? s.inputErr : {}) }}
+            className="yft-input"
+          />
+        ) : (
+          <input value={deger} onChange={degistir} placeholder={a.ipucu || ""} style={{ ...s.input, ...(eksikMi ? s.inputErr : {}) }} className="yft-input" />
+        )}
+      </label>
+    );
   }
 
   return (
@@ -156,28 +204,18 @@ export default function YeniFormTalebi({ schools, renderTags, talepEden, onClose
             </div>
 
             <div style={s.grid} className="yft-grid">
-              {TALEP_ALANLARI.map(a => (
-                <label key={a.ad} style={{ ...s.field, ...(a.tamGenislik ? s.fieldFull : {}) }} className={a.tamGenislik ? "yft-full" : ""}>
-                  <span style={s.label}>{a.etiket || a.ad}{a.zorunlu && <span style={s.req}> *</span>}</span>
-                  {a.cokSatir ? (
-                    <textarea
-                      value={alanlar[a.ad]}
-                      onChange={e => setAlanlar(v => ({ ...v, [a.ad]: e.target.value }))}
-                      rows={a.ad === "Form Başlığı" ? 5 : 3}
-                      style={{ ...s.input, ...s.textarea }}
-                      className="yft-input"
-                    />
-                  ) : (
-                    <input
-                      value={alanlar[a.ad]}
-                      onChange={e => setAlanlar(v => ({ ...v, [a.ad]: e.target.value }))}
-                      placeholder={a.ipucu || ""}
-                      style={{ ...s.input, ...(a.zorunlu && hata && !alanlar[a.ad].trim() ? s.inputErr : {}) }}
-                      className="yft-input"
-                    />
-                  )}
-                </label>
-              ))}
+              {TALEP_ALANLARI.map(a => {
+                if (a.ad === "Bitiş Tarihi") return null;
+                if (a.ad === "Başlangıç Tarihi") {
+                  return (
+                    <div key="tarihler" style={s.dateBlock}>
+                      {alanCiz(a)}
+                      {alanCiz(TALEP_ALANLARI.find(x => x.ad === "Bitiş Tarihi"))}
+                    </div>
+                  );
+                }
+                return alanCiz(a);
+              })}
               <label style={{ ...s.field, ...s.fieldFull }} className="yft-full">
                 <span style={s.label}>Not (isteğe bağlı)</span>
                 <textarea value={not} onChange={e => setNot(e.target.value)} rows={2} style={{ ...s.input, ...s.textarea }} className="yft-input"
@@ -250,6 +288,8 @@ const s = {
   grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" },
   field: { display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 },
   fieldFull: { gridColumn: "1 / -1" },
+  dateBlock: { gridRow: "span 2", display: "flex", flexDirection: "column", gap: "14px", minWidth: 0 },
+  dateInput: { minHeight: "42px", cursor: "pointer" },
   label: { fontSize: "12.5px", fontWeight: 600, color: "#475569" },
   req: { color: "#dc2626" },
   error: { marginTop: "16px", padding: "10px 14px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", color: "#b91c1c", fontSize: "13px" },
