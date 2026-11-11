@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 import YeniFormTalebi, { TALEP_ALANLARI } from "./YeniFormTalebi";
 
-const VERSION = "v2.3";
+const VERSION = "v2.4";
 // Danışman formu + 3 öğrenci formu bu kaynaktan gelir
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
@@ -86,6 +86,20 @@ function clean(s) {
   return (s || "").replace(/\s+/g, " ").trim();
 }
 
+// Karşılaştırma için: küçük harf, harf/rakam dışı her şey atılır ("Rugby School" ≈ "Dusemond Study Programmes Rugby School")
+function sade(s) {
+  return norm(s).replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+// Form Başlığı'nın ilk satırı. Bazı hücrelerde satır sonu yerine art arda boşluk var; onlar da satır sonu sayılır.
+// Okul adını tekrar ediyorsa (biri diğerini içeriyorsa) etiket gösterilmez.
+function formEtiketi(formTitle, name) {
+  const ilk = clean((formTitle || "").split(/\n| {2,}/)[0]);
+  const a = sade(ilk), b = sade(name);
+  if (!a || (b && (a.includes(b) || b.includes(a)))) return "";
+  return ilk;
+}
+
 function isUrl(s) {
   return /^https?:\/\//i.test(s);
 }
@@ -153,8 +167,8 @@ async function loadSchools() {
       s.raw = Object.fromEntries(rawIdx.map(([ad, j]) => [ad, j === -1 ? "" : (r[j] || "").replace(/\r/g, "").trim()]));
       Object.keys(idx).forEach(k => { s[k] = get(r, idx[k]); });
       s.url = isUrl(s.form) ? s.form : "";
-      // Form Başlığı çok satırlı; etikette sadece ilk satır, aramada tamamı
-      s.formTitleShort = formTitleIdx === -1 ? "" : clean((r[formTitleIdx] || "").split("\n")[0]);
+      // Form Başlığı çok satırlı; etikette sadece ilk satır (okul adını tekrar etmiyorsa), aramada tamamı
+      s.formTitleShort = formTitleIdx === -1 ? "" : formEtiketi(r[formTitleIdx], s.name);
       s.startTs = parseTrDate(s.start);
       const dates = s.start && s.end ? `${s.start} - ${s.end}` : s.start || s.end;
       s.label = [s.name, s.country, dates, s.duration].filter(Boolean).join(" · ");
