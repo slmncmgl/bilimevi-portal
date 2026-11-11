@@ -1,3 +1,4 @@
+// v1.4: Test Login butonu küçültüldü
 // v1.3: Kullanıcı Yönetimi ikonu başlıkla aynı satırda
 // v1.2: Kullanıcı Yönetimi kartı tam genişlik, Test Login büyük buton olarak sağda
 // v1.1: Yönetici Paneli'nde Şube Yönetimi kartı gizlendi (şube ekleme manuel yapılıyor)
@@ -1971,12 +1972,12 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               title="Bir kullanıcının hesabıyla yan sekmede giriş yap"
               onMouseEnter={e => e.currentTarget.style.background = "#ffedd5"}
               onMouseLeave={e => e.currentTarget.style.background = "#fff7ed"}
-              style={{ flex: "0 1 240px", minHeight: "120px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "8px", padding: "20px 24px", background: "#fff7ed", color: "#c2410c", border: "1.5px solid #fdba74", borderRadius: "14px", fontSize: "17px", fontWeight: "700", cursor: "pointer", fontFamily: "Calibri, sans-serif", transition: "background 0.15s" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="28" height="28">
+              style={{ alignSelf: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "4px", padding: "12px 20px", background: "#fff7ed", color: "#c2410c", border: "1.5px solid #fdba74", borderRadius: "12px", fontSize: "14px", fontWeight: "700", cursor: "pointer", fontFamily: "Calibri, sans-serif", transition: "background 0.15s" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
                 <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
               </svg>
               Test Login
-              <span style={{ fontSize: "12px", fontWeight: "500", color: "#9a3412" }}>Kullanıcı hesabıyla giriş yap</span>
+              <span style={{ fontSize: "11px", fontWeight: "500", color: "#9a3412" }}>Kullanıcı hesabıyla giriş yap</span>
             </button>
           </div>
         </div>
