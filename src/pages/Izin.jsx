@@ -1,3 +1,4 @@
+// v1.2: Kullanıcı Yönetimi kartı tam genişlik, Test Login büyük buton olarak sağda
 // v1.1: Yönetici Paneli'nde Şube Yönetimi kartı gizlendi (şube ekleme manuel yapılıyor)
 // v1.0 — SCRIPT_URL merkezi config.js'e taşındı
 import { useState, useEffect, useRef, memo } from "react";
@@ -1921,7 +1922,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
 
       {/* Üst iki kart */}
       {isAdmin && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px", marginBottom: "20px" }}>
           {/* Şube Yönetimi: gizli, şube ekleme manuel yapılıyor (v1.1) */}
           {false && <div style={{ background: "#fff", border: "1.5px solid #bbf7d0", borderRadius: "16px", padding: "24px", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
             onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(5,150,105,0.12)"}
@@ -1939,9 +1940,10 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
           </div>}
 
           {/* Kullanıcı Yönetimi */}
-          <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: "16px", padding: "24px", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+          <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: "16px", padding: "24px", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", display: "flex", flexWrap: "wrap", alignItems: "stretch", gap: "20px" }}
             onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.12)"}
             onMouseLeave={e => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"}>
+            <div style={{ flex: "1 1 260px" }}>
             <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="22" height="22">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
@@ -1959,13 +1961,20 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
                 style={{ padding: "6px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
                 + Yeni Kullanıcı
               </button>
-              {/* Test Login: başka bir kullanıcının hesabıyla yan sekmede giriş (sunucu ayrıca admin/owner kontrolü yapar) */}
-              <button onClick={e => { e.stopPropagation(); navigate("/test-login"); }}
-                title="Bir kullanıcının hesabıyla yan sekmede giriş yap"
-                style={{ padding: "6px 12px", background: "#fff", color: "#c2410c", border: "1px solid #fdba74", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
-                Test Login
-              </button>
             </div>
+            </div>
+            {/* Test Login: başka bir kullanıcının hesabıyla yan sekmede giriş (sunucu ayrıca admin/owner kontrolü yapar) */}
+            <button onClick={e => { e.stopPropagation(); navigate("/test-login"); }}
+              title="Bir kullanıcının hesabıyla yan sekmede giriş yap"
+              onMouseEnter={e => e.currentTarget.style.background = "#ffedd5"}
+              onMouseLeave={e => e.currentTarget.style.background = "#fff7ed"}
+              style={{ flex: "0 1 240px", minHeight: "120px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "8px", padding: "20px 24px", background: "#fff7ed", color: "#c2410c", border: "1.5px solid #fdba74", borderRadius: "14px", fontSize: "17px", fontWeight: "700", cursor: "pointer", fontFamily: "Calibri, sans-serif", transition: "background 0.15s" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="28" height="28">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
+              </svg>
+              Test Login
+              <span style={{ fontSize: "12px", fontWeight: "500", color: "#9a3412" }}>Kullanıcı hesabıyla giriş yap</span>
+            </button>
           </div>
         </div>
       )}
