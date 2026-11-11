@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 import YeniFormTalebi, { TALEP_ALANLARI } from "./YeniFormTalebi";
 
-const VERSION = "v2.5";
+const VERSION = "v2.6";
 // Danışman formu + 3 öğrenci formu bu kaynaktan gelir
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
@@ -463,7 +463,7 @@ export default function KayitFormLinkleri() {
                 {studentLinks.length > 0 && (
                   <>
                     <h2 style={styles.groupTitle}>Öğrenci Formları</h2>
-                    <div style={styles.list}>
+                    <div style={styles.studentGrid} className="kfl-student-grid">
                       {studentLinks.map((link, i) => renderRow(link, ROW_PALETTE[i % ROW_PALETTE.length], "copy"))}
                     </div>
                   </>
@@ -690,6 +690,8 @@ const styles = {
   detailValue: { margin: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "8px", fontSize: "13.5px", color: "#0f172a", lineHeight: 1.55, wordBreak: "break-word", minWidth: 0 },
   detailLink: { color: "#0f766e", fontWeight: "600", textDecoration: "none", wordBreak: "break-all" },
   list: { display: "flex", flexDirection: "column", gap: "10px" },
+  // Öğrenci formları yan yana (mobilde alt alta)
+  studentGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "10px" },
   row: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", border: "1.5px solid", borderRadius: "12px", padding: "16px 20px" },
   title: { fontSize: "14px", fontWeight: "600", color: "#0f172a", lineHeight: 1.5 },
   copyBtn: { flexShrink: 0, padding: "9px 16px", borderRadius: "8px", border: "1.5px solid", background: "#fff", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
