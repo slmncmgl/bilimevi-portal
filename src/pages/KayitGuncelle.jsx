@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.76
+// KayitGuncelle.jsx v1.77
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.76"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.77"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1197,15 +1197,23 @@ export default function KayitGuncelle() {
   // Form Doldurdu → Hazırlandı (otomatik gönderim kapalı) → Onay Bekliyor (gönderildi) → Sözleşme ve KVKK Onaylandı.
   // Eski yazımlar da tanınır ("ÖĞRENCİ FORM DOLDURDU", "BEKLEMEDE", "İPTAL ETTİ").
   // Sütun boşsa eski kayıt sayılır: sözleşme linki varsa Onay Bekliyor, yoksa Form Doldurdu.
+  // Rozet görünümü: renk = ikon çizgisi, zemin/cerceve = 28px yuvarlak rozet (v1.77)
+  const DURUM_ROZET = {
+    onay: { metin: "Sözleşme ve KVKK Onaylandı", simge: "onay", renk: "#fff", zemin: "#16a34a", cerceve: "1px solid #16a34a" },
+    iptal: { metin: "İptal Etti", simge: "iptal", renk: "#dc2626", zemin: "#fee2e2", cerceve: "1px solid #fecaca" },
+    bekle: { metin: "Onay Bekliyor", simge: "bekle", renk: "#ea580c", zemin: "#ffedd5", cerceve: "1px solid #fed7aa" },
+    hazir: { metin: "Hazırlandı, gönderilmedi", simge: "hazir", renk: "#2c5282", zemin: "#dbeafe", cerceve: "1px solid #bfdbfe" },
+    form: { metin: "Form Doldurdu", simge: "form", renk: "#64748b", zemin: "#f8fafc", cerceve: "1.5px dashed #94a3b8" },
+  };
   const sozlesmeDurumu = k => {
     const d = sadelestir(k["Onay Durumu"]);
-    if (d.includes("onayland")) return { metin: "Sözleşme ve KVKK Onaylandı", simge: "onay", renk: "#16a34a" };
-    if (d.includes("iptal")) return { metin: "İptal Etti", simge: "iptal", renk: "#dc2626" };
-    if (d.includes("onay bekl") || d.includes("beklemede")) return { metin: "Onay Bekliyor", simge: "bekle", renk: "#ea580c" };
-    if (d.includes("hazirland")) return { metin: "Hazırlandı, gönderilmedi", simge: "hazir", renk: "#2c5282" };
-    if (d.includes("form doldurdu")) return { metin: "Form Doldurdu", simge: "form", renk: "#94a3b8" };
-    if (gecerliLink(k["Sözleşme Onay Linki"])) return { metin: "Onay Bekliyor", simge: "bekle", renk: "#ea580c" };
-    return { metin: "Form Doldurdu", simge: "form", renk: "#94a3b8" };
+    if (d.includes("onayland")) return DURUM_ROZET.onay;
+    if (d.includes("iptal")) return DURUM_ROZET.iptal;
+    if (d.includes("onay bekl") || d.includes("beklemede")) return DURUM_ROZET.bekle;
+    if (d.includes("hazirland")) return DURUM_ROZET.hazir;
+    if (d.includes("form doldurdu")) return DURUM_ROZET.form;
+    if (gecerliLink(k["Sözleşme Onay Linki"])) return DURUM_ROZET.bekle;
+    return DURUM_ROZET.form;
   };
 
   // Şimdilik listede gösterilmeyen sözleşme türleri
@@ -1599,6 +1607,12 @@ export default function KayitGuncelle() {
         input[type="date"]::-webkit-date-and-time-value { text-align: center; }
         .durumRozet { transition: transform 0.15s ease, box-shadow 0.15s ease; }
         .durumRozet:hover { transform: scale(1.12); }
+        /* Onay Bekliyor rozetinin çevresinde yumuşak nabız: bekleyen kayıt gözden kaçmasın */
+        @keyframes durumNabiz {
+          0% { box-shadow: 0 0 0 0 rgba(234,88,12,0.35); }
+          70% { box-shadow: 0 0 0 6px rgba(234,88,12,0); }
+          100% { box-shadow: 0 0 0 0 rgba(234,88,12,0); }
+        }
         @keyframes listFlash {
           0%   { box-shadow: 0 0 0 0 rgba(8,145,178,0.55); transform: scale(1); }
           12%  { box-shadow: 0 0 0 6px rgba(8,145,178,0.35); transform: scale(1.02); }
@@ -2132,16 +2146,24 @@ export default function KayitGuncelle() {
                             onMouseLeave={() => !isMobile && setProgramHover(null)}
                             onClick={() => isMobile && setProgramHover(acik ? null : anahtar)}
                           >
-                            {/* Minimal çizgi ikon: onaylı tik, onay bekliyor saat, hazırlandı belge, form doldurdu kesikli daire, iptal çarpı */}
-                            <svg className="durumRozet" role="img" aria-label={d.metin} width="20" height="20" viewBox="0 0 24 24"
-                              fill="none" stroke={d.renk} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
-                              style={{ display: "block", cursor: "default" }}>
-                              {d.simge === "onay" && <path d="M5 12.5l4.5 4.5L19 7.5" />}
-                              {d.simge === "bekle" && <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>}
-                              {d.simge === "form" && <circle cx="12" cy="12" r="7" strokeDasharray="3 3.2" />}
-                              {d.simge === "hazir" && <><path d="M7 3.5h7l4 4V20.5H7z" /><path d="M14 3.5v4h4" /><path d="M10 13h5" /><path d="M10 16.5h5" /></>}
-                              {d.simge === "iptal" && <><circle cx="12" cy="12" r="8.5" /><path d="M9 9l6 6" /><path d="M15 9l-6 6" /></>}
-                            </svg>
+                            {/* Yuvarlak rozet içinde çizgi ikon: form doldurdu kalem (kesikli çerçeve), hazırlandı belge,
+                                onay bekliyor saat (nabızlı), onaylandı dolu yeşil tik, iptal çarpı */}
+                            <span className="durumRozet" role="img" aria-label={d.metin} style={{
+                              width: "28px", height: "28px", borderRadius: "50%", boxSizing: "border-box",
+                              display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "default",
+                              background: d.zemin, border: d.cerceve,
+                              animation: d.simge === "bekle" ? "durumNabiz 2.4s ease-out infinite" : "none",
+                            }}>
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={d.renk}
+                                strokeWidth={d.simge === "onay" ? 3 : d.simge === "iptal" ? 2.8 : 2.4} strokeLinecap="round" strokeLinejoin="round"
+                                style={{ display: "block" }}>
+                                {d.simge === "onay" && <path d="M5 12.5l4.5 4.5L19 7.5" />}
+                                {d.simge === "bekle" && <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>}
+                                {d.simge === "form" && <><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></>}
+                                {d.simge === "hazir" && <><path d="M7 3.5h7l4 4V20.5H7z" /><path d="M14 3.5v4h4" /><path d="M10 13h5" /><path d="M10 16.5h5" /></>}
+                                {d.simge === "iptal" && <><path d="M7 7l10 10" /><path d="M17 7L7 17" /></>}
+                              </svg>
+                            </span>
                             {acik && <span style={{ ...s.programBalon, whiteSpace: "nowrap" }}>{d.metin}</span>}
                           </span>
                         );
