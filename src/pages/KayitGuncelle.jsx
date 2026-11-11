@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.71
+// KayitGuncelle.jsx v1.72
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.71"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.72"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -310,7 +310,7 @@ function Toast({ toast }) {
   );
 }
 
-function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur, kilitli }) {
+function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur, kilitli, zorlaAcik }) {
   const isDropdown = !!DROPDOWN_OPTIONS[label];
 
   const taksitIndex = (() => {
@@ -320,7 +320,8 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur,
   const isTaksitField = taksitIndex !== null;
   const taksitPasif = isTaksitField && taksitIndex > (parseInt(taksitSayisi, 10) || 0);
 
-  const isReadonly = saltOkunur || kilitli || READONLY_FIELDS.includes(label) || taksitPasif;
+  // zorlaAcik: READONLY_FIELDS'teki bir alanı bu kayıt için düzenlenebilir yapar (örn. Form Doldurdu aşamasında TR_Okul_Default)
+  const isReadonly = saltOkunur || kilitli || (READONLY_FIELDS.includes(label) && !zorlaAcik) || taksitPasif;
   const kilitIpucu = kilitli ? "Sözleşme oluşunca düzenlenebilir" : undefined;
   const isOnlyLetters = ONLY_LETTERS.includes(label);
   const isOnlyNumbers = ONLY_NUMBERS.includes(label) || TAKSIT_TUTAR.includes(label);
@@ -800,6 +801,8 @@ export default function KayitGuncelle() {
   // Sözleşme Onay Linki yoksa yalnızca ön kayıt alanları düzenlenebilir
   const sozlesmeVar = !!gecerliLink(data?.["Sözleşme Onay Linki"]);
   const alanKilitli = key => !sozlesmeVar && !ON_KAYIT_ALANLARI.has(key) && !READONLY_FIELDS.includes(key);
+  // Sunum Yapılan Okul (TR_Okul_Default) sadece öğrenci formu doldurmuşken (Form Doldurdu) düzeltilebilir; rol fark etmez
+  const alanZorlaAcik = key => key === "TR_Okul_Default" && !!data && sozlesmeDurumu(data).simge === "form";
 
   // Bir kaydın taksit toplamı ile program ücreti uyuşuyor mu?
   function taksitFarki(kayit) {
@@ -2293,7 +2296,7 @@ export default function KayitGuncelle() {
                         </div>
                       );
                     })()}
-                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} saltOkunur={saltOkunur} kilitli={alanKilitli(key)} />
+                    <FieldInput label={key} value={data[key]} onChange={val => updateField(key, val)} taksitSayisi={data["Taksit Sayısı"]} vurgulu={vurgulananAlan === key} saltOkunur={saltOkunur} kilitli={alanKilitli(key)} zorlaAcik={alanZorlaAcik(key)} />
                   </div>
                 ))}
               </div>
