@@ -1,3 +1,4 @@
+// v1.3: Kullanıcı Yönetimi ikonu başlıkla aynı satırda
 // v1.2: Kullanıcı Yönetimi kartı tam genişlik, Test Login büyük buton olarak sağda
 // v1.1: Yönetici Paneli'nde Şube Yönetimi kartı gizlendi (şube ekleme manuel yapılıyor)
 // v1.0 — SCRIPT_URL merkezi config.js'e taşındı
@@ -1944,13 +1945,15 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
             onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(37,99,235,0.12)"}
             onMouseLeave={e => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"}>
             <div style={{ flex: "1 1 260px" }}>
-            <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="22" height="22">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+              <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" width="18" height="18">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>Kullanıcı Yönetimi</div>
             </div>
-            <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a", marginBottom: "4px" }}>Kullanıcı Yönetimi</div>
             <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "16px" }}>Kullanıcı ekle veya düzenle</div>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <button onClick={e => { e.stopPropagation(); setShowDuzenle(true); fetchDuzenleData(); }}
