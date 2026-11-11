@@ -35,6 +35,17 @@ function isoToTr(iso) {
   return m ? `${+m[3]} ${TR_AYLAR[+m[2] - 1]} ${m[1]}` : "";
 }
 
+// Kurs süresi: gün farkı ya da iki uç dahil gün sayısı 7'nin katıysa "N hafta", değilse iki uç dahil "N gün"
+// (sheet'teki mevcut satırlarla uyumlu: 1-15 Temmuz = 2 hafta, 8-28 Ağustos = 3 hafta, 8-18 Temmuz = 11 gün)
+function kursSuresi(basIso, bitIso) {
+  if (!basIso || !bitIso) return "";
+  const fark = Math.round((Date.parse(`${bitIso}T00:00:00Z`) - Date.parse(`${basIso}T00:00:00Z`)) / 86400000);
+  if (!Number.isFinite(fark) || fark <= 0) return "";
+  if (fark % 7 === 0) return `${fark / 7} hafta`;
+  if ((fark + 1) % 7 === 0) return `${(fark + 1) / 7} hafta`;
+  return `${fark + 1} gün`;
+}
+
 const bosForm = () => Object.fromEntries(TALEP_ALANLARI.map(a => [a.ad, ""]));
 
 function norm(s) {
@@ -119,7 +130,15 @@ export default function YeniFormTalebi({ schools, renderTags, talepEden, onClose
   function alanCiz(a) {
     const deger = alanlar[a.ad];
     const eksikMi = a.zorunlu && hata && !deger.trim();
-    const degistir = e => setAlanlar(v => ({ ...v, [a.ad]: e.target.value }));
+    const degistir = e => setAlanlar(v => {
+      const yeni = { ...v, [a.ad]: e.target.value };
+      // Tarihlerden biri değişince Kurs Süresi yeniden hesaplanır (geçerli bir aralık varsa)
+      if (a.tarih) {
+        const sure = kursSuresi(yeni["Başlangıç Tarihi"], yeni["Bitiş Tarihi"]);
+        if (sure) yeni["Kurs Süresi (Hafta veya Gün)"] = sure;
+      }
+      return yeni;
+    });
     return (
       <label key={a.ad} style={{ ...s.field, ...(a.tamGenislik ? s.fieldFull : {}) }} className={a.tamGenislik ? "yft-full" : ""}>
         <span style={s.label}>{a.etiket || a.ad}{a.zorunlu && <span style={s.req}> *</span>}</span>
