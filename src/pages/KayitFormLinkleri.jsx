@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v2.1";
+const VERSION = "v2.2";
 // Danışman formu + 3 öğrenci formu bu kaynaktan gelir
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
@@ -28,12 +28,12 @@ const TR_MONTHS = {
   temmuz: 6, ağustos: 7, eylül: 8, ekim: 9, kasım: 10, aralık: 11,
 };
 
-// Okul listesindeki mini etiketler: arama yapılan dört alan, her biri kendi renginde
+// Okul listesinde alt alta gösterilen alanlar: solda kategori etiketi (kendi renginde), sağda değer
 const SCHOOL_TAGS = [
-  { key: "trSchool", label: "TR Okul", bg: "#eef2ff", border: "#c7d2fe", text: "#4338ca" },
-  { key: "name", label: "Okul", bg: "#f0fdfa", border: "#99f6e4", text: "#0f766e" },
-  { key: "location", label: "Konum", bg: "#fff7ed", border: "#fed7aa", text: "#c2410c" },
-  { key: "formTitleShort", label: "Form", bg: "#fdf2f8", border: "#fbcfe8", text: "#be185d" },
+  { key: "trSchool", label: "TR Okul", bg: "#eef2ff", text: "#4338ca" },
+  { key: "name", label: "Okul", bg: "#ccfbf1", text: "#0f766e" },
+  { key: "location", label: "Konum", bg: "#ffedd5", text: "#c2410c" },
+  { key: "formTitleShort", label: "Form", bg: "#fce7f3", text: "#be185d" },
 ];
 
 // Öğrenci formlarına sırayla atanan pastel renk paleti (liste uzarsa başa döner)
@@ -454,9 +454,9 @@ export default function KayitFormLinkleri() {
                         >
                           <span style={styles.optionTags}>
                             {SCHOOL_TAGS.filter(t => s[t.key]).map(t => (
-                              <span key={t.key} style={{ ...styles.tag, background: t.bg, borderColor: t.border, color: t.text }}>
-                                <span style={styles.tagLabel}>{t.label}</span>
-                                <span style={t.key === "name" ? styles.tagValueStrong : styles.tagValue}>{s[t.key]}</span>
+                              <span key={t.key} style={styles.tagRow}>
+                                <span style={{ ...styles.tagLabel, background: t.bg, color: t.text }}>{t.label}</span>
+                                <span style={styles.tagValue}>{s[t.key]}</span>
                               </span>
                             ))}
                           </span>
@@ -579,14 +579,13 @@ const styles = {
   clearBtn: { position: "absolute", right: "6px", top: "50%", transform: "translateY(-50%)", width: "34px", height: "34px", border: "none", background: "transparent", borderRadius: "8px", fontSize: "22px", lineHeight: 1, color: "#94a3b8", cursor: "pointer", fontFamily: "inherit" },
   dropdown: { position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 12px 32px rgba(15,23,42,0.12)", maxHeight: "380px", overflowY: "auto", WebkitOverflowScrolling: "touch", zIndex: 20, padding: "6px" },
   dropdownEmpty: { padding: "14px", fontSize: "13px", color: "#94a3b8", textAlign: "center" },
-  option: { display: "flex", flexDirection: "column", gap: "3px", minHeight: "44px", padding: "10px 12px", borderRadius: "8px", cursor: "pointer" },
+  option: { display: "flex", flexDirection: "column", gap: "8px", minHeight: "44px", padding: "10px 12px", borderRadius: "8px", cursor: "pointer" },
   optionActive: { background: "#f0fdfa" },
   optionSelected: { boxShadow: "inset 3px 0 0 #0d9488" },
-  optionTags: { display: "flex", flexWrap: "wrap", gap: "5px" },
-  tag: { display: "inline-flex", alignItems: "baseline", gap: "5px", maxWidth: "100%", border: "1px solid", borderRadius: "6px", padding: "2px 7px", fontSize: "12.5px", lineHeight: 1.4 },
-  tagLabel: { fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.03em", opacity: 0.75, whiteSpace: "nowrap" },
-  tagValue: { fontWeight: "500", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 },
-  tagValueStrong: { fontWeight: "600", color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 },
+  optionTags: { display: "flex", flexDirection: "column", gap: "6px" },
+  tagRow: { display: "flex", alignItems: "center", gap: "10px", minWidth: 0 },
+  tagLabel: { flex: "0 0 58px", textAlign: "center", fontSize: "11px", fontWeight: "700", padding: "3px 0", borderRadius: "6px", whiteSpace: "nowrap" },
+  tagValue: { fontSize: "13.5px", color: "#0f172a", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 },
   optionName: { fontSize: "14px", fontWeight: "600", color: "#0f172a", lineHeight: 1.4 },
   optionMeta: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", fontSize: "12.5px", color: "#64748b", lineHeight: 1.4 },
   noFormBadge: { fontSize: "11px", fontWeight: "700", color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", padding: "1px 7px", borderRadius: "6px", whiteSpace: "nowrap" },
