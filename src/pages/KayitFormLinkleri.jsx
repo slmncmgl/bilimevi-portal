@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 import YeniFormTalebi, { TALEP_ALANLARI } from "./YeniFormTalebi";
 
-const VERSION = "v2.4";
+const VERSION = "v2.5";
 // Danışman formu + 3 öğrenci formu bu kaynaktan gelir
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
@@ -43,6 +43,8 @@ const ROW_PALETTE = [
   { bg: "#fff8ed", border: "#fae0bd", text: "#b45309" }, // amber
   { bg: "#f4f6fd", border: "#d9dff5", text: "#4338ca" }, // indigo
 ];
+
+const USAGE_SEEN_KEY = "kfl_kullanim_goruldu";
 
 // Danışman formu için sabit mavi
 const ADVISOR_COLOR = { bg: "#eff6fc", border: "#cfe1f2", text: "#2e6da4" };
@@ -188,6 +190,10 @@ export default function KayitFormLinkleri() {
   const [copiedUrl, setCopiedUrl] = useState(null);
   const [search, setSearch] = useState("");
   const [showUsage, setShowUsage] = useState(false);
+  // Bilgi ikonunun yanındaki ipucu: kullanım penceresi bir kez açılana kadar her girişte birkaç saniye görünür
+  const [showHint, setShowHint] = useState(() => {
+    try { return localStorage.getItem(USAGE_SEEN_KEY) !== "1"; } catch { return true; }
+  });
   const [schools, setSchools] = useState([]);
   const [schoolError, setSchoolError] = useState(null);
   const [selectedSchool, setSelectedSchool] = useState(null);
@@ -197,6 +203,18 @@ export default function KayitFormLinkleri() {
   const comboRef = useRef(null);
   const inputRef = useRef(null);
   const listRef = useRef(null);
+
+  useEffect(() => {
+    if (!showHint) return;
+    const t = setTimeout(() => setShowHint(false), 8000);
+    return () => clearTimeout(t);
+  }, [showHint]);
+
+  function openUsage() {
+    setShowHint(false);
+    setShowUsage(true);
+    try { localStorage.setItem(USAGE_SEEN_KEY, "1"); } catch { /* depolama kapalıysa ipucu sonraki girişte yine çıkar */ }
+  }
 
   useEffect(() => {
     const session = getSession();
@@ -348,7 +366,8 @@ export default function KayitFormLinkleri() {
     );
   }
 
-  function renderRow(link, colors, withOpenBtn) {
+  // mode: "open" = sadece "Forma Git" (danışman formu), "copy" = sadece "Linki Kopyala" (öğrenci formları)
+  function renderRow(link, colors, mode) {
     return (
       <div
         style={{ ...styles.row, background: colors.bg, borderColor: colors.border }}
@@ -357,7 +376,7 @@ export default function KayitFormLinkleri() {
       >
         <span style={styles.title}>{link.title}</span>
         <div style={styles.btnGroup} className="kfl-btn-group">
-          {withOpenBtn && (
+          {mode === "open" ? (
             <a
               href={link.url}
               target="_blank"
@@ -365,16 +384,17 @@ export default function KayitFormLinkleri() {
               style={{ ...styles.copyBtn, background: colors.text, color: "#fff", borderColor: colors.text, textDecoration: "none", display: "inline-block" }}
               className="kfl-copy-btn"
             >
-              Formu Aç
+              Forma Git
             </a>
+          ) : (
+            <button
+              onClick={() => copyUrl(link.url)}
+              style={{ ...styles.copyBtn, color: colors.text, borderColor: colors.border }}
+              className="kfl-copy-btn"
+            >
+              {copiedUrl === link.url ? "Kopyalandı" : "Linki Kopyala"}
+            </button>
           )}
-          <button
-            onClick={() => copyUrl(link.url)}
-            style={{ ...styles.copyBtn, color: colors.text, borderColor: colors.border }}
-            className="kfl-copy-btn"
-          >
-            {copiedUrl === link.url ? "Kopyalandı" : "Linki Kopyala"}
-          </button>
         </div>
       </div>
     );
@@ -395,6 +415,28 @@ export default function KayitFormLinkleri() {
             <h1 style={styles.headerTitle}>Kayıt Form Linkleri</h1>
             <span style={styles.versionTag}>{VERSION}</span>
           </div>
+          <div style={styles.infoWrap}>
+            <button
+              onClick={openUsage}
+              style={styles.infoBtn}
+              className={showHint ? "kfl-info-btn kfl-info-pulse" : "kfl-info-btn"}
+              aria-label="Linklerin kullanımı"
+              title="Linklerin kullanımı"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" width="18" height="18" aria-hidden="true">
+                <circle cx="12" cy="12" r="9.5"/>
+                <line x1="12" y1="11" x2="12" y2="16.5"/>
+                <circle cx="12" cy="7.6" r="0.6" fill="currentColor"/>
+              </svg>
+            </button>
+            {showHint && (
+              <div style={styles.hint} role="status" className="kfl-hint">
+                <span style={styles.hintArrow} aria-hidden="true" />
+                <button onClick={openUsage} style={styles.hintText}>Linklerin kullanımı hakkında bilgi almak için tıklayın</button>
+                <button onClick={() => setShowHint(false)} style={styles.hintClose} aria-label="İpucunu kapat">×</button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -403,10 +445,6 @@ export default function KayitFormLinkleri() {
           <div style={styles.stateBox}>Linkler yükleniyor...</div>
         ) : (
           <>
-            <button onClick={() => setShowUsage(true)} style={styles.usageBtn} className="kfl-usage-btn">
-              Linklerin kullanımı
-            </button>
-
             {error ? (
               <div style={styles.errorBox}>
                 <strong>Form linkleri yüklenemedi.</strong>
@@ -418,7 +456,7 @@ export default function KayitFormLinkleri() {
               <>
                 {advisorLinks.length > 0 && (
                   <div style={styles.list}>
-                    {advisorLinks.map(link => renderRow(link, ADVISOR_COLOR, true))}
+                    {advisorLinks.map(link => renderRow(link, ADVISOR_COLOR, "open"))}
                   </div>
                 )}
 
@@ -426,7 +464,7 @@ export default function KayitFormLinkleri() {
                   <>
                     <h2 style={styles.groupTitle}>Öğrenci Formları</h2>
                     <div style={styles.list}>
-                      {studentLinks.map((link, i) => renderRow(link, ROW_PALETTE[i % ROW_PALETTE.length], false))}
+                      {studentLinks.map((link, i) => renderRow(link, ROW_PALETTE[i % ROW_PALETTE.length], "copy"))}
                     </div>
                   </>
                 )}
@@ -434,10 +472,6 @@ export default function KayitFormLinkleri() {
             )}
 
             <h2 style={styles.groupTitle}>Okul Kayıt Formları</h2>
-            <button onClick={() => setTalepAcik(true)} style={styles.newRequestBtn} className="kfl-new-request">
-              <span style={styles.newRequestPlus} aria-hidden="true">+</span>
-              Yeni Kayıt Formu Talebi
-            </button>
             {schoolError ? (
               <div style={styles.errorBox}>
                 <strong>Okul listesi yüklenemedi.</strong>
@@ -517,6 +551,11 @@ export default function KayitFormLinkleri() {
                 )}
               </>
             )}
+
+            <button onClick={() => setTalepAcik(true)} style={styles.newRequestBtn} className="kfl-new-request">
+              <span style={styles.newRequestPlus} aria-hidden="true">+</span>
+              Yeni Kayıt Formu Talebi
+            </button>
           </>
         )}
       </main>
@@ -574,13 +613,19 @@ export default function KayitFormLinkleri() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         * { box-sizing: border-box; }
         @keyframes kflPulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.55; }
+          0% { box-shadow: 0 0 0 0 rgba(13,148,136,0.45); }
+          70% { box-shadow: 0 0 0 9px rgba(13,148,136,0); }
+          100% { box-shadow: 0 0 0 0 rgba(13,148,136,0); }
         }
-        .kfl-usage-btn { animation: kflPulse 1.8s ease-in-out infinite; }
-        .kfl-usage-btn:hover { animation: none; }
+        @keyframes kflHintIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .kfl-info-pulse { animation: kflPulse 1.8s ease-out infinite; }
+        .kfl-hint { animation: kflHintIn 0.25s ease-out; }
+        .kfl-info-btn:hover { background: #ccfbf1 !important; }
         @media (prefers-reduced-motion: reduce) {
-          .kfl-usage-btn { animation: none; }
+          .kfl-info-pulse, .kfl-hint { animation: none; }
         }
         .kfl-combo-input:focus { outline: none; border-color: #0d9488 !important; box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
         .kfl-new-request:hover { background: #ccfbf1 !important; border-color: #2dd4bf !important; }
@@ -621,7 +666,13 @@ const styles = {
   option: { display: "flex", flexDirection: "column", gap: "8px", minHeight: "44px", padding: "10px 12px", borderRadius: "8px", cursor: "pointer" },
   optionActive: { background: "#f0fdfa" },
   optionSelected: { boxShadow: "inset 3px 0 0 #0d9488" },
-  newRequestBtn: { width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", minHeight: "56px", marginBottom: "14px", padding: "14px 20px", border: "2px dashed #5eead4", borderRadius: "14px", background: "#f0fdfa", color: "#0f766e", fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" },
+  infoWrap: { position: "relative", marginLeft: "auto" },
+  infoBtn: { width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #99f6e4", borderRadius: "50%", background: "#f0fdfa", color: "#0f766e", cursor: "pointer", padding: 0 },
+  hint: { position: "absolute", top: "calc(100% + 10px)", right: 0, width: "max-content", maxWidth: "min(260px, calc(100vw - 32px))", display: "flex", alignItems: "flex-start", gap: "6px", padding: "10px 8px 10px 14px", background: "#0f766e", borderRadius: "10px", boxShadow: "0 8px 24px rgba(15,23,42,0.18)", zIndex: 20 },
+  hintArrow: { position: "absolute", top: "-6px", right: "14px", width: "12px", height: "12px", background: "#0f766e", transform: "rotate(45deg)" },
+  hintText: { position: "relative", border: "none", background: "transparent", color: "#fff", fontSize: "13px", fontWeight: 600, lineHeight: 1.4, textAlign: "left", cursor: "pointer", padding: 0, fontFamily: "inherit" },
+  hintClose: { position: "relative", border: "none", background: "transparent", color: "#ccfbf1", fontSize: "18px", lineHeight: 1, cursor: "pointer", padding: "0 4px", fontFamily: "inherit" },
+  newRequestBtn: { width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", minHeight: "56px", marginTop: "28px", padding: "14px 20px", border: "2px dashed #5eead4", borderRadius: "14px", background: "#f0fdfa", color: "#0f766e", fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" },
   newRequestPlus: { width: "30px", height: "30px", borderRadius: "50%", background: "#0d9488", color: "#fff", fontSize: "22px", fontWeight: 600, lineHeight: "30px", textAlign: "center" },
   optionTags: { display: "flex", flexDirection: "column", gap: "6px" },
   tagRow: { display: "flex", alignItems: "center", gap: "10px", minWidth: 0 },
@@ -644,7 +695,6 @@ const styles = {
   copyBtn: { flexShrink: 0, padding: "9px 16px", borderRadius: "8px", border: "1.5px solid", background: "#fff", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
   btnGroup: { display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 },
   groupTitle: { fontSize: "13px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.4px", margin: "28px 0 12px" },
-  usageBtn: { width: "100%", padding: "13px", marginBottom: "18px", background: "#0d9488", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "13.5px", fontWeight: "700", fontFamily: "inherit" },
   popupOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
   popupCard: { background: "#fff", borderRadius: "20px", padding: "28px", maxWidth: "460px", width: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" },
   popupTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a", marginBottom: "20px" },
