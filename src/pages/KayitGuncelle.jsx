@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.73
+// KayitGuncelle.jsx v1.74
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.73"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.74"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -2109,9 +2109,11 @@ export default function KayitGuncelle() {
                           )}
                         </span>
                         {(() => {
-                          // Tek sözleşme butonu: link varsa Göster, danışman yoksa Oluştur, danışman var link yoksa Hazırlanıyor (pasif)
+                          // Tek sözleşme butonu: link varsa Göster; aşama Hazırlandı / Onay Bekliyor / Onaylandı ama link yoksa Hazırlanıyor (pasif);
+                          // diğer durumlarda (Form Doldurdu, boş, iptal) Oluştur. Danışman adı tek başına ölçüt değil:
+                          // yeni grup formları danışman adını kayıt anında yazıyor (10.11.2026).
                           const link = gecerliLink(ogr["Sözleşme Onay Linki"]);
-                          const danismanVar = !!String(ogr["Danışman Adı"] || "").trim();
+                          const surecBasladi = ["hazir", "bekle", "onay"].includes(sozlesmeDurumu(ogr).simge);
                           if (link) return (
                             <button
                               onClick={() => setSozlesmeModal(ogr)}
@@ -2119,7 +2121,7 @@ export default function KayitGuncelle() {
                               style={{ ...s.sendBtn, ...s.aksiyonBtn, minWidth: "92px" }}
                             >{gonderilenTC === ogr["TC Kimlik No"] ? <>Gönderildi<br />✓</> : <>Sözleşmeyi<br />Göster</>}</button>
                           );
-                          if (danismanVar) return (
+                          if (surecBasladi) return (
                             <button
                               disabled
                               title="Sözleşme hazırlanıyor, link henüz oluşmadı"
