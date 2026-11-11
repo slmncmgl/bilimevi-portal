@@ -1,3 +1,4 @@
+// v1.1: Yönetici Paneli'nde Şube Yönetimi kartı gizlendi (şube ekleme manuel yapılıyor)
 // v1.0 — SCRIPT_URL merkezi config.js'e taşındı
 import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -1921,8 +1922,8 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
       {/* Üst iki kart */}
       {isAdmin && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
-          {/* Şube Yönetimi */}
-          <div style={{ background: "#fff", border: "1.5px solid #bbf7d0", borderRadius: "16px", padding: "24px", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
+          {/* Şube Yönetimi: gizli, şube ekleme manuel yapılıyor (v1.1) */}
+          {false && <div style={{ background: "#fff", border: "1.5px solid #bbf7d0", borderRadius: "16px", padding: "24px", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
             onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(5,150,105,0.12)"}
             onMouseLeave={e => e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.04)"}>
             <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
@@ -1935,7 +1936,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
               style={{ marginTop: "16px", padding: "6px 12px", background: "#2563eb", color: "#fff", border: "none", borderRadius: "7px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, sans-serif" }}>
               Şube ekle, sil veya görüntüle
             </button>
-          </div>
+          </div>}
 
           {/* Kullanıcı Yönetimi */}
           <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: "16px", padding: "24px", transition: "box-shadow 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
