@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.75
+// KayitGuncelle.jsx v1.76
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.75"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.76"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -153,6 +153,9 @@ const DROPDOWN_OPTIONS = {
     "Premium Vize - Taksim", "Premium Vize - Kadıköy", "Fortis - Ireland",
   ],
 };
+
+// Form Yetkisi'ne göre yalnızca kendi satırlarını görecek kişiler (sadelestir ile yazılır: küçük harf, Türkçe karakter yok)
+const KISITLI_KULLANICILAR = ["furkan atali"];
 
 const READONLY_FIELDS = ["TR_Okul_Default", "TC Kimlik No", "Onay Durumu", "Tally Submission ID", "Kaynak Form Adı", "Eklenme Tarihi", "Danışman Adı", "Şirket Adı", "Sözleşme Türü", "Toplam Program Ücreti"];
 
@@ -776,8 +779,10 @@ export default function KayitGuncelle() {
   // const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
   const tumunuGorebilir = true;
   // Form Yetkisi: All Submissions'taki "Form Yetkisi" sütununa virgülle danışman adları yazılır.
-  // Adı bu sütunda herhangi bir satırda geçen kişi SADECE adının yazılı olduğu satırları görür.
-  // Adı hiç geçmeyenler eskisi gibi tüm kayıtları görür. Ad ve sütun adı harf/boşluk duyarsız eşleşir.
+  // v1.76: "SADECE adının yazılı olduğu satırları görür" kısıtı yalnızca KISITLI_KULLANICILAR listesindekilere uygulanır.
+  // n8n 10.11.2026'dan beri formdaki danışman adını bu sütuna yazdığı için (Grup "Ön Kayıt Verisini Map Et"),
+  // listede olmayanlar (Nur Alpay, Tevhide Döner...) adları geçse de eskisi gibi tüm kayıtları görür.
+  // Ad ve sütun adı harf/boşluk duyarsız eşleşir. Yeni kısıtlı kişi gerekirse adını listeye ekle.
   // Performans (v1.71): sütun adı her satırda ~170 sütun taranarak değil, liste değişince bir kez bulunur;
   // kısıt da sadece liste ya da kullanıcı değişince hesaplanır (önceden her tuşta ~200 ms sürüyordu).
   const formYetkisiSutunu = useMemo(() => {
@@ -792,7 +797,10 @@ export default function KayitGuncelle() {
     : [];
   const benimAdim = sadelestir(user?.name);
   const yetkiliMi = k => !!benimAdim && formYetkilileri(k).includes(benimAdim);
-  const kisitliKullanici = useMemo(() => ogrencilerim.some(yetkiliMi), [ogrencilerim, formYetkisiSutunu, benimAdim]);
+  const kisitliKullanici = useMemo(
+    () => KISITLI_KULLANICILAR.includes(benimAdim) && ogrencilerim.some(yetkiliMi),
+    [ogrencilerim, formYetkisiSutunu, benimAdim]
+  );
   const erisebilir = k => !kisitliKullanici || yetkiliMi(k);
   const [sadeceBenim, setSadeceBenim] = useState(() => kayitliFiltre.sadeceBenim ?? false);
 
