@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 import YeniFormTalebi, { TALEP_ALANLARI } from "./YeniFormTalebi";
 
-const VERSION = "v2.8";
+const VERSION = "v2.9";
 // Danışman formu + 3 öğrenci formu bu kaynaktan gelir
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
@@ -367,14 +367,14 @@ export default function KayitFormLinkleri() {
   }
 
   // mode: "open" = sadece "Forma Git" (danışman formu), "copy" = sadece "Linki Kopyala" (öğrenci formları)
-  function renderRow(link, colors, mode) {
+  function renderRow(link, colors, mode, gorunenAd) {
     return (
       <div
         style={{ ...styles.row, background: colors.bg, borderColor: colors.border }}
         className="kfl-row"
         key={link.title + link.url}
       >
-        <span style={styles.title}>{link.title}</span>
+        <span style={styles.title}>{gorunenAd || link.title}</span>
         <div style={styles.btnGroup} className="kfl-btn-group">
           {mode === "open" ? (
             <a
@@ -454,20 +454,11 @@ export default function KayitFormLinkleri() {
               <div style={styles.stateBox}>Henüz aktif link bulunmuyor.</div>
             ) : (
               <>
-                {advisorLinks.length > 0 && (
-                  <div style={styles.list}>
-                    {advisorLinks.map(link => renderRow(link, ADVISOR_COLOR, "open"))}
-                  </div>
-                )}
-
-                {studentLinks.length > 0 && (
-                  <>
-                    <h2 style={styles.groupTitle}>Öğrenci Formları</h2>
-                    <div style={styles.studentGrid} className="kfl-student-grid">
-                      {studentLinks.map((link, i) => renderRow(link, ROW_PALETTE[i % ROW_PALETTE.length], "copy"))}
-                    </div>
-                  </>
-                )}
+                {/* Danışman formu + öğrenci formları tek satırda (mobilde alt alta) */}
+                <div style={styles.formGrid} className="kfl-form-grid">
+                  {advisorLinks.map(link => renderRow(link, ADVISOR_COLOR, "open", "Danışman Sözleşme Formu"))}
+                  {studentLinks.map((link, i) => renderRow(link, ROW_PALETTE[i % ROW_PALETTE.length], "copy"))}
+                </div>
               </>
             )}
 
@@ -690,12 +681,11 @@ const styles = {
   detailValue: { margin: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "8px", fontSize: "13.5px", color: "#0f172a", lineHeight: 1.55, wordBreak: "break-word", minWidth: 0 },
   detailLink: { color: "#0f766e", fontWeight: "600", textDecoration: "none", wordBreak: "break-all" },
   list: { display: "flex", flexDirection: "column", gap: "10px" },
-  // Öğrenci formları yan yana (mobilde alt alta)
-  studentGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "10px" },
-  row: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", border: "1.5px solid", borderRadius: "12px", padding: "16px 20px" },
+  formGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "10px" },
+  row: { display: "flex", flexDirection: "column", alignItems: "stretch", justifyContent: "space-between", gap: "12px", border: "1.5px solid", borderRadius: "12px", padding: "16px" },
   title: { fontSize: "14px", fontWeight: "600", color: "#0f172a", lineHeight: 1.5 },
-  copyBtn: { flexShrink: 0, padding: "9px 16px", borderRadius: "8px", border: "1.5px solid", background: "#fff", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
-  btnGroup: { display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 },
+  copyBtn: { flexShrink: 0, textAlign: "center", padding: "9px 16px", borderRadius: "8px", border: "1.5px solid", background: "#fff", fontSize: "12.5px", fontWeight: "700", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+  btnGroup: { display: "flex", flexDirection: "column", gap: "8px" },
   groupTitle: { fontSize: "13px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.4px", margin: "28px 0 12px" },
   popupOverlay: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" },
   popupCard: { background: "#fff", borderRadius: "20px", padding: "28px", maxWidth: "460px", width: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" },
