@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.70
-import { useState, useEffect, useRef } from "react";
+// KayitGuncelle.jsx v1.71
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.70"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.71"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -728,13 +728,21 @@ export default function KayitGuncelle() {
   // Form Yetkisi: All Submissions'taki "Form Yetkisi" sütununa virgülle danışman adları yazılır.
   // Adı bu sütunda herhangi bir satırda geçen kişi SADECE adının yazılı olduğu satırları görür.
   // Adı hiç geçmeyenler eskisi gibi tüm kayıtları görür. Ad ve sütun adı harf/boşluk duyarsız eşleşir.
-  const formYetkilileri = k => {
-    const alan = Object.entries(k || {}).find(([ad]) => sadelestir(ad) === "form yetkisi");
-    return alan ? String(alan[1] || "").split(",").map(sadelestir).filter(Boolean) : [];
-  };
+  // Performans (v1.71): sütun adı her satırda ~170 sütun taranarak değil, liste değişince bir kez bulunur;
+  // kısıt da sadece liste ya da kullanıcı değişince hesaplanır (önceden her tuşta ~200 ms sürüyordu).
+  const formYetkisiSutunu = useMemo(() => {
+    for (const k of ogrencilerim) {
+      const ad = Object.keys(k || {}).find(a => sadelestir(a) === "form yetkisi");
+      if (ad) return ad;
+    }
+    return null;
+  }, [ogrencilerim]);
+  const formYetkilileri = k => formYetkisiSutunu
+    ? String((k || {})[formYetkisiSutunu] || "").split(",").map(sadelestir).filter(Boolean)
+    : [];
   const benimAdim = sadelestir(user?.name);
   const yetkiliMi = k => !!benimAdim && formYetkilileri(k).includes(benimAdim);
-  const kisitliKullanici = ogrencilerim.some(yetkiliMi);
+  const kisitliKullanici = useMemo(() => ogrencilerim.some(yetkiliMi), [ogrencilerim, formYetkisiSutunu, benimAdim]);
   const erisebilir = k => !kisitliKullanici || yetkiliMi(k);
   const [sadeceBenim, setSadeceBenim] = useState(() => kayitliFiltre.sadeceBenim ?? false);
 
@@ -1182,7 +1190,8 @@ export default function KayitGuncelle() {
   // Form filtresi dışındaki tüm filtreler.
   // Arama yapılırken kutucuklar, tarih ve okul filtresi yok sayılır (tüm kayıtlarda aranır);
   // sadece yetki kuralı (tumunuGorebilir) her zaman geçerli kalır.
-  const onFiltreli = ogrencilerim.filter(o => {
+  // Liste hesapları useMemo ile: not ya da alan yazarken (her tuşta yeniden çizim) tekrar hesaplanmaz
+  const onFiltreli = useMemo(() => ogrencilerim.filter(o => {
     // Form Yetkisi kısıtı aramada da geçerli, hiçbir filtreyle aşılamaz
     if (!erisebilir(o)) return false;
     if (!aramaTerimi) {
@@ -1201,7 +1210,8 @@ export default function KayitGuncelle() {
            normalize(o["Türkiye'de Eğitim Aldığı Okul"]).includes(aramaTerimi) ||
            normalize(o["TR_Okul_Default"]).includes(aramaTerimi) ||
            normalize(o["Kaynak Form Adı"]).includes(aramaTerimi);
-  });
+  }), [ogrencilerim, aramaTerimi, sadeceGrup, onayliGoster, beklemedeGoster, sozlesmesizGoster, tarihSiniri,
+    sadeceBenim, user?.name, tumunuGorebilir, kisitliKullanici, formYetkisiSutunu, benimAdim]);
 
   // Kutucuk sayıları: kutu işaretlenirse listede kaç kayıt kalacağı (diğer filtreler + okul dropdown'u dahil).
   // onFiltreli'ye dokunulmadan aynı kurallar ayrı uygulanır; aramada sayılar gizlenir.
@@ -1224,21 +1234,23 @@ export default function KayitGuncelle() {
   };
   const kutuSay = ayar => ogrencilerim.filter(o => kutuUygun(o, { ...mevcutKutular, ...ayar })).length;
   const DURUM_KAPALI = { onayli: false, bekleyen: false, hazirlanacak: false }; // üçü birbirini dışlar
-  const kutuSayilari = aramaTerimi || !ogrencilerim.length ? null : {
+  const kutuSayilari = useMemo(() => aramaTerimi || !ogrencilerim.length ? null : {
     benim: kutuSay({ benim: true }),
     onayli: kutuSay({ ...DURUM_KAPALI, onayli: true }),
     // Kutu açılınca okul seçenekleri değişebildiği için okul filtresi sayılmaz
     sadeceGrup: kutuSay({ sadeceGrup: true, okul: "" }),
     bekleyen: kutuSay({ ...DURUM_KAPALI, bekleyen: true }),
     hazirlanacak: kutuSay({ ...DURUM_KAPALI, hazirlanacak: true }),
-  };
+  }, [ogrencilerim, aramaTerimi, sadeceGrup, onayliGoster, beklemedeGoster, sozlesmesizGoster, tarihSiniri,
+    sadeceBenim, formFiltre, user?.name, tumunuGorebilir, kisitliKullanici, formYetkisiSutunu, benimAdim]);
   const kutuSayisi = anahtar => kutuSayilari
     ? <span style={{ color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}> ({kutuSayilari[anahtar]})</span>
     : null;
 
   // Arama kutusunun altındaki öneriler: eşleşen öğrenci, okul ve kaynak form adları (en fazla 8)
-  const aramaOnerileri = (() => {
-    if (aramaTerimi.length < 2 || data) return [];
+  const kayitAcik = !!data;
+  const aramaOnerileri = useMemo(() => {
+    if (aramaTerimi.length < 2 || kayitAcik) return [];
     const KAYNAKLAR = [
       ["Öğrenci", "Öğrenci Adı Soyadı"],
       // Okul önerisi sabit TR okul adından (TR_Okul_Default); öğrencinin elle yazdığı okul adı önerilmez
@@ -1260,17 +1272,18 @@ export default function KayitGuncelle() {
     }
     // Tek öneri aranan metnin aynısıysa listeyi gösterme
     return sonuc.length === 1 && normalize(sonuc[0].deger) === aramaTerimi ? [] : sonuc;
-  })();
+  }, [onFiltreli, aramaTerimi, kayitAcik]);
 
   // YENİ: önceki girişten sonra eklenmiş VE son 48 saat içinde olan kayıtlar.
   // Önceki giriş bulunamazsa sadece 48 saat kuralı uygulanır.
   // Önceki günlerdeki son giriş varsa ondan sonrası yeni; giriş kaydı yoksa son 48 saat
-  const yeniSinir = oncekiGiris || (Date.now() - YENI_SURE_SAAT * 60 * 60 * 1000);
+  // Dakikaya yuvarlanır ki her çizimde değişip formBilgi önbelleğini bozmasın
+  const yeniSinir = oncekiGiris || (Math.floor(Date.now() / 60000) * 60000 - YENI_SURE_SAAT * 60 * 60 * 1000);
   const yeniMi = k => eklenmeZamani(k) > yeniSinir;
 
   // Dropdown seçenekleri yalnızca görünür kayıtlardan türetilir:
   // kayıt sayısı, en son kayıt zamanı ve son girişten beri yeni kayıt var mı
-  const formBilgi = onFiltreli.reduce((acc, o) => {
+  const formBilgi = useMemo(() => onFiltreli.reduce((acc, o) => {
     const anahtar = formEtiketi(o);
     const b = acc[anahtar] || (acc[anahtar] = {
       sayi: 0, sonKayit: 0, yeniVar: false,
@@ -1280,7 +1293,7 @@ export default function KayitGuncelle() {
     b.sonKayit = Math.max(b.sonKayit, eklenmeZamani(o));
     if (yeniMi(o)) b.yeniVar = true;
     return acc;
-  }, {});
+  }, {}), [onFiltreli, yeniSinir]);
   const formSayaci = Object.fromEntries(Object.entries(formBilgi).map(([k, v]) => [k, v.sayi]));
   // Alfabetik sıralı; "Okul belirtilmemiş" her zaman en altta
   const formSecenekleri = Object.keys(formBilgi).sort((a, b) =>
@@ -1288,9 +1301,9 @@ export default function KayitGuncelle() {
     formBilgi[a].etiket.localeCompare(formBilgi[b].etiket, "tr", { sensitivity: "base" })
   );
 
-  const filtreliOgrenciler = formFiltre && !aramaTerimi
+  const filtreliOgrenciler = useMemo(() => formFiltre && !aramaTerimi
     ? onFiltreli.filter(o => formEtiketi(o) === formFiltre)
-    : onFiltreli;
+    : onFiltreli, [onFiltreli, formFiltre, aramaTerimi]);
 
   // Seçili form yeni filtrelerde kalmadıysa seçimi bırak (arama sırasında seçim korunur)
   // Liste henüz yüklenmeden çalışmaz, yoksa hatırlanan seçim açılışta silinirdi
@@ -1402,9 +1415,9 @@ export default function KayitGuncelle() {
   };
 
   // Sadece tarihe göre: en yeni kayıt 1. sayfanın en üstünde
-  const siraliOgrenciler = [...filtreliOgrenciler].sort((a, b) =>
+  const siraliOgrenciler = useMemo(() => [...filtreliOgrenciler].sort((a, b) =>
     eklenmeZamani(b) - eklenmeZamani(a)
-  );
+  ), [filtreliOgrenciler]);
 
   // Liste başlığındaki aktif filtre özeti (tarih ve okul seçimi yazılmaz)
   const listeOzeti = aramaTerimi
@@ -1419,7 +1432,7 @@ export default function KayitGuncelle() {
 
   // Aktivite grafiği: listede görünen kayıtlar Eklenme Tarihi'ne göre son 7 gün, son 30 gün
   // ya da tümü (ilk kaydın haftasından bu haftaya kadar haftalık)
-  const grafikVerisi = (() => {
+  const grafikVerisi = useMemo(() => {
     if (!grafikAcik) return null;
     const bugun = new Date(); bugun.setHours(0, 0, 0, 0);
     const gunAnahtari = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -1465,7 +1478,7 @@ export default function KayitGuncelle() {
     const enCok = Math.max(1, ...kovalar.map(k => k.sayi));
     const toplam = kovalar.reduce((a, k) => a + k.sayi, 0);
     return { kovalar, enCok, toplam, haftalik, subeler, mod: grafikMod };
-  })();
+  }, [grafikAcik, grafikMod, grafikSubeler, siraliOgrenciler]);
 
   return (
     <div style={s.root}>
