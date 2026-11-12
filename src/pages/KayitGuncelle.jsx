@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.78
+// KayitGuncelle.jsx v1.79
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.78"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.79"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -1775,7 +1775,8 @@ export default function KayitGuncelle() {
 
               </div>
 
-              {/* Tüm Filtreleri Temizle: masaüstünde kutucuk sütunlarının sağında, üç satır yüksekliğinde kare buton */}
+              {/* Tüm Filtreleri Temizle: masaüstünde kutucuk sütunlarının sağında, üç satır yüksekliğinde yatay dikdörtgen;
+                  "Tüm Filtreleri" üstte, "Temizle" altta tek başına */}
               <button
                 type="button"
                 onClick={filtreleriTemizle}
@@ -1784,7 +1785,7 @@ export default function KayitGuncelle() {
                 style={{
                   ...(isMobile
                     ? { width: "100%", padding: "10px 16px", flexDirection: "row", gap: "8px" }
-                    : { alignSelf: "stretch", width: "92px", padding: "8px", flexDirection: "column", gap: "6px", flexShrink: 0 }),
+                    : { alignSelf: "stretch", width: "150px", padding: "8px 12px", flexDirection: "column", gap: "4px", flexShrink: 0 }),
                   display: "inline-flex", alignItems: "center", justifyContent: "center", textAlign: "center",
                   fontSize: "12px", fontWeight: "700", lineHeight: 1.25, borderRadius: "12px", border: "none",
                   background: TEMA_RENKLERI[tema].bant, color: TEMA_RENKLERI[tema].yazi,
@@ -1794,7 +1795,9 @@ export default function KayitGuncelle() {
                 }}
               >
                 <span style={{ fontSize: isMobile ? "14px" : "22px", lineHeight: 1 }} aria-hidden="true">🧹</span>
-                <span>Tüm Filtreleri Temizle</span>
+                {isMobile
+                  ? <span>Tüm Filtreleri Temizle</span>
+                  : <span style={{ whiteSpace: "nowrap" }}>Tüm Filtreleri<br />Temizle</span>}
               </button>
               </div>
 
