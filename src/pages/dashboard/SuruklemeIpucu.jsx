@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-// Klasik temada sürükle-bırak özelliği için bilgi ikonu (v2: banner yerine sağda kırmızı "i").
+// Klasik temada sürükle-bırak özelliği için bilgi ikonu (v2: banner yerine kırmızı "i"; v2.1: üst şeritte, ismin solunda).
 // Sadece fareli cihazlarda (sürükleme orada var) ve en az 2 kart varken görünür.
 // Okunana kadar kalp gibi atar; tıklanınca bilgi balonu açılır ve "okundu" bilgisi kullanıcı başına tarayıcıda saklanır.
 // Okunduktan (ya da kullanıcı sürüklemeye başladıktan) sonra ikon sakin durur, istenirse yine açılır.
@@ -55,7 +55,7 @@ export default function SuruklemeIpucu({ kullanici, isFortis, suruklendi, kartSa
         aria-expanded={acik}
         title={t.ikon}
       >
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true">
           <path d="M12 11v6" /><path d="M12 7.2v.1" />
         </svg>
       </button>
@@ -74,10 +74,10 @@ export default function SuruklemeIpucu({ kullanici, isFortis, suruklendi, kartSa
         </div>
       )}
       <style>{`
-        .surukle-ipucu { position: fixed; top: 92px; right: 20px; z-index: 250; font-family: 'Inter', system-ui, sans-serif; }
-        .surukle-ipucu .ikon { width: 38px; height: 38px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+        .surukle-ipucu { position: relative; flex: none; z-index: 250; font-family: 'Inter', system-ui, sans-serif; }
+        .surukle-ipucu .ikon { width: 30px; height: 30px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
           display: flex; align-items: center; justify-content: center; background: #E50700; color: #fff;
-          box-shadow: 0 6px 16px -4px rgba(229,7,0,.55), 0 1px 3px rgba(0,0,0,.15); transition: transform .15s; }
+          box-shadow: 0 4px 10px -3px rgba(229,7,0,.55), 0 1px 2px rgba(0,0,0,.12); transition: transform .15s; }
         .surukle-ipucu .ikon:hover { transform: scale(1.08); }
         .surukle-ipucu .ikon:focus-visible { outline: 2px solid #E50700; outline-offset: 3px; }
         /* Kalp atışı: iki kısa vuruş + dalga halkası, okunana kadar */
@@ -85,10 +85,10 @@ export default function SuruklemeIpucu({ kullanici, isFortis, suruklendi, kartSa
         .surukle-ipucu .ikon.atiyor::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
           border: 2px solid #E50700; animation: ipucuHalka 1.6s ease-out infinite; pointer-events: none; }
         .surukle-ipucu .ikon { position: relative; }
-        .surukle-ipucu .balon { position: absolute; top: calc(100% + 10px); right: 0; width: min(320px, calc(100vw - 40px));
+        .surukle-ipucu .balon { position: absolute; top: calc(100% + 12px); right: -8px; width: min(320px, calc(100vw - 40px));
           background: #E50700; color: #fff; border-radius: 14px; padding: 12px 14px 14px;
           box-shadow: 0 18px 40px -12px rgba(229,7,0,.55), 0 2px 6px rgba(0,0,0,.12); animation: ipucuGir .25s cubic-bezier(.16,1,.3,1) both; }
-        .surukle-ipucu .balon::before { content: ""; position: absolute; top: -6px; right: 13px; width: 12px; height: 12px;
+        .surukle-ipucu .balon::before { content: ""; position: absolute; top: -6px; right: 17px; width: 12px; height: 12px;
           background: #E50700; transform: rotate(45deg); border-radius: 2px; }
         .surukle-ipucu .ust { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
         .surukle-ipucu .ust strong { font-size: 13px; letter-spacing: .02em; text-transform: uppercase; opacity: .9; }
