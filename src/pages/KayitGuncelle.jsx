@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.77
+// KayitGuncelle.jsx v1.78
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.77"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.78"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -721,6 +721,7 @@ export default function KayitGuncelle() {
   const [saltOkunur, setSaltOkunur] = useState(false);
   const [formFiltre, setFormFiltre] = useState(() => kayitliFiltre.formFiltre ?? "");
   const [sozlesmesizGoster, setSozlesmesizGoster] = useState(() => kayitliFiltre.sozlesmesizGoster ?? false); // sadece sözleşmesi hazırlanmamışlar
+  const [hazirGoster, setHazirGoster] = useState(() => kayitliFiltre.hazirGoster ?? false); // sadece Hazırlandı (gönderilmedi) aşamasındakiler
   const [kopyaModal, setKopyaModal] = useState(null);
   const [notModal, setNotModal] = useState(null); // { ogr, mevcut, yeni }
   const [notKaydediliyor, setNotKaydediliyor] = useState(false);
@@ -1225,10 +1226,10 @@ export default function KayitGuncelle() {
 
   const VARSAYILAN_TARIH = "2026-08-01";
   const filtreDegisti = sadeceBenim || onayliGoster || !sadeceGrup || beklemedeGoster
-    || sozlesmesizGoster || !!formFiltre || !!tc || tarihFiltre !== VARSAYILAN_TARIH;
+    || sozlesmesizGoster || hazirGoster || !!formFiltre || !!tc || tarihFiltre !== VARSAYILAN_TARIH;
   const filtreleriTemizle = () => {
     setSadeceBenim(false); setOnayliGoster(false); setSadeceGrup(true);
-    setBeklemedeGoster(false); setSozlesmesizGoster(false);
+    setBeklemedeGoster(false); setSozlesmesizGoster(false); setHazirGoster(false);
     setFormFiltre(""); setTc(""); setTarihFiltre(VARSAYILAN_TARIH); setSayfa(1);
   };
 
@@ -1268,6 +1269,7 @@ export default function KayitGuncelle() {
       if (onayliGoster && !onayliMi(o)) return false;
       if (beklemedeGoster && sozlesmeDurumu(o).simge !== "bekle") return false;
       if (sozlesmesizGoster && gecerliLink(o["Sözleşme Onay Linki"])) return false;
+      if (hazirGoster && sozlesmeDurumu(o).simge !== "hazir") return false;
       if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     }
     const benimMi = normalize(o["Danışman Adı"]).trim() === normalize(user?.name).trim();
@@ -1279,7 +1281,7 @@ export default function KayitGuncelle() {
            normalize(o["Türkiye'de Eğitim Aldığı Okul"]).includes(aramaTerimi) ||
            normalize(o["TR_Okul_Default"]).includes(aramaTerimi) ||
            normalize(o["Kaynak Form Adı"]).includes(aramaTerimi);
-  }), [ogrencilerim, aramaTerimi, sadeceGrup, onayliGoster, beklemedeGoster, sozlesmesizGoster, tarihSiniri,
+  }), [ogrencilerim, aramaTerimi, sadeceGrup, onayliGoster, beklemedeGoster, sozlesmesizGoster, hazirGoster, tarihSiniri,
     sadeceBenim, user?.name, tumunuGorebilir, kisitliKullanici, formYetkisiSutunu, benimAdim]);
 
   // Kutucuk sayıları: kutu işaretlenirse listede kaç kayıt kalacağı (diğer filtreler + okul dropdown'u dahil).
@@ -1290,6 +1292,7 @@ export default function KayitGuncelle() {
     if (a.onayli && !onayliMi(o)) return false;
     if (a.bekleyen && sozlesmeDurumu(o).simge !== "bekle") return false;
     if (a.hazirlanacak && gecerliLink(o["Sözleşme Onay Linki"])) return false;
+    if (a.hazir && sozlesmeDurumu(o).simge !== "hazir") return false;
     if (tarihSiniri !== null && eklenmeZamani(o) < tarihSiniri) return false;
     const benimMi = normalize(o["Danışman Adı"]).trim() === normalize(user?.name).trim();
     if (!tumunuGorebilir && !benimMi) return false;
@@ -1299,10 +1302,10 @@ export default function KayitGuncelle() {
   };
   const mevcutKutular = {
     sadeceGrup, onayli: onayliGoster, bekleyen: beklemedeGoster,
-    hazirlanacak: sozlesmesizGoster, benim: sadeceBenim, okul: formFiltre,
+    hazirlanacak: sozlesmesizGoster, hazir: hazirGoster, benim: sadeceBenim, okul: formFiltre,
   };
   const kutuSay = ayar => ogrencilerim.filter(o => kutuUygun(o, { ...mevcutKutular, ...ayar })).length;
-  const DURUM_KAPALI = { onayli: false, bekleyen: false, hazirlanacak: false }; // üçü birbirini dışlar
+  const DURUM_KAPALI = { onayli: false, bekleyen: false, hazirlanacak: false, hazir: false }; // dördü birbirini dışlar
   const kutuSayilari = useMemo(() => aramaTerimi || !ogrencilerim.length ? null : {
     benim: kutuSay({ benim: true }),
     onayli: kutuSay({ ...DURUM_KAPALI, onayli: true }),
@@ -1310,7 +1313,8 @@ export default function KayitGuncelle() {
     sadeceGrup: kutuSay({ sadeceGrup: true, okul: "" }),
     bekleyen: kutuSay({ ...DURUM_KAPALI, bekleyen: true }),
     hazirlanacak: kutuSay({ ...DURUM_KAPALI, hazirlanacak: true }),
-  }, [ogrencilerim, aramaTerimi, sadeceGrup, onayliGoster, beklemedeGoster, sozlesmesizGoster, tarihSiniri,
+    hazir: kutuSay({ ...DURUM_KAPALI, hazir: true }),
+  }, [ogrencilerim, aramaTerimi, sadeceGrup, onayliGoster, beklemedeGoster, sozlesmesizGoster, hazirGoster, tarihSiniri,
     sadeceBenim, formFiltre, user?.name, tumunuGorebilir, kisitliKullanici, formYetkisiSutunu, benimAdim]);
   const kutuSayisi = anahtar => kutuSayilari
     ? <span style={{ color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}> ({kutuSayilari[anahtar]})</span>
@@ -1388,11 +1392,11 @@ export default function KayitGuncelle() {
   useEffect(() => {
     try {
       sessionStorage.setItem(FILTRE_ANAHTARI, JSON.stringify({
-        sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim,
+        sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, hazirGoster, sadeceBenim,
         tarihFiltre, onayliGoster, sadeceGrup, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler,
       }));
     } catch { /* depolama kapalıysa sessizce geç */ }
-  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, sadeceBenim, tarihFiltre, onayliGoster, sadeceGrup, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler]);
+  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, hazirGoster, sadeceBenim, tarihFiltre, onayliGoster, sadeceGrup, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler]);
 
   // Hatırlanan sayfa numarası yeni listede yoksa son sayfaya çek
   useEffect(() => {
@@ -1514,6 +1518,7 @@ export default function KayitGuncelle() {
         sadeceBenim && "Kendi Öğrencilerim",
         onayliGoster && "Onaylı Sözleşmeler",
         beklemedeGoster && "Onay Bekleyenler",
+        hazirGoster && "Hazırlandı, Gönderilmedi",
         sozlesmesizGoster && "Hazırlanacak Sözleşmeler",
       ].filter(Boolean).join(" · ");
 
@@ -1691,7 +1696,7 @@ export default function KayitGuncelle() {
               justifyContent: "space-between",
               alignItems: isMobile ? "stretch" : "flex-start",
             }}>
-              {/* Kutucuklar iki sütunda: solda 3, sağda Beklemede + Hazırlanmamış (mobilde alt alta) */}
+              {/* Kutucuklar iki sütunda (solda 3, sağda 3 durum filtresi) + sağda kare Temizle butonu (mobilde alt alta) */}
               <div style={{ display: "flex", gap: isMobile ? "10px" : "32px", flexDirection: isMobile ? "column" : "row" }}>
               {/* Sol sütun sabit genişlikte: sayılar değişince sağ sütun kaymaz */}
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", ...(isMobile ? {} : { width: "230px", flexShrink: 0 }) }}>
@@ -1718,7 +1723,7 @@ export default function KayitGuncelle() {
                   type="checkbox"
                   checked={onayliGoster}
                   // Onaylı ve Beklemede aynı anda seçilemez, biri seçilince diğeri kalkar
-                  onChange={e => { setOnayliGoster(e.target.checked); if (e.target.checked) { setBeklemedeGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
+                  onChange={e => { setOnayliGoster(e.target.checked); if (e.target.checked) { setBeklemedeGoster(false); setSozlesmesizGoster(false); setHazirGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
                 Onaylı Sözleşmeler{kutuSayisi("onayli")}
@@ -1735,15 +1740,26 @@ export default function KayitGuncelle() {
               </label>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {/* Sağ sütun da sabit genişlikte: sayılar değişince Temizle butonu kaymaz */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", ...(isMobile ? {} : { width: "245px", flexShrink: 0 }) }}>
               <label style={s.filtreLabel}>
                 <input
                   type="checkbox"
                   checked={beklemedeGoster}
-                  onChange={e => { setBeklemedeGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
+                  onChange={e => { setBeklemedeGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setSozlesmesizGoster(false); setHazirGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
                 Onay Bekleyen Sözleşmeler{kutuSayisi("bekleyen")}
+              </label>
+
+              <label style={s.filtreLabel} title="Sözleşmesi hazırlanmış ama veliye henüz gönderilmemiş kayıtlar (Onay Durumu: Hazırlandı)">
+                <input
+                  type="checkbox"
+                  checked={hazirGoster}
+                  onChange={e => { setHazirGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setBeklemedeGoster(false); setSozlesmesizGoster(false); } setSayfa(1); }}
+                  style={s.checkbox}
+                />
+                Hazırlandı, Gönderilmedi{kutuSayisi("hazir")}
               </label>
 
               <label style={s.filtreLabel} title="Sözleşme linki henüz oluşmamış kayıtlar">
@@ -1751,29 +1767,35 @@ export default function KayitGuncelle() {
                   type="checkbox"
                   checked={sozlesmesizGoster}
                   // Onaylı / Beklemede / Hazırlanmamış filtrelerinden aynı anda yalnızca biri seçilebilir
-                  onChange={e => { setSozlesmesizGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setBeklemedeGoster(false); } setSayfa(1); }}
+                  onChange={e => { setSozlesmesizGoster(e.target.checked); if (e.target.checked) { setOnayliGoster(false); setBeklemedeGoster(false); setHazirGoster(false); } setSayfa(1); }}
                   style={s.checkbox}
                 />
                 Hazırlanacak Sözleşmeler{kutuSayisi("hazirlanacak")}
               </label>
 
+              </div>
+
+              {/* Tüm Filtreleri Temizle: masaüstünde kutucuk sütunlarının sağında, üç satır yüksekliğinde kare buton */}
               <button
                 type="button"
                 onClick={filtreleriTemizle}
                 disabled={!filtreDegisti}
+                title="Tüm filtreleri varsayılana döndür"
                 style={{
-                  // Başlık şeritleriyle aynı düz lacivert
-                  // Yükseklik eski boyutta, genişlik eskinin ~1,5 katı
-                  alignSelf: "flex-start", marginTop: "2px", padding: "6px 18px", minWidth: "245px",
-                  justifyContent: "center",
-                  fontSize: "12.5px", fontWeight: "700", borderRadius: "8px", border: "none",
+                  ...(isMobile
+                    ? { width: "100%", padding: "10px 16px", flexDirection: "row", gap: "8px" }
+                    : { alignSelf: "stretch", width: "92px", padding: "8px", flexDirection: "column", gap: "6px", flexShrink: 0 }),
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", textAlign: "center",
+                  fontSize: "12px", fontWeight: "700", lineHeight: 1.25, borderRadius: "12px", border: "none",
                   background: TEMA_RENKLERI[tema].bant, color: TEMA_RENKLERI[tema].yazi,
-                  boxShadow: filtreDegisti ? "0 4px 12px rgba(8,145,178,0.28)" : "none",
-                  display: "inline-flex", alignItems: "center", gap: "8px",
+                  boxShadow: filtreDegisti ? "0 4px 12px rgba(30,58,95,0.28)" : "none",
                   opacity: filtreDegisti ? 1 : 0.4, cursor: filtreDegisti ? "pointer" : "not-allowed",
+                  transition: "opacity 0.2s, box-shadow 0.2s",
                 }}
-              >🧹 Tüm Filtreleri Temizle</button>
-              </div>
+              >
+                <span style={{ fontSize: isMobile ? "14px" : "22px", lineHeight: 1 }} aria-hidden="true">🧹</span>
+                <span>Tüm Filtreleri Temizle</span>
+              </button>
               </div>
 
               <div style={{
