@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.81
+// KayitGuncelle.jsx v1.82
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.81"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.82"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -231,7 +231,8 @@ const ON_KAYIT_ALANLARI = new Set([
 ]);
 
 const ONLY_LETTERS = ["Öğrenci Adı Soyadı", "Anne Adı Soyadı", "Baba Adı Soyadı", "Danışman Adı", "Okul Lokasyonu", "Formu Dolduran Ebeveynin Adı"];
-const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Kurs Süresi", "Haftalık Ders Saati", "Öğrenci Cep Telefonu", "Konaklama Süresi (Accommodation Duration)"];
+// Kurs Süresi burada yok: "2 hafta", "10 gün" gibi metin yazılabilmeli (sözleşmeye olduğu gibi basılır)
+const ONLY_NUMBERS = ["Anne TC", "Baba TC", "Anne Telefon", "Baba Telefon", "Taksit Sayısı", "Depozito Miktarı", "Program Ücreti", "Konaklama Ücreti", "Toplam Program Ücreti", "Haftalık Ders Saati", "Öğrenci Cep Telefonu", "Konaklama Süresi (Accommodation Duration)"];
 const FOTO_FIELDS = ["Pasaport Fotoğrafı", "TC Kimlik Fotoğrafı"];
 
 // Kopyala butonu: tıklayınca değeri panoya alır, kısa süre ✓ gösterir
