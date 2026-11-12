@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.80
+// KayitGuncelle.jsx v1.81
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.80"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.81"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -78,7 +78,7 @@ function NotIkonu({ dolu, boyut = 15 }) {
   );
 }
 
-const TABS = ["Özet", "Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Program Tercihleri", "Taksit", "Diğer"];
+const TABS = ["Özet", "Öğrenci", "Sağlık", "Ebeveyn", "Okul", "Konaklama", "Program Tercihleri", "Taksit", "Diğer", "Geçmiş"];
 const PROGRAM_TERCIH_ALANLARI = ["Hangi Ek Program", "Hangi Ek Gezi 1", "Hangi Ek Gezi 2", "Hangi Vize Hizmeti", "Hangi Konaklama"];
 // Ekranda görünen adlar (sheet sütun adları değişmez, veri yine bu sütunlara yazılır)
 const ALAN_ETIKETLERI = {
@@ -528,6 +528,72 @@ function BelgeButonu({ etiket, link }) {
   );
 }
 
+// Geçmiş sekmesi: bu kayıtta portaldan yapılan işlemler (kim, ne zaman, ne yaptı), yeniden eskiye.
+// Veri /api/islem-log üzerinden All_Submissions > "İşlem Geçmişi" sekmesinden gelir; kayıtlar 12.11.2026'da başladı.
+function GecmisPaneli({ tallyId, sayac }) {
+  const [durum, setDurum] = useState({ yukleniyor: true, hata: "", liste: [] });
+  const [yenile, setYenile] = useState(0);
+
+  useEffect(() => {
+    if (!tallyId) { setDurum({ yukleniyor: false, hata: "", liste: [] }); return; }
+    let iptal = false;
+    setDurum(d => ({ ...d, yukleniyor: true, hata: "" }));
+    fetch(`/api/islem-log?tally=${encodeURIComponent(tallyId)}&_t=${Date.now()}`, { cache: "no-store" })
+      .then(async r => {
+        const json = await r.json().catch(() => ({}));
+        if (!r.ok || json.ok === false) throw new Error(json.hata || "Geçmiş okunamadı");
+        if (!iptal) setDurum({ yukleniyor: false, hata: "", liste: json.liste || [] });
+      })
+      .catch(e => { if (!iptal) setDurum({ yukleniyor: false, hata: e.message || "Geçmiş okunamadı", liste: [] }); });
+    return () => { iptal = true; };
+  }, [tallyId, sayac, yenile]);
+
+  const tarihMetni = iso => {
+    const d = new Date(iso);
+    if (isNaN(d)) return iso || "-";
+    return d.toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
+  if (!tallyId) {
+    return <div style={{ fontSize: "13px", color: "#64748b" }}>Bu kaydın Tally Submission ID'si olmadığı için işlem geçmişi tutulamıyor.</div>;
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", marginBottom: "14px" }}>
+        <div style={{ fontSize: "13px", color: "#64748b" }}>
+          Bu kayıtta portaldan yapılan işlemler. {durum.liste.length > 0 && <strong style={{ color: "#1e3a5f" }}>{durum.liste.length} işlem</strong>}
+        </div>
+        <button type="button" onClick={() => setYenile(v => v + 1)} disabled={durum.yukleniyor}
+          style={{ padding: "5px 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#f8fafc", color: "#1e3a5f", fontSize: "12px", fontWeight: 600, cursor: durum.yukleniyor ? "default" : "pointer" }}>
+          {durum.yukleniyor ? "Yükleniyor..." : "Yenile"}
+        </button>
+      </div>
+      {durum.hata && <div style={{ fontSize: "13px", color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 12px" }}>{durum.hata}</div>}
+      {!durum.yukleniyor && !durum.hata && durum.liste.length === 0 && (
+        <div style={{ fontSize: "13px", color: "#64748b", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: "10px", padding: "16px" }}>
+          Bu kayıt için henüz işlem kaydı yok. İşlem geçmişi 12.11.2026'dan itibaren tutuluyor; daha önce yapılanlar burada görünmez.
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {durum.liste.map((x, i) => (
+          <div key={i} style={{ display: "flex", gap: "12px", padding: "10px 0", borderTop: i ? "1px solid #eef2f7" : "none" }}>
+            <div style={{ flexShrink: 0, width: "9px", height: "9px", borderRadius: "50%", background: "#1e3a5f", marginTop: "5px" }} />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: "13.5px", fontWeight: 700, color: "#0f172a" }}>{x.islem}</div>
+              {x.detay && <div style={{ fontSize: "12.5px", color: "#475569", marginTop: "2px", lineHeight: 1.45, wordBreak: "break-word" }}>{x.detay}</div>}
+              <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "3px" }}>
+                {tarihMetni(x.tarih)} · {x.kullanici || "Bilinmiyor"}
+                {x.kimlik && x.kimlik !== "doğrulandı" && <span title="Kullanıcı adı oturum anahtarıyla doğrulanamadı, tarayıcının bildirdiği ad yazıldı"> · doğrulanmamış</span>}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function OzetPaneli({ data }) {
   // Sözleşmede kullanılan adres alanı
   const adres = data["Adres"] || data["İkamet Adresi"] || data["Yaşadığı Adres"];
@@ -659,6 +725,7 @@ export default function KayitGuncelle() {
       const json = await res.json().catch(() => ({}));
       if (!res.ok || json.ok === false) throw new Error(json.msg || "Gönderilemedi");
       showToast(json.msg || "Kayıt bilgileri operasyona gönderildi");
+      islemKaydet(data, "Operasyona bildirildi");
     } catch (e) {
       showToast(e.message || "Gönderilemedi", "error");
     } finally {
@@ -766,6 +833,10 @@ export default function KayitGuncelle() {
       setData(prev => prev && satirAnahtari(prev) === anahtar ? { ...prev, Notlar: sonNot } : prev);
       kapat();
       showToast("Not kaydedildi");
+      const silinen = satirlar.filter(x => x.silindi).length;
+      islemKaydet(ogr, "Notlar güncellendi", [
+        yeni.trim() && "1 not eklendi", silinen && `${silinen} not silindi`,
+      ].filter(Boolean).join(", ") || "Notlar düzenlendi");
     } catch {
       showToast("Not kaydedilemedi", "error");
     } finally {
@@ -933,6 +1004,23 @@ export default function KayitGuncelle() {
   // 10 dakikadan eski liste: zaman çipindeki nokta yeşilden turuncuya döner
   const listeEski = !!listeZamani && simdi - listeZamani >= 10 * 60 * 1000;
 
+  // İşlem geçmişi: başarılı işlemden sonra arka planda kaydedilir, hata olsa da işlemi etkilemez.
+  // Kullanıcı adını sunucu oturum token'ından alır; buradaki ad sadece token yoksa kullanılır.
+  const [gecmisSayac, setGecmisSayac] = useState(0);
+  function islemKaydet(kayit, islem, detay = "") {
+    const tallyId = String(kayit?.["Tally Submission ID"] || "").trim();
+    if (!tallyId) return;
+    fetch("/api/islem-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tallyId, islem, detay,
+        ogrenci: String(kayit["Öğrenci Adı Soyadı"] || "").trim(),
+        kullanici: user?.name || "",
+      }),
+    }).then(() => setGecmisSayac(v => v + 1)).catch(() => {});
+  }
+
   function showToast(msg, type = "success") {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -1070,6 +1158,20 @@ export default function KayitGuncelle() {
       ]);
 
       if (!res.ok) throw new Error("Hata");
+      {
+        // Geçmişe sadece değişen alanların adı yazılır (değerler değil: TC, telefon gibi veriler log'da çoğalmasın)
+        let onceki = {};
+        try { onceki = JSON.parse(kayitliHalRef.current || "{}"); } catch { /* ilk hal yok */ }
+        const simdi = JSON.parse(kayitOzeti(kayitData));
+        const degisen = kayitliHalRef.current
+          ? Object.keys(simdi).filter(k => String(simdi[k] ?? "") !== String(onceki[k] ?? "")).map(k => ALAN_ETIKETLERI[k] || k)
+          : [];
+        islemKaydet(kayitData, "Kayıt güncellendi", [
+          degisen.length ? `Değişen alanlar: ${degisen.join(", ")}` : "Alan değişikliği yok",
+          String(kayitData["Danışman Adı"] || "").trim() && "Sözleşme yeniden hazırlanıyor",
+          sozlesmeGonder && "Otomatik gönderim açık",
+        ].filter(Boolean).join(" · "));
+      }
       if (sozlesmeGonder) {
         setSuccessModal(true);
       } else {
@@ -1112,9 +1214,15 @@ export default function KayitGuncelle() {
       if (sonuc.ok) {
         setGonderilenTC(kayit["TC Kimlik No"]);
         setSuccessModal(sonuc);
+        islemKaydet(kayit, "Sözleşme gönderildi", [
+          sonuc.mail && (sonuc.mail.ok ? "Mail ✓" : "Mail ✗"), sonuc.whatsapp && (sonuc.whatsapp.ok ? "WhatsApp ✓" : "WhatsApp ✗"),
+        ].filter(Boolean).join(" · "));
       } else if (sonuc.mail || sonuc.whatsapp) {
         // Biri gitti, diğeri gitmedi
-        if (sonuc.mail?.ok || sonuc.whatsapp?.ok) setGonderilenTC(kayit["TC Kimlik No"]);
+        if (sonuc.mail?.ok || sonuc.whatsapp?.ok) {
+          setGonderilenTC(kayit["TC Kimlik No"]);
+          islemKaydet(kayit, "Sözleşme gönderildi (kısmen)", `${sonuc.mail?.ok ? "Mail ✓" : "Mail ✗"} · ${sonuc.whatsapp?.ok ? "WhatsApp ✓" : "WhatsApp ✗"}`);
+        }
         const mail = sonuc.mail?.ok ? "Mail ✓" : "Mail ✗";
         const wp = sonuc.whatsapp?.ok ? "WhatsApp ✓" : "WhatsApp ✗";
         showToast(`${mail} · ${wp} ${sonuc.mail?.hata || sonuc.whatsapp?.hata || ""}`, "error");
@@ -2293,7 +2401,7 @@ export default function KayitGuncelle() {
                                   document.execCommand("copy");
                                   document.body.removeChild(ta);
                                 }
-                                setKopyaModal({ tc: tcNo, ad: ogr["Öğrenci Adı Soyadı"] });
+                                setKopyaModal({ tc: tcNo, ad: ogr["Öğrenci Adı Soyadı"], kayit: ogr });
                               }}
                               title="TC'yi kopyalar ve danışman sözleşme formunu açar"
                               style={{ ...s.formBtn, ...s.aksiyonBtn, minWidth: "92px" }}
@@ -2390,7 +2498,8 @@ export default function KayitGuncelle() {
               ))}
             </div>
             <div style={s.formCard}>
-              {activeTab === "Özet" ? <OzetPaneli data={data} /> : (
+              {activeTab === "Özet" ? <OzetPaneli data={data} />
+                : activeTab === "Geçmiş" ? <GecmisPaneli tallyId={String(data["Tally Submission ID"] || "").trim()} sayac={gecmisSayac} /> : (
               <>
               {/* Sözleşme oluşmadan sadece ön kayıt alanları açık */}
               {!sozlesmeVar && !saltOkunur && (
@@ -2656,7 +2765,7 @@ export default function KayitGuncelle() {
                 href={DANISMAN_FORM_URL}
                 target="_blank"
                 rel="noreferrer"
-                onClick={() => setKopyaModal(null)}
+                onClick={() => { islemKaydet(kopyaModal.kayit, "Sözleşme formu açıldı", "Danışman Sözleşme Formu"); setKopyaModal(null); }}
                 style={{ ...s.modalBtn, marginTop: 0, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
               >Formu Aç</a>
             </div>
