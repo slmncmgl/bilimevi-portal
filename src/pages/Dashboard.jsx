@@ -1,3 +1,4 @@
+// v1.14: Sürükle-bırak "i" ikonu sadece admin, owner, director ve manager rollerinde görünür.
 // v1.13: Sürükle-bırak "i" ikonu sayfanın ortasından üst şeride, ismin soluna alındı.
 // v1.12: Sürükle-bırak ipucu banner yerine sağ üstte kalp gibi atan kırmızı "i" ikonu; tıklayınca balon açılır (SuruklemeIpucu.jsx).
 // v1.11: Kartın renkli gölgesi üstüne gelir gelmez beliriyor (ilk geçiş 0.25 sn, gezinme yine 1.2 sn).
@@ -27,7 +28,7 @@ import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.13";
+const DASHBOARD_VERSION = "v1.14";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -349,8 +350,10 @@ export default function Dashboard() {
                 {isFortis ? "Admin Panel" : "Yönetici Paneli"}
               </button>
             )}
-            {/* Sürükle-bırak ipucu: ismin solunda kırmızı "i" */}
-            <SuruklemeIpucu kullanici={kullaniciAnahtari} isFortis={isFortis} suruklendi={kart.animasyonKapali} kartSayisi={allowedModules.length} />
+            {/* Sürükle-bırak ipucu: ismin solunda kırmızı "i". Sadece yönetici rollerinde (staff'ta kart az) */}
+            {["admin", "owner", "director", "manager"].includes(user.rol) && (
+              <SuruklemeIpucu kullanici={kullaniciAnahtari} isFortis={isFortis} suruklendi={kart.animasyonKapali} kartSayisi={allowedModules.length} />
+            )}
             <div style={styles.userInfo}>
               <div style={styles.avatar}>
                 {user.name?.charAt(0).toUpperCase()}
