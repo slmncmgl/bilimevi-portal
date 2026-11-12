@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.79
+// KayitGuncelle.jsx v1.80
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.79"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.80"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -839,6 +839,8 @@ export default function KayitGuncelle() {
   const SAYFA_BOYUTU = sayfaBoyutu;
   // Aktivite grafiği: açık/kapalı ve günlük/haftalık seçimi oturum boyunca saklanır
   const [grafikAcik, setGrafikAcik] = useState(() => kayitliFiltre.grafikAcik ?? false);
+  // "Bu Tarihten Sonraki Kayıtlar" paneli varsayılan gizli, sağdaki ‹ işaretiyle açılır
+  const [tarihAcik, setTarihAcik] = useState(false);
   // Grafik dönemi: "7" / "30" gün ya da "tumu" (haftalık). Eski kayıtlı "hafta" Tümü'ye, "gun" 30 güne denk gelir.
   const [grafikMod, setGrafikMod] = useState(() => {
     const m = kayitliFiltre.grafikMod;
@@ -1225,10 +1227,11 @@ export default function KayitGuncelle() {
   ) || !temizMetin(k["TR_Okul_Default"]);
 
   const VARSAYILAN_TARIH = "2026-08-01";
-  const filtreDegisti = sadeceBenim || onayliGoster || !sadeceGrup || beklemedeGoster
+  // "Sadece Grup Kayıtları" da filtre sayılır: işaretliyken Temizle aktiftir ve temizleyince işaret kalkar (v1.80)
+  const filtreDegisti = sadeceBenim || onayliGoster || sadeceGrup || beklemedeGoster
     || sozlesmesizGoster || hazirGoster || !!formFiltre || !!tc || tarihFiltre !== VARSAYILAN_TARIH;
   const filtreleriTemizle = () => {
-    setSadeceBenim(false); setOnayliGoster(false); setSadeceGrup(true);
+    setSadeceBenim(false); setOnayliGoster(false); setSadeceGrup(false);
     setBeklemedeGoster(false); setSozlesmesizGoster(false); setHazirGoster(false);
     setFormFiltre(""); setTc(""); setTarihFiltre(VARSAYILAN_TARIH); setSayfa(1);
   };
@@ -1801,6 +1804,10 @@ export default function KayitGuncelle() {
               </button>
               </div>
 
+              {/* Tarih filtresi: varsayılan gizli; sağdaki ‹ / › ile açılıp kapanır.
+                  Kapalıyken tarih varsayılandan farklıysa işaretin üstünde turuncu nokta çıkar. */}
+              <div style={{ display: "flex", alignItems: "stretch", gap: "8px", ...(isMobile ? { width: "100%" } : {}) }}>
+              {tarihAcik && (
               <div style={{
                 display: "flex", flexDirection: "column", gap: "6px",
                 width: isMobile ? "100%" : "200px",
@@ -1839,6 +1846,28 @@ export default function KayitGuncelle() {
                       cursor: tarihFiltre ? "pointer" : "not-allowed", opacity: tarihFiltre ? 1 : 0.5,
                     }}
                   >Temizle</button>
+              </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setTarihAcik(v => !v)}
+                aria-expanded={tarihAcik}
+                title={tarihAcik ? "Tarih filtresini gizle" : `Tarih filtresini göster${tarihFiltre ? ` (${tarihFiltre.split("-").reverse().join(".")} sonrası)` : " (tüm tarihler)"}`}
+                style={{
+                  position: "relative", flexShrink: 0, width: "30px", minHeight: "80px", alignSelf: "stretch", padding: 0,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  border: "1px solid #e2e8f0", borderRadius: "10px", background: tarihAcik ? "#eef2f7" : "#f8fafc",
+                  color: "#1e3a5f", cursor: "pointer", transition: "background 0.15s",
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
+                  strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  {tarihAcik ? <path d="M9 6l6 6-6 6" /> : <path d="M15 6l-6 6 6 6" />}
+                </svg>
+                {!tarihAcik && tarihFiltre !== VARSAYILAN_TARIH && (
+                  <span style={{ position: "absolute", top: "6px", right: "6px", width: "7px", height: "7px", borderRadius: "50%", background: "#ea580c" }} />
+                )}
+              </button>
               </div>
             </div>
           )}
