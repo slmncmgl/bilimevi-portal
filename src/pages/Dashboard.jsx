@@ -1,3 +1,4 @@
+// v1.12: Sürükle-bırak ipucu banner yerine sağ üstte kalp gibi atan kırmızı "i" ikonu; tıklayınca balon açılır (SuruklemeIpucu.jsx).
 // v1.11: Kartın renkli gölgesi üstüne gelir gelmez beliriyor (ilk geçiş 0.25 sn, gezinme yine 1.2 sn).
 // v1.10: Klasik temada kartın üstüne gelince modül renginde daha güçlü, rastgele gezinen gölge (src/pages/dashboard/renkliGolge.js).
 // v1.9: Klasik temada sürükle-bırak için tek seferlik, 10 sn duran uyarı (src/pages/dashboard/SuruklemeIpucu.jsx).
@@ -25,7 +26,7 @@ import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.11";
+const DASHBOARD_VERSION = "v1.12";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
