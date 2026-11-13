@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.82
+// KayitGuncelle.jsx v1.83
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.82"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.83"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -38,6 +38,10 @@ const NOT_URL = "https://n8n.bilimevi.cloud/webhook/not-guncelle";
 const OPERASYON_URL = "https://n8n.bilimevi.cloud/webhook/operasyon-bildir";
 // Bu süre içinde eklenen kayıtlar listede YENİ olarak işaretlenir
 const YENI_SURE_SAAT = 48;
+// v1.83: liste isteği ağ hatasında (ör. HTTP/3 paket kaybı) sessizce boş kalıyordu.
+// İlk yüklemede 3 deneme yapılır; her deneme en fazla LISTE_ZAMAN_ASIMI_MS bekler, denemeler arası LISTE_ARA_MS.
+const LISTE_ZAMAN_ASIMI_MS = 20000;
+const LISTE_ARA_MS = [1500, 3000];
 
 // Portal giriş logları (Kullanıcı adı | Tarih)
 const GIRISLER_URL = "https://docs.google.com/spreadsheets/d/1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA/gviz/tq?tqx=out:csv&sheet=" +
@@ -688,6 +692,8 @@ export default function KayitGuncelle() {
   const [successModal, setSuccessModal] = useState(false);
   const [ogrencilerim, setOgrencilerim] = useState([]);
   const [ogrencilerLoading, setOgrencilerLoading] = useState(false);
+  const [listeHata, setListeHata] = useState(false);   // ilk yükleme tüm denemelerde başarısız
+  const [listeDeneme, setListeDeneme] = useState(1);    // yüklenirken kaçıncı deneme (2+ ise ekranda yazılır)
   const [sayfa, setSayfa] = useState(() => kayitliFiltre.sayfa ?? 1);
   const [sozlesmeModal, setSozlesmeModal] = useState(null);
   const [gonderOnay, setGonderOnay] = useState(null);
@@ -964,35 +970,61 @@ export default function KayitGuncelle() {
   }, []);
 
   // elle = true: yenile butonu. Arama, filtreler ve kaydırma korunur, sonuç bildirimle söylenir.
+  // Tek liste isteği: zaman aşımı gövdenin inmesini de kapsar. Geçerli liste yoksa null döner.
+  async function listeIstegi() {
+    const kontrol = new AbortController();
+    const sayac = setTimeout(() => kontrol.abort(), LISTE_ZAMAN_ASIMI_MS);
+    try {
+      const res = await fetch(`${FETCH_URL}?danisman=${encodeURIComponent(user.name)}&_t=${Date.now()}`, { cache: "no-store", signal: kontrol.signal });
+      const json = await res.json();
+      return json?.found && Array.isArray(json.list) ? json.list : null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(sayac);
+    }
+  }
+
   async function listeyiGetir(elle = false) {
     if (!user?.name) return;
-    if (elle) setYenileniyor(true); else setOgrencilerLoading(true);
+    if (elle) setYenileniyor(true);
+    else { setOgrencilerLoading(true); setListeHata(false); setListeDeneme(1); }
     try {
-      const [res] = await Promise.all([
-        fetch(`${FETCH_URL}?danisman=${encodeURIComponent(user.name)}&_t=${Date.now()}`, { cache: "no-store" }),
+      // Elle yenilemede tek deneme (liste zaten ekranda); ilk yüklemede 3 deneme
+      const denemeSayisi = elle ? 1 : LISTE_ARA_MS.length + 1;
+      const [liste] = await Promise.all([
+        (async () => {
+          for (let i = 0; i < denemeSayisi; i++) {
+            if (i) {
+              await new Promise(r => setTimeout(r, LISTE_ARA_MS[i - 1]));
+              setListeDeneme(i + 1);
+            }
+            const sonuc = await listeIstegi();
+            if (sonuc) return sonuc;
+          }
+          return null;
+        })(),
         // Elle yenilemede neon çizgi en az bir tur dönsün
         new Promise(r => setTimeout(r, elle ? 1000 : 0)),
       ]);
-      const json = await res.json();
-      if (json.found && json.list) {
+      if (liste) {
         if (elle) {
           const eskiler = new Set(ogrencilerim.map(satirAnahtari));
-          const yeni = json.list.filter(o => !eskiler.has(satirAnahtari(o))).length;
+          const yeni = liste.filter(o => !eskiler.has(satirAnahtari(o))).length;
           showToast(yeni ? `Liste güncellendi, ${yeni} yeni kayıt` : "Liste güncellendi, yeni kayıt yok");
         }
-        setOgrencilerim(json.list);
+        setOgrencilerim(liste);
         setListeZamani(Date.now());
         setSimdi(Date.now());
       } else if (elle) {
-        showToast("Liste alınamadı", "error");
+        showToast("Liste alınamadı, bağlantıyı kontrol edip tekrar deneyin", "error");
+      } else {
+        setListeHata(true);
       }
-    } catch {
-      if (elle) showToast("Bağlantı hatası", "error");
     } finally {
       if (elle) setYenileniyor(false); else setOgrencilerLoading(false);
     }
   }
-
   useEffect(() => { listeyiGetir(); }, [user?.name]);
 
   const sonGuncelleme = (() => {
@@ -2008,6 +2040,28 @@ export default function KayitGuncelle() {
               borderTop: "3px solid #0891b2", borderRadius: "50%",
               display: "inline-block", animation: "spin 0.8s linear infinite"
             }} />
+            {listeDeneme > 1 && (
+              <div style={{ marginTop: "12px", fontSize: "13px", color: "#64748b" }}>
+                Bağlantı yavaş, yeniden deneniyor ({listeDeneme}/{LISTE_ARA_MS.length + 1})
+              </div>
+            )}
+          </div>
+        )}
+
+        {!data && !ogrencilerLoading && listeHata && !ogrencilerim.length && (
+          <div role="alert" style={{
+            margin: "24px auto", maxWidth: "460px", padding: "24px", textAlign: "center",
+            background: "#fff", border: "1px solid #fecaca", borderRadius: "14px",
+            boxShadow: "0 1px 3px rgba(15,23,42,0.06)",
+          }}>
+            <div style={{ fontSize: "16px", fontWeight: 700, color: "#991b1b", marginBottom: "6px" }}>Kayıt listesi yüklenemedi</div>
+            <div style={{ fontSize: "13px", color: "#64748b", lineHeight: 1.5, marginBottom: "16px" }}>
+              Sunucuya ulaşılamadı. İnternet bağlantınızda geçici bir sorun olabilir.
+            </div>
+            <button type="button" onClick={() => listeyiGetir()}
+              style={{ padding: "10px 22px", background: "#1e3a5f", color: "#fff", border: 0, borderRadius: "10px", fontSize: "14px", fontWeight: 700, cursor: "pointer" }}>
+              Tekrar Dene
+            </button>
           </div>
         )}
 
