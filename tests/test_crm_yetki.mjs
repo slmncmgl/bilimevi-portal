@@ -27,6 +27,7 @@ globalThis.fetch = async (url, opts = {}) => {
     if (idKurali) return yanit(200, { totalElements: 1, content: [{ id: idKurali.value, ownerId: idKurali.value === 9 ? 200 : 101 }] });
     return yanit(200, { totalElements: 3, content: [{ id: 1, ownerId: 101, pipelineStage: 222366 }, { id: 2, ownerId: 200, pipelineStage: 222366 }, { id: 3, ownerId: 100, pipelineStage: 218702 }] });
   }
+  if (url.includes("/v1/users?")) return yanit(200, { content: [{ id: 101, availabilityStatus: { recordAssignment: { available: false, expirationDate: "2030-01-01T00:00:00.000Z" } } }, { id: 200, availabilityStatus: null }] });
   if (url.includes("/notes/relation")) return yanit(200, { totalElements: 0, content: [], metaData: {} });
   throw new Error("beklenmeyen istek " + url);
 };
@@ -82,6 +83,18 @@ assert.equal(await durum("ali@x.com", { islem: "takip", ownerIds: [100, 200] }),
 assert.equal(await durum("ali@x.com", { islem: "takip", ownerIds: [] }), 400, "boş liste 400");
 r = await iste("ali@x.com", { islem: "takip", ownerIds: [101, 200] });
 assert.ok(r.body.danismanlar["101"] && r.body.danismanlar["200"], "danışman başına özet"); // sahte arama sahibe göre süzmez
+
+// 2c. Performans Değerlendirme
+assert.equal(await durum("mehmet@x.com", { islem: "degerlendirme", ownerIds: [100, 101, 102], gun: 180 }), 200, "manager şubesini değerlendirir");
+assert.equal(await durum("mehmet@x.com", { islem: "degerlendirme", ownerIds: [101, 200], gun: 180 }), 403, "başka şube varsa red");
+assert.equal(await durum("su@x.com", { islem: "degerlendirme", ownerIds: [100], gun: 90 }), 403, "staff başkasını değerlendiremez");
+assert.equal(await durum("ali@x.com", { islem: "degerlendirme", ownerIds: [101], gun: 365 }), 400, "365 gün geçersiz dönem");
+assert.equal(await durum(null, { islem: "degerlendirme", ownerIds: [101], gun: 30 }), 401, "token'sız reddedilir");
+r = await iste("ali@x.com", { islem: "degerlendirme", ownerIds: [101, 200], gun: 30 });
+assert.equal(r.code, 200);
+assert.deepEqual(Object.keys(r.body.danismanlar).sort(), ["101", "200"], "sadece istenen danışmanlar döner");
+assert.equal(r.body.danismanlar["101"].musait, false, "Kylas'ta müsait değil işaretli");
+assert.equal(r.body.danismanlar["200"].musait, true);
 
 // 3. Özet tablo süzülür
 r = await iste("mehmet@x.com", { kaynak: 2675584, gun: 90 });
