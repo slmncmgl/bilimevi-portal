@@ -1,3 +1,4 @@
+// v1.3: tablo altı not ve satır içi açıklamalar kaldırıldı; açıklamalar üzerine gelince balonda (Ipucu.jsx)
 // v1.2: Data tarihi açılışta "Tümü"
 // v1.1: "Kayıt dönüşümü dönemi" -> "Data tarihi": Tümü + açılır liste (Son 7 / 14 / 30 / N gün, TarihSecici.jsx)
 // v1.0: Performans Analizi > Performans Değerlendirme sekmesi
@@ -12,8 +13,9 @@ import { useState, useEffect } from "react";
 import { VIP_KAYNAKLAR } from "../lib/vipKaynaklar";
 import { apiCagir, kucuk, kisileriYukle, c } from "./CrmRaporu";
 import TarihSecici from "./TarihSecici";
+import Ipucu from "./Ipucu";
 
-export const DEGERLENDIRME_SURUM = "v1.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const DEGERLENDIRME_SURUM = "v1.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 // Kylas "Kaynak" picklist ID'leri
 const KAYNAK_GRUPLARI = [
@@ -24,6 +26,21 @@ const KAYNAK_GRUPLARI = [
 const SESSIZ_GUN = 14;
 const AGIRLIK = { takip: 0.6, yuk: 0.25, hiz: 0.15 };
 const HIZ_SINIR = 30; // "Yeni"de bu kadar ya da daha fazla data bekliyorsa hız puanı 0
+
+// Üzerine gelince görünen açıklamalar
+const ACIKLAMA = {
+  kaynak: "Açık olan gruplar birleşir. Tüm datalar açılınca diğerleri kapanır.",
+  tarih: "Kayıt dönüşümü bu tarih aralığında oluşan datalardan hesaplanır. Müsaitlik barını etkilemez.",
+  danisman: "Satıra tıklayınca müsaitlik puanının nedenleri açılır.",
+  musaitlik: "Yeni data atamaya ne kadar uygun: %60 takip + %25 yük + %15 hız. Kylas'ta müsait değil (izinli) işaretli danışman öneriye girmez.",
+  takipsiz: `Takipsiz kuralı Aktivite Tablosu ile aynı (${SESSIZ_GUN} gün): İlgili ve VIP Görüşme'de task yoksa takipsiz, diğerlerinde task yok ve son etkinlik eski.`,
+  kayit: "Data tarihi seçimine göre oluşan datalardan Kylas'ta Yeni Kayıt aşamasında olanlar. Yaz okulu grup kayıtları CRM dışında olduğu için dahil değil. Müsaitlik barına girmez.",
+  yeni: "Yeni aşamasında 1 günden uzun süredir bekleyen data sayısı (ilk temas gecikiyor).",
+  oneri: "Bu şubede müsaitliği en yüksek, izinli olmayan danışman.",
+  takip: "Açık datalarından takipsiz olmayanların payı.",
+  yuk: "Açık data sayısı, ekibin ortancasına göre. Ortancanın 2 katı ve üstü 0 puan.",
+  hiz: `Yeni aşamasında 1 günden fazla bekleyen data. ${HIZ_SINIR} ve üstü 0 puan.`,
+};
 
 const sinirla = v => Math.max(0, Math.min(100, v));
 const ortanca = dizi => {
@@ -102,7 +119,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
       <div style={c.panel}>
         <div style={{ display: "flex", gap: "28px", flexWrap: "wrap", alignItems: "flex-start" }}>
           <div>
-            <div style={c.etiket}>Data kaynağı</div>
+            <div style={c.etiket}><Ipucu metin={ACIKLAMA.kaynak}>Data kaynağı</Ipucu></div>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <Anahtar ad="Tüm datalar" acik={!gruplar.length} onClick={() => setGruplar([])} />
               {KAYNAK_GRUPLARI.map(g => (
@@ -111,7 +128,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
             </div>
           </div>
           <div>
-            <div style={c.etiket}>Data tarihi</div>
+            <div style={c.etiket}><Ipucu metin={ACIKLAMA.tarih}>Data tarihi</Ipucu></div>
             <TarihSecici deger={gun} onChange={setGun} />
           </div>
         </div>
@@ -130,7 +147,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
             <div style={c.tabloBaslik}>
               <span style={{ fontSize: "15px", fontWeight: 700, color: "#0f172a" }}>{sube} <span style={{ color: "#94a3b8", fontWeight: 500, fontSize: "12px" }}>· {seciliAdlar}</span></span>
               {oneri ? (
-                <span style={p.oneri}>Yeni data için öneri: <b>{oneri.ad}</b> · müsaitlik {oneri.puan.toplam}</span>
+                <Ipucu metin={ACIKLAMA.oneri} isaret={false}><span style={p.oneri}>Yeni data için öneri: <b>{oneri.ad}</b> · müsaitlik {oneri.puan.toplam}</span></Ipucu>
               ) : (
                 <span style={{ ...p.oneri, background: "#f1f5f9", color: "#64748b", borderColor: "#e2e8f0" }}>Müsait danışman yok</span>
               )}
@@ -139,11 +156,11 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
               <table style={c.grid}>
                 <thead>
                   <tr>
-                    <th style={{ ...c.th, textAlign: "left" }}>Danışman</th>
-                    <th style={{ ...c.th, textAlign: "left", minWidth: "220px" }}>Müsaitlik</th>
-                    <th style={c.th}>Takipsiz / açık Data</th>
-                    <th style={c.th}>Kayıt dönüşümü ({gun ? `${gun} gün` : "tüm zamanlar"})</th>
-                    <th style={c.th}>"Yeni"de bekleyen</th>
+                    <th style={{ ...c.th, textAlign: "left" }}><Ipucu metin={ACIKLAMA.danisman}>Danışman</Ipucu></th>
+                    <th style={{ ...c.th, textAlign: "left", minWidth: "220px" }}><Ipucu metin={ACIKLAMA.musaitlik}>Müsaitlik</Ipucu></th>
+                    <th style={c.th}><Ipucu metin={ACIKLAMA.takipsiz}>Takipsiz / açık Data</Ipucu></th>
+                    <th style={c.th}><Ipucu metin={ACIKLAMA.kayit}>Kayıt dönüşümü ({gun ? `${gun} gün` : "tüm zamanlar"})</Ipucu></th>
+                    <th style={c.th}><Ipucu metin={ACIKLAMA.yeni}>"Yeni"de bekleyen</Ipucu></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,7 +169,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
                     const takipsizOran = yuzde(r.takipsiz, r.acik);
                     return (
                       <FragmentSatir key={r.id}>
-                        <tr onClick={() => setAcikSatir(acik ? null : r.id)} title="Nedenlerini göster"
+                        <tr onClick={() => setAcikSatir(acik ? null : r.id)}
                           style={{ cursor: "pointer", background: acik ? "#ecfeff" : i % 2 ? "#fbfdff" : "#fff", opacity: r.musait ? 1 : 0.6 }}>
                           <td style={{ ...c.td, textAlign: "left", fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap" }}>
                             <span style={{ color: "#94a3b8", fontSize: "10px", marginRight: "6px" }}>{acik ? "▼" : "▶"}</span>{r.ad}
@@ -175,11 +192,11 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
                           <tr>
                             <td colSpan={5} style={{ ...c.td, textAlign: "left", background: "#f8fafc", padding: "14px 20px" }}>
                               <div style={p.nedenler}>
-                                <Neden ad="Takip" agirlik="%60" puan={r.puan.takip}
+                                <Neden ad="Takip" agirlik="%60" ipucu={ACIKLAMA.takip} puan={r.puan.takip}
                                   metin={`${r.acik} açık Data'nın ${r.takipsiz} tanesi takipsiz (${yuzdeYaz(Math.round(takipsizOran))}).`} />
-                                <Neden ad="Yük" agirlik="%25" puan={r.puan.yuk}
+                                <Neden ad="Yük" agirlik="%25" ipucu={ACIKLAMA.yuk} puan={r.puan.yuk}
                                   metin={`${r.acik} açık Data. Ekip ortancası ${Math.round(r.ortancaAcik)}.`} />
-                                <Neden ad="Hız" agirlik="%15" puan={r.puan.hiz}
+                                <Neden ad="Hız" agirlik="%15" ipucu={ACIKLAMA.hiz} puan={r.puan.hiz}
                                   metin={`"Yeni" aşamasında ${r.yeni} Data var, ${r.yeniBekleyen} tanesi 1 günden fazla bekliyor.`} />
                               </div>
                               <div style={{ fontSize: "12px", color: "#64748b", marginTop: "10px" }}>
@@ -199,12 +216,8 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
         );
       })}
 
-      {gorunen.length > 0 && !yukleniyor && !hata && rapor && (
-        <div style={p.dipnot}>
-          Müsaitlik = %60 takip + %25 yük + %15 hız. Takipsiz kuralı Aktivite Tablosu ile aynı ({SESSIZ_GUN} gün). Kayıt dönüşümü bara girmez.
-          <br />Kayıt dönüşümü: Data tarihi seçimine göre oluşan datalardan Kylas'ta "Yeni Kayıt" aşamasında olanlar. Yaz okulu grup kayıtları CRM dışında olduğu için dahil değil.
-          {!rapor.musaitlikOkundu && <><br />Kylas müsaitlik bilgisi okunamadı, herkes müsait sayıldı.</>}
-        </div>
+      {gorunen.length > 0 && !yukleniyor && !hata && rapor && !rapor.musaitlikOkundu && (
+        <div style={p.uyari}>Kylas müsaitlik bilgisi okunamadı, herkes müsait sayıldı.</div>
       )}
     </>
   );
@@ -216,13 +229,15 @@ function FragmentSatir({ children }) { return <>{children}</>; }
 function Anahtar({ ad, acik, onClick, ipucu, vip }) {
   const ana = vip ? "#d97706" : "#0891b2";
   return (
-    <button type="button" role="switch" aria-checked={acik} onClick={onClick} title={ipucu}
+    <Ipucu metin={ipucu} isaret={false}>
+    <button type="button" role="switch" aria-checked={acik} onClick={onClick}
       style={{ ...p.anahtar, borderColor: acik ? ana : "#e2e8f0", background: acik ? (vip ? "#fffbeb" : "#ecfeff") : "#fff", color: acik ? "#0f172a" : "#64748b" }}>
       <span style={{ ...p.ray, background: acik ? ana : "#cbd5e1" }}>
         <span style={{ ...p.top, transform: acik ? "translateX(14px)" : "none" }} />
       </span>
       {ad}
     </button>
+    </Ipucu>
   );
 }
 
@@ -235,11 +250,11 @@ function Bar({ deger }) {
   );
 }
 
-function Neden({ ad, agirlik, puan, metin }) {
+function Neden({ ad, agirlik, puan, metin, ipucu }) {
   return (
     <div style={p.neden}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "6px" }}>
-        <span style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}>{ad} <span style={{ color: "#94a3b8", fontWeight: 500 }}>· ağırlık {agirlik}</span></span>
+        <span style={{ fontSize: "12px", fontWeight: 700, color: "#0f172a" }}><Ipucu metin={`${ipucu} Müsaitlik puanındaki ağırlığı ${agirlik}.`}>{ad}</Ipucu></span>
         <span style={{ fontSize: "13px", fontWeight: 700, color: renk(puan), fontVariantNumeric: "tabular-nums" }}>{puan}</span>
       </div>
       <div style={{ ...p.barZemin, height: "6px", marginBottom: "6px" }}><div style={{ width: `${puan}%`, height: "100%", background: renk(puan), borderRadius: "99px" }} /></div>
@@ -259,5 +274,5 @@ const p = {
   soluk: { color: "#94a3b8", fontSize: "11px" },
   nedenler: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" },
   neden: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "12px 14px" },
-  dipnot: { fontSize: "11px", color: "#94a3b8", marginTop: "4px", textAlign: "right", lineHeight: 1.5 },
+  uyari: { fontSize: "12px", color: "#b45309", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: "10px", padding: "8px 12px" },
 };

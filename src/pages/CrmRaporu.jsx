@@ -1,3 +1,4 @@
+// v2.2: açıklamalar üzerine gelince balonda (Ipucu.jsx): Veri kaynağı, Data tarihi, Danışman sütunu, Diğer satırı
 // v2.1: Data tarihi açılışta "Tümü"
 // v2.0: "Data oluşturma tarihi" -> "Data tarihi": Tümü + açılır liste (Son 7 / 14 / 30 / N gün, TarihSecici.jsx)
 // v1.9: ekrandaki "lead" yazıları "Data" oldu (Lead ID -> Data ID vb.)
@@ -20,6 +21,7 @@
 import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR, kaynakOzeti } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
+import Ipucu from "./Ipucu";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const csvUrl = sekme => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sekme)}`;
@@ -42,7 +44,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v2.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v2.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -179,7 +181,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   const seciliMi = (r, asama) => secim?.anahtar === `${r.ad}:${asama?.id || "tumu"}`;
   const sayiHucresi = (r, asama, n, ekStil = {}) => (
     n ? (
-      <button onClick={() => hucreSec(r, asama)} title="Data listesini aç"
+      <button onClick={() => hucreSec(r, asama)}
         style={{ ...c.sayiBtn, ...ekStil, ...(seciliMi(r, asama) ? c.sayiBtnSecili : {}) }}>
         {n.toLocaleString("tr-TR")}
       </button>
@@ -191,11 +193,11 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
       <div style={c.panel}>
         <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", alignItems: "flex-start" }}>
           <div>
-            <div style={c.etiket}>Veri kaynağı</div>
-            <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Kaynak seçin (birden fazla olabilir)" />
+            <div style={c.etiket}><Ipucu metin="Birden fazla kaynak seçilebilir. ★ VIP Datalar hızlı seçimi 6 VIP kaynağı birden işaretler.">Veri kaynağı</Ipucu></div>
+            <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Kaynak seçin" />
           </div>
           <div>
-            <div style={c.etiket}>Data tarihi</div>
+            <div style={c.etiket}><Ipucu metin="Datanın Kylas'ta oluşturulduğu tarih. Tümü: tüm zamanlar.">Data tarihi</Ipucu></div>
             <TarihSecici deger={gun} onChange={setGun} />
           </div>
           {isAdmin && rapor && subeler.length > 2 && (
@@ -235,7 +237,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
               <table style={c.grid}>
                 <thead>
                   <tr>
-                    <th style={{ ...c.th, ...c.ilkSutun, textAlign: "left", background: "#f8fafc", zIndex: 2 }}>Danışman</th>
+                    <th style={{ ...c.th, ...c.ilkSutun, textAlign: "left", background: "#f8fafc", zIndex: 2 }}><Ipucu metin="Sayıya tıklayınca o danışmanın o aşamadaki data listesi açılır.">Danışman</Ipucu></th>
                     {asamalar.map(a => <th key={a.id} style={c.th}>{a.ad}</th>)}
                     <th style={{ ...c.th, background: "#ecfeff", color: "#0e7490" }}>Toplam</th>
                   </tr>
@@ -246,7 +248,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
                     return (
                       <tr key={r.diger ? "diger" : r.email} style={{ background: zemin }}>
                         <td style={{ ...c.td, ...c.ilkSutun, textAlign: "left", background: zemin, fontWeight: 600, color: r.diger ? "#94a3b8" : "#0f172a", whiteSpace: "nowrap" }}>
-                          {r.ad}
+                          {r.diger ? <Ipucu metin="Satış ekibinde olmayan ya da ID sekmesinde eşleşmeyen data sahipleri.">{r.ad}</Ipucu> : r.ad}
                           {isAdmin && r.sube && <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 500 }}> · {r.sube}</span>}
                         </td>
                         {asamalar.map(a => <td key={a.id} style={c.td}>{sayiHucresi(r, a, r.sayilar[a.id] || 0)}</td>)}

@@ -1,3 +1,4 @@
+// v2.4: açıklamalar sayfada yazı yerine üzerine gelince balonda (Aktivite v2.5, Performans v1.3, Data v2.2)
 // v2.3: üç tabloda tarih seçimi açılışta "Tümü"
 // v2.2: üç tabloda tarih seçimi Tümü + açılır liste (7 / 14 / 30 / N gün)
 // v2.1: sekme adları: "CRM Raporu" -> "Data Tablosu", "Performans Değerlendirme" -> "Performans Tablosu"
@@ -20,7 +21,7 @@ import TakipRaporu, { AKTIVITE_SURUM } from "./TakipRaporu";
 import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerlendirme";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v2.3"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v2.4"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Performans Tablosu ${DEGERLENDIRME_SURUM} · Data Tablosu ${CRM_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;

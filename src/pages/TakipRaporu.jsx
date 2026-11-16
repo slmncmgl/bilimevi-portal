@@ -1,3 +1,4 @@
+// v2.5: kart altı yazılar, tablo altı not ve başlık ekleri kaldırıldı; açıklamalar üzerine gelince balonda (Ipucu.jsx)
 // v2.4: Son Etkinlik Tarihi açılışta "Tümü"
 // v2.3: Son Etkinlik Tarihi = Tümü + açılır liste (7 / 14 / 30 / N günden eski, TarihSecici.jsx). Tümü = son etkinliğe bakılmaz,
 //       task'ı olmayan her açık data takipsiz.
@@ -28,14 +29,33 @@
 import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
+import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v2.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v2.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
 const ASAMA_SIRASI = [222366, 253357, 253358, 218701, 218702];
 const SAYFA_BOYLARI = [10, 20, 30, 50];
+
+// Üzerine gelince görünen açıklamalar
+const ACIKLAMA = {
+  acik: "Na1, Na2, Na3, Görüşme ve İlgili aşamalarındaki tüm datalar.",
+  taskBeklenen: "Task'ı zorunlu olan datalar: İlgili aşamasındaki tüm datalar ve VIP kaynaklı Görüşme datası.",
+  ileriTask: "Task zorunlu datalardan (İlgili + VIP Görüşme) ileri tarihli task'ı olanlar.",
+  gecikmisTask: "Task zorunlu datalardan (İlgili + VIP Görüşme) task tarihi geçmiş olanlar. Tıklayınca aşağıda listelenir.",
+  takipOrani: "İleri tarihli task'ı olan data / task beklenen data (İlgili + VIP Görüşme).",
+  takipsiz: g => (g
+    ? `İlgili ve VIP Görüşme datasında task yoksa takipsiz. Na1-Na3 ve VIP olmayan Görüşme'de task yok ve son etkinlik ${g} günden eski. Tıklayınca aşağıda listelenir.`
+    : "Task'ı olmayan her açık data takipsiz (son etkinliğe bakılmıyor). İlgili ve VIP Görüşme'de task zorunlu. Tıklayınca aşağıda listelenir."),
+  sonEtkinlik: "Takipsiz sayılması için son etkinliğin ne kadar eski olması gerektiği. Sadece Na1-Na3 ve VIP olmayan Görüşme için geçerli. Tümü: son etkinliğe bakılmaz.",
+  sonAktivite: "Kylas'taki son etkinlik tarihi. Otomasyon güncellemeleriyle de değişir, gerçek sessizlik süresi daha uzun olabilir.",
+  taskZorunlu: "İlgili ya da VIP Görüşme datası: task zorunlu ama task yok.",
+  karsilastirma: "Satıra tıklayınca aşağıdaki liste o danışmana süzülür, tekrar tıklayınca süzme kalkar.",
+  coklu: "Birden fazla seçilebilir.",
+  vip: "Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing. Tekrar tıklayınca VIP filtresi kalkar.",
+};
 
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const gunOnce = v => (v ? Math.floor((Date.now() - new Date(v).getTime()) / 86400000) : null);
@@ -147,7 +167,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         {(isAdmin || isManager) && (
           <div style={{ marginBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
-              <div style={{ ...c.etiket, marginBottom: 0 }}>Danışman (birden fazla seçilebilir)</div>
+              <div style={{ ...c.etiket, marginBottom: 0 }}><Ipucu metin={ACIKLAMA.coklu}>Danışman</Ipucu></div>
               <div style={{ display: "flex", gap: "6px" }}>
                 <button onClick={() => setDanismanlar(secilebilir.map(k => k.id))} style={hepsiSecili ? c.chipAktif : c.chip}>Tümünü seç</button>
                 <button onClick={() => setDanismanlar([])} disabled={!danismanlar.length}
@@ -168,14 +188,15 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             <div style={c.etiket}>Veri kaynağı</div>
             <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
               <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Tüm kaynaklar" />
-              <button onClick={() => setKaynaklar(vipSecili ? [] : VIP_KAYNAKLAR)} className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}
-                title={vipSecili ? "VIP filtresini kaldır" : "Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing"}>
-                <span>★ VIP Datalar</span>
-              </button>
+              <Ipucu metin={ACIKLAMA.vip} isaret={false}>
+                <button onClick={() => setKaynaklar(vipSecili ? [] : VIP_KAYNAKLAR)} className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}>
+                  <span>★ VIP Datalar</span>
+                </button>
+              </Ipucu>
             </div>
           </div>
           <div>
-            <div style={c.etiket}>Son Etkinlik Tarihi</div>
+            <div style={c.etiket}><Ipucu metin={ACIKLAMA.sonEtkinlik}>Son Etkinlik Tarihi</Ipucu></div>
             <TarihSecici deger={sessizGun || null} onChange={v => setSessizGun(v === null ? 0 : v)} metin={g => `${g} günden eski`} nMetni="N günden eski" />
           </div>
         </div>
@@ -189,35 +210,34 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
       {danismanlar.length > 0 && !yukleniyor && !hata && rapor && (
         <>
           <div style={t.kartlar}>
-            <Kart sayi={o.toplam} etiket="Açık Data (Na1-İlgili)" />
-            <Kart sayi={o.taskBeklenen} etiket="Task beklenen" alt="İlgili + VIP Görüşme" />
-            <Kart sayi={o.ileriTask} etiket="İleri tarihli task" alt="İlgili + VIP Görüşme" renk="#166534" zemin="#f0fdf4" cerceve="#86efac" />
-            <Kart sayi={o.gecikmisTask} etiket="Gecikmiş task" alt="İlgili + VIP Görüşme" renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
+            <Kart sayi={o.toplam} etiket="Açık Data" ipucu={ACIKLAMA.acik} />
+            <Kart sayi={o.taskBeklenen} etiket="Task beklenen" ipucu={ACIKLAMA.taskBeklenen} />
+            <Kart sayi={o.ileriTask} etiket="İleri tarihli task" ipucu={ACIKLAMA.ileriTask} renk="#166534" zemin="#f0fdf4" cerceve="#86efac" />
+            <Kart sayi={o.gecikmisTask} etiket="Gecikmiş task" ipucu={ACIKLAMA.gecikmisTask} renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
               secili={gecikmisGorunum} onClick={() => setGorunum("gecikmis")} />
-            <Kart sayi={o.takipsiz} etiket="Takipsiz" alt={sessizGun ? `zorunlu task yok ya da ${sessizGun}+ gün sessiz` : "task yok (son etkinliğe bakılmadan)"} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
+            <Kart sayi={o.takipsiz} etiket="Takipsiz" ipucu={ACIKLAMA.takipsiz(sessizGun)} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
               secili={!gecikmisGorunum} onClick={() => setGorunum("takipsiz")} />
-            <Kart sayi={`%${takipOrani}`} etiket="Takip oranı" alt="ileri task'lı / task beklenen" />
+            <Kart sayi={`%${takipOrani}`} etiket="Takip oranı" ipucu={ACIKLAMA.takipOrani} />
           </div>
 
           {coklu && karsilastirma.length > 0 && (
             <div style={{ ...c.tablo, marginBottom: "20px" }}>
               <div style={c.tabloBaslik}>
-                <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>Danışman karşılaştırması · {secimBasligi}</span>
-                <span style={{ fontSize: "12px", color: "#94a3b8" }}>Satıra tıklayınca aşağıdaki liste o danışmana süzülür</span>
+                <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}><Ipucu metin={ACIKLAMA.karsilastirma}>Danışman karşılaştırması</Ipucu> · {secimBasligi}</span>
               </div>
               <div style={{ overflowX: "auto" }}>
                 <table style={c.grid}>
                   <thead>
                     <tr>
                       <th style={{ ...c.th, textAlign: "left" }}>Danışman</th>
-                      {["Açık Data", "Task beklenen", "İleri task", "Gecikmiş task", "Takipsiz", "Takip oranı"].map(b => <th key={b} style={c.th}>{b}</th>)}
+                      {[["Açık Data", ACIKLAMA.acik], ["Task beklenen", ACIKLAMA.taskBeklenen], ["İleri task", ACIKLAMA.ileriTask], ["Gecikmiş task", ACIKLAMA.gecikmisTask.split(" Tıklayınca")[0]], ["Takipsiz", ACIKLAMA.takipsiz(sessizGun).split(" Tıklayınca")[0]], ["Takip oranı", ACIKLAMA.takipOrani]].map(([b, a]) => <th key={b} style={c.th}><Ipucu metin={a}>{b}</Ipucu></th>)}
                     </tr>
                   </thead>
                   <tbody>
                     {karsilastirma.map((d, i) => {
                       const aktif = listeSahip === d.id;
                       return (
-                        <tr key={d.id} onClick={() => setListeSahip(aktif ? null : d.id)} title={aktif ? "Süzmeyi kaldır" : "Listeyi bu danışmana süz"}
+                        <tr key={d.id} onClick={() => setListeSahip(aktif ? null : d.id)}
                           style={{ cursor: "pointer", background: aktif ? "#ecfeff" : i % 2 ? "#fbfdff" : "#fff" }}>
                           <td style={{ ...c.td, textAlign: "left", fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap" }}>{aktif ? "▸ " : ""}{d.ad}</td>
                           <td style={c.td}>{d.toplam}</td>
@@ -242,7 +262,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             </div>
             <div style={t.filtreler}>
               <div>
-                <div style={c.etiket}>Aşama (birden fazla seçilebilir)</div>
+                <div style={c.etiket}><Ipucu metin={ACIKLAMA.coklu}>Aşama</Ipucu></div>
                 <div style={c.chipSatir}>
                   <button onClick={() => setAsamaSecim([])} style={!asamaSecim.length ? c.chipAktif : c.chip}>Tümü ({asamaSayisi(null)})</button>
                   {ASAMA_SIRASI.map(id => (
@@ -264,7 +284,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                       {["Data ID", "Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}>Oluşturma</th>
                       {gecikmisGorunum && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
-                      <th style={{ ...c.th, position: "sticky", top: 0 }}>Son aktivite</th>
+                      <th style={{ ...c.th, position: "sticky", top: 0 }}><Ipucu metin={ACIKLAMA.sonAktivite}>Son aktivite</Ipucu></th>
                       <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Notlar</th>
                     </tr>
                   </thead>
@@ -278,7 +298,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           </td>
                           <td style={{ ...c.td, textAlign: "left", color: "#0f172a", fontWeight: 600, whiteSpace: "nowrap" }}>{l.ad || <span style={{ color: "#cbd5e1" }}>İsimsiz</span>}</td>
                           {coklu && <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>{kisiAdi(l.ownerId)}</td>}
-                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap", fontWeight: l.asama === ILGILI ? 700 : 400, color: l.asama === ILGILI ? "#0e7490" : undefined }}>{ASAMA_ADLARI[l.asama] || ""}{l.zorunlu && <span style={t.zorunlu} title="İlgili ya da VIP Görüşme: task zorunlu, task yok">Task zorunlu</span>}</td>
+                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap", fontWeight: l.asama === ILGILI ? 700 : 400, color: l.asama === ILGILI ? "#0e7490" : undefined }}>{ASAMA_ADLARI[l.asama] || ""}{l.zorunlu && <Ipucu metin={ACIKLAMA.taskZorunlu} isaret={false}><span style={t.zorunlu}>Task zorunlu</span></Ipucu>}</td>
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>
                             {kaynakAdi(l.kaynak)}
                             {VIP_KAYNAKLAR.includes(l.kaynak) && <span style={t.vip}>VIP</span>}
@@ -320,27 +340,24 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               </>
             )}
           </div>
-          <div style={t.dipnot}>
-            Takipsiz: İlgili ve VIP Görüşme datalarında task yoksa son etkinliğe bakılmaz ("Task zorunlu" etiketi). Na1-Na3 ve VIP olmayan Görüşme'de task yok ve son etkinlik seçilen günden eski.
-            <br />Son aktivite tarihi Kylas'tan gelir ve otomasyon güncellemeleriyle de değişir. Gerçek sessizlik süresi daha uzun olabilir.
-          </div>
         </>
       )}
     </>
   );
 }
 
-function Kart({ sayi, etiket, alt, renk = "#0f172a", zemin = "#fff", cerceve = "#e2e8f0", onClick, secili }) {
+// Kart: açıklaması üzerine gelince balonda. Tıklanabilir kartlarda seçili olanın çerçevesi koyulaşır.
+function Kart({ sayi, etiket, ipucu, renk = "#0f172a", zemin = "#fff", cerceve = "#e2e8f0", onClick, secili }) {
   const tiklanir = !!onClick;
   return (
-    <div onClick={onClick} role={tiklanir ? "button" : undefined} title={tiklanir ? "Dataları aşağıda listele" : undefined}
-      style={{ ...t.kart, background: zemin, borderColor: secili ? renk : cerceve, cursor: tiklanir ? "pointer" : "default",
-        boxShadow: secili ? `0 0 0 3px ${cerceve}` : t.kart.boxShadow }}>
-      <div style={{ ...t.kartSayi, color: renk }}>{typeof sayi === "number" ? sayi.toLocaleString("tr-TR") : sayi}</div>
-      <div style={t.kartEtiket}>{etiket}</div>
-      {alt && <div style={{ fontSize: "10px", color: "#94a3b8", marginTop: "2px" }}>{alt}</div>}
-      {tiklanir && <div style={{ fontSize: "10px", color: renk, marginTop: "4px", fontWeight: 600 }}>{secili ? "▼ Aşağıda listeleniyor" : "Listelemek için tıklayın"}</div>}
-    </div>
+    <Ipucu metin={ipucu} blok>
+      <div onClick={onClick} role={tiklanir ? "button" : undefined}
+        style={{ ...t.kart, background: zemin, borderColor: secili ? renk : cerceve, cursor: tiklanir ? "pointer" : "help",
+          boxShadow: secili ? `0 0 0 3px ${cerceve}` : t.kart.boxShadow, height: "100%", boxSizing: "border-box" }}>
+        <div style={{ ...t.kartSayi, color: renk }}>{typeof sayi === "number" ? sayi.toLocaleString("tr-TR") : sayi}</div>
+        <div style={t.kartEtiket}>{etiket}</div>
+      </div>
+    </Ipucu>
   );
 }
 
@@ -372,5 +389,4 @@ const t = {
   sayfalama: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", padding: "12px 24px", borderTop: "1px solid #f1f5f9" },
   kucuk: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
   kucukAktif: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #0891b2", background: "#0891b2", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
-  dipnot: { fontSize: "11px", color: "#94a3b8", marginTop: "10px", textAlign: "right" },
 };
