@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v124-ek-ucret-atla-2026-11-06";
+const BFT_BUILD_VERSION = "v125-test-kisayolu-2026-11-16";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1910,6 +1910,18 @@ export default function FiyatTeklifi() {
     if (r) window.scrollTo({ top: r.getBoundingClientRect().top + window.pageYOffset - 20, behavior: "smooth" });
   }, [ozeteGitBekle, summaryIdx]);
   const addonsIdx = STEPS.indexOf("Ek Ücretler");
+  // v125: test kısayolu (sadece staff, Öğrenci Bilgileri adımı): Cmd+Option+T (Windows: Ctrl+Alt+T)
+  // ad "Selman", yaş 40, cinsiyet Erkek doldurur. Option tuşu e.key'i değiştirdiği için e.code ile bakılır.
+  useEffect(() => {
+    if (!isStaff || stepName !== "Genel Bilgi") return;
+    const tus = (e) => {
+      if (e.code !== "KeyT" || !e.altKey || e.shiftKey || !(e.metaKey || e.ctrlKey)) return;
+      e.preventDefault();
+      setStudent(p => ({ ...p, name: "Selman", age: "40", gender: "Erkek" }));
+    };
+    window.addEventListener("keydown", tus);
+    return () => window.removeEventListener("keydown", tus);
+  }, [isStaff, stepName]);
 
   const canNextMap = {
     "Genel Bilgi": !!(student.name && student.gender && student.age),

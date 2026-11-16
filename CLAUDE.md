@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 6 Kasım 2026 (v124 boş Ek Ücretler adımı atlanır). Repo'daki BFT sürümü: `v124-ek-ucret-atla-2026-11-06`.
+Son güncelleme: 16 Kasım 2026 (v125 test kısayolu). Repo'daki BFT sürümü: `v125-test-kisayolu-2026-11-16`.
 
 ## Kapsam
 
@@ -163,6 +163,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 ## Durum (30 Ekim 2026)
 
+- **v125 (16 Kasım):** staff Öğrenci Bilgileri adımında Cmd+Option+T (Windows Ctrl+Alt+T) test verisi doldurur: Selman, 40, Erkek. Cmd+Shift+T tarayıcıya ait, sayfaya ulaşmaz.
 - **v124 (6 Kasım):** boş Ek Ücretler adımı otomatik atlanır (`tests/test_v124.mjs`). **v123:** staff sayfasının altında sürüm etiketi.
 - **v122 (6 Kasım):** elle indirim + mail bildirimi (veri sözleşmesi maddesi). Uçtan uca mail testi canlıda kullanıcıyla yapılacak.
 - **v121 (6 Kasım):** staff `master_index` / `city_description` Sheets API ile (`api/sheet.js`). `GOOGLE_SHEETS_API_KEY` Vercel'e girilene kadar gviz yedeği çalışır. `data-proxy.php` v1.1 (6 Kasım) teslim edildi: `master` ve `city_description` Sheets API ile, key wp-config'de `BFT_SHEETS_KEY`, yoksa gviz. Sitelere atıldığı doğrulanmadı (ingilteredil, maltadil, almanyadil).
