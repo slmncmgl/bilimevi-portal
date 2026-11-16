@@ -1,3 +1,4 @@
+// v2.1: Data tarihi açılışta "Tümü"
 // v2.0: "Data oluşturma tarihi" -> "Data tarihi": Tümü + açılır liste (Son 7 / 14 / 30 / N gün, TarihSecici.jsx)
 // v1.9: ekrandaki "lead" yazıları "Data" oldu (Lead ID -> Data ID vb.)
 // v1.8: ekran açılınca VIP Datalar seçili gelir (danışmanlar zaten hepsi görünür); tablo başlığı menüdeki özetle aynı (★ VIP Datalar gibi)
@@ -41,7 +42,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v2.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v2.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -111,7 +112,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null); // kylasId -> { ad, sube, email }
   const [kisiHata, setKisiHata] = useState(null);
   const [kaynaklar, setKaynaklar] = useState(VIP_KAYNAKLAR); // seçili kaynak id'leri, varsayılan VIP Datalar
-  const [gun, setGun] = useState(90);
+  const [gun, setGun] = useState(null); // null = Tümü, açılışta Tümü
   const [sube, setSube] = useState("Tümü");
   const [rapor, setRapor] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);

@@ -1,3 +1,4 @@
+// v1.2: Data tarihi açılışta "Tümü"
 // v1.1: "Kayıt dönüşümü dönemi" -> "Data tarihi": Tümü + açılır liste (Son 7 / 14 / 30 / N gün, TarihSecici.jsx)
 // v1.0: Performans Analizi > Performans Değerlendirme sekmesi
 // Amaç: yeni gelen data'yı şube şube kime atamak daha uygun, onu göstermek.
@@ -12,7 +13,7 @@ import { VIP_KAYNAKLAR } from "../lib/vipKaynaklar";
 import { apiCagir, kucuk, kisileriYukle, c } from "./CrmRaporu";
 import TarihSecici from "./TarihSecici";
 
-export const DEGERLENDIRME_SURUM = "v1.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const DEGERLENDIRME_SURUM = "v1.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 // Kylas "Kaynak" picklist ID'leri
 const KAYNAK_GRUPLARI = [
@@ -45,7 +46,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null);
   const [kisiHata, setKisiHata] = useState(null);
   const [gruplar, setGruplar] = useState([]); // açık kaynak grupları; boşsa "Tüm datalar"
-  const [gun, setGun] = useState(180); // null = Tümü (tüm zamanlar)
+  const [gun, setGun] = useState(null); // null = Tümü (tüm zamanlar), açılışta Tümü
   const [rapor, setRapor] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);

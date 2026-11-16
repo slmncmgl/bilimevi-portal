@@ -1,3 +1,4 @@
+// v2.3: 10.000'i aşan dönemde kayıtlar tek sorguda çekilir, sadece data sayısı danışman başına sayılır (3'erli paralel).
 // v2.2: tarih seçimi "Tümü" ya da herhangi bir N gün olabilir. 180 güne kadar last_n_days, üstünde createdAt > tarih (tarihKurali).
 //       Değerlendirmede gun null = tüm zamanlar; 10.000'i aşan dönemde data/kayıt sayıları danışman başına sayım sorgusuyla alınır.
 //       sessizGun 0 = "Tümü": son etkinliğe bakılmaz, task'ı olmayan her açık data takipsiz sayılır.
@@ -216,10 +217,14 @@ async function degerlendirme(req, res, yetki) {
   let kohort = await hepsiniCek(donemKurallari, ["id", "ownerId", "pipelineStage"]);
   let sayimlar = null;
   if (kohort === null) {
-    sayimlar = {};
-    for (const id of ownerIds) {
-      const k = [kural("ownerId", "equal", id), ...donemKurallari.slice(1)];
-      sayimlar[id] = { data: await kylasSay(k), kayit: await kylasSay([...k, kural("pipelineStage", "equal", YENI_KAYIT)]) };
+    sayimlar = Object.fromEntries(ownerIds.map(id => [id, { data: 0, kayit: 0 }]));
+    const kayitlar = await hepsiniCek([...donemKurallari, kural("pipelineStage", "equal", YENI_KAYIT)], ["id", "ownerId"]);
+    if (kayitlar === null) return res.status(422).json({ error: "Seçimde 10.000'den fazla kayıt var, daha kısa dönem seçin." });
+    for (const l of kayitlar) if (sayimlar[l.ownerId]) sayimlar[l.ownerId].kayit++;
+    for (let i = 0; i < ownerIds.length; i += 3) {
+      const grup = ownerIds.slice(i, i + 3);
+      const sayilar = await Promise.all(grup.map(id => kylasSay([kural("ownerId", "equal", id), ...donemKurallari.slice(1)])));
+      grup.forEach((id, j) => { sayimlar[id].data = sayilar[j]; });
     }
     kohort = [];
   }

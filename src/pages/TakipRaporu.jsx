@@ -1,3 +1,4 @@
+// v2.4: Son Etkinlik Tarihi açılışta "Tümü"
 // v2.3: Son Etkinlik Tarihi = Tümü + açılır liste (7 / 14 / 30 / N günden eski, TarihSecici.jsx). Tümü = son etkinliğe bakılmaz,
 //       task'ı olmayan her açık data takipsiz.
 // v2.2: yeni takipsiz kuralı (sunucu crm-rapor v2.0): İlgili ve VIP Görüşme datasında task yoksa son etkinliğe bakılmadan
@@ -29,7 +30,7 @@ import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v2.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v2.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -45,7 +46,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [sube, setSube] = useState("Tümü");
   const [danismanlar, setDanismanlar] = useState([]); // seçili kylas id'leri (string)
   const [listeSahip, setListeSahip] = useState(null); // karşılaştırmada tıklanan danışman: listeyi ona süzer
-  const [sessizGun, setSessizGun] = useState(14); // 0 = Tümü (son etkinliğe bakılmaz)
+  const [sessizGun, setSessizGun] = useState(0); // 0 = Tümü (son etkinliğe bakılmaz), açılışta Tümü
   const [rapor, setRapor] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
