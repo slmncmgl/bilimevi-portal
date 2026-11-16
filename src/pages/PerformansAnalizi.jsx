@@ -1,3 +1,4 @@
+// v2.1: sekme adları: "CRM Raporu" -> "Data Tablosu", "Performans Değerlendirme" -> "Performans Tablosu"
 // v2.0: dördüncü sekme "Performans Değerlendirme" (PerformansDegerlendirme.jsx): şube şube data atama önerisi
 // v1.9: yeni takipsiz kuralı (Aktivite Tablosu v2.2): İlgili ve VIP Görüşme'de task zorunlu
 // v1.8: "lead" yazıları "Data"; task beklenen sadece İlgili (Aktivite Tablosu v2.1, CRM Raporu v1.9)
@@ -17,10 +18,10 @@ import TakipRaporu, { AKTIVITE_SURUM } from "./TakipRaporu";
 import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerlendirme";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v2.0"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v2.1"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
-const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Değerlendirme ${DEGERLENDIRME_SURUM} · CRM Raporu ${CRM_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
+const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Performans Tablosu ${DEGERLENDIRME_SURUM} · Data Tablosu ${CRM_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -223,7 +224,7 @@ export default function PerformansAnalizi() {
             </div>
             <div>
               <div style={s.headerTitleText}>Performans Analizi</div>
-              <div style={s.headerSub}>CRM raporu ve sınav sonuçları</div>
+              <div style={s.headerSub}>Aktivite, performans ve data tabloları, sınav sonuçları</div>
             </div>
           </div>
           <div style={s.headerUser}>
@@ -235,7 +236,7 @@ export default function PerformansAnalizi() {
 
       <main style={s.main}>
         <div style={s.sekmeler}>
-          {[["takip", "Aktivite Tablosu"], ["deg", "Performans Değerlendirme"], ["crm", "CRM Raporu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
+          {[["takip", "Aktivite Tablosu"], ["deg", "Performans Tablosu"], ["crm", "Data Tablosu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
             <button key={k} onClick={() => setSekme(k)} style={sekme === k ? s.sekmeAktif : s.sekme}>{ad}</button>
           ))}
         </div>
