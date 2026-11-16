@@ -1,3 +1,4 @@
+// v2.0: "Data oluşturma tarihi" -> "Data tarihi": Tümü + açılır liste (Son 7 / 14 / 30 / N gün, TarihSecici.jsx)
 // v1.9: ekrandaki "lead" yazıları "Data" oldu (Lead ID -> Data ID vb.)
 // v1.8: ekran açılınca VIP Datalar seçili gelir (danışmanlar zaten hepsi görünür); tablo başlığı menüdeki özetle aynı (★ VIP Datalar gibi)
 // v1.7: menüdeki VIP Datalar hızlı seçimine Setrow Marketing eklendi
@@ -17,6 +18,7 @@
 // Rol kuralı Quiz Skorları ile aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
 import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR, kaynakOzeti } from "./KaynakSecici";
+import TarihSecici from "./TarihSecici";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const csvUrl = sekme => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sekme)}`;
@@ -39,7 +41,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v1.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v2.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -56,11 +58,6 @@ export function tarih(v, saatli = false) {
   if (isNaN(d)) return "";
   return d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", ...(saatli ? { hour: "2-digit", minute: "2-digit" } : {}) });
 }
-
-const ARALIKLAR = [
-  { gun: 90, ad: "Son 90 gün" },
-  { gun: null, ad: "Tümü" },
-];
 
 function parseCSV(csv) {
   return csv.trim().split("\n").map(line => {
@@ -197,12 +194,8 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
             <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Kaynak seçin (birden fazla olabilir)" />
           </div>
           <div>
-            <div style={c.etiket}>Data oluşturma tarihi</div>
-            <div style={c.chipSatir}>
-              {ARALIKLAR.map(a => (
-                <button key={a.ad} onClick={() => setGun(a.gun)} style={gun === a.gun ? c.chipAktif : c.chip}>{a.ad}</button>
-              ))}
-            </div>
+            <div style={c.etiket}>Data tarihi</div>
+            <TarihSecici deger={gun} onChange={setGun} />
           </div>
           {isAdmin && rapor && subeler.length > 2 && (
             <div>

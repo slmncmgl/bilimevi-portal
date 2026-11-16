@@ -88,7 +88,11 @@ assert.ok(r.body.danismanlar["101"] && r.body.danismanlar["200"], "danışman ba
 assert.equal(await durum("mehmet@x.com", { islem: "degerlendirme", ownerIds: [100, 101, 102], gun: 180 }), 200, "manager şubesini değerlendirir");
 assert.equal(await durum("mehmet@x.com", { islem: "degerlendirme", ownerIds: [101, 200], gun: 180 }), 403, "başka şube varsa red");
 assert.equal(await durum("su@x.com", { islem: "degerlendirme", ownerIds: [100], gun: 90 }), 403, "staff başkasını değerlendiremez");
-assert.equal(await durum("ali@x.com", { islem: "degerlendirme", ownerIds: [101], gun: 365 }), 400, "365 gün geçersiz dönem");
+assert.equal(await durum("ali@x.com", { islem: "degerlendirme", ownerIds: [101], gun: 365 }), 200, "365 gün geçerli (tarih karşılaştırması)");
+assert.equal(await durum("ali@x.com", { islem: "degerlendirme", ownerIds: [101], gun: null }), 200, "Tümü geçerli");
+assert.equal(await durum("ali@x.com", { islem: "degerlendirme", ownerIds: [101], gun: 4000 }), 400, "3650 günden fazlası geçersiz");
+assert.equal(await durum("ali@x.com", { islem: "takip", ownerIds: [101], sessizGun: 0 }), 200, "sessizGun 0 = Tümü");
+assert.equal(await durum("ali@x.com", { islem: "takip", ownerIds: [101], sessizGun: -1 }), 400, "negatif gün geçersiz");
 assert.equal(await durum(null, { islem: "degerlendirme", ownerIds: [101], gun: 30 }), 401, "token'sız reddedilir");
 r = await iste("ali@x.com", { islem: "degerlendirme", ownerIds: [101, 200], gun: 30 });
 assert.equal(r.code, 200);

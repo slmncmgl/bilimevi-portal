@@ -1,5 +1,8 @@
+// v2.2: tarih seçimi "Tümü" ya da herhangi bir N gün olabilir. 180 güne kadar last_n_days, üstünde createdAt > tarih (tarihKurali).
+//       Değerlendirmede gun null = tüm zamanlar; 10.000'i aşan dönemde data/kayıt sayıları danışman başına sayım sorgusuyla alınır.
+//       sessizGun 0 = "Tümü": son etkinliğe bakılmaz, task'ı olmayan her açık data takipsiz sayılır.
 // v2.1: Kylas 429 (hız sınırı) dönerse arama bekleyip tekrar dener.
-//       islem "degerlendirme" (Performans Değerlendirme sekmesi): { ownerIds, kaynaklar?, gun: 30|90|180, sessizGun }
+//       islem "degerlendirme" (Performans Değerlendirme sekmesi): { ownerIds, kaynaklar?, gun: null|N, sessizGun }
 //       -> danışman başına açık yük, takipsiz, task durumu, "Yeni"de 1 günden fazla bekleyen, dönemdeki data ve Yeni Kayıt,
 //       Kylas müsaitlik durumu (izinli mi). Puanlama ekranda yapılır, sunucu sadece sayıları verir.
 //       Takip sınıflaması takip ve degerlendirme için ortak (takipDurumu).
@@ -55,9 +58,9 @@ function kural(field, operator, value, type = "long") {
 
 // Kylas hız sınırına (HTTP 429) takılınca bekleyip tekrar dener: en fazla 5 deneme, Retry-After varsa ona uyar
 const bekle = ms => new Promise(c => setTimeout(c, ms));
-async function kylasAra(kurallar, page, alanlar = ["id", "ownerId", "pipelineStage"], sirala = "id,asc") {
+async function kylasAra(kurallar, page, alanlar = ["id", "ownerId", "pipelineStage"], sirala = "id,asc", boyut = SAYFA) {
   for (let deneme = 1; ; deneme++) {
-    const r = await fetch(`https://api.kylas.io/v1/search/lead?page=${page}&size=${SAYFA}&sort=${sirala}`, {
+    const r = await fetch(`https://api.kylas.io/v1/search/lead?page=${page}&size=${boyut}&sort=${sirala}`, {
       method: "POST",
       headers: { "api-key": process.env.KYLAS_API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ fields: alanlar, jsonRule: { condition: "AND", valid: true, rules: kurallar } }),
@@ -87,6 +90,22 @@ async function hepsiniCek(kurallar, alanlar) {
   }
   return satirlar;
 }
+
+// Kurala uyan data sayısı (satır çekmeden)
+async function kylasSay(kurallar) {
+  return (await kylasAra(kurallar, 0, ["id"], "id,asc", 1)).totalElements || 0;
+}
+
+// "Son N gün" oluşturma tarihi kuralı. Kylas last_n_days en fazla 180 gün kabul eder; daha uzunu tarih karşılaştırmasıyla.
+const GUN_MS = 24 * 60 * 60 * 1000;
+function tarihKurali(gun) {
+  if (gun <= 180) return kural("createdAt", "last_n_days", gun, "date");
+  const bas = new Date(Date.now() - gun * GUN_MS);
+  bas.setUTCHours(0, 0, 0, 0);
+  return kural("createdAt", "greater", bas.toISOString(), "date");
+}
+const gecerliGun = g => Number.isInteger(g) && g >= 1 && g <= 3650;
+const gecerliSessiz = g => Number.isInteger(g) && g >= 0 && g <= 3650;
 
 function metneCevir(html) {
   return String(html || "")
@@ -163,24 +182,23 @@ async function musaitlikGetir() {
 
 const YENI = 217285;
 const YENI_KAYIT = 217286;
-const DONEMLER = [30, 90, 180]; // Kylas last_n_days en fazla 180 güne izin veriyor
 const YENI_BEKLEME_MS = 24 * 60 * 60 * 1000;
 
 async function degerlendirme(req, res, yetki) {
   const hamSahipler = Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : [];
   const ownerIds = [...new Set(hamSahipler.map(Number))].filter(Number.isInteger).sort((a, b) => a - b);
-  const gun = req.body?.gun ? Number(req.body.gun) : 180;
-  const sessizGun = req.body?.sessizGun ? Number(req.body.sessizGun) : 14;
+  const gun = req.body?.gun ? Number(req.body.gun) : null; // null = tüm zamanlar
+  const sessizGun = req.body?.sessizGun !== undefined && req.body?.sessizGun !== null ? Number(req.body.sessizGun) : 14;
   if (!ownerIds.length || ownerIds.length !== hamSahipler.length) return res.status(400).json({ error: "Danışman seçilmedi." });
   if (ownerIds.length > 100) return res.status(400).json({ error: "En fazla 100 danışman seçilebilir." });
-  if (!DONEMLER.includes(gun)) return res.status(400).json({ error: "Geçersiz dönem." });
-  if (!Number.isInteger(sessizGun) || sessizGun < 1 || sessizGun > 365) return res.status(400).json({ error: "Geçersiz gün." });
+  if (gun !== null && !gecerliGun(gun)) return res.status(400).json({ error: "Geçersiz dönem." });
+  if (!gecerliSessiz(sessizGun)) return res.status(400).json({ error: "Geçersiz gün." });
   const hamKaynaklar = Array.isArray(req.body?.kaynaklar) ? req.body.kaynaklar : [];
   const kaynaklar = [...new Set(hamKaynaklar.map(Number))].filter(k => Number.isInteger(k) && k > 0).sort((a, b) => a - b);
   if (kaynaklar.length !== hamKaynaklar.length || kaynaklar.length > 30) return res.status(400).json({ error: "Geçersiz veri kaynağı." });
   if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor degerlendirme")) return;
 
-  const anahtar = `deg:${ownerIds.join(",")}:${kaynaklar.join(",")}:${gun}:${sessizGun}`;
+  const anahtar = `deg:${ownerIds.join(",")}:${kaynaklar.join(",")}:${gun || "tumu"}:${sessizGun}`;
   const kayit = onbellek.get(anahtar);
   if (kayit && Date.now() - kayit.zaman < ONBELLEK_MS) return res.status(200).json(kayit.veri);
 
@@ -192,8 +210,19 @@ async function degerlendirme(req, res, yetki) {
     hepsiniCek([...temel, kural("pipelineStage", "equal", YENI)], ["id", "ownerId", "createdAt"]),
     musaitlikGetir().catch(() => null), // müsaitlik okunamazsa rapor yine gelir, herkes müsait sayılır
   ]);
-  const kohort = await hepsiniCek([...temel, kural("createdAt", "last_n_days", gun, "date")], ["id", "ownerId", "pipelineStage"]);
-  if (acik === null || yeni === null || kohort === null) return res.status(422).json({ error: "Seçimde 10.000'den fazla Data var, daha kısa dönem ya da daha az kaynak seçin." });
+  if (acik === null || yeni === null) return res.status(422).json({ error: "Seçimde 10.000'den fazla açık Data var, daha az kaynak seçin." });
+  // Dönemdeki data ve kayıt: önce satırları çek, 10.000'i aşarsa danışman başına sayım sorgusu yap
+  const donemKurallari = gun ? [...temel, tarihKurali(gun)] : temel;
+  let kohort = await hepsiniCek(donemKurallari, ["id", "ownerId", "pipelineStage"]);
+  let sayimlar = null;
+  if (kohort === null) {
+    sayimlar = {};
+    for (const id of ownerIds) {
+      const k = [kural("ownerId", "equal", id), ...donemKurallari.slice(1)];
+      sayimlar[id] = { data: await kylasSay(k), kayit: await kylasSay([...k, kural("pipelineStage", "equal", YENI_KAYIT)]) };
+    }
+    kohort = [];
+  }
 
   const simdi = Date.now();
   const sinir = simdi - sessizGun * 24 * 60 * 60 * 1000;
@@ -216,6 +245,7 @@ async function degerlendirme(req, res, yetki) {
     d.data++;
     if (l.pipelineStage === YENI_KAYIT) d.kayit++;
   }
+  if (sayimlar) for (const id of ownerIds) Object.assign(danismanlar[id], sayimlar[id]);
   if (musaitlik) for (const id of ownerIds) {
     const m = musaitlik[id];
     if (m) { danismanlar[id].musait = m.musait; danismanlar[id].izinBitis = m.musait ? null : m.bitis; }
@@ -229,10 +259,10 @@ async function degerlendirme(req, res, yetki) {
 async function takip(req, res, yetki) {
   const hamSahipler = Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : [req.body?.ownerId];
   const ownerIds = [...new Set(hamSahipler.map(Number))].filter(Number.isInteger);
-  const sessizGun = req.body?.sessizGun ? Number(req.body.sessizGun) : 14;
+  const sessizGun = req.body?.sessizGun !== undefined && req.body?.sessizGun !== null ? Number(req.body.sessizGun) : 14;
   if (!ownerIds.length || ownerIds.length !== hamSahipler.length) return res.status(400).json({ error: "Danışman seçilmedi." });
   if (ownerIds.length > 100) return res.status(400).json({ error: "En fazla 100 danışman seçilebilir." });
-  if (!Number.isInteger(sessizGun) || sessizGun < 1 || sessizGun > 365) return res.status(400).json({ error: "Geçersiz gün." });
+  if (!gecerliSessiz(sessizGun)) return res.status(400).json({ error: "Geçersiz gün." });
   const hamKaynaklar = Array.isArray(req.body?.kaynaklar) ? req.body.kaynaklar : [];
   const kaynaklar = [...new Set(hamKaynaklar.map(Number))].filter(k => Number.isInteger(k) && k > 0);
   if (kaynaklar.length !== hamKaynaklar.length || kaynaklar.length > 30) return res.status(400).json({ error: "Geçersiz veri kaynağı." });
@@ -317,10 +347,10 @@ export default async function handler(req, res) {
   const gun = req.body?.gun ? Number(req.body.gun) : null;
   if (!kaynaklar.length || kaynaklar.length !== hamKaynaklar.length) return res.status(400).json({ error: "Geçerli bir veri kaynağı seçin." });
   if (kaynaklar.length > 30) return res.status(400).json({ error: "En fazla 30 kaynak seçilebilir." });
-  if (gun !== null && (!Number.isInteger(gun) || gun < 1 || gun > 3650)) return res.status(400).json({ error: "Geçersiz gün aralığı." });
+  if (gun !== null && !gecerliGun(gun)) return res.status(400).json({ error: "Geçersiz gün aralığı." });
 
   const kurallar = [kaynaklar.length === 1 ? kural("source", "equal", kaynaklar[0]) : kural("source", "in", kaynaklar), kural("pipeline", "equal", PIPELINE_ID)];
-  if (gun) kurallar.push(kural("createdAt", "last_n_days", gun, "date"));
+  if (gun) kurallar.push(tarihKurali(gun));
 
   if (req.body?.islem === "liste") {
     try { return await liste(req, res, kurallar, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }

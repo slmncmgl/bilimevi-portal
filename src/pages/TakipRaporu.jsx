@@ -1,3 +1,5 @@
+// v2.3: Son Etkinlik Tarihi = Tümü + açılır liste (7 / 14 / 30 / N günden eski, TarihSecici.jsx). Tümü = son etkinliğe bakılmaz,
+//       task'ı olmayan her açık data takipsiz.
 // v2.2: yeni takipsiz kuralı (sunucu crm-rapor v2.0): İlgili ve VIP Görüşme datasında task yoksa son etkinliğe bakılmadan
 //       takipsiz; diğerlerinde task yok + seçilen günden eski. Task kartları "İlgili + VIP Görüşme". Listede "Task zorunlu" etiketi.
 // v2.1: ekrandaki "lead" yazıları "Data" oldu. Task sadece İlgili'de beklenir (Görüşme de çıkarıldı, sunucu crm-rapor v1.9)
@@ -24,13 +26,13 @@
 // Rol kuralı diğer sekmelerle aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
 import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
+import TarihSecici from "./TarihSecici";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v2.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v2.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
-const SESSIZ_SECENEKLER = [7, 14, 30];
 const ASAMA_SIRASI = [222366, 253357, 253358, 218701, 218702];
 const SAYFA_BOYLARI = [10, 20, 30, 50];
 
@@ -43,7 +45,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [sube, setSube] = useState("Tümü");
   const [danismanlar, setDanismanlar] = useState([]); // seçili kylas id'leri (string)
   const [listeSahip, setListeSahip] = useState(null); // karşılaştırmada tıklanan danışman: listeyi ona süzer
-  const [sessizGun, setSessizGun] = useState(14);
+  const [sessizGun, setSessizGun] = useState(14); // 0 = Tümü (son etkinliğe bakılmaz)
   const [rapor, setRapor] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
@@ -173,9 +175,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           </div>
           <div>
             <div style={c.etiket}>Son Etkinlik Tarihi</div>
-            <div style={c.chipSatir}>
-              {SESSIZ_SECENEKLER.map(g => <button key={g} onClick={() => setSessizGun(g)} style={sessizGun === g ? c.chipAktif : c.chip}>{g} günden eski</button>)}
-            </div>
+            <TarihSecici deger={sessizGun || null} onChange={v => setSessizGun(v === null ? 0 : v)} metin={g => `${g} günden eski`} nMetni="N günden eski" />
           </div>
         </div>
       </div>
@@ -193,7 +193,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             <Kart sayi={o.ileriTask} etiket="İleri tarihli task" alt="İlgili + VIP Görüşme" renk="#166534" zemin="#f0fdf4" cerceve="#86efac" />
             <Kart sayi={o.gecikmisTask} etiket="Gecikmiş task" alt="İlgili + VIP Görüşme" renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
               secili={gecikmisGorunum} onClick={() => setGorunum("gecikmis")} />
-            <Kart sayi={o.takipsiz} etiket="Takipsiz" alt={`zorunlu task yok ya da ${sessizGun}+ gün sessiz`} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
+            <Kart sayi={o.takipsiz} etiket="Takipsiz" alt={sessizGun ? `zorunlu task yok ya da ${sessizGun}+ gün sessiz` : "task yok (son etkinliğe bakılmadan)"} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
               secili={!gecikmisGorunum} onClick={() => setGorunum("takipsiz")} />
             <Kart sayi={`%${takipOrani}`} etiket="Takip oranı" alt="ileri task'lı / task beklenen" />
           </div>

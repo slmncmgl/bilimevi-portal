@@ -1,3 +1,4 @@
+// v1.1: "Kayıt dönüşümü dönemi" -> "Data tarihi": Tümü + açılır liste (Son 7 / 14 / 30 / N gün, TarihSecici.jsx)
 // v1.0: Performans Analizi > Performans Değerlendirme sekmesi
 // Amaç: yeni gelen data'yı şube şube kime atamak daha uygun, onu göstermek.
 // Her danışman için bir "müsaitlik" barı (0-100) ve ayrıca kayıt dönüşümü görünür. Satıra tıklayınca barın nedenleri açılır.
@@ -9,8 +10,9 @@
 import { useState, useEffect } from "react";
 import { VIP_KAYNAKLAR } from "../lib/vipKaynaklar";
 import { apiCagir, kucuk, kisileriYukle, c } from "./CrmRaporu";
+import TarihSecici from "./TarihSecici";
 
-export const DEGERLENDIRME_SURUM = "v1.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const DEGERLENDIRME_SURUM = "v1.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 // Kylas "Kaynak" picklist ID'leri
 const KAYNAK_GRUPLARI = [
@@ -18,7 +20,6 @@ const KAYNAK_GRUPLARI = [
   { k: "importsFuar", ad: "Imports / Fuar", aciklama: "Imports, Fuar", kaynaklar: [2753894, 2650987] },
   { k: "vip", ad: "VIP Datalar", aciklama: "Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing", kaynaklar: VIP_KAYNAKLAR },
 ];
-const DONEMLER = [30, 90, 180];
 const SESSIZ_GUN = 14;
 const AGIRLIK = { takip: 0.6, yuk: 0.25, hiz: 0.15 };
 const HIZ_SINIR = 30; // "Yeni"de bu kadar ya da daha fazla data bekliyorsa hız puanı 0
@@ -44,7 +45,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null);
   const [kisiHata, setKisiHata] = useState(null);
   const [gruplar, setGruplar] = useState([]); // açık kaynak grupları; boşsa "Tüm datalar"
-  const [gun, setGun] = useState(180);
+  const [gun, setGun] = useState(180); // null = Tümü (tüm zamanlar)
   const [rapor, setRapor] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
@@ -109,10 +110,8 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
             </div>
           </div>
           <div>
-            <div style={c.etiket}>Kayıt dönüşümü dönemi</div>
-            <div style={c.chipSatir}>
-              {DONEMLER.map(g => <button key={g} onClick={() => setGun(g)} style={gun === g ? c.chipAktif : c.chip}>Son {g} gün</button>)}
-            </div>
+            <div style={c.etiket}>Data tarihi</div>
+            <TarihSecici deger={gun} onChange={setGun} />
           </div>
         </div>
       </div>
@@ -142,7 +141,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
                     <th style={{ ...c.th, textAlign: "left" }}>Danışman</th>
                     <th style={{ ...c.th, textAlign: "left", minWidth: "220px" }}>Müsaitlik</th>
                     <th style={c.th}>Takipsiz / açık Data</th>
-                    <th style={c.th}>Kayıt dönüşümü ({gun} gün)</th>
+                    <th style={c.th}>Kayıt dönüşümü ({gun ? `${gun} gün` : "tüm zamanlar"})</th>
                     <th style={c.th}>"Yeni"de bekleyen</th>
                   </tr>
                 </thead>
@@ -202,7 +201,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
       {gorunen.length > 0 && !yukleniyor && !hata && rapor && (
         <div style={p.dipnot}>
           Müsaitlik = %60 takip + %25 yük + %15 hız. Takipsiz kuralı Aktivite Tablosu ile aynı ({SESSIZ_GUN} gün). Kayıt dönüşümü bara girmez.
-          <br />Kayıt dönüşümü: seçilen dönemde oluşan datalardan Kylas'ta "Yeni Kayıt" aşamasında olanlar. Yaz okulu grup kayıtları CRM dışında olduğu için dahil değil.
+          <br />Kayıt dönüşümü: Data tarihi seçimine göre oluşan datalardan Kylas'ta "Yeni Kayıt" aşamasında olanlar. Yaz okulu grup kayıtları CRM dışında olduğu için dahil değil.
           {!rapor.musaitlikOkundu && <><br />Kylas müsaitlik bilgisi okunamadı, herkes müsait sayıldı.</>}
         </div>
       )}
