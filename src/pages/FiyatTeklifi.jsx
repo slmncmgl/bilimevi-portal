@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v125-test-kisayolu-2026-11-16";
+const BFT_BUILD_VERSION = "v126-sehir-dosyasi-2026-11-16";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -338,15 +338,16 @@ async function fetchNav(isStaff) {
     if (pid && brand && city) portalIds[pid] = { brand, city, country: countryTRName };
     // Staff: sheetId'yi drive_link'ten çıkar (doğrudan gviz için).
     // Customer: sheetId React'e HİÇ gelmez; sadece brand ismi tutulur (proxy alias çözer).
-    if (brand && !schoolSheets[brand]) {
-      if (isStaff) {
-        const match = drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-        const sheetId = match ? match[1] : null;
-        if (sheetId) schoolSheets[brand] = { sheetId, sheetName: row.sheet_name };
-      } else {
-        schoolSheets[brand] = { brand, sheetName: row.sheet_name };
-      }
-    }
+    // v126: dosya okul+şehir çiftine göre de tutulur ("brand__city"). Bir okulun şehirleri farklı dosyalara
+    // bağlı olabilir (Positively 2026 kampanya dosyası). Sadece okul anahtarı (ilk satır) yedek olarak kalır;
+    // okulun tüm satırları aynı dosyayı gösteriyorsa sonuç eskisiyle aynı.
+    const _kayit = (() => {
+      if (!isStaff) return { brand, sheetName: row.sheet_name };
+      const match = drive_link.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+      return match ? { sheetId: match[1], sheetName: row.sheet_name } : null;
+    })();
+    if (brand && _kayit && !schoolSheets[brand]) schoolSheets[brand] = _kayit;
+    if (brand && city && _kayit && !schoolSheets[`${brand}__${city}`]) schoolSheets[`${brand}__${city}`] = _kayit;
     const langs = langRaw.split(",").map(l => l.trim()).filter(Boolean);
     langs.forEach(l => {
       languages.add(l);
@@ -378,7 +379,7 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
   if (window._CITY_CACHE[key]) return window._CITY_CACHE[key];
   const getTab = (tab) => isStaff
     ? fetchCSVStaffGviz(sheetId, tab)   // v121: okul sheet'leri gviz'de kalır (.xlsx, API okuyamaz)
-    : fetchCSVProxy({ sheet: "school", brand, tab });
+    : fetchCSVProxy({ sheet: "school", brand, city, tab });   // v126: proxy v1.2 şehre göre dosya seçer (eski proxy city'yi yok sayar)
   // Kritik sekmeler için tek seferlik yeniden deneme.
   // Google gviz / proxy ara sıra yavaş yanıtlıyor veya rate-limit uyguluyor;
   // tek denemede düşünce kurs listesi sessizce boş kalıyordu.
@@ -1737,9 +1738,10 @@ export default function FiyatTeklifi() {
   useEffect(() => {
     if (!cur.city || !cur.brand || cur.isOnline || cur.cityData) return;
     // Staff: sheetId gerekir. Customer: brand yeterli (proxy ID'yi çözer).
-    const sheetId = nav.schoolSheets?.[cur.brand]?.sheetId;
+    const _ss = nav.schoolSheets?.[`${cur.brand}__${cur.city}`] || nav.schoolSheets?.[cur.brand];   // v126: önce şehir
+    const sheetId = _ss?.sheetId;
     if (isStaff && !sheetId) return;
-    if (!isStaff && !nav.schoolSheets?.[cur.brand]) return;
+    if (!isStaff && !_ss) return;
     setCur(p => ({ ...p, cityLoading: true }));
     fetchCityData(sheetId, cur.city, isStaff, cur.brand)
       .then(data => setCur(p => ({ ...p, cityData: data, cityLoading: false, transfer: null })))
