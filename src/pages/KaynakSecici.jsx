@@ -1,12 +1,13 @@
+// v1.2: VIP listesi src/lib/vipKaynaklar.js'e taşındı (sunucu da aynı listeyi kullanır)
 // v1.1: VIP Datalar'a Setrow Marketing eklendi (6 kaynak)
 // v1.0: veri kaynağı için açılır çoklu seçim (CRM Raporu ve Aktivite Tablosu ortak kullanır)
 // Düğmede seçimin özeti görünür; tıklanınca kaynaklar onay kutularıyla iki sütunda açılır.
 // Üstte hızlı seçimler: Tümünü seç, ★ VIP Datalar, Temizle. Dışarı tıklayınca ya da Esc ile kapanır.
 // Seçim her tıklamada anında üst bileşene gider (onChange), istekleri üst bileşen biriktirir.
 import { useState, useEffect, useRef } from "react";
+import { VIP_KAYNAKLAR } from "../lib/vipKaynaklar";
 
-// VIP Datalar: Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing
-export const VIP_KAYNAKLAR = [2614512, 2650986, 2614514, 2614515, 3005340, 3024131];
+export { VIP_KAYNAKLAR };
 
 export function kaynakOzeti(kaynaklar, secili, bosMetin) {
   if (!secili.length) return bosMetin;

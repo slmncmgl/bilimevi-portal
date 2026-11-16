@@ -1,3 +1,6 @@
+// v2.0: task zorunlu küme = İlgili (her kaynak) + VIP kaynaklı Görüşme. Bu kümede task yoksa son etkinliğe bakılmadan takipsiz.
+//       Na1-Na3 (VIP olsa da) ve VIP olmayan Görüşme: eskisi gibi task yok + son etkinlik sessizGun'den eski.
+//       taskBeklenen, ileri/gecikmiş task ve gecikmiş listesi de bu kümeden. Takipsiz satırında "zorunlu" işareti var.
 // v1.9: task sadece İlgili'de beklenir (Görüşme çıkarıldı). Hata mesajlarında "lead" yerine "Data".
 // v1.8: task sadece Görüşme ve İlgili'de beklenir. ileriTask, gecikmisTask, taskYok ve gecikmiş listesi bu iki aşamadan;
 //       taskBeklenen = Görüşme + İlgili lead sayısı. toplam ve takipsiz tanımı değişmedi (Na1-İlgili, task yok + sessiz).
@@ -20,6 +23,7 @@
 //   islem "notlar": { leadId, ownerId } -> son 3 not (HTML temizlenmiş düz metin)
 import { oturumKontrol } from "./_oturum.js";
 import { yetkiBul, yetkiKontrol, zorunluMu } from "./_yetki.js";
+import { VIP_KAYNAKLAR } from "../src/lib/vipKaynaklar.js";
 
 const PIPELINE_ID = 31227; // Bilimevi
 const ASAMALAR = [
@@ -103,8 +107,10 @@ async function notlar(req, res, yetki) {
 
 // Takip edilmesi gereken açık aşamalar: Na1, Na2, Na3, Görüşme, İlgili
 const TAKIP_ASAMALARI = [222366, 253357, 253358, 218701, 218702];
-// Task beklenen aşama: sadece İlgili (Na1-Na3 ve Görüşme'de task beklenmez)
-const TASK_ASAMALARI = [218702];
+// Task zorunlu: İlgili aşamasındaki her data + VIP kaynaklı Görüşme datası (Na1-Na3'te hiç beklenmez)
+const ILGILI = 218702;
+const GORUSME = 218701;
+const taskZorunlu = l => l.pipelineStage === ILGILI || (l.pipelineStage === GORUSME && VIP_KAYNAKLAR.includes(l.source));
 
 async function takip(req, res, yetki) {
   const hamSahipler = Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : [req.body?.ownerId];
@@ -140,16 +146,18 @@ async function takip(req, res, yetki) {
     const say = alan => { ozet[alan]++; d[alan]++; };
     say("toplam");
     const task = zaman(l.taskDueOn);
-    if (TASK_ASAMALARI.includes(l.pipelineStage)) {
+    const zorunlu = taskZorunlu(l);
+    if (zorunlu) {
       say("taskBeklenen");
       if (task && task >= simdi) say("ileriTask");
       else if (task) { say("gecikmisTask"); gecikmis.push(satir(l)); }
       else say("taskYok");
     }
     const akt = zaman(l.latestActivityCreatedAt);
-    if (!task && (!akt || akt < sinir)) {
+    // Zorunlu kümede task yoksa doğrudan takipsiz; diğerlerinde task yok + sessizlik
+    if (!task && (zorunlu || !akt || akt < sinir)) {
       say("takipsiz");
-      takipsiz.push(satir(l));
+      takipsiz.push({ ...satir(l), zorunlu });
     }
   }
   takipsiz.sort((a, b) => (zaman(a.sonAktivite) || 0) - (zaman(b.sonAktivite) || 0));
