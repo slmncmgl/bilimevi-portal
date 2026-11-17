@@ -1,3 +1,4 @@
+// v2.8: Aktivite Tablosu v2.7 (Son not sütunu kaldırıldı)
 // v2.7: satış ekibine Furkan Atalı (İzmir) ve Özgür Koç (Kadıköy, ID sekmesi yerine listedeki Kylas ID)
 // v2.6: Aktivite Tablosu v2.6 (Son not sütunu)
 // v2.5: sekme sırası: Aktivite Tablosu, Data Tablosu, Performans Tablosu, Quiz Skorları
@@ -24,7 +25,7 @@ import TakipRaporu, { AKTIVITE_SURUM } from "./TakipRaporu";
 import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerlendirme";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v2.7"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v2.8"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Data Tablosu ${CRM_SURUM} · Performans Tablosu ${DEGERLENDIRME_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
