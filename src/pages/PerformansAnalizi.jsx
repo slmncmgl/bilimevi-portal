@@ -1,3 +1,4 @@
+// v2.5: sekme sırası: Aktivite Tablosu, Data Tablosu, Performans Tablosu, Quiz Skorları
 // v2.4: açıklamalar sayfada yazı yerine üzerine gelince balonda (Aktivite v2.5, Performans v1.3, Data v2.2)
 // v2.3: üç tabloda tarih seçimi açılışta "Tümü"
 // v2.2: üç tabloda tarih seçimi Tümü + açılır liste (7 / 14 / 30 / N gün)
@@ -21,10 +22,10 @@ import TakipRaporu, { AKTIVITE_SURUM } from "./TakipRaporu";
 import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerlendirme";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v2.4"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v2.5"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
-const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Performans Tablosu ${DEGERLENDIRME_SURUM} · Data Tablosu ${CRM_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
+const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Data Tablosu ${CRM_SURUM} · Performans Tablosu ${DEGERLENDIRME_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -239,7 +240,7 @@ export default function PerformansAnalizi() {
 
       <main style={s.main}>
         <div style={s.sekmeler}>
-          {[["takip", "Aktivite Tablosu"], ["deg", "Performans Tablosu"], ["crm", "Data Tablosu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
+          {[["takip", "Aktivite Tablosu"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
             <button key={k} onClick={() => setSekme(k)} style={sekme === k ? s.sekmeAktif : s.sekme}>{ad}</button>
           ))}
         </div>
