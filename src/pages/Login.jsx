@@ -1,3 +1,4 @@
+// v1.3: hatırlatma animasyonu kalp atışı (çift vuruş, 2 tur)
 // v1.2: ek olarak sayfa açıldıktan 10 sn içinde giriş denenmezse de nabız atar (yine tek sefer)
 // v1.1: 4 sn hiç tıklama/tuş yoksa "Kayıtlı Şifremi Gönder" bir kez nabız atar (Beni Hatırla doluysa çalışmaz)
 // v1.0 (Güvenlik Faz 1): başarılı girişten sonra oturum token'ı arka planda alınır (tokenIste)
@@ -498,8 +499,8 @@ export default function Login() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes forgotShake { 0%, 100% { transform: translateX(0); } 15%, 45%, 75% { transform: translateX(-5px); } 30%, 60%, 90% { transform: translateX(5px); } }
         .forgot-shake { animation: forgotShake 0.6s ease-in-out; }
-        @keyframes forgotNudge { 0%, 100% { transform: scale(1); text-shadow: none; } 30% { transform: scale(1.08); text-shadow: 0 0 10px rgba(37,99,235,0.45); } 60% { transform: scale(1); text-shadow: 0 0 6px rgba(37,99,235,0.25); } 80% { transform: scale(1.04); } }
-        .forgot-nudge { animation: forgotNudge 1.2s ease-in-out; transform-origin: left center; }
+        @keyframes forgotNudge { 0%, 40%, 100% { transform: scale(1); } 10% { transform: scale(1.12); } 20% { transform: scale(1); } 30% { transform: scale(1.08); } }
+        .forgot-nudge { animation: forgotNudge 1.1s ease-in-out 2; transform-origin: left center; }
         @media (prefers-reduced-motion: reduce) { .forgot-shake, .forgot-nudge { animation: none; } }
       @media (max-width: 640px) {
           body > div > div { padding: 0 !important; } 
