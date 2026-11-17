@@ -1,3 +1,4 @@
+// v1.1: 4 sn hiç tıklama/tuş yoksa "Kayıtlı Şifremi Gönder" bir kez nabız atar (Beni Hatırla doluysa çalışmaz)
 // v1.0 (Güvenlik Faz 1): başarılı girişten sonra oturum token'ı arka planda alınır (tokenIste)
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -107,6 +108,7 @@ export default function Login() {
   const [remember, setRemember] = useState(false);
   const [sifrePopup, setSifrePopup] = useState(false);
   const [forgotShake, setForgotShake] = useState(0);
+  const [forgotNudge, setForgotNudge] = useState(false);
   const [sifreUsername, setSifreUsername] = useState("");
   const [sifreLoading, setSifreLoading] = useState(false);
   const [sifreMesaj, setSifreMesaj] = useState(null);
@@ -136,6 +138,22 @@ export default function Login() {
       slowTimersRef.current.forEach(clearTimeout);
       slowTimersRef.current = [];
     };
+  }, []);
+
+  // 4 sn boyunca tıklama ya da tuş yoksa şifre linkini bir kez hatırlat (fare hareketi sayılmaz)
+  useEffect(() => {
+    if (localStorage.getItem("bilimevi_remember")) return;
+    const olaylar = ["pointerdown", "keydown", "touchstart"];
+    const iptal = () => {
+      clearTimeout(zamanlayici);
+      olaylar.forEach(o => window.removeEventListener(o, iptal, true));
+    };
+    const zamanlayici = setTimeout(() => {
+      setForgotNudge(true);
+      iptal();
+    }, 4000);
+    olaylar.forEach(o => window.addEventListener(o, iptal, true));
+    return iptal;
   }, []);
 
   async function sifreyiGonder() {
@@ -352,7 +370,7 @@ export default function Login() {
               <button
                 type="button"
                 key={forgotShake}
-                className={forgotShake ? "forgot-shake" : undefined}
+                className={forgotShake ? "forgot-shake" : forgotNudge ? "forgot-nudge" : undefined}
                 onClick={() => {
                   setSifrePopup(true);
                   setSifreUsername("@bilimevi.com");
@@ -470,7 +488,9 @@ export default function Login() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes forgotShake { 0%, 100% { transform: translateX(0); } 15%, 45%, 75% { transform: translateX(-5px); } 30%, 60%, 90% { transform: translateX(5px); } }
         .forgot-shake { animation: forgotShake 0.6s ease-in-out; }
-        @media (prefers-reduced-motion: reduce) { .forgot-shake { animation: none; } }
+        @keyframes forgotNudge { 0%, 100% { transform: scale(1); text-shadow: none; } 30% { transform: scale(1.08); text-shadow: 0 0 10px rgba(37,99,235,0.45); } 60% { transform: scale(1); text-shadow: 0 0 6px rgba(37,99,235,0.25); } 80% { transform: scale(1.04); } }
+        .forgot-nudge { animation: forgotNudge 1.2s ease-in-out; transform-origin: left center; }
+        @media (prefers-reduced-motion: reduce) { .forgot-shake, .forgot-nudge { animation: none; } }
       @media (max-width: 640px) {
           body > div > div { padding: 0 !important; } 
           .login-card { 
