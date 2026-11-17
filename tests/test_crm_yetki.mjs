@@ -24,7 +24,10 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes("/search/lead")) {
     const kurallar = JSON.parse(opts.body).jsonRule.rules;
     const idKurali = kurallar.find(k => k.field === "id");
-    if (idKurali) return yanit(200, { totalElements: 1, content: [{ id: idKurali.value, ownerId: idKurali.value === 9 ? 200 : 101 }] });
+    if (idKurali) {
+      const idler = Array.isArray(idKurali.value) ? idKurali.value : [idKurali.value];
+      return yanit(200, { totalElements: idler.length, content: idler.map(id => ({ id, ownerId: id === 9 ? 200 : 101 })) });
+    }
     return yanit(200, { totalElements: 3, content: [{ id: 1, ownerId: 101, pipelineStage: 222366 }, { id: 2, ownerId: 200, pipelineStage: 222366 }, { id: 3, ownerId: 100, pipelineStage: 218702 }] });
   }
   if (url.includes("/v1/users?")) return yanit(200, { content: [{ id: 101, availabilityStatus: { recordAssignment: { available: false, expirationDate: "2030-01-01T00:00:00.000Z" } } }, { id: 200, availabilityStatus: null }] });
@@ -99,6 +102,11 @@ assert.equal(r.code, 200);
 assert.deepEqual(Object.keys(r.body.danismanlar).sort(), ["101", "200"], "sadece istenen danışmanlar döner");
 assert.equal(r.body.danismanlar["101"].musait, false, "Kylas'ta müsait değil işaretli");
 assert.equal(r.body.danismanlar["200"].musait, true);
+
+// 2d. Son notlar: admin değilse gerçek sahip kontrolü
+assert.equal(await durum("su@x.com", { islem: "sonNotlar", leadler: [{ id: 9, ownerId: 101 }] }), 403, "başkasının datası, ownerId yalan olsa da red");
+assert.equal(await durum("su@x.com", { islem: "sonNotlar", leadler: [{ id: 5, ownerId: 999 }] }), 200, "kendi datası geçer");
+assert.equal(await durum("ali@x.com", { islem: "sonNotlar", leadler: [] }), 400, "boş liste 400");
 
 // 3. Özet tablo süzülür
 r = await iste("mehmet@x.com", { kaynak: 2675584, gun: 90 });

@@ -1,3 +1,5 @@
+// v2.6: listede "Son not" sütunu: sayfadaki datalar için en son notun tarihi 5'erli parçalarla Kylas'tan okunur
+//       (Kylas not girilince Latest Activity On'u güncellemiyor). Deneme: Son aktivite sütunu yanında duruyor.
 // v2.5: kart altı yazılar, tablo altı not ve başlık ekleri kaldırıldı; açıklamalar üzerine gelince balonda (Ipucu.jsx)
 // v2.4: Son Etkinlik Tarihi açılışta "Tümü"
 // v2.3: Son Etkinlik Tarihi = Tümü + açılır liste (7 / 14 / 30 / N günden eski, TarihSecici.jsx). Tümü = son etkinliğe bakılmaz,
@@ -32,7 +34,7 @@ import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v2.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v2.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -50,7 +52,8 @@ const ACIKLAMA = {
     ? `İlgili ve VIP Görüşme datasında task yoksa takipsiz. Na1-Na3 ve VIP olmayan Görüşme'de task yok ve son etkinlik ${g} günden eski. Tıklayınca aşağıda listelenir.`
     : "Task'ı olmayan her açık data takipsiz (son etkinliğe bakılmıyor). İlgili ve VIP Görüşme'de task zorunlu. Tıklayınca aşağıda listelenir."),
   sonEtkinlik: "Takipsiz sayılması için son etkinliğin ne kadar eski olması gerektiği. Sadece Na1-Na3 ve VIP olmayan Görüşme için geçerli. Tümü: son etkinliğe bakılmaz.",
-  sonAktivite: "Kylas'taki son etkinlik tarihi. Otomasyon güncellemeleriyle de değişir, gerçek sessizlik süresi daha uzun olabilir.",
+  sonAktivite: "Kylas'taki son etkinlik tarihi (Latest Activity On). Otomasyon güncellemeleriyle de değişir, not girilince değişmez.",
+  sonNot: "Data'ya yazılan en son notun tarihi. Sadece bu sayfadaki datalar için Kylas'tan okunur, sayfa değişince yenileri gelir.",
   taskZorunlu: "İlgili ya da VIP Görüşme datası: task zorunlu ama task yok.",
   karsilastirma: "Satıra tıklayınca aşağıdaki liste o danışmana süzülür, tekrar tıklayınca süzme kalkar.",
   coklu: "Birden fazla seçilebilir.",
@@ -76,6 +79,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [sayfa, setSayfa] = useState(1);
   const [gorunum, setGorunum] = useState("takipsiz"); // "takipsiz" | "gecikmis"
   const notOnbellek = useRef({});
+  const [sonNotlar, setSonNotlar] = useState({}); // data id -> { tarih, yazan, toplam } | null (not yok) | { hata }
 
   useEffect(() => {
     kisileriYukle().then(setKisiler).catch(() => setKisiHata("Danışman listesi okunamadı."));
@@ -148,6 +152,26 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const sayfaSayisi = Math.max(1, Math.ceil(liste.length / sayfaBoyu));
   const gecerliSayfa = Math.min(sayfa, sayfaSayisi);
   const sayfaListesi = liste.slice((gecerliSayfa - 1) * sayfaBoyu, gecerliSayfa * sayfaBoyu);
+
+  // Sayfadaki datalar için son not tarihleri: önceden okunanlar atlanır, eksikler 5'erli parçalarla sorulur
+  const sayfaAnahtari = sayfaListesi.map(l => l.id).join(",");
+  useEffect(() => {
+    const eksik = sayfaListesi.filter(l => !(l.id in sonNotlar)).map(l => ({ id: l.id, ownerId: l.ownerId }));
+    if (!eksik.length) return;
+    let iptal = false;
+    (async () => {
+      for (let i = 0; i < eksik.length && !iptal; i += 5) {
+        const parca = eksik.slice(i, i + 5);
+        try {
+          const d = await apiCagir({ islem: "sonNotlar", leadler: parca });
+          if (!iptal) setSonNotlar(s => ({ ...s, ...d.notlar }));
+        } catch {
+          if (!iptal) setSonNotlar(s => ({ ...s, ...Object.fromEntries(parca.map(l => [l.id, { hata: true }])) }));
+        }
+      }
+    })();
+    return () => { iptal = true; };
+  }, [sayfaAnahtari]);
   const o = rapor?.ozet;
   // Takip oranı: task zorunlu datalardan (İlgili + VIP Görüşme) ileri tarihli task'ı olanların payı
   const takipOrani = o && o.taskBeklenen ? Math.round((o.ileriTask / o.taskBeklenen) * 100) : 0;
@@ -285,6 +309,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                       <th style={{ ...c.th, position: "sticky", top: 0 }}>Oluşturma</th>
                       {gecikmisGorunum && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}><Ipucu metin={ACIKLAMA.sonAktivite}>Son aktivite</Ipucu></th>
+                      <th style={{ ...c.th, position: "sticky", top: 0 }}><Ipucu metin={ACIKLAMA.sonNot}>Son not</Ipucu></th>
                       <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Notlar</th>
                     </tr>
                   </thead>
@@ -312,6 +337,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           <td style={{ ...c.td, whiteSpace: "nowrap" }}>
                             {l.sonAktivite ? <>{tarih(l.sonAktivite)} <span style={{ color: g > 30 ? "#dc2626" : "#94a3b8", fontSize: "11px" }}>· {g} gün</span></> : <span style={{ color: "#dc2626" }}>Hiç yok</span>}
                           </td>
+                          <td style={{ ...c.td, whiteSpace: "nowrap" }}><SonNot deger={sonNotlar[l.id]} yukleniyor={!(l.id in sonNotlar)} /></td>
                           <td style={{ ...c.td, textAlign: "center" }}><NotBalonu lead={l} onbellek={notOnbellek} /></td>
                         </tr>
                       );
@@ -343,6 +369,19 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         </>
       )}
     </>
+  );
+}
+
+// Son not hücresi: tarih + kaç gün önce (30 günü geçerse kırmızı); yazan kişi ve not sayısı balonda
+function SonNot({ deger, yukleniyor }) {
+  if (yukleniyor) return <span style={{ color: "#cbd5e1" }}>…</span>;
+  if (!deger) return <span style={{ color: "#dc2626" }}>Not yok</span>;
+  if (deger.hata) return <span style={{ color: "#94a3b8" }}>Okunamadı</span>;
+  const g = gunOnce(deger.tarih);
+  return (
+    <Ipucu metin={`Yazan: ${deger.yazan || "bilinmiyor"} · toplam ${deger.toplam} not`} isaret={false}>
+      <span>{tarih(deger.tarih)} <span style={{ color: g > 30 ? "#dc2626" : "#94a3b8", fontSize: "11px" }}>· {g} gün</span></span>
+    </Ipucu>
   );
 }
 

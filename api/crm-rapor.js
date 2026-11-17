@@ -1,3 +1,6 @@
+// v2.4: islem "sonNotlar": { leadler: [{ id, ownerId }] } (en fazla 50) -> { notlar: { id: { tarih, yazan } | null } }.
+//       Aktivite Tablosu listede görünen datalar için son notun tarihini gösterir (Kylas not girince Latest Activity On'u güncellemiyor).
+//       Admin değilse sahipler Kylas'tan okunur ve rol kontrolünden geçer. Not istekleri 4'erli, 429'da bekleyip tekrar dener.
 // v2.3: 10.000'i aşan dönemde kayıtlar tek sorguda çekilir, sadece data sayısı danışman başına sayılır (3'erli paralel).
 // v2.2: tarih seçimi "Tümü" ya da herhangi bir N gün olabilir. 180 güne kadar last_n_days, üstünde createdAt > tarih (tarihKurali).
 //       Değerlendirmede gun null = tüm zamanlar; 10.000'i aşan dönemde data/kayıt sayıları danışman başına sayım sorgusuyla alınır.
@@ -113,6 +116,46 @@ function metneCevir(html) {
     .replace(/<br\s*\/?>/gi, "\n").replace(/<\/(div|p|li)>/gi, "\n").replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
     .replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// Kylas GET isteği: 429 (hız sınırı) gelirse bekleyip tekrar dener
+async function kylasGet(url) {
+  for (let deneme = 1; ; deneme++) {
+    const r = await fetch(url, { headers: { "api-key": process.env.KYLAS_API_KEY, Accept: "application/json" } });
+    if (r.status === 429 && deneme < 5) {
+      const sn = Number(r.headers?.get?.("retry-after"));
+      await bekle(Number.isFinite(sn) && sn > 0 ? Math.min(sn, 10) * 1000 : 1200 * deneme);
+      continue;
+    }
+    return r;
+  }
+}
+
+const SON_NOT_SINIR = 50;
+async function sonNotlar(req, res, yetki) {
+  const ham = Array.isArray(req.body?.leadler) ? req.body.leadler : [];
+  let leadler = ham.map(l => ({ id: Number(l?.id), ownerId: Number(l?.ownerId) })).filter(l => Number.isInteger(l.id) && Number.isInteger(l.ownerId));
+  if (!leadler.length || leadler.length !== ham.length) return res.status(400).json({ error: "Data listesi gerekli." });
+  if (leadler.length > SON_NOT_SINIR) return res.status(400).json({ error: `En fazla ${SON_NOT_SINIR} Data sorulabilir.` });
+  // Admin değilse istekteki sahiplere güvenilmez: gerçek sahipler tek aramada okunur
+  if (yetki.tur !== "admin") {
+    const d = await kylasAra([kural("id", "in", leadler.map(l => l.id))], 0, ["id", "ownerId"]);
+    const sahip = Object.fromEntries((d.content || []).map(l => [l.id, Number(l.ownerId)]));
+    leadler = leadler.filter(l => sahip[l.id] !== undefined).map(l => ({ id: l.id, ownerId: sahip[l.id] }));
+    if (!yetkiKontrol(yetki, [...new Set(leadler.map(l => l.ownerId))], res, "crm-rapor sonNotlar")) return;
+  }
+  const notlar = {};
+  for (let i = 0; i < leadler.length; i += 4) {
+    await Promise.all(leadler.slice(i, i + 4).map(async l => {
+      const r = await kylasGet(`https://api.kylas.io/v1/notes/relation?targetEntityId=${l.id}&targetEntityType=LEAD&targetEntityOwnerId=${l.ownerId}&sort=createdAt,desc&page=0&size=1`);
+      if (!r.ok) { notlar[l.id] = { hata: true }; return; }
+      const d = await r.json();
+      const n = (d.content || [])[0];
+      const isimler = d.metaData?.idNameStore?.createdBy || {};
+      notlar[l.id] = n ? { tarih: new Date(n.createdAt).toISOString(), yazan: isimler[n.createdBy] || "", toplam: d.totalElements || 1 } : null;
+    }));
+  }
+  return res.status(200).json({ notlar });
 }
 
 async function notlar(req, res, yetki) {
@@ -342,6 +385,9 @@ export default async function handler(req, res) {
   }
   if (req.body?.islem === "takip") {
     try { return await takip(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
+  }
+  if (req.body?.islem === "sonNotlar") {
+    try { return await sonNotlar(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
   }
   if (req.body?.islem === "notlar") {
     try { return await notlar(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
