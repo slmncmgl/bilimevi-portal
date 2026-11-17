@@ -1,3 +1,4 @@
+// v1.2: ek olarak sayfa açıldıktan 10 sn içinde giriş denenmezse de nabız atar (yine tek sefer)
 // v1.1: 4 sn hiç tıklama/tuş yoksa "Kayıtlı Şifremi Gönder" bir kez nabız atar (Beni Hatırla doluysa çalışmaz)
 // v1.0 (Güvenlik Faz 1): başarılı girişten sonra oturum token'ı arka planda alınır (tokenIste)
 import { useState, useEffect, useRef } from "react";
@@ -109,6 +110,9 @@ export default function Login() {
   const [sifrePopup, setSifrePopup] = useState(false);
   const [forgotShake, setForgotShake] = useState(0);
   const [forgotNudge, setForgotNudge] = useState(false);
+  const girisDenendiRef = useRef(false);
+  const sifrePopupRef = useRef(false);
+  sifrePopupRef.current = sifrePopup;
   const [sifreUsername, setSifreUsername] = useState("");
   const [sifreLoading, setSifreLoading] = useState(false);
   const [sifreMesaj, setSifreMesaj] = useState(null);
@@ -140,20 +144,25 @@ export default function Login() {
     };
   }, []);
 
-  // 4 sn boyunca tıklama ya da tuş yoksa şifre linkini bir kez hatırlat (fare hareketi sayılmaz)
+  // Şifre linkini bir kez hatırlat: 4 sn hiç tıklama/tuş yoksa (fare hareketi sayılmaz)
+  // ya da sayfa açıldıktan 10 sn içinde giriş denenmediyse
   useEffect(() => {
     if (localStorage.getItem("bilimevi_remember")) return;
     const olaylar = ["pointerdown", "keydown", "touchstart"];
-    const iptal = () => {
-      clearTimeout(zamanlayici);
-      olaylar.forEach(o => window.removeEventListener(o, iptal, true));
+    const bosta = () => {
+      clearTimeout(bostaZamanlayici);
+      olaylar.forEach(o => window.removeEventListener(o, bosta, true));
     };
-    const zamanlayici = setTimeout(() => {
+    const hatirlat = () => {
+      if (girisDenendiRef.current || sifrePopupRef.current) return;
       setForgotNudge(true);
-      iptal();
-    }, 4000);
-    olaylar.forEach(o => window.addEventListener(o, iptal, true));
-    return iptal;
+      temizle();
+    };
+    const bostaZamanlayici = setTimeout(hatirlat, 4000);
+    const toplamZamanlayici = setTimeout(hatirlat, 10000);
+    const temizle = () => { bosta(); clearTimeout(toplamZamanlayici); };
+    olaylar.forEach(o => window.addEventListener(o, bosta, true));
+    return temizle;
   }, []);
 
   async function sifreyiGonder() {
@@ -278,6 +287,7 @@ export default function Login() {
   async function handleLogin(e) {
     e.preventDefault();
     if (!username || !password) return;
+    girisDenendiRef.current = true;
     setRetryCount(0);
     attemptLogin(false);
   }
