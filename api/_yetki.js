@@ -1,3 +1,4 @@
+// v1.1: satış ekibi listesi (src/lib/satisEkibi.js): şube listeden gelir, ID sekmesinde olmayanlar listedeki Kylas ID ile eşlenir
 // v1.0: CRM verisinde sunucu tarafı rol kontrolü (kim hangi danışmanın lead'lerini görebilir)
 // "_" ile başladığı için Vercel bu dosyayı ayrı bir adres olarak yayınlamaz.
 //
@@ -9,6 +10,7 @@
 //
 // Mod: CRM_YETKI_ENFORCE=1 ya da AUTH_ENFORCE=1 değilse sadece loglanır ("[yetki]" öneki), istek geçer.
 import { tokenCoz } from "./_oturum.js";
+import { satisBul } from "../src/lib/satisEkibi.js";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const ONBELLEK_MS = 10 * 60 * 1000;
@@ -63,7 +65,8 @@ export async function dizinGetir() {
   personel.forEach(p => {
     const email = kucuk(p["E-posta"]);
     if (!email) return;
-    const kisi = { ad: p["Ad Soyad"] || "", sube: kucuk(p["Şube"]), rol: kucuk(p.title || p.Title) || "staff", kylasId: idHarita.get(email) || null };
+    const s = satisBul(p["Ad Soyad"]);
+    const kisi = { ad: p["Ad Soyad"] || "", sube: kucuk(s?.sube || p["Şube"]), rol: kucuk(p.title || p.Title) || "staff", kylasId: idHarita.get(email) || s?.kylasId || null };
     kisiler.set(email, kisi);
     if (kisi.sube && kisi.kylasId) {
       if (!subeIdleri.has(kisi.sube)) subeIdleri.set(kisi.sube, new Set());

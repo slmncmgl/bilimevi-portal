@@ -1,3 +1,4 @@
+// v2.3: satış ekibi src/lib/satisEkibi.js'te: Furkan Atalı eklendi (İzmir), şube listeden gelir, ID sekmesinde olmayanlar (Özgür Koç) listedeki Kylas ID ile eşlenir
 // v2.2: açıklamalar üzerine gelince balonda (Ipucu.jsx): Veri kaynağı, Data tarihi, Danışman sütunu, Diğer satırı
 // v2.1: Data tarihi açılışta "Tümü"
 // v2.0: "Data oluşturma tarihi" -> "Data tarihi": Tümü + açılır liste (Son 7 / 14 / 30 / N gün, TarihSecici.jsx)
@@ -22,6 +23,7 @@ import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR, kaynakOzeti } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
+import { SATIS_EKIBI, satisBul } from "../lib/satisEkibi";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const csvUrl = sekme => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sekme)}`;
@@ -44,7 +46,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v2.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v2.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -86,14 +88,8 @@ export const kucuk = v => String(v || "").trim().toLocaleLowerCase("tr-TR");
 
 // Satış danışmanları (Kasım 2026, Selman'ın listesi). Ad Soyad Personel sekmesiyle eşleşmeli.
 // Ekip değişince bu listeyi güncelleyin.
-export const SATIS_EKIBI = [
-  "Pınar Aydın", "Bahriye Günsel",                                        // Ankara
-  "Barış Gümüşlü", "Nil Özer", "Rukiye Özdemir", "Özgür Koç",             // Kadıköy
-  "Nur Alpay", "Sibel Özel",                                              // İzmir
-  "Zeynep Çırak", "Uğurcan Eneç",                                         // Bahçeşehir
-  "Mina Karimzadeh", "Tevhide Döner",                                     // Taksim
-];
-const SATIS_SET = new Set(SATIS_EKIBI.map(kucuk));
+// Satış danışmanları ve raporlarda görünecek şubeleri: src/lib/satisEkibi.js
+export { SATIS_EKIBI } from "../lib/satisEkibi";
 
 // Kylas ID -> { ad, sube, email }: İzin Yönetimi ID sekmesi (e-posta -> Kylas ID) + Personel sekmesi
 export async function kisileriYukle() {
@@ -105,7 +101,13 @@ export async function kisileriYukle() {
     const id = String(r.ID || "").trim();
     if (!email || !id) return;
     const p = personel.find(x => kucuk(x["E-posta"]) === email);
-    harita[id] = { ad: p?.["Ad Soyad"] || email.split("@")[0], sube: p?.["Şube"] || "", email, personelde: !!p, satis: !!p && SATIS_SET.has(kucuk(p["Ad Soyad"])) };
+    const s = p ? satisBul(p["Ad Soyad"]) : null;
+    harita[id] = { ad: p?.["Ad Soyad"] || email.split("@")[0], sube: s?.sube || p?.["Şube"] || "", email, personelde: !!p, satis: !!s };
+  });
+  // ID sekmesinde satırı olmayan satış danışmanları listedeki Kylas ID ile eklenir
+  SATIS_EKIBI.filter(s => s.kylasId && !harita[String(s.kylasId)]).forEach(s => {
+    const p = personel.find(x => kucuk(x["Ad Soyad"]) === kucuk(s.ad));
+    if (p) harita[String(s.kylasId)] = { ad: p["Ad Soyad"], sube: s.sube, email: kucuk(p["E-posta"]), personelde: true, satis: true };
   });
   return harita;
 }
