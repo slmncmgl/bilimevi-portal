@@ -1,3 +1,4 @@
+// v3.3: Şube düğmeleri kalktı (şube seçimi danışman menüsünde); filtre başlıkları yerine renkli çerçeveler
 // v3.2: danışman seçimi açılır çoklu menüde (DanismanSecici.jsx), şubelere göre gruplu; Veri kaynağı ve tarihle aynı satırda
 // v3.1: admin/manager listede değilse açılışta danışman seçili gelmez, seçim uyarısı çıkar; filtre başlıkları renkli
 // v3.0: "Son N gün özeti" kutusu ayrı sekmeye taşındı (Danışman Özeti, DanismanOzeti.jsx)
@@ -39,9 +40,9 @@ import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
 import DanismanSecici from "./DanismanSecici";
 import Ipucu from "./Ipucu";
-import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, etiket } from "./CrmRaporu";
+import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v3.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v3.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -72,7 +73,6 @@ const gunOnce = v => (v ? Math.floor((Date.now() - new Date(v).getTime()) / 8640
 export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null);
   const [kisiHata, setKisiHata] = useState(null);
-  const [sube, setSube] = useState("Tümü");
   const [danismanlar, setDanismanlar] = useState([]); // seçili kylas id'leri (string)
   const [listeSahip, setListeSahip] = useState(null); // karşılaştırmada tıklanan danışman: listeyi ona süzer
   const [sessizGun, setSessizGun] = useState(0); // 0 = Tümü (son etkinliğe bakılmaz), açılışta Tümü
@@ -96,12 +96,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const satisci = tumu.filter(k => k.satis);
   const secilebilir = (isAdmin || isManager ? satisci : tumu)
     .filter(k => {
-      if (isAdmin) return sube === "Tümü" || kucuk(k.sube) === kucuk(sube);
+      if (isAdmin) return true;
       if (isManager) return kucuk(k.sube) === kucuk(user?.branch);
       return k.email === kucuk(user?.email) || kucuk(k.ad) === kucuk(user?.name);
     })
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
-  const subeler = ["Tümü", ...[...new Set(satisci.map(k => k.sube).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"))];
 
   // Varsayılan: giriş yapan kişi listede varsa sadece kendisi seçili. Listede değilse admin ve manager'da seçim boş gelir
   // (rapor çekilmez, seçim uyarısı görünür); staff'ta seçici olmadığı için görebildiği danışman seçilir.
@@ -170,36 +169,23 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     <>
       <style>{VIP_CSS}</style>
       <div style={c.panel}>
-        {isAdmin && subeler.length > 2 && (
-          <div style={{ marginBottom: "16px" }}>
-            <div style={etiket("sube")}>Şube</div>
-            <div style={c.chipSatir}>
-              {subeler.map(sb => <button key={sb} onClick={() => setSube(sb)} style={sube === sb ? c.chipAktif : c.chip}>{sb}</button>)}
-            </div>
-          </div>
-        )}
-        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", alignItems: "flex-start" }}>
+        <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center" }}>
           {(isAdmin || isManager) && (
-            <div>
-              <div style={etiket("danisman")}><Ipucu metin={ACIKLAMA.coklu}>Danışman</Ipucu></div>
+            <Cerceve tur="danisman">
               <DanismanSecici danismanlar={subeyeGore} secili={danismanlar} onChange={setDanismanlar} yukleniyor={!kisiler && !kisiHata} />
-            </div>
+            </Cerceve>
           )}
-          <div>
-            <div style={etiket("kaynak")}>Veri kaynağı</div>
-            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-              <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Tüm kaynaklar" />
-              <Ipucu metin={ACIKLAMA.vip} isaret={false}>
-                <button onClick={() => setKaynaklar(vipSecili ? [] : VIP_KAYNAKLAR)} className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}>
-                  <span>★ VIP Datalar</span>
-                </button>
-              </Ipucu>
-            </div>
-          </div>
-          <div>
-            <div style={etiket("tarih")}><Ipucu metin={ACIKLAMA.sonEtkinlik}>Son Etkinlik Tarihi</Ipucu></div>
-            <TarihSecici deger={sessizGun || null} onChange={v => setSessizGun(v === null ? 0 : v)} metin={g => `${g} günden eski`} nMetni="N günden eski" />
-          </div>
+          <Cerceve tur="kaynak">
+            <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Tüm kaynaklar" />
+            <Ipucu metin={ACIKLAMA.vip} isaret={false}>
+              <button onClick={() => setKaynaklar(vipSecili ? [] : VIP_KAYNAKLAR)} className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}>
+                <span>★ VIP Datalar</span>
+              </button>
+            </Ipucu>
+          </Cerceve>
+          <Cerceve tur="tarih" metin={`Son Etkinlik Tarihi: ${ACIKLAMA.sonEtkinlik}`}>
+            <TarihSecici deger={sessizGun || null} onChange={v => setSessizGun(v === null ? 0 : v)} metin={g => `${g} günden eski`} nMetni="N günden eski" bosMetin="Son etkinlik" />
+          </Cerceve>
         </div>
       </div>
 
@@ -267,8 +253,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
             </div>
             <div style={t.filtreler}>
-              <div>
-                <div style={etiket("asama")}><Ipucu metin={ACIKLAMA.coklu}>Aşama</Ipucu></div>
+              <Cerceve tur="asama" metin="Aşama: birden fazla seçilebilir.">
                 <div style={c.chipSatir}>
                   <button onClick={() => setAsamaSecim([])} style={!asamaSecim.length ? c.chipAktif : c.chip}>Tümü ({asamaSayisi(null)})</button>
                   {ASAMA_SIRASI.map(id => (
@@ -277,7 +262,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                     </button>
                   ))}
                 </div>
-              </div>
+              </Cerceve>
             </div>
             {liste.length === 0 ? (
               <div style={c.bos}>Bu raporda Data yok.</div>

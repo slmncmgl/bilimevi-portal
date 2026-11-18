@@ -1,3 +1,4 @@
+// v1.6: filtre başlıkları yerine renkli çerçeveler (Data kaynağı turuncu, Data tarihi mor)
 // v1.5: filtre başlıkları renkli (Data kaynağı, Data tarihi)
 // v1.4: izinli = Kylas'ta bitiş tarihli "müsait değil" (bitiş tarihsiz durum izin sayılmaz, sunucu crm-rapor v2.5)
 // v1.3: tablo altı not ve satır içi açıklamalar kaldırıldı; açıklamalar üzerine gelince balonda (Ipucu.jsx)
@@ -13,11 +14,11 @@
 // Sayılar /api/crm-rapor islem "degerlendirme"den gelir. Rol kuralı diğer sekmelerle aynı.
 import { useState, useEffect } from "react";
 import { VIP_KAYNAKLAR } from "../lib/vipKaynaklar";
-import { apiCagir, kucuk, kisileriYukle, c, etiket } from "./CrmRaporu";
+import { apiCagir, kucuk, kisileriYukle, c, Cerceve } from "./CrmRaporu";
 import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 
-export const DEGERLENDIRME_SURUM = "v1.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const DEGERLENDIRME_SURUM = "v1.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 // Kylas "Kaynak" picklist ID'leri
 const KAYNAK_GRUPLARI = [
@@ -119,20 +120,18 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
   return (
     <>
       <div style={c.panel}>
-        <div style={{ display: "flex", gap: "28px", flexWrap: "wrap", alignItems: "flex-start" }}>
-          <div>
-            <div style={etiket("kaynak")}><Ipucu metin={ACIKLAMA.kaynak}>Data kaynağı</Ipucu></div>
+        <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center" }}>
+          <Cerceve tur="kaynak">
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <Anahtar ad="Tüm datalar" acik={!gruplar.length} onClick={() => setGruplar([])} />
               {KAYNAK_GRUPLARI.map(g => (
                 <Anahtar key={g.k} ad={g.ad} ipucu={g.aciklama} acik={gruplar.includes(g.k)} onClick={() => grupDegistir(g.k)} vip={g.k === "vip"} />
               ))}
             </div>
-          </div>
-          <div>
-            <div style={etiket("tarih")}><Ipucu metin={ACIKLAMA.tarih}>Data tarihi</Ipucu></div>
-            <TarihSecici deger={gun} onChange={setGun} />
-          </div>
+          </Cerceve>
+          <Cerceve tur="tarih" metin={`Data tarihi: ${ACIKLAMA.tarih}`}>
+            <TarihSecici deger={gun} onChange={setGun} bosMetin="Data tarihi" />
+          </Cerceve>
         </div>
       </div>
 

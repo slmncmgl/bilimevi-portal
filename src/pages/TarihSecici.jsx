@@ -1,3 +1,4 @@
+// v1.2: bosMetin: listede seçim yokken görünen yazı (başlık kalktığı için "Son etkinlik" / "Data tarihi" yazar)
 // v1.1: tumu={false} ile "Tümü" düğmesi gizlenir, enFazla ile N kutusunun üst sınırı (Aktivite Tablosu özet kutusu: 90)
 // v1.0: tabloların tarih seçimi (Aktivite, Performans ve Data Tablosu ortak kullanır)
 // "Tümü" düğmesi + yanında açılır liste: 7 / 14 / 30 gün ve "N gün". N seçilince yanda sadece rakam girilen bir kutu açılır.
@@ -8,7 +9,7 @@ import { useState, useEffect } from "react";
 const HAZIR = [7, 14, 30];
 const EN_FAZLA = 3650;
 
-export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} gün`, nMetni = "Son N gün", tumu = true, enFazla = EN_FAZLA }) {
+export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} gün`, nMetni = "Son N gün", tumu = true, enFazla = EN_FAZLA, bosMetin = "Süre seçin" }) {
   const hazirMi = HAZIR.includes(deger);
   const [nAcik, setNAcik] = useState(deger !== null && !hazirMi);
   const [yazi, setYazi] = useState(deger !== null && !hazirMi ? String(deger) : "");
@@ -43,7 +44,7 @@ export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} g�
     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
       {tumu && <button type="button" onClick={() => { setNAcik(false); onChange(null); }} style={{ ...t.dugme, ...(aktifTumu ? t.aktif : {}) }}>Tümü</button>}
       <select value={secim} onChange={e => listeDegisti(e.target.value)} style={{ ...t.liste, ...(!aktifTumu ? t.listeAktif : {}) }} aria-label="Süre seçin">
-        <option value="" disabled>Süre seçin</option>
+        <option value="" disabled>{bosMetin}</option>
         {HAZIR.map(g => <option key={g} value={String(g)}>{metin(g)}</option>)}
         <option value="N">{nMetni}</option>
       </select>

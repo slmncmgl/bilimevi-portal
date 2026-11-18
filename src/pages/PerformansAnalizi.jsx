@@ -1,3 +1,4 @@
+// v3.6: filtre başlıkları kalktı, renkli çerçeveler; Aktivite Tablosu v3.3 (Şube düğmeleri kalktı)
 // v3.5: Aktivite Tablosu v3.2 (danışman açılır çoklu seçim)
 // v3.4: filtre başlıkları renkli; Aktivite Tablosu v3.1 (seçim uyarısı)
 // v3.3: Data Tablosu v2.4 (listede Kaynak sütunu)
@@ -33,7 +34,7 @@ import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerl
 import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v3.5"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v3.6"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Danışman Özeti ${OZET_SURUM} · Data Tablosu ${CRM_SURUM} · Performans Tablosu ${DEGERLENDIRME_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;

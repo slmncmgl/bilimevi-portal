@@ -1,3 +1,4 @@
+// v2.6: filtre başlıkları kalktı; filtreler renkli çerçeve içinde (Cerceve: kaynak turuncu, tarih mor, şube lacivert)
 // v2.5: filtre başlıkları renkli (Veri kaynağı, Data tarihi, Şube; BASLIK_RENK / etiket ortak)
 // v2.4: tıklanan hücrenin data listesinde "Kaynak" sütunu (VIP kaynaklarda VIP etiketi)
 // v2.3: satış ekibi src/lib/satisEkibi.js'te: Furkan Atalı eklendi (İzmir), şube listeden gelir, ID sekmesinde olmayanlar (Özgür Koç) listedeki Kylas ID ile eşlenir
@@ -48,7 +49,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v2.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v2.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -195,24 +196,21 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   return (
     <>
       <div style={c.panel}>
-        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", alignItems: "flex-start" }}>
-          <div>
-            <div style={etiket("kaynak")}><Ipucu metin="Birden fazla kaynak seçilebilir. ★ VIP Datalar hızlı seçimi 6 VIP kaynağı birden işaretler.">Veri kaynağı</Ipucu></div>
+        <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center" }}>
+          <Cerceve tur="kaynak">
             <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Kaynak seçin" />
-          </div>
-          <div>
-            <div style={etiket("tarih")}><Ipucu metin="Datanın Kylas'ta oluşturulduğu tarih. Tümü: tüm zamanlar.">Data tarihi</Ipucu></div>
-            <TarihSecici deger={gun} onChange={setGun} />
-          </div>
+          </Cerceve>
+          <Cerceve tur="tarih" metin="Data tarihi: datanın Kylas'ta oluşturulduğu tarih. Tümü: tüm zamanlar.">
+            <TarihSecici deger={gun} onChange={setGun} bosMetin="Data tarihi" />
+          </Cerceve>
           {isAdmin && rapor && subeler.length > 2 && (
-            <div>
-              <div style={etiket("sube")}>Şube</div>
+            <Cerceve tur="sube" metin="Şube">
               <div style={c.chipSatir}>
                 {subeler.map(sb => (
                   <button key={sb} onClick={() => setSube(sb)} style={sube === sb ? c.chipAktif : c.chip}>{sb}</button>
                 ))}
               </div>
-            </div>
+            </Cerceve>
           )}
         </div>
       </div>
@@ -403,9 +401,19 @@ export function NotBalonu({ lead, onbellek }) {
 }
 
 const chipTemel = { padding: "7px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif", transition: "all 0.15s" };
-// Filtre başlıklarının renkleri: aynı başlık her sekmede aynı renkte
+// Filtre çerçevelerinin renkleri: aynı filtre her sekmede aynı renkte (başlık yerine renkli çerçeve)
 export const BASLIK_RENK = { danisman: "#0891b2", sube: "#6366f1", kaynak: "#d97706", tarih: "#7c3aed", asama: "#059669" };
-export const etiket = tur => ({ ...c.etiket, color: BASLIK_RENK[tur], borderLeft: `3px solid ${BASLIK_RENK[tur]}`, paddingLeft: "8px", lineHeight: 1.3 });
+// Filtreyi saran renkli çerçeve. metin verilirse üzerine gelince açıklama balonu çıkar (açılır menülü filtrelerde verilmez, balon menüyü örter).
+export function Cerceve({ tur, metin, children, style }) {
+  const renk = BASLIK_RENK[tur];
+  const kutu = (
+    <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "6px", borderRadius: "18px",
+      border: `1.5px solid ${renk}`, background: `${renk}0d`, ...style }}>
+      {children}
+    </div>
+  );
+  return metin ? <Ipucu metin={metin} blok isaret={false} style={{ display: "inline-block" }}>{kutu}</Ipucu> : kutu;
+}
 
 export const c = {
   panel: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "20px 24px", marginBottom: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },

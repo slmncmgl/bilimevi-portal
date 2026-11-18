@@ -1,3 +1,4 @@
+// v1.3: danışman ve gün seçimi renkli çerçevede (diğer sekmelerle aynı renkler); bölüm başlıkları sade
 // v1.2: bölüm başlıkları renkli
 // v1.1: kendi sekmesi "Danışman Özeti" (önce Aktivite Tablosu içinde kutuydu). Danışman seçilmeden Kylas'a istek gitmez,
 //       açılışta seçim boş gelir. Seçilebilir danışmanlar rol kuralıyla: admin satış ekibi, manager kendi şubesi, staff kendisi.
@@ -7,7 +8,7 @@
 // Sayılar crm-rapor "ozet" işleminden gelir.
 // Aşama değişiklikleri Kylas'ta geçmiş olarak tutulmadığı için henüz sayılmıyor.
 import { useState, useEffect } from "react";
-import { apiCagir, c, etiket, KYLAS_LEAD_URL, tarih, KAYNAKLAR, kisileriYukle, kucuk } from "./CrmRaporu";
+import { apiCagir, c, Cerceve, KYLAS_LEAD_URL, tarih, KAYNAKLAR, kisileriYukle, kucuk } from "./CrmRaporu";
 import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 
@@ -18,7 +19,7 @@ const ASAMALAR = [
 const ASAMA_ADI = Object.fromEntries(ASAMALAR);
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const SAYFA = 20;
-export const OZET_SURUM = "v1.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const OZET_SURUM = "v1.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ACIKLAMA = {
   baslik: "Seçili danışmanın son N gündeki işleri ve bu dönemde aldığı yeni datalar. Tüm veri kaynakları sayılır.",
@@ -93,6 +94,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
           {yukleniyor && veri && <span style={{ ...c.spinner, width: "14px", height: "14px" }} />}
         </span>
         <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+          <Cerceve tur="danisman">
           <select value={kisiId || ""} onChange={e => setKisiId(e.target.value || null)} style={{ ...o.secim, ...(kisiId ? {} : o.secimBos) }} aria-label="Danışman">
             <option value="">{kisiler ? "Danışman seçin" : "Yükleniyor..."}</option>
             {subeler.length > 1
@@ -103,7 +105,8 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
               ))
               : secilebilir.map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
           </select>
-          <TarihSecici deger={gun} onChange={setGun} tumu={false} enFazla={90} />
+          </Cerceve>
+          <Cerceve tur="tarih"><TarihSecici deger={gun} onChange={setGun} tumu={false} enFazla={90} /></Cerceve>
         </div>
       </div>
 
@@ -116,7 +119,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
         <div style={{ padding: "18px 24px 20px", opacity: yukleniyor ? 0.45 : 1, pointerEvents: yukleniyor ? "none" : "auto", transition: "opacity 0.2s" }}>
           <div style={o.ikili}>
             <div>
-              <div style={etiket("danisman")}><Ipucu metin={ACIKLAMA.aktivite}>Aktivite</Ipucu></div>
+              <div style={c.etiket}><Ipucu metin={ACIKLAMA.aktivite}>Aktivite</Ipucu></div>
               <div style={o.kartlar}>
                 <Kucuk sayi={a.not} etiket="Yazdığı not" ipucu={ACIKLAMA.not} />
                 <Kucuk sayi={a.notluData} etiket="Not girdiği data" ipucu={ACIKLAMA.notluData} />
@@ -125,7 +128,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
               </div>
             </div>
             <div>
-              <div style={etiket("kaynak")}><Ipucu metin={ACIKLAMA.yeni}>Yeni gelen data</Ipucu></div>
+              <div style={c.etiket}><Ipucu metin={ACIKLAMA.yeni}>Yeni gelen data</Ipucu></div>
               <div style={o.kartlar}>
                 <Kucuk sayi={y.toplam} etiket="Yeni data" ipucu={ACIKLAMA.yeni} secili={filtre === "hepsi"} onClick={y.toplam ? () => filtreSec("hepsi") : null} />
                 <Kucuk sayi={y.notlu} etiket="Notu var" ipucu={ACIKLAMA.notlu} secili={filtre === "notlu"} onClick={y.notlu ? () => filtreSec("notlu") : null} />
@@ -139,7 +142,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
 
           {y.toplam > 0 && (
             <div style={{ marginTop: "16px" }}>
-              <div style={etiket("asama")}>Yeni datalar bugün hangi aşamada</div>
+              <div style={c.etiket}>Yeni datalar bugün hangi aşamada</div>
               <div style={o.bar}>
                 {ASAMALAR.filter(([id]) => y.asamalar[id]).map(([id, ad], i) => (
                   <div key={id} title={`${ad}: ${y.asamalar[id]}`} style={{ flex: y.asamalar[id], background: RENK[i % RENK.length] }} />
