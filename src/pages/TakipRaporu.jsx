@@ -1,3 +1,4 @@
+// v3.1: admin/manager listede değilse açılışta danışman seçili gelmez, seçim uyarısı çıkar; filtre başlıkları renkli
 // v3.0: "Son N gün özeti" kutusu ayrı sekmeye taşındı (Danışman Özeti, DanismanOzeti.jsx)
 // v2.9: "Son N gün özeti" kutusu (SonGunOzeti.jsx): tek danışmanın son N gündeki notları, task'ları ve yeni dataları
 // v2.8: açılışta giriş yapan kişinin kendi adı seçili (listede yoksa tüm danışmanlar)
@@ -36,9 +37,9 @@ import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
-import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
+import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, etiket } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v3.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v3.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -100,11 +101,13 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const subeler = ["Tümü", ...[...new Set(satisci.map(k => k.sube).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"))];
 
-  // Varsayılan: giriş yapan kişi listede varsa sadece kendisi seçili; yoksa (ör. satışçı olmayan admin) görebildiği tüm danışmanlar
+  // Varsayılan: giriş yapan kişi listede varsa sadece kendisi seçili. Listede değilse admin ve manager'da seçim boş gelir
+  // (rapor çekilmez, seçim uyarısı görünür); staff'ta seçici olmadığı için görebildiği danışman seçilir.
   useEffect(() => {
     if (!kisiler || danismanlar.length || !secilebilir.length) return;
     const kendi = secilebilir.find(k => k.email === kucuk(user?.email) || kucuk(k.ad) === kucuk(user?.name));
-    setDanismanlar(kendi ? [kendi.id] : secilebilir.map(k => k.id));
+    if (kendi) setDanismanlar([kendi.id]);
+    else if (!isAdmin && !isManager) setDanismanlar(secilebilir.map(k => k.id));
   }, [kisiler]);
   // Şube değişince görünmeyen danışmanlar seçimden düşer
   const secilebilirAnahtar = secilebilir.map(k => k.id).join(",");
@@ -167,7 +170,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
       <div style={c.panel}>
         {isAdmin && subeler.length > 2 && (
           <div style={{ marginBottom: "16px" }}>
-            <div style={c.etiket}>Şube</div>
+            <div style={etiket("sube")}>Şube</div>
             <div style={c.chipSatir}>
               {subeler.map(sb => <button key={sb} onClick={() => setSube(sb)} style={sube === sb ? c.chipAktif : c.chip}>{sb}</button>)}
             </div>
@@ -176,7 +179,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         {(isAdmin || isManager) && (
           <div style={{ marginBottom: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
-              <div style={{ ...c.etiket, marginBottom: 0 }}><Ipucu metin={ACIKLAMA.coklu}>Danışman</Ipucu></div>
+              <div style={{ ...etiket("danisman"), marginBottom: 0 }}><Ipucu metin={ACIKLAMA.coklu}>Danışman</Ipucu></div>
               <div style={{ display: "flex", gap: "6px" }}>
                 <button onClick={() => setDanismanlar(secilebilir.map(k => k.id))} style={hepsiSecili ? c.chipAktif : c.chip}>Tümünü seç</button>
                 <button onClick={() => setDanismanlar([])} disabled={!danismanlar.length}
@@ -194,7 +197,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         )}
         <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", alignItems: "flex-start" }}>
           <div>
-            <div style={c.etiket}>Veri kaynağı</div>
+            <div style={etiket("kaynak")}>Veri kaynağı</div>
             <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
               <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Tüm kaynaklar" />
               <Ipucu metin={ACIKLAMA.vip} isaret={false}>
@@ -205,14 +208,19 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             </div>
           </div>
           <div>
-            <div style={c.etiket}><Ipucu metin={ACIKLAMA.sonEtkinlik}>Son Etkinlik Tarihi</Ipucu></div>
+            <div style={etiket("tarih")}><Ipucu metin={ACIKLAMA.sonEtkinlik}>Son Etkinlik Tarihi</Ipucu></div>
             <TarihSecici deger={sessizGun || null} onChange={v => setSessizGun(v === null ? 0 : v)} metin={g => `${g} günden eski`} nMetni="N günden eski" />
           </div>
         </div>
       </div>
 
       {kisiHata && <div style={c.hata}>{kisiHata}</div>}
-      {kisiler && !danismanlar.length && <div style={c.bos}>Raporu görmek için bir ya da birden fazla danışman seçin.</div>}
+      {kisiler && !danismanlar.length && (
+        <div style={t.uyari}>
+          <span style={t.uyariIkon}>!</span>
+          <span><b>Danışman seçin.</b> Raporu görmek için yukarıdan bir ya da birden fazla danışman seçin{isAdmin ? ", ya da önce şube seçip Tümünü seç'e basın" : ""}.</span>
+        </div>
+      )}
       {danismanlar.length > 0 && yukleniyor && <div style={c.bos}><span style={c.spinner} /> Kylas'tan Datalar alınıyor...</div>}
       {danismanlar.length > 0 && !yukleniyor && hata && <div style={c.hata}>{hata}</div>}
 
@@ -271,7 +279,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             </div>
             <div style={t.filtreler}>
               <div>
-                <div style={c.etiket}><Ipucu metin={ACIKLAMA.coklu}>Aşama</Ipucu></div>
+                <div style={etiket("asama")}><Ipucu metin={ACIKLAMA.coklu}>Aşama</Ipucu></div>
                 <div style={c.chipSatir}>
                   <button onClick={() => setAsamaSecim([])} style={!asamaSecim.length ? c.chipAktif : c.chip}>Tümü ({asamaSayisi(null)})</button>
                   {ASAMA_SIRASI.map(id => (
@@ -388,6 +396,10 @@ const VIP_CSS = `
 `;
 
 const t = {
+  uyari: { display: "flex", alignItems: "center", gap: "12px", padding: "16px 20px", marginBottom: "20px", borderRadius: "16px",
+    background: "#fffbeb", border: "1.5px solid #fde68a", color: "#92400e", fontSize: "14px", lineHeight: 1.5, animation: "fadeUp 0.3s ease-out" },
+  uyariIkon: { flex: "0 0 auto", width: "26px", height: "26px", borderRadius: "50%", background: "#f59e0b", color: "#fff", fontWeight: 800,
+    display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "14px" },
   kartlar: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px", animation: "fadeUp 0.4s ease-out" },
   kart: { border: "1.5px solid", borderRadius: "16px", padding: "18px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
   kartSayi: { fontSize: "26px", fontWeight: 700, marginBottom: "4px", fontVariantNumeric: "tabular-nums" },

@@ -1,3 +1,4 @@
+// v1.5: filtre başlıkları renkli (Data kaynağı, Data tarihi)
 // v1.4: izinli = Kylas'ta bitiş tarihli "müsait değil" (bitiş tarihsiz durum izin sayılmaz, sunucu crm-rapor v2.5)
 // v1.3: tablo altı not ve satır içi açıklamalar kaldırıldı; açıklamalar üzerine gelince balonda (Ipucu.jsx)
 // v1.2: Data tarihi açılışta "Tümü"
@@ -12,11 +13,11 @@
 // Sayılar /api/crm-rapor islem "degerlendirme"den gelir. Rol kuralı diğer sekmelerle aynı.
 import { useState, useEffect } from "react";
 import { VIP_KAYNAKLAR } from "../lib/vipKaynaklar";
-import { apiCagir, kucuk, kisileriYukle, c } from "./CrmRaporu";
+import { apiCagir, kucuk, kisileriYukle, c, etiket } from "./CrmRaporu";
 import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 
-export const DEGERLENDIRME_SURUM = "v1.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const DEGERLENDIRME_SURUM = "v1.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 // Kylas "Kaynak" picklist ID'leri
 const KAYNAK_GRUPLARI = [
@@ -120,7 +121,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
       <div style={c.panel}>
         <div style={{ display: "flex", gap: "28px", flexWrap: "wrap", alignItems: "flex-start" }}>
           <div>
-            <div style={c.etiket}><Ipucu metin={ACIKLAMA.kaynak}>Data kaynağı</Ipucu></div>
+            <div style={etiket("kaynak")}><Ipucu metin={ACIKLAMA.kaynak}>Data kaynağı</Ipucu></div>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               <Anahtar ad="Tüm datalar" acik={!gruplar.length} onClick={() => setGruplar([])} />
               {KAYNAK_GRUPLARI.map(g => (
@@ -129,7 +130,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
             </div>
           </div>
           <div>
-            <div style={c.etiket}><Ipucu metin={ACIKLAMA.tarih}>Data tarihi</Ipucu></div>
+            <div style={etiket("tarih")}><Ipucu metin={ACIKLAMA.tarih}>Data tarihi</Ipucu></div>
             <TarihSecici deger={gun} onChange={setGun} />
           </div>
         </div>
