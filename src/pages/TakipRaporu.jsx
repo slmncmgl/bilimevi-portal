@@ -1,3 +1,4 @@
+// v3.2: danışman seçimi açılır çoklu menüde (DanismanSecici.jsx), şubelere göre gruplu; Veri kaynağı ve tarihle aynı satırda
 // v3.1: admin/manager listede değilse açılışta danışman seçili gelmez, seçim uyarısı çıkar; filtre başlıkları renkli
 // v3.0: "Son N gün özeti" kutusu ayrı sekmeye taşındı (Danışman Özeti, DanismanOzeti.jsx)
 // v2.9: "Son N gün özeti" kutusu (SonGunOzeti.jsx): tek danışmanın son N gündeki notları, task'ları ve yeni dataları
@@ -36,10 +37,11 @@
 import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
+import DanismanSecici from "./DanismanSecici";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, etiket } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v3.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v3.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -115,7 +117,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     if (!kisiler) return;
     setDanismanlar(s => s.filter(id => secilebilir.some(k => k.id === id)));
   }, [secilebilirAnahtar]);
-  const danismanDegistir = id => setDanismanlar(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
+  const subeyeGore = [...secilebilir].sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr"));
   const hepsiSecili = secilebilir.length > 0 && secilebilir.every(k => danismanlar.includes(k.id));
 
   // Danışman ve kaynak seçimi art arda değişebilir: istek 400 ms bekleyip tek seferde gider
@@ -176,26 +178,13 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             </div>
           </div>
         )}
-        {(isAdmin || isManager) && (
-          <div style={{ marginBottom: "16px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
-              <div style={{ ...etiket("danisman"), marginBottom: 0 }}><Ipucu metin={ACIKLAMA.coklu}>Danışman</Ipucu></div>
-              <div style={{ display: "flex", gap: "6px" }}>
-                <button onClick={() => setDanismanlar(secilebilir.map(k => k.id))} style={hepsiSecili ? c.chipAktif : c.chip}>Tümünü seç</button>
-                <button onClick={() => setDanismanlar([])} disabled={!danismanlar.length}
-                  style={{ ...c.chip, color: "#dc2626", borderColor: "#fecaca", opacity: danismanlar.length ? 1 : 0.4, cursor: danismanlar.length ? "pointer" : "default" }}>Temizle</button>
-              </div>
-            </div>
-            <div style={c.chipSatir}>
-              {!kisiler && !kisiHata && <span style={{ fontSize: "13px", color: "#94a3b8" }}>Yükleniyor...</span>}
-              {secilebilir.map(k => {
-                const var_ = danismanlar.includes(k.id);
-                return <button key={k.id} onClick={() => danismanDegistir(k.id)} style={var_ ? c.chipAktif : c.chip}>{var_ ? "✓ " : ""}{k.ad}</button>;
-              })}
-            </div>
-          </div>
-        )}
         <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", alignItems: "flex-start" }}>
+          {(isAdmin || isManager) && (
+            <div>
+              <div style={etiket("danisman")}><Ipucu metin={ACIKLAMA.coklu}>Danışman</Ipucu></div>
+              <DanismanSecici danismanlar={subeyeGore} secili={danismanlar} onChange={setDanismanlar} yukleniyor={!kisiler && !kisiHata} />
+            </div>
+          )}
           <div>
             <div style={etiket("kaynak")}>Veri kaynağı</div>
             <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
