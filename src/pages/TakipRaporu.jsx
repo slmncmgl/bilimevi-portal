@@ -1,3 +1,4 @@
+// v2.8: açılışta giriş yapan kişinin kendi adı seçili (listede yoksa tüm danışmanlar)
 // v2.7: "Son not" sütunu kaldırıldı (danışman son aktivitesi ileride n8n'in yazdığı alandan gelecek)
 // v2.6: listede "Son not" sütunu: sayfadaki datalar için en son notun tarihi 5'erli parçalarla Kylas'tan okunur
 //       (Kylas not girilince Latest Activity On'u güncellemiyor). Deneme: Son aktivite sütunu yanında duruyor.
@@ -35,7 +36,7 @@ import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v2.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v2.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -97,9 +98,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     .sort((a, b) => a.ad.localeCompare(b.ad, "tr"));
   const subeler = ["Tümü", ...[...new Set(satisci.map(k => k.sube).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr"))];
 
-  // Varsayılan: görebildiği tüm danışmanlar seçili (admin satış ekibi, manager şubesi, staff kendisi)
+  // Varsayılan: giriş yapan kişi listede varsa sadece kendisi seçili; yoksa (ör. satışçı olmayan admin) görebildiği tüm danışmanlar
   useEffect(() => {
-    if (kisiler && !danismanlar.length && secilebilir.length) setDanismanlar(secilebilir.map(k => k.id));
+    if (!kisiler || danismanlar.length || !secilebilir.length) return;
+    const kendi = secilebilir.find(k => k.email === kucuk(user?.email) || kucuk(k.ad) === kucuk(user?.name));
+    setDanismanlar(kendi ? [kendi.id] : secilebilir.map(k => k.id));
   }, [kisiler]);
   // Şube değişince görünmeyen danışmanlar seçimden düşer
   const secilebilirAnahtar = secilebilir.map(k => k.id).join(",");
