@@ -1,3 +1,4 @@
+// v2.4: tıklanan hücrenin data listesinde "Kaynak" sütunu (VIP kaynaklarda VIP etiketi)
 // v2.3: satış ekibi src/lib/satisEkibi.js'te: Furkan Atalı eklendi (İzmir), şube listeden gelir, ID sekmesinde olmayanlar (Özgür Koç) listedeki Kylas ID ile eşlenir
 // v2.2: açıklamalar üzerine gelince balonda (Ipucu.jsx): Veri kaynağı, Data tarihi, Danışman sütunu, Diğer satırı
 // v2.1: Data tarihi açılışta "Tümü"
@@ -46,7 +47,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v2.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v2.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -317,6 +318,7 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat }) {
                 <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Data ID</th>
                 <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Ad Soyad</th>
                 {!secim.asama && <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Aşama</th>}
+                <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Kaynak</th>
                 <th style={{ ...c.th, position: "sticky", top: 0 }}>Oluşturma</th>
                 <th style={{ ...c.th, position: "sticky", top: 0 }}>Son aktivite</th>
                 <th style={{ ...c.th, position: "sticky", top: 0 }}>Sonraki task</th>
@@ -331,6 +333,10 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat }) {
                   </td>
                   <td style={{ ...c.td, textAlign: "left", color: "#0f172a", fontWeight: 600, whiteSpace: "nowrap" }}>{l.ad || <span style={{ color: "#cbd5e1" }}>İsimsiz</span>}</td>
                   {!secim.asama && <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>{asamaAdi(l.asama)}</td>}
+                  <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>
+                    {KAYNAKLAR.find(k => k.id === l.kaynak)?.ad || "Diğer"}
+                    {VIP_KAYNAKLAR.includes(l.kaynak) && <span style={c.vip}>VIP</span>}
+                  </td>
                   <td style={c.td}>{tarih(l.olusturma)}</td>
                   <td style={c.td}>{tarih(l.sonAktivite) || <span style={{ color: "#cbd5e1" }}>·</span>}</td>
                   <td style={{ ...c.td, color: l.sonrakiTask && new Date(l.sonrakiTask) < new Date() ? "#dc2626" : undefined }}>
@@ -415,6 +421,7 @@ export const c = {
   sayiBtnSecili: { background: "#0891b2", color: "#fff", textDecoration: "none" },
   kapatBtn: { width: "28px", height: "28px", borderRadius: "8px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", cursor: "pointer", fontSize: "12px" },
   link: { color: "#0891b2", fontWeight: 600, textDecoration: "none", fontVariantNumeric: "tabular-nums" },
+  vip: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
   notIkon: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "8px", color: "#64748b", cursor: "default", background: "#f1f5f9" },
   balon: { position: "fixed", width: "360px", maxHeight: "320px", overflowY: "auto", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 12px 32px rgba(15,23,42,0.16)", padding: "14px 16px", fontSize: "13px", lineHeight: 1.5, textAlign: "left", zIndex: 50 },
 };

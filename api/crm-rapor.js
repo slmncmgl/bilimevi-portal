@@ -1,3 +1,4 @@
+// v2.7: islem "liste" datanın kaynağını da döner (kaynak: source id), Data Tablosu listesinde Kaynak sütunu için
 // v2.6: Aktivite Tablosu "Son N gün özeti" (tek danışman, N 1-90): islem "ozet": { ownerId, gun } ->
 //       dönemde gelen yeni datalar (şu anki aşama, task'ı ve notu var mı, en fazla 300'ü listede), danışmanın dönemde
 //       yazdığı not (POST /v1/notes/search, createdBy + createdAt), açtığı ve tamamladığı task sayısı. Aşama değişikliği henüz sayılmıyor.
@@ -369,12 +370,13 @@ async function liste(req, res, kurallar, yetki) {
 
   const k = [...kurallar, kural("ownerId", "in", ownerIds)];
   if (asama) k.push(kural("pipelineStage", "equal", asama));
-  const d = await kylasAra(k, 0, LISTE_ALANLARI, "createdAt,desc");
+  const d = await kylasAra(k, 0, [...LISTE_ALANLARI, "source"], "createdAt,desc");
   const leadler = (d.content || []).slice(0, LISTE_SINIR).map(l => ({
     id: l.id,
     ad: [l.firstName, l.lastName].filter(Boolean).join(" "),
     ownerId: l.ownerId,
     asama: l.pipelineStage,
+    kaynak: l.source ?? null,
     olusturma: l.createdAt || null,
     sonAktivite: l.latestActivityCreatedAt || null,
     sonrakiTask: l.taskDueOn || null,
