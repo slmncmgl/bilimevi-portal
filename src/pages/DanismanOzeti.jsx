@@ -1,10 +1,12 @@
+// v1.1: kendi sekmesi "Danışman Özeti" (önce Aktivite Tablosu içinde kutuydu). Danışman seçilmeden Kylas'a istek gitmez,
+//       açılışta seçim boş gelir. Seçilebilir danışmanlar rol kuralıyla: admin satış ekibi, manager kendi şubesi, staff kendisi.
 // v1.0: Aktivite Tablosu > "Son N gün özeti" (tek danışman)
 // Seçili danışmanın son N günde (1-90, açılışta 7) yazdığı not, not girdiği data, açtığı ve tamamladığı task sayısı;
 // aynı dönemde aldığı yeni datalar: şu an hangi aşamada, kaçına not girilmiş, kaçında task var, kaçına hiç dokunulmamış.
-// Sayılar crm-rapor "ozet" işleminden gelir. Üstteki kaynak ve Son Etkinlik seçimleri bu kutuyu etkilemez.
+// Sayılar crm-rapor "ozet" işleminden gelir.
 // Aşama değişiklikleri Kylas'ta geçmiş olarak tutulmadığı için henüz sayılmıyor.
 import { useState, useEffect } from "react";
-import { apiCagir, c, KYLAS_LEAD_URL, tarih, KAYNAKLAR } from "./CrmRaporu";
+import { apiCagir, c, KYLAS_LEAD_URL, tarih, KAYNAKLAR, kisileriYukle, kucuk } from "./CrmRaporu";
 import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 
@@ -15,9 +17,10 @@ const ASAMALAR = [
 const ASAMA_ADI = Object.fromEntries(ASAMALAR);
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const SAYFA = 20;
+export const OZET_SURUM = "v1.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ACIKLAMA = {
-  baslik: "Seçili danışmanın son N gündeki işleri ve bu dönemde aldığı yeni datalar. Yukarıdaki veri kaynağı ve Son Etkinlik seçimi bu kutuyu etkilemez, tüm kaynaklar sayılır.",
+  baslik: "Seçili danışmanın son N gündeki işleri ve bu dönemde aldığı yeni datalar. Tüm veri kaynakları sayılır.",
   not: "Danışmanın bu dönemde Kylas'ta yazdığı not sayısı.",
   notluData: "Danışmanın bu dönemde en az bir not yazdığı farklı data sayısı.",
   taskAcilan: "Danışmanın bu dönemde oluşturduğu task sayısı.",
@@ -29,8 +32,10 @@ const ACIKLAMA = {
   dokunulmamis: "Hâlâ Yeni aşamasında, notu ve task'ı olmayan yeni datalar.",
 };
 
-export default function SonGunOzeti({ secilebilir, varsayilanId }) {
-  const [kisiId, setKisiId] = useState(varsayilanId || null);
+export default function DanismanOzeti({ user, isAdmin, isManager }) {
+  const [kisiler, setKisiler] = useState(null);
+  const [kisiHata, setKisiHata] = useState(null);
+  const [kisiId, setKisiId] = useState(null); // açılışta boş: danışman seçilmeden istek gitmez
   const [gun, setGun] = useState(7);
   const [veri, setVeri] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
@@ -38,12 +43,20 @@ export default function SonGunOzeti({ secilebilir, varsayilanId }) {
   const [filtre, setFiltre] = useState(null); // null: liste kapalı | "hepsi" | "notlu" | "taskli" | "dokunulmamis" | aşama id
   const [gosterilen, setGosterilen] = useState(SAYFA);
 
-  // Üstte tek danışman seçilince ya da varsayılan değişince kutu onu izler
-  useEffect(() => { if (varsayilanId) setKisiId(varsayilanId); }, [varsayilanId]);
-  // Seçili kişi artık görünmüyorsa (şube değişti) varsayılana dön
   useEffect(() => {
-    if (kisiId && secilebilir.length && !secilebilir.some(k => k.id === kisiId)) setKisiId(varsayilanId || secilebilir[0].id);
-  }, [secilebilir.map(k => k.id).join(",")]);
+    kisileriYukle().then(setKisiler).catch(() => setKisiHata("Danışman listesi okunamadı."));
+  }, []);
+
+  // Rolüne göre seçilebilir danışmanlar (Aktivite Tablosu ile aynı kural)
+  const tumu = kisiler ? Object.entries(kisiler).map(([id, k]) => ({ id, ...k })).filter(k => k.personelde) : [];
+  const secilebilir = (isAdmin || isManager ? tumu.filter(k => k.satis) : tumu)
+    .filter(k => {
+      if (isAdmin) return true;
+      if (isManager) return kucuk(k.sube) === kucuk(user?.branch);
+      return k.email === kucuk(user?.email) || kucuk(k.ad) === kucuk(user?.name);
+    })
+    .sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr"));
+  const subeler = [...new Set(secilebilir.map(k => k.sube || "Şubesiz"))];
 
   useEffect(() => {
     setFiltre(null);
@@ -75,23 +88,26 @@ export default function SonGunOzeti({ secilebilir, varsayilanId }) {
     <div style={{ ...c.tablo, marginBottom: "20px" }}>
       <div style={c.tabloBaslik}>
         <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", display: "inline-flex", alignItems: "center", gap: "10px" }}>
-          <Ipucu metin={ACIKLAMA.baslik}>Son {gun} gün özeti</Ipucu>
+          <Ipucu metin={ACIKLAMA.baslik}>Danışman Özeti · Son {gun} gün</Ipucu>
           {yukleniyor && veri && <span style={{ ...c.spinner, width: "14px", height: "14px" }} />}
         </span>
         <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-          {secilebilir.length > 1 ? (
-            <select value={kisiId || ""} onChange={e => setKisiId(e.target.value)} style={o.secim} aria-label="Danışman">
-              {!kisiId && <option value="" disabled>Danışman seçin</option>}
-              {secilebilir.map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
-            </select>
-          ) : (
-            <span style={{ fontSize: "13px", fontWeight: 600, color: "#334155" }}>{secilebilir[0]?.ad}</span>
-          )}
+          <select value={kisiId || ""} onChange={e => setKisiId(e.target.value || null)} style={{ ...o.secim, ...(kisiId ? {} : o.secimBos) }} aria-label="Danışman">
+            <option value="">{kisiler ? "Danışman seçin" : "Yükleniyor..."}</option>
+            {subeler.length > 1
+              ? subeler.map(sb => (
+                <optgroup key={sb} label={sb}>
+                  {secilebilir.filter(k => (k.sube || "Şubesiz") === sb).map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
+                </optgroup>
+              ))
+              : secilebilir.map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
+          </select>
           <TarihSecici deger={gun} onChange={setGun} tumu={false} enFazla={90} />
         </div>
       </div>
 
-      {!kisiId && <div style={{ ...c.bos, padding: "28px 0" }}>Özet için bir danışman seçin.</div>}
+      {kisiHata && <div style={{ ...c.hata, margin: "16px 24px" }}>{kisiHata}</div>}
+      {!kisiId && !kisiHata && <div style={{ ...c.bos, padding: "40px 0" }}>Özeti görmek için yukarıdan bir danışman seçin.</div>}
       {kisiId && yukleniyor && !veri && <div style={{ ...c.bos, padding: "28px 0" }}><span style={c.spinner} /> Kylas'tan alınıyor...</div>}
       {kisiId && !yukleniyor && hata && <div style={{ ...c.hata, margin: "16px 24px" }}>{hata}</div>}
 
@@ -200,6 +216,7 @@ const RENK = ["#0891b2", "#6366f1", "#8b5cf6", "#a855f7", "#f59e0b", "#16a34a", 
 const o = {
   secim: { height: "34px", padding: "0 12px", borderRadius: "999px", border: "1.5px solid #0891b2", background: "#ecfeff", color: "#0f172a",
     fontSize: "12px", fontWeight: 700, fontFamily: "'Sora', sans-serif", cursor: "pointer" },
+  secimBos: { borderColor: "#e2e8f0", background: "#fff", color: "#64748b" },
   ikili: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px" },
   kartlar: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "10px" },
   kart: { border: "1.5px solid", borderRadius: "14px", padding: "12px 10px", textAlign: "center", height: "100%", boxSizing: "border-box", transition: "all 0.15s" },

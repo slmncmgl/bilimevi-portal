@@ -1,3 +1,4 @@
+// v3.2: yeni sekme "Danışman Özeti" (2. sırada), Aktivite Tablosu v3.0
 // v3.1: Aktivite Tablosu v2.9 (Son N gün özeti kutusu)
 // v3.0: Aktivite Tablosu v2.8 (açılışta kendi adı seçili)
 // v2.9: Performans Tablosu v1.4 (izinli kuralı)
@@ -26,12 +27,13 @@ import { getSession } from "../utils/sheets";
 import CrmRaporu, { CRM_SURUM } from "./CrmRaporu";
 import TakipRaporu, { AKTIVITE_SURUM } from "./TakipRaporu";
 import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerlendirme";
+import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v3.1"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v3.2"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
-const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Data Tablosu ${CRM_SURUM} · Performans Tablosu ${DEGERLENDIRME_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
+const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Danışman Özeti ${OZET_SURUM} · Data Tablosu ${CRM_SURUM} · Performans Tablosu ${DEGERLENDIRME_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -246,13 +248,14 @@ export default function PerformansAnalizi() {
 
       <main style={s.main}>
         <div style={s.sekmeler}>
-          {[["takip", "Aktivite Tablosu"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
+          {[["takip", "Aktivite Tablosu"], ["ozet", "Danışman Özeti"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
             <button key={k} onClick={() => setSekme(k)} style={sekme === k ? s.sekmeAktif : s.sekme}>{ad}</button>
           ))}
         </div>
 
         {sekme === "crm" && <CrmRaporu user={user} isAdmin={isAdmin} isManager={isManager} />}
         {sekme === "takip" && <TakipRaporu user={user} isAdmin={isAdmin} isManager={isManager} />}
+        {sekme === "ozet" && <DanismanOzeti user={user} isAdmin={isAdmin} isManager={isManager} />}
         {sekme === "deg" && <PerformansDegerlendirme user={user} isAdmin={isAdmin} isManager={isManager} />}
 
         {sekme === "quiz" && (<>
