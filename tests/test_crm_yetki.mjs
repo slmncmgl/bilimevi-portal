@@ -32,6 +32,19 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (url.includes("/v1/users?")) return yanit(200, { content: [{ id: 101, availabilityStatus: { recordAssignment: { available: false, expirationDate: "2030-01-01T00:00:00.000Z" } } }, { id: 200, availabilityStatus: null }] });
   if (url.includes("/notes/relation")) return yanit(200, { totalElements: 0, content: [], metaData: {} });
+  if (url.includes("/notes/search")) {
+    const kurallar = JSON.parse(opts.body).jsonRule.rules;
+    assert.ok(kurallar.some(k => k.field === "createdBy") && kurallar.some(k => k.field === "createdAt"), "not araması danışman + tarih süzmeli");
+    return yanit(200, { totalPages: 1, content: [1, 1, 7].map(id => ({ relations: [{ entityType: "LEAD", entityId: id }] })) });
+  }
+  if (url.includes("/v1/tasks?")) {
+    const simdi = new Date().toISOString(), eski = "2020-01-01T00:00:00.000Z";
+    return yanit(200, { totalPages: 1, content: [
+      { createdBy: 101, createdAt: simdi, updatedAt: simdi, status: 2614528, assignedTo: 101, completedAt: simdi, relation: [{ targetEntityType: "LEAD", targetEntityId: 2 }] },
+      { createdBy: 300, createdAt: simdi, updatedAt: simdi, status: 2614526, assignedTo: 101, relation: [{ targetEntityType: "LEAD", targetEntityId: 1 }] },
+      { createdBy: 101, createdAt: eski, updatedAt: eski, status: 2614528, assignedTo: 101, completedAt: eski, relation: [{ targetEntityType: "LEAD", targetEntityId: 3 }] },
+    ] });
+  }
   throw new Error("beklenmeyen istek " + url);
 };
 const loglar = [];
@@ -127,5 +140,15 @@ assert.ok(cagrilar.some(c => c.url.includes("targetEntityOwnerId=101")), "gerçe
 // 5. AUTH_ENFORCE da zorunlu modu açar
 delete process.env.CRM_YETKI_ENFORCE; process.env.AUTH_ENFORCE = "1";
 assert.equal(await durum("su@x.com", { islem: "takip", ownerId: 100 }), 403);
+
+// 6. Son N gün özeti (zorunlu mod açık): tek danışman, yetki ve sayımlar
+assert.equal(await durum("su@x.com", { islem: "ozet", ownerId: 200, gun: 7 }), 403, "staff başkasının özetini alamaz");
+assert.equal(await durum("su@x.com", { islem: "ozet", ownerId: 101, gun: 91 }), 400, "90 günden uzun olmaz");
+assert.equal(await durum("su@x.com", { islem: "ozet", ownerIds: [101, 100], gun: 7 }), 400, "çoklu danışman yok");
+r = await iste("su@x.com", { islem: "ozet", ownerId: 101, gun: 7 });
+assert.equal(r.code, 200);
+assert.deepEqual(r.body.aktivite, { not: 3, notluData: 2, taskAcilan: 1, taskTamamlanan: 1 }, "dönem dışındaki task sayılmaz");
+assert.equal(r.body.yeni.toplam, 3); assert.equal(r.body.yeni.notlu, 1); assert.equal(r.body.yeni.taskli, 2);
+assert.equal(r.body.yeni.liste.find(l => l.id === 1).not, 2);
 
 console.log("Tüm CRM yetki testleri geçti.");

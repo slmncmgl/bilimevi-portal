@@ -1,3 +1,4 @@
+// v1.1: tumu={false} ile "Tümü" düğmesi gizlenir, enFazla ile N kutusunun üst sınırı (Aktivite Tablosu özet kutusu: 90)
 // v1.0: tabloların tarih seçimi (Aktivite, Performans ve Data Tablosu ortak kullanır)
 // "Tümü" düğmesi + yanında açılır liste: 7 / 14 / 30 gün ve "N gün". N seçilince yanda sadece rakam girilen bir kutu açılır.
 // deger: null = Tümü, sayı = gün. Kutuya yazılan sayı geçerliyse (1-3650) hemen üst bileşene gider; istekleri üst bileşen biriktirir.
@@ -7,7 +8,7 @@ import { useState, useEffect } from "react";
 const HAZIR = [7, 14, 30];
 const EN_FAZLA = 3650;
 
-export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} gün`, nMetni = "Son N gün" }) {
+export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} gün`, nMetni = "Son N gün", tumu = true, enFazla = EN_FAZLA }) {
   const hazirMi = HAZIR.includes(deger);
   const [nAcik, setNAcik] = useState(deger !== null && !hazirMi);
   const [yazi, setYazi] = useState(deger !== null && !hazirMi ? String(deger) : "");
@@ -23,7 +24,7 @@ export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} g�
     if (v === "N") {
       setNAcik(true);
       const n = Number(yazi);
-      if (Number.isInteger(n) && n >= 1 && n <= EN_FAZLA) onChange(n);
+      if (Number.isInteger(n) && n >= 1 && n <= enFazla) onChange(n);
       return;
     }
     setNAcik(false);
@@ -34,13 +35,13 @@ export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} g�
     const temiz = v.replace(/\D/g, "").slice(0, 4);
     setYazi(temiz);
     const n = Number(temiz);
-    if (temiz && n >= 1 && n <= EN_FAZLA) onChange(n);
+    if (temiz && n >= 1 && n <= enFazla) onChange(n);
   }
 
   const aktifTumu = deger === null;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-      <button type="button" onClick={() => { setNAcik(false); onChange(null); }} style={{ ...t.dugme, ...(aktifTumu ? t.aktif : {}) }}>Tümü</button>
+      {tumu && <button type="button" onClick={() => { setNAcik(false); onChange(null); }} style={{ ...t.dugme, ...(aktifTumu ? t.aktif : {}) }}>Tümü</button>}
       <select value={secim} onChange={e => listeDegisti(e.target.value)} style={{ ...t.liste, ...(!aktifTumu ? t.listeAktif : {}) }} aria-label="Süre seçin">
         <option value="" disabled>Süre seçin</option>
         {HAZIR.map(g => <option key={g} value={String(g)}>{metin(g)}</option>)}

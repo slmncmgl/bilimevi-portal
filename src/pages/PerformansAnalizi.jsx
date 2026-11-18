@@ -1,3 +1,4 @@
+// v3.1: Aktivite Tablosu v2.9 (Son N gün özeti kutusu)
 // v3.0: Aktivite Tablosu v2.8 (açılışta kendi adı seçili)
 // v2.9: Performans Tablosu v1.4 (izinli kuralı)
 // v2.8: Aktivite Tablosu v2.7 (Son not sütunu kaldırıldı)
@@ -27,7 +28,7 @@ import TakipRaporu, { AKTIVITE_SURUM } from "./TakipRaporu";
 import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerlendirme";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v3.0"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v3.1"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Data Tablosu ${CRM_SURUM} · Performans Tablosu ${DEGERLENDIRME_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;

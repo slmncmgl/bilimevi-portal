@@ -1,3 +1,6 @@
+// v2.6: Aktivite Tablosu "Son N gün özeti" (tek danışman, N 1-90): islem "ozet": { ownerId, gun } ->
+//       dönemde gelen yeni datalar (şu anki aşama, task'ı ve notu var mı, en fazla 300'ü listede), danışmanın dönemde
+//       yazdığı not (POST /v1/notes/search, createdBy + createdAt), açtığı ve tamamladığı task sayısı. Aşama değişikliği henüz sayılmıyor.
 // v2.5: izinli sayılması için Kylas'ta data atamasına kapalı + gelecekte bir bitiş tarihi gerekir. Bitiş tarihi olmayan
 //       "müsait değil" Kylas'ın anlık durumu (18.11.2026'da 48 aktif kullanıcıda vardı), izin sayılmaz.
 // v2.4: islem "sonNotlar": { leadler: [{ id, ownerId }] } (en fazla 50) -> { notlar: { id: { tarih, yazan } | null } }.
@@ -379,6 +382,107 @@ async function liste(req, res, kurallar, yetki) {
   return res.status(200).json({ toplam: d.totalElements || 0, leadler });
 }
 
+// ---- Son N gün özeti (tek danışman) ----
+const OZET_MAX_GUN = 90;
+const OZET_LISTE_SINIR = 300;
+const TASK_TAMAM = 2614528;
+const tarihSonrasi = (alan, iso) => kural(alan, "greater", iso, "date");
+
+// Dönemde güncellenen tüm task'lar (updatedAt'e göre yeniden eskiye, dönem dışına çıkınca durur)
+async function donemTasklari(basMs) {
+  const sonuc = [];
+  for (let page = 0; page < 20; page++) {
+    const r = await kylasGet(`https://api.kylas.io/v1/tasks?page=${page}&size=1000&sort=updatedAt,desc`);
+    if (!r.ok) throw new Error(`Task'lar alınamadı (HTTP ${r.status})`);
+    const d = await r.json();
+    const icerik = d.content || [];
+    let bitti = !icerik.length;
+    for (const t of icerik) {
+      if (zaman(t.updatedAt) < basMs) { bitti = true; break; }
+      sonuc.push(t);
+    }
+    if (bitti || page + 1 >= (d.totalPages || 0)) break;
+  }
+  return sonuc;
+}
+const taskLead = t => (Array.isArray(t.relation) ? t.relation : []).find(x => x.targetEntityType === "LEAD")?.targetEntityId;
+
+// Danışmanın dönemde yazdığı notlar (Kylas not araması; sadece hangi dataya yazıldığı kullanılır, not metni kullanılmaz)
+async function donemNotlari(ownerId, bas) {
+  const sonuc = [];
+  for (let page = 0; page < 10; page++) {
+    for (let deneme = 1; ; deneme++) {
+      const r = await fetch(`https://api.kylas.io/v1/notes/search?page=${page}&size=1000&sort=createdAt,desc`, {
+        method: "POST",
+        headers: { "api-key": process.env.KYLAS_API_KEY, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ jsonRule: { condition: "AND", valid: true, rules: [kural("createdBy", "equal", ownerId), tarihSonrasi("createdAt", bas)] } }),
+      });
+      if (r.status === 429 && deneme < 5) { await bekle(1200 * deneme); continue; }
+      if (!r.ok) throw new Error(`Notlar alınamadı (HTTP ${r.status})`);
+      const d = await r.json();
+      (d.content || []).forEach(n => sonuc.push((n.relations || []).find(x => x.entityType === "LEAD")?.entityId ?? null));
+      if (page + 1 >= (d.totalPages || 0)) return sonuc;
+      break;
+    }
+  }
+  return sonuc;
+}
+
+async function ozet(req, res, yetki) {
+  const ownerId = Number(req.body?.ownerId);
+  const gun = Number(req.body?.gun);
+  if (!Number.isInteger(ownerId)) return res.status(400).json({ error: "Danışman seçilmedi." });
+  if (!Number.isInteger(gun) || gun < 1 || gun > OZET_MAX_GUN) return res.status(400).json({ error: `Gün 1 ile ${OZET_MAX_GUN} arasında olmalı.` });
+  if (!yetkiKontrol(yetki, [ownerId], res, "crm-rapor ozet")) return;
+
+  const anahtar = `ozet:${ownerId}:${gun}`;
+  const eski = onbellek.get(anahtar);
+  if (eski && Date.now() - eski.zaman < 2 * 60 * 1000) return res.status(200).json(eski.veri);
+
+  const bas = new Date(Date.now() - gun * GUN_MS).toISOString();
+  const basMs = zaman(bas);
+  const [yeniler, notLeadleri, tasklar] = await Promise.all([
+    hepsiniCek([kural("ownerId", "equal", ownerId), kural("pipeline", "equal", PIPELINE_ID), tarihSonrasi("createdAt", bas)], [...LISTE_ALANLARI, "source"]),
+    donemNotlari(ownerId, bas),
+    donemTasklari(basMs),
+  ]);
+  if (yeniler === null) return res.status(422).json({ error: "Dönem çok kalabalık, daha kısa bir süre seçin." });
+
+  const yeniIdler = new Set(yeniler.map(l => l.id));
+  const taskliLead = new Set();
+  let acilan = 0, tamamlanan = 0;
+  for (const t of tasklar) {
+    const lead = taskLead(t);
+    if (lead && yeniIdler.has(lead)) taskliLead.add(lead);
+    if (t.createdBy === ownerId && zaman(t.createdAt) >= basMs) acilan++;
+    if (t.status === TASK_TAMAM && Number(t.assignedTo ?? t.ownerId) === ownerId && zaman(t.completedAt) >= basMs) tamamlanan++;
+  }
+  const notSayisi = {};
+  notLeadleri.forEach(id => { if (id) notSayisi[id] = (notSayisi[id] || 0) + 1; });
+  const asamalar = {};
+  yeniler.forEach(l => { asamalar[l.pipelineStage] = (asamalar[l.pipelineStage] || 0) + 1; });
+  const simdi = Date.now();
+  const satir = l => ({
+    id: l.id, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), asama: l.pipelineStage, kaynak: l.source,
+    olusturma: l.createdAt, task: taskliLead.has(l.id), not: notSayisi[l.id] || 0,
+    yeniBekliyor: l.pipelineStage === YENI && simdi - zaman(l.createdAt) > YENI_BEKLEME_MS,
+  });
+  const liste = yeniler.sort((a, b) => zaman(b.createdAt) - zaman(a.createdAt)).map(satir);
+  const veri = {
+    gun, baslangic: bas,
+    aktivite: { not: notLeadleri.length, notluData: Object.keys(notSayisi).length, taskAcilan: acilan, taskTamamlanan: tamamlanan },
+    yeni: {
+      toplam: yeniler.length, asamalar,
+      taskli: liste.filter(l => l.task).length,
+      notlu: liste.filter(l => l.not).length,
+      dokunulmamis: liste.filter(l => l.asama === YENI && !l.task && !l.not).length,
+      liste: liste.slice(0, OZET_LISTE_SINIR), kesildi: liste.length > OZET_LISTE_SINIR,
+    },
+  };
+  onbellek.set(anahtar, { zaman: Date.now(), veri });
+  return res.status(200).json(veri);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   if (!oturumKontrol(req, res, "crm-rapor")) return;
@@ -392,6 +496,9 @@ export default async function handler(req, res) {
   }
   if (req.body?.islem === "sonNotlar") {
     try { return await sonNotlar(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
+  }
+  if (req.body?.islem === "ozet") {
+    try { return await ozet(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
   }
   if (req.body?.islem === "notlar") {
     try { return await notlar(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }

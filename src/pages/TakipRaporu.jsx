@@ -1,3 +1,4 @@
+// v2.9: "Son N gün özeti" kutusu (SonGunOzeti.jsx): tek danışmanın son N gündeki notları, task'ları ve yeni dataları
 // v2.8: açılışta giriş yapan kişinin kendi adı seçili (listede yoksa tüm danışmanlar)
 // v2.7: "Son not" sütunu kaldırıldı (danışman son aktivitesi ileride n8n'in yazdığı alandan gelecek)
 // v2.6: listede "Son not" sütunu: sayfadaki datalar için en son notun tarihi 5'erli parçalarla Kylas'tan okunur
@@ -33,10 +34,11 @@
 import { useState, useEffect, useRef } from "react";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
+import SonGunOzeti from "./SonGunOzeti";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v2.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v2.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -110,6 +112,9 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     if (!kisiler) return;
     setDanismanlar(s => s.filter(id => secilebilir.some(k => k.id === id)));
   }, [secilebilirAnahtar]);
+  // Özet kutusu: üstte tek danışman seçiliyse o, yoksa giriş yapan kişi, o da yoksa listedeki ilk danışman
+  const kendiId = secilebilir.find(k => k.email === kucuk(user?.email) || kucuk(k.ad) === kucuk(user?.name))?.id;
+  const ozetVarsayilan = danismanlar.length === 1 ? danismanlar[0] : kendiId || secilebilir[0]?.id || null;
   const danismanDegistir = id => setDanismanlar(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
   const hepsiSecili = secilebilir.length > 0 && secilebilir.every(k => danismanlar.includes(k.id));
 
@@ -208,6 +213,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           </div>
         </div>
       </div>
+
+      {kisiler && secilebilir.length > 0 && <SonGunOzeti secilebilir={secilebilir} varsayilanId={ozetVarsayilan} />}
 
       {kisiHata && <div style={c.hata}>{kisiHata}</div>}
       {kisiler && !danismanlar.length && <div style={c.bos}>Raporu görmek için bir ya da birden fazla danışman seçin.</div>}
