@@ -1,3 +1,5 @@
+// v2.5: izinli sayılması için Kylas'ta data atamasına kapalı + gelecekte bir bitiş tarihi gerekir. Bitiş tarihi olmayan
+//       "müsait değil" Kylas'ın anlık durumu (18.11.2026'da 48 aktif kullanıcıda vardı), izin sayılmaz.
 // v2.4: islem "sonNotlar": { leadler: [{ id, ownerId }] } (en fazla 50) -> { notlar: { id: { tarih, yazan } | null } }.
 //       Aktivite Tablosu listede görünen datalar için son notun tarihini gösterir (Kylas not girince Latest Activity On'u güncellemiyor).
 //       Admin değilse sahipler Kylas'tan okunur ve rol kontrolünden geçer. Not istekleri 4'erli, 429'da bekleyip tekrar dener.
@@ -210,6 +212,7 @@ function sahipKurali(ownerIds) {
 
 // Kylas kullanıcılarının elle işaretlenen müsaitlik durumu (data ataması). 5 dk önbellek.
 // Not: tekil kullanıcı sorgusu vardiya saatine göre de "müsait değil" döner; izin için liste sorgusu kullanılır.
+// Sadece bitiş tarihli kapalılık izin sayılır (izin Kylas'ta süreli işaretleniyor).
 let musaitlikOnbellek = null;
 async function musaitlikGetir() {
   if (musaitlikOnbellek && Date.now() - musaitlikOnbellek.zaman < 5 * 60 * 1000) return musaitlikOnbellek.veri;
@@ -218,7 +221,8 @@ async function musaitlikGetir() {
   const veri = {};
   for (const u of (await r.json()).content || []) {
     const a = u.availabilityStatus?.recordAssignment;
-    veri[u.id] = { musait: a ? a.available !== false : true, bitis: a?.expirationDate || null };
+    const izinli = !!(a && a.available === false && a.expirationDate && new Date(a.expirationDate).getTime() > Date.now());
+    veri[u.id] = { musait: !izinli, bitis: izinli ? a.expirationDate : null };
   }
   musaitlikOnbellek = { zaman: Date.now(), veri };
   return veri;

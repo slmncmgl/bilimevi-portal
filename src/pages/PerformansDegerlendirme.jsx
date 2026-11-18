@@ -1,3 +1,4 @@
+// v1.4: izinli = Kylas'ta bitiş tarihli "müsait değil" (bitiş tarihsiz durum izin sayılmaz, sunucu crm-rapor v2.5)
 // v1.3: tablo altı not ve satır içi açıklamalar kaldırıldı; açıklamalar üzerine gelince balonda (Ipucu.jsx)
 // v1.2: Data tarihi açılışta "Tümü"
 // v1.1: "Kayıt dönüşümü dönemi" -> "Data tarihi": Tümü + açılır liste (Son 7 / 14 / 30 / N gün, TarihSecici.jsx)
@@ -15,7 +16,7 @@ import { apiCagir, kucuk, kisileriYukle, c } from "./CrmRaporu";
 import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 
-export const DEGERLENDIRME_SURUM = "v1.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const DEGERLENDIRME_SURUM = "v1.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 // Kylas "Kaynak" picklist ID'leri
 const KAYNAK_GRUPLARI = [
@@ -32,7 +33,7 @@ const ACIKLAMA = {
   kaynak: "Açık olan gruplar birleşir. Tüm datalar açılınca diğerleri kapanır.",
   tarih: "Kayıt dönüşümü bu tarih aralığında oluşan datalardan hesaplanır. Müsaitlik barını etkilemez.",
   danisman: "Satıra tıklayınca müsaitlik puanının nedenleri açılır.",
-  musaitlik: "Yeni data atamaya ne kadar uygun: %60 takip + %25 yük + %15 hız. Kylas'ta müsait değil (izinli) işaretli danışman öneriye girmez.",
+  musaitlik: "Yeni data atamaya ne kadar uygun: %60 takip + %25 yük + %15 hız. Kylas'ta bitiş tarihiyle müsait değil (izinli) işaretli danışman öneriye girmez.",
   takipsiz: `Takipsiz kuralı Aktivite Tablosu ile aynı (${SESSIZ_GUN} gün): İlgili ve VIP Görüşme'de task yoksa takipsiz, diğerlerinde task yok ve son etkinlik eski.`,
   kayit: "Data tarihi seçimine göre oluşan datalardan Kylas'ta Yeni Kayıt aşamasında olanlar. Yaz okulu grup kayıtları CRM dışında olduğu için dahil değil. Müsaitlik barına girmez.",
   yeni: "Yeni aşamasında 1 günden uzun süredir bekleyen data sayısı (ilk temas gecikiyor).",
