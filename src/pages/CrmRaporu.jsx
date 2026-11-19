@@ -1,3 +1,4 @@
+// v3.0: Danışman Ata onayı portal renklerinde pencerede (OnayPenceresi.jsx), tarayıcının onay kutusu kalktı
 // v2.9: giriş çubuğu ortak (FiltreCubugu.jsx): Danışman (çoklu, boşsa tümü) · kaynak + VIP · Data tarihi. Şube düğmeleri kalktı
 // v2.8: tıklanan hücrenin listesinde sayfalama (sayfa başına 10 / 20 / 30 / 50); başlıktaki kutucuk o sayfadaki Dataları seçer
 // v2.7: listede kutucuk sütunu + "Danışman Ata": seçilen Datalar başka satış danışmanına aktarılır (admin herkese, manager kendi şubesinde)
@@ -28,6 +29,7 @@
 import { useState, useEffect, useRef } from "react";
 import { VIP_KAYNAKLAR, kaynakOzeti } from "./KaynakSecici";
 import FiltreCubugu from "./FiltreCubugu";
+import OnayPenceresi from "./OnayPenceresi";
 import Ipucu from "./Ipucu";
 import { SATIS_EKIBI, satisBul } from "../lib/satisEkibi";
 
@@ -52,7 +54,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v2.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v3.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -289,6 +291,7 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
   const [hedef, setHedef] = useState("");
   const [aktarim, setAktarim] = useState(null); // { yapilan, toplam } aktarım sürerken
   const [sonuc, setSonuc] = useState(null); // { tur: "tamam" | "uyari" | "hata", metin }
+  const [onayAcik, setOnayAcik] = useState(false);
   const ref = useRef(null);
   const notOnbellek = useRef({});
   const atanabilir = !!hedefler?.length;
@@ -316,7 +319,7 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
 
   async function aktar() {
     if (!hedefKisi || !isaretli.length) return;
-    if (!window.confirm(`${isaretli.length} Data ${hedefKisi.ad} adlı danışmana aktarılacak. Kylas'ta Data sahibi değişir. Devam edilsin mi?`)) return;
+    setOnayAcik(false);
     setSonuc(null);
     const toplam = { aktarilan: 0, zatenSahibi: 0, sorunlu: 0 };
     let hataMetni = null;
@@ -355,6 +358,15 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
           <button onClick={onKapat} style={c.kapatBtn} title="Kapat">✕</button>
         </span>
       </div>
+      {onayAcik && hedefKisi && (
+        <OnayPenceresi baslik="Danışman ata" onayMetni={`${isaretli.length} Data'yı aktar`} onOnay={aktar} onVazgec={() => setOnayAcik(false)}>
+          <b style={{ color: "#0f172a" }}>{isaretli.length} Data</b>, <b style={{ color: "#0891b2" }}>{hedefKisi.ad}</b>
+          {hedefKisi.sube ? <span style={{ color: "#94a3b8" }}> · {hedefKisi.sube}</span> : null} adlı danışmana aktarılacak.
+          <div style={{ marginTop: "10px", padding: "10px 12px", borderRadius: "12px", background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: "12px" }}>
+            Kylas'ta Data sahibi hemen değişir.
+          </div>
+        </OnayPenceresi>
+      )}
       {sonuc && (
         <div style={{ ...c.atamaSonuc, ...(sonuc.tur === "tamam" ? c.atamaTamam : sonuc.tur === "uyari" ? c.atamaUyari : c.atamaHata) }}>
           <span>{sonuc.metin}</span>
@@ -386,7 +398,7 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
                   ))
                   : hedefler.map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
               </select>
-              <button onClick={aktar} disabled={!hedefKisi}
+              <button onClick={() => setOnayAcik(true)} disabled={!hedefKisi}
                 style={{ ...c.chipAktif, opacity: hedefKisi ? 1 : 0.4, cursor: hedefKisi ? "pointer" : "default" }}>Aktar</button>
               <button onClick={() => { setAtaAcik(false); setHedef(""); }} style={c.chip}>Vazgeç</button>
             </>

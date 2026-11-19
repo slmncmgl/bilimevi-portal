@@ -1,3 +1,4 @@
+// v4.1: Data Tablosu v3.0 (Danışman Ata onay penceresi)
 // v4.0: Aktivite, Danışman Özeti ve Data Tablosu aynı giriş çubuğunu kullanır (FiltreCubugu.jsx)
 // v3.9: Data Tablosu v2.8 (listede sayfalama)
 // v3.8: sürüm etiketi açık sekmenin sürümünü gösterir; Performans Tablosu sekmesi sadece adminde
@@ -38,7 +39,7 @@ import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerl
 import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v4.0"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v4.1"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
