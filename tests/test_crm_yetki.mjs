@@ -101,7 +101,7 @@ r = await iste("ali@x.com", { islem: "takip", ownerIds: [101, 200] });
 assert.ok(r.body.danismanlar["101"] && r.body.danismanlar["200"], "danışman başına özet"); // sahte arama sahibe göre süzmez
 
 // 2c. Performans Değerlendirme
-assert.equal(await durum("mehmet@x.com", { islem: "degerlendirme", ownerIds: [100, 101, 102], gun: 180 }), 200, "manager şubesini değerlendirir");
+assert.equal(await durum("mehmet@x.com", { islem: "degerlendirme", ownerIds: [100, 101, 102], gun: 180 }), 403, "Performans Tablosu sadece admin (v2.9)");
 assert.equal(await durum("mehmet@x.com", { islem: "degerlendirme", ownerIds: [101, 200], gun: 180 }), 403, "başka şube varsa red");
 assert.equal(await durum("su@x.com", { islem: "degerlendirme", ownerIds: [100], gun: 90 }), 403, "staff başkasını değerlendiremez");
 assert.equal(await durum("ali@x.com", { islem: "degerlendirme", ownerIds: [101], gun: 365 }), 200, "365 gün geçerli (tarih karşılaştırması)");

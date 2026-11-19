@@ -1,3 +1,4 @@
+// v3.8: sürüm etiketi açık sekmenin sürümünü gösterir; Performans Tablosu sekmesi sadece adminde
 // v3.7: Data Tablosu v2.7 (Danışman Ata)
 // v3.6: filtre başlıkları kalktı, renkli çerçeveler; Aktivite Tablosu v3.3 (Şube düğmeleri kalktı)
 // v3.5: Aktivite Tablosu v3.2 (danışman açılır çoklu seçim)
@@ -35,10 +36,20 @@ import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerl
 import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v3.7"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v3.8"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
-const SURUM_METNI = `Performans Analizi ${PERFORMANS_SURUM} · Aktivite Tablosu ${AKTIVITE_SURUM} · Danışman Özeti ${OZET_SURUM} · Data Tablosu ${CRM_SURUM} · Performans Tablosu ${DEGERLENDIRME_SURUM}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
+// Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
+const SEKME_SURUMU = {
+  takip: `Aktivite Tablosu ${AKTIVITE_SURUM}`,
+  ozet: `Danışman Özeti ${OZET_SURUM}`,
+  crm: `Data Tablosu ${CRM_SURUM}`,
+  deg: `Performans Tablosu ${DEGERLENDIRME_SURUM}`,
+  quiz: `Quiz Skorları · Performans Analizi ${PERFORMANS_SURUM}`,
+};
+const surumMetni = sekme => `${SEKME_SURUMU[sekme] || `Performans Analizi ${PERFORMANS_SURUM}`}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
+// Performans Tablosu sadece admin/director/owner'da görünür
+const SEKMELER = [["takip", "Aktivite Tablosu"], ["ozet", "Danışman Özeti"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu", "admin"], ["quiz", "Quiz Skorları"]];
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -253,7 +264,7 @@ export default function PerformansAnalizi() {
 
       <main style={s.main}>
         <div style={s.sekmeler}>
-          {[["takip", "Aktivite Tablosu"], ["ozet", "Danışman Özeti"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu"], ["quiz", "Quiz Skorları"]].map(([k, ad]) => (
+          {SEKMELER.filter(([, , rol]) => rol !== "admin" || isAdmin).map(([k, ad]) => (
             <button key={k} onClick={() => setSekme(k)} style={sekme === k ? s.sekmeAktif : s.sekme}>{ad}</button>
           ))}
         </div>
@@ -261,7 +272,7 @@ export default function PerformansAnalizi() {
         {sekme === "crm" && <CrmRaporu user={user} isAdmin={isAdmin} isManager={isManager} />}
         {sekme === "takip" && <TakipRaporu user={user} isAdmin={isAdmin} isManager={isManager} />}
         {sekme === "ozet" && <DanismanOzeti user={user} isAdmin={isAdmin} isManager={isManager} />}
-        {sekme === "deg" && <PerformansDegerlendirme user={user} isAdmin={isAdmin} isManager={isManager} />}
+        {sekme === "deg" && isAdmin && <PerformansDegerlendirme user={user} isAdmin={isAdmin} isManager={isManager} />}
 
         {sekme === "quiz" && (<>
         {loading && (
@@ -348,7 +359,7 @@ export default function PerformansAnalizi() {
           )
         )}
         </>)}
-        <SurumEtiketi surum={SURUM_METNI} />
+        <SurumEtiketi surum={surumMetni(sekme)} />
       </main>
 
       <style>{`

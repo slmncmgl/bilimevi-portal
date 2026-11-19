@@ -1,3 +1,4 @@
+// v2.9: degerlendirme (Performans Tablosu) sadece admin: değilse "[yetki]" logu, zorunlu modda 403
 // v2.8: islem "ata": { leadIds (en fazla 25), yeniSahip } -> datanın sahibini (ownerId) Kylas'ta değiştirir. Data Tablosu listesinden.
 //       İzleme modundan bağımsız HER ZAMAN zorunlu yetki: geçerli oturum + admin ya da manager. Hedef satış ekibinden olmalı.
 //       Manager sadece kendi şubesindeki datayı kendi şubesindeki danışmana aktarır. Yazmalar sırayla, aralarında 700 ms.
@@ -253,6 +254,10 @@ async function degerlendirme(req, res, yetki) {
   const hamKaynaklar = Array.isArray(req.body?.kaynaklar) ? req.body.kaynaklar : [];
   const kaynaklar = [...new Set(hamKaynaklar.map(Number))].filter(k => Number.isInteger(k) && k > 0).sort((a, b) => a - b);
   if (kaynaklar.length !== hamKaynaklar.length || kaynaklar.length > 30) return res.status(400).json({ error: "Geçersiz veri kaynağı." });
+  if (["manager", "staff", "tanimsiz"].includes(yetki.tur)) {
+    console.warn(`[yetki] crm-rapor degerlendirme: ${yetki.tur}${yetki.ad ? ` (${yetki.ad})` : ""} admin değil (${zorunluMu() ? "reddedildi" : "izleme, geçti"})`);
+    if (zorunluMu()) return res.status(403).json({ error: "Performans Tablosu sadece yöneticilere açık." });
+  }
   if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor degerlendirme")) return;
 
   const anahtar = `deg:${ownerIds.join(",")}:${kaynaklar.join(",")}:${gun || "tumu"}:${sessizGun}`;

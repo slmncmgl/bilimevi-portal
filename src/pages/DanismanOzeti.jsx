@@ -1,3 +1,4 @@
+// v1.4: staff'ta açılışta kendisi seçili gelir
 // v1.3: danışman ve gün seçimi renkli çerçevede (diğer sekmelerle aynı renkler); bölüm başlıkları sade
 // v1.2: bölüm başlıkları renkli
 // v1.1: kendi sekmesi "Danışman Özeti" (önce Aktivite Tablosu içinde kutuydu). Danışman seçilmeden Kylas'a istek gitmez,
@@ -19,7 +20,7 @@ const ASAMALAR = [
 const ASAMA_ADI = Object.fromEntries(ASAMALAR);
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const SAYFA = 20;
-export const OZET_SURUM = "v1.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const OZET_SURUM = "v1.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ACIKLAMA = {
   baslik: "Seçili danışmanın son N gündeki işleri ve bu dönemde aldığı yeni datalar. Tüm veri kaynakları sayılır.",
@@ -59,6 +60,10 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
     })
     .sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr"));
   const subeler = [...new Set(secilebilir.map(k => k.sube || "Şubesiz"))];
+  // Staff sadece kendini görür: açılışta doğrudan kendisi seçili gelir. Admin ve manager seçmeden istek gitmez.
+  useEffect(() => {
+    if (kisiler && !kisiId && !isAdmin && !isManager && secilebilir.length === 1) setKisiId(secilebilir[0].id);
+  }, [kisiler]);
 
   useEffect(() => {
     setFiltre(null);
