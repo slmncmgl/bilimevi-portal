@@ -16,7 +16,7 @@ import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 
-const VIP_DISI = TUM_KAYNAKLAR.filter(id => !VIP_KAYNAKLAR.includes(id));
+// Not: CrmRaporu bu dosyayı import ediyor (döngü). Oradan gelen listeleri modül yüklenirken okuma, sadece bileşen içinde kullan.
 const VIP_ACIKLAMA = "ON: sadece VIP kaynaklar (Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing). OFF: VIP kaynaklar çıkar, diğer tüm kaynaklar seçili kalır.";
 
 export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
@@ -35,7 +35,7 @@ export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
         <Cerceve tur="kaynak">
           <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynak.secili} onChange={kaynak.onChange} bosMetin={kaynak.bosMetin || "Tüm kaynaklar"} />
           <Ipucu metin={VIP_ACIKLAMA} isaret={false}>
-            <button onClick={() => kaynak.onChange(vipSecili ? VIP_DISI : VIP_KAYNAKLAR)} role="switch" aria-checked={vipSecili}
+            <button onClick={() => kaynak.onChange(vipSecili ? TUM_KAYNAKLAR.filter(id => !VIP_KAYNAKLAR.includes(id)) : VIP_KAYNAKLAR)} role="switch" aria-checked={vipSecili}
               className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}>
               <span>★ VIP Datalar <b className="vip-durum">{vipSecili ? "ON" : "OFF"}</b></span>
             </button>
