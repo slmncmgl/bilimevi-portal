@@ -1,3 +1,4 @@
+// v1.2: üst şerit kartla hizalı: sol kenar Telefon sütununda, sağ kenar Danışman sütununun bittiği yerde
 // v1.1: Kylas kaydı gibi düzen: ortada "Ad (#ID)" başlığı ve iki sıra bilgi (telefon, e-posta, şehir, danışman, form tarihi,
 //       Campaign Name, Data Kaynağı, aşama), altında not kutusu ve önceki notlar. Telefon ve e-posta islem "detay" ile alınır.
 // v1.0: "Bu dataları ele al" (Takip Tablosu). Listedeki datalar tam ekranda tek tek açılır, üstte sıra (3 / 30).
@@ -126,7 +127,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   return createPortal(
     <div style={s.zemin} role="dialog" aria-modal="true" aria-label="Dataları ele al">
       <style>{EKRAN_CSS}</style>
-      <header style={s.ust}>
+      <header className="elal-ust" style={s.ust}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
           <span style={s.logo}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
@@ -245,7 +246,7 @@ const s = {
   zemin: { position: "fixed", inset: 0, zIndex: 9500, display: "flex", flexDirection: "column", fontFamily: "'Sora', sans-serif",
     background: "radial-gradient(1200px 600px at 10% -10%, #ecfeff 0%, transparent 60%), radial-gradient(900px 500px at 110% 0%, #f5f3ff 0%, transparent 55%), #f8fafc",
     animation: "elalGir 0.22s ease-out" },
-  ust: { position: "relative", display: "flex", alignItems: "center", gap: "16px", padding: "14px 24px 18px", background: "rgba(255,255,255,0.85)",
+  ust: { position: "relative", display: "flex", alignItems: "center", gap: "16px", padding: "14px calc(max(24px, (100% - 1040px) / 2) + 25.5px) 18px", background: "rgba(255,255,255,0.85)",
     backdropFilter: "blur(8px)", borderBottom: "1px solid #e2e8f0", flexShrink: 0 },
   logo: { width: "38px", height: "38px", borderRadius: "12px", background: "linear-gradient(135deg, #0891b2, #7c3aed 60%, #db2777)",
     display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px rgba(124,58,237,0.35)", flexShrink: 0 },
@@ -315,7 +316,7 @@ const EKRAN_CSS = `
 @keyframes elalIskelet { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 .elal-iskelet { display: inline-block; width: 70%; height: 14px; border-radius: 6px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%; animation: elalIskelet 1.2s linear infinite; }
-@media (max-width: 820px) { .elal-alanlar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } .elal-govde { padding: 16px !important; } }
+@media (max-width: 820px) { .elal-alanlar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } .elal-govde { padding: 16px !important; } .elal-ust { padding-left: 41.5px !important; padding-right: 41.5px !important; } }
 @media (max-width: 480px) { .elal-alanlar { grid-template-columns: 1fr !important; } }
 @media (prefers-reduced-motion: reduce) { .elal-govde, .elal-cubuk, .elal-iskelet, .elal-yeni-not, .elal-ileri-acik, .elal-bitti-ikon { animation: none !important; } }
 `;
