@@ -1,3 +1,4 @@
+// v3.9: listede Oluşturma sütunu yerine her zaman Campaign Name
 // v3.8: Campaign Name araması huni ikonlu açılır kutuda (FiltreCubugu v1.3)
 // v3.7: Campaign Name "içerir" araması (giriş çubuğunda pembe kutu); arama varken listede Campaign Name sütunu
 // v3.6: listede kutucuk + Danışman Ata (Data Tablosu ile aynı, DanismanAta.jsx): admin herkese, manager kendi şubesinde
@@ -47,7 +48,7 @@ import DanismanAta from "./DanismanAta";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v3.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v3.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -286,8 +287,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                             style={{ accentColor: "#0891b2", cursor: "pointer" }} />
                         </th>
                       )}
-                      {["Data ID", "Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak", ...(kampanya ? ["Campaign Name"] : [])].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
-                      <th style={{ ...c.th, position: "sticky", top: 0 }}>Oluşturma</th>
+                      {["Data ID", "Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak", "Campaign Name"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
                       {gecikmisGorunum && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}><Ipucu metin={ACIKLAMA.sonAktivite}>Son aktivite</Ipucu></th>
                       <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Notlar</th>
@@ -315,12 +315,9 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                             {kaynakAdi(l.kaynak)}
                             {VIP_KAYNAKLAR.includes(l.kaynak) && <span style={t.vip}>VIP</span>}
                           </td>
-                          {kampanya && (
-                            <td style={{ ...c.td, textAlign: "left", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.kampanya}>
-                              {l.kampanya || <span style={{ color: "#cbd5e1" }}>·</span>}
-                            </td>
-                          )}
-                          <td style={c.td}>{tarih(l.olusturma)}</td>
+                          <td style={{ ...c.td, textAlign: "left", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.kampanya}>
+                            {l.kampanya || <span style={{ color: "#cbd5e1" }}>·</span>}
+                          </td>
                           {gecikmisGorunum && (
                             <td style={{ ...c.td, whiteSpace: "nowrap", color: "#b45309", fontWeight: 600 }}>
                               {tarih(l.sonrakiTask)} <span style={{ fontSize: "11px", fontWeight: 400 }}>· {gunOnce(l.sonrakiTask)} gün gecikti</span>
