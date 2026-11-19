@@ -1,3 +1,4 @@
+// v2.7: listede kutucuk sütunu + "Danışman Ata": seçilen Datalar başka satış danışmanına aktarılır (admin herkese, manager kendi şubesinde)
 // v2.6: filtre başlıkları kalktı; filtreler renkli çerçeve içinde (Cerceve: kaynak turuncu, tarih mor, şube lacivert)
 // v2.5: filtre başlıkları renkli (Veri kaynağı, Data tarihi, Şube; BASLIK_RENK / etiket ortak)
 // v2.4: tıklanan hücrenin data listesinde "Kaynak" sütunu (VIP kaynaklarda VIP etiketi)
@@ -49,7 +50,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v2.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v2.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -125,6 +126,8 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
   const [secim, setSecim] = useState(null); // { baslik, ownerIds, asama, asamaAd }
+  const [yenile, setYenile] = useState(0); // Danışman Ata sonrası sayıları yeniden çeker
+  const sessiz = useRef(false); // true ise yenilemede tablo yerine spinner gösterilmez
 
   const kaynakAnahtari = [...kaynaklar].sort((a, b) => a - b).join(",");
   const kaynakAdlari = kaynakOzeti(KAYNAKLAR, kaynaklar, "");
@@ -135,11 +138,13 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
       .catch(() => setKisiHata("Danışman listesi okunamadı."));
   }, []);
 
+  useEffect(() => { setSecim(null); }, [kaynakAnahtari, gun]);
+
   useEffect(() => {
-    setSecim(null);
     if (!kaynaklar.length) { setRapor(null); return; }
     let iptal = false;
-    setYukleniyor(true);
+    if (!sessiz.current) setYukleniyor(true);
+    sessiz.current = false;
     setHata(null);
     const zamanlayici = setTimeout(() => {
       apiCagir({ kaynaklar, gun })
@@ -148,7 +153,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
         .finally(() => { if (!iptal) setYukleniyor(false); });
     }, 400);
     return () => { iptal = true; clearTimeout(zamanlayici); };
-  }, [kaynakAnahtari, gun]);
+  }, [kaynakAnahtari, gun, yenile]);
 
   // Satırları kur: tanınan danışmanlar ayrı, diğer sahipler tek "Diğer" satırında
   const satirlar = [];
@@ -164,6 +169,12 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
     });
     if (Object.keys(diger.sayilar).length) satirlar.push(diger);
   }
+
+  // Danışman Ata: admin tüm satış ekibine, manager kendi şubesine aktarır; staff'ta kutucuk yok
+  const atamaHedefleri = !kisiler || !(isAdmin || isManager) ? null : Object.entries(kisiler)
+    .map(([id, k]) => ({ id: Number(id), ...k }))
+    .filter(k => k.satis && k.personelde && (isAdmin || kucuk(k.sube) === kucuk(user?.branch)))
+    .sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr"));
 
   const gorunen = satirlar
     .filter(r => {
@@ -274,25 +285,68 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
 
       {secim && kaynaklar.length > 0 && (
         <LeadPaneli key={`${secim.anahtar}:${kaynakAnahtari}:${gun}`} secim={secim} kaynaklar={kaynaklar} gun={gun}
-          kaynakAd={kaynakAdlari} asamalar={asamalar} onKapat={() => setSecim(null)} />
+          kaynakAd={kaynakAdlari} asamalar={asamalar} onKapat={() => setSecim(null)}
+          hedefler={atamaHedefleri} onAktarildi={() => { sessiz.current = true; setYenile(n => n + 1); }} />
       )}
     </>
   );
 }
 
 // Tıklanan hücrenin lead listesi. Sadece açılınca çekilir.
-function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat }) {
+function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefler, onAktarildi }) {
   const [veri, setVeri] = useState(null);
   const [hata, setHata] = useState(null);
+  const [isaretli, setIsaretli] = useState([]); // Danışman Ata için seçilen data id'leri
+  const [ataAcik, setAtaAcik] = useState(false);
+  const [hedef, setHedef] = useState("");
+  const [aktarim, setAktarim] = useState(null); // { yapilan, toplam } aktarım sürerken
+  const [sonuc, setSonuc] = useState(null); // { tur: "tamam" | "uyari" | "hata", metin }
   const ref = useRef(null);
   const notOnbellek = useRef({});
+  const atanabilir = !!hedefler?.length;
 
-  useEffect(() => {
-    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    apiCagir({ islem: "liste", kaynaklar, gun, ownerIds: secim.ownerIds, asama: secim.asama })
+  function yukle() {
+    return apiCagir({ islem: "liste", kaynaklar, gun, ownerIds: secim.ownerIds, asama: secim.asama })
       .then(setVeri)
       .catch(e => setHata(e.message));
+  }
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    yukle();
   }, []);
+
+  const tumuIsaretli = veri?.leadler.length > 0 && veri.leadler.every(l => isaretli.includes(l.id));
+  const isaretle = id => setIsaretli(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
+  const hedefKisi = hedefler?.find(k => String(k.id) === hedef);
+  const hedefSubeler = [...new Set((hedefler || []).map(k => k.sube || "Şubesiz"))];
+
+  async function aktar() {
+    if (!hedefKisi || !isaretli.length) return;
+    if (!window.confirm(`${isaretli.length} Data ${hedefKisi.ad} adlı danışmana aktarılacak. Kylas'ta Data sahibi değişir. Devam edilsin mi?`)) return;
+    setSonuc(null);
+    const toplam = { aktarilan: 0, zatenSahibi: 0, sorunlu: 0 };
+    let hataMetni = null;
+    setAktarim({ yapilan: 0, toplam: isaretli.length });
+    for (let i = 0; i < isaretli.length; i += 25) {
+      const parca = isaretli.slice(i, i + 25);
+      try {
+        const d = await apiCagir({ islem: "ata", leadIds: parca, yeniSahip: hedefKisi.id });
+        toplam.aktarilan += d.aktarilan.length;
+        toplam.zatenSahibi += d.zatenSahibi.length;
+        toplam.sorunlu += d.hatali.length + d.bulunamayan.length;
+      } catch (e) { hataMetni = e.message; break; }
+      setAktarim({ yapilan: Math.min(i + 25, isaretli.length), toplam: isaretli.length });
+    }
+    setAktarim(null);
+    if (toplam.aktarilan || toplam.zatenSahibi || !hataMetni) { setIsaretli([]); setAtaAcik(false); setHedef(""); } // tamamen başarısızsa seçim kalır
+    const parcalar = [];
+    if (toplam.aktarilan) parcalar.push(`${toplam.aktarilan} Data ${hedefKisi.ad} adlı danışmana aktarıldı.`);
+    if (toplam.zatenSahibi) parcalar.push(`${toplam.zatenSahibi} Data zaten onundu.`);
+    if (toplam.sorunlu) parcalar.push(`${toplam.sorunlu} Data aktarılamadı, tekrar deneyin.`);
+    if (hataMetni) parcalar.push(hataMetni);
+    setSonuc({ tur: hataMetni && !toplam.aktarilan ? "hata" : toplam.sorunlu || hataMetni ? "uyari" : "tamam", metin: parcalar.join(" ") });
+    if (toplam.aktarilan) { yukle(); onAktarildi?.(); }
+  }
 
   const asamaAdi = id => asamalar.find(a => a.id === id)?.ad || "";
 
@@ -307,6 +361,44 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat }) {
           <button onClick={onKapat} style={c.kapatBtn} title="Kapat">✕</button>
         </span>
       </div>
+      {sonuc && (
+        <div style={{ ...c.atamaSonuc, ...(sonuc.tur === "tamam" ? c.atamaTamam : sonuc.tur === "uyari" ? c.atamaUyari : c.atamaHata) }}>
+          <span>{sonuc.metin}</span>
+          <button onClick={() => setSonuc(null)} style={c.kapatBtn} title="Kapat">✕</button>
+        </div>
+      )}
+      {atanabilir && isaretli.length > 0 && (
+        <div style={c.atamaCubugu}>
+          <span style={{ fontWeight: 700, color: "#0f172a" }}>{isaretli.length} Data seçildi</span>
+          {aktarim ? (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", color: "#475569" }}>
+              <span style={{ ...c.spinner, width: "14px", height: "14px" }} /> Aktarılıyor {aktarim.yapilan}/{aktarim.toplam}
+            </span>
+          ) : !ataAcik ? (
+            <>
+              <button onClick={() => setAtaAcik(true)} style={c.chipAktif}>Danışman Ata</button>
+              <button onClick={() => setIsaretli([])} style={c.chip}>Seçimi temizle</button>
+            </>
+          ) : (
+            <>
+              <select value={hedef} onChange={e => setHedef(e.target.value)} autoFocus aria-label="Atanacak danışman"
+                style={{ ...c.atamaSecim, ...(hedef ? {} : { color: "#64748b", borderColor: "#e2e8f0", background: "#fff" }) }}>
+                <option value="">Danışman seçin</option>
+                {hedefSubeler.length > 1
+                  ? hedefSubeler.map(sb => (
+                    <optgroup key={sb} label={sb}>
+                      {hedefler.filter(k => (k.sube || "Şubesiz") === sb).map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
+                    </optgroup>
+                  ))
+                  : hedefler.map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
+              </select>
+              <button onClick={aktar} disabled={!hedefKisi}
+                style={{ ...c.chipAktif, opacity: hedefKisi ? 1 : 0.4, cursor: hedefKisi ? "pointer" : "default" }}>Aktar</button>
+              <button onClick={() => { setAtaAcik(false); setHedef(""); }} style={c.chip}>Vazgeç</button>
+            </>
+          )}
+        </div>
+      )}
       {!veri && !hata && <div style={c.bos}><span style={c.spinner} /> Datalar alınıyor...</div>}
       {hata && <div style={{ ...c.hata, margin: "16px" }}>{hata}</div>}
       {veri && (
@@ -314,6 +406,12 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat }) {
           <table style={c.grid}>
             <thead>
               <tr>
+                {atanabilir && (
+                  <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0, width: "36px" }}>
+                    <input type="checkbox" checked={tumuIsaretli} disabled={!!aktarim} aria-label="Tümünü seç"
+                      onChange={() => setIsaretli(tumuIsaretli ? [] : veri.leadler.map(l => l.id))} style={{ accentColor: "#0891b2", cursor: "pointer" }} />
+                  </th>
+                )}
                 <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Data ID</th>
                 <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Ad Soyad</th>
                 {!secim.asama && <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Aşama</th>}
@@ -326,7 +424,13 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat }) {
             </thead>
             <tbody>
               {veri.leadler.map((l, i) => (
-                <tr key={l.id} style={{ background: i % 2 ? "#fbfdff" : "#fff" }}>
+                <tr key={l.id} style={{ background: isaretli.includes(l.id) ? "#ecfeff" : i % 2 ? "#fbfdff" : "#fff" }}>
+                  {atanabilir && (
+                    <td style={{ ...c.td, textAlign: "center" }}>
+                      <input type="checkbox" checked={isaretli.includes(l.id)} disabled={!!aktarim} onChange={() => isaretle(l.id)}
+                        aria-label={`Data ${l.id} seç`} style={{ accentColor: "#0891b2", cursor: "pointer" }} />
+                    </td>
+                  )}
                   <td style={{ ...c.td, textAlign: "left" }}>
                     <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={c.link}>{l.id}</a>
                   </td>
@@ -432,6 +536,14 @@ export const c = {
   ilkSutun: { position: "sticky", left: 0, borderRight: "1.5px solid #e2e8f0" },
   sayiBtn: { background: "none", border: "none", padding: "3px 6px", margin: "-3px -6px", borderRadius: "6px", cursor: "pointer", font: "inherit", color: "#0f172a", fontVariantNumeric: "tabular-nums", textDecoration: "underline", textDecorationColor: "#cbd5e1", textUnderlineOffset: "3px" },
   sayiBtnSecili: { background: "#0891b2", color: "#fff", textDecoration: "none" },
+  atamaCubugu: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "10px 24px", background: "#ecfeff",
+    borderBottom: "1px solid #a5f3fc", fontSize: "13px" },
+  atamaSecim: { height: "34px", padding: "0 12px", borderRadius: "999px", border: "1.5px solid #0891b2", background: "#fff", color: "#0f172a",
+    fontSize: "12px", fontWeight: 700, fontFamily: "'Sora', sans-serif", cursor: "pointer" },
+  atamaSonuc: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "10px 24px", fontSize: "13px", fontWeight: 600 },
+  atamaTamam: { background: "#f0fdf4", color: "#166534", borderBottom: "1px solid #bbf7d0" },
+  atamaUyari: { background: "#fffbeb", color: "#92400e", borderBottom: "1px solid #fde68a" },
+  atamaHata: { background: "#fef2f2", color: "#991b1b", borderBottom: "1px solid #fecaca" },
   kapatBtn: { width: "28px", height: "28px", borderRadius: "8px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", cursor: "pointer", fontSize: "12px" },
   link: { color: "#0891b2", fontWeight: 600, textDecoration: "none", fontVariantNumeric: "tabular-nums" },
   vip: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },

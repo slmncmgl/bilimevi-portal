@@ -1,3 +1,7 @@
+// v2.8: islem "ata": { leadIds (en fazla 25), yeniSahip } -> datanın sahibini (ownerId) Kylas'ta değiştirir. Data Tablosu listesinden.
+//       İzleme modundan bağımsız HER ZAMAN zorunlu yetki: geçerli oturum + admin ya da manager. Hedef satış ekibinden olmalı.
+//       Manager sadece kendi şubesindeki datayı kendi şubesindeki danışmana aktarır. Yazmalar sırayla, aralarında 700 ms.
+//       Sonuç: { aktarilan: [id], zatenSahibi: [id], bulunamayan: [id], hatali: [{ id, hata }] }. Her aktarma "[ata]" önekiyle loglanır.
 // v2.7: islem "liste" datanın kaynağını da döner (kaynak: source id), Data Tablosu listesinde Kaynak sütunu için
 // v2.6: Aktivite Tablosu "Son N gün özeti" (tek danışman, N 1-90): islem "ozet": { ownerId, gun } ->
 //       dönemde gelen yeni datalar (şu anki aşama, task'ı ve notu var mı, en fazla 300'ü listede), danışmanın dönemde
@@ -40,7 +44,8 @@
 //   islem "takip": { ownerId, sessizGun: 14 } -> özet + takipsiz lead'ler (task yok, son aktivite sessizGun'den eski)
 //   islem "notlar": { leadId, ownerId } -> son 3 not (HTML temizlenmiş düz metin)
 import { oturumKontrol } from "./_oturum.js";
-import { yetkiBul, yetkiKontrol, zorunluMu } from "./_yetki.js";
+import { yetkiBul, yetkiKontrol, zorunluMu, dizinGetir } from "./_yetki.js";
+import { satisBul } from "../src/lib/satisEkibi.js";
 import { VIP_KAYNAKLAR } from "../src/lib/vipKaynaklar.js";
 
 const PIPELINE_ID = 31227; // Bilimevi
@@ -485,6 +490,62 @@ async function ozet(req, res, yetki) {
   return res.status(200).json(veri);
 }
 
+// ---- Danışman ata (data sahibini değiştir) ----
+const ATA_SINIR = 25;
+async function ata(req, res, yetki) {
+  // Yazma işlemi: izleme modu yok
+  if (yetki.tur === "anonim") return res.status(401).json({ error: "Oturum doğrulanamadı. Lütfen çıkış yapıp tekrar giriş yapın." });
+  if (yetki.tur === "hata") return res.status(503).json({ error: "Yetki bilgisi okunamadı, biraz sonra tekrar deneyin." });
+  if (!["admin", "manager"].includes(yetki.tur)) return res.status(403).json({ error: "Danışman atama yetkiniz yok." });
+
+  const ham = Array.isArray(req.body?.leadIds) ? req.body.leadIds : [];
+  const leadIds = [...new Set(ham.map(Number))].filter(n => Number.isInteger(n) && n > 0);
+  const yeniSahip = Number(req.body?.yeniSahip);
+  if (!leadIds.length || leadIds.length !== ham.length) return res.status(400).json({ error: "Data seçilmedi." });
+  if (leadIds.length > ATA_SINIR) return res.status(400).json({ error: `Tek seferde en fazla ${ATA_SINIR} Data aktarılabilir.` });
+  if (!Number.isInteger(yeniSahip)) return res.status(400).json({ error: "Danışman seçilmedi." });
+
+  // Hedef satış ekibinden olmalı; manager için kendi şubesinden
+  const dizin = await dizinGetir();
+  const hedef = [...dizin.kisiler.values()].find(k => k.kylasId === yeniSahip && satisBul(k.ad));
+  if (!hedef) return res.status(400).json({ error: "Seçilen kişi satış ekibinde değil." });
+  if (yetki.tur === "manager" && !yetki.idler.has(yeniSahip)) return res.status(403).json({ error: "Sadece kendi şubenizdeki danışmana atayabilirsiniz." });
+
+  const d = await kylasAra([kural("id", "in", leadIds)], 0, ["id", "ownerId"]);
+  const leadler = d.content || [];
+  const sahipler = new Map(leadler.map(l => [l.id, Number(l.ownerId)]));
+  if (yetki.tur === "manager") {
+    const disarida = leadler.filter(l => !yetki.idler.has(Number(l.ownerId)));
+    if (disarida.length) return res.status(403).json({ error: "Seçilen Datalardan bazıları şubenizdeki danışmanlara ait değil." });
+  }
+
+  const sonuc = { aktarilan: [], zatenSahibi: [], bulunamayan: leadIds.filter(id => !sahipler.has(id)), hatali: [] };
+  for (const id of leadIds) {
+    if (!sahipler.has(id)) continue;
+    if (sahipler.get(id) === yeniSahip) { sonuc.zatenSahibi.push(id); continue; }
+    if (sonuc.aktarilan.length || sonuc.hatali.length) await bekle(700);
+    let r;
+    for (let deneme = 1; ; deneme++) {
+      r = await fetch(`https://api.kylas.io/v1/leads/${id}`, {
+        method: "PATCH",
+        headers: { "api-key": process.env.KYLAS_API_KEY, "Content-Type": "application/json-patch+json", Accept: "application/json" },
+        body: JSON.stringify([{ op: "add", path: "/ownerId", value: yeniSahip }]),
+      });
+      if (r.status === 429 && deneme < 5) { await bekle(1500 * deneme); continue; }
+      break;
+    }
+    if (r.ok) {
+      sonuc.aktarilan.push(id);
+      console.log(`[ata] ${yetki.ad}: data ${id} ${sahipler.get(id)} -> ${yeniSahip}`);
+    } else {
+      sonuc.hatali.push({ id, hata: `HTTP ${r.status}` });
+      console.warn(`[ata] ${yetki.ad}: data ${id} aktarılamadı (HTTP ${r.status})`);
+    }
+  }
+  if (sonuc.aktarilan.length) onbellek.clear(); // sayılar değişti
+  return res.status(200).json(sonuc);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   if (!oturumKontrol(req, res, "crm-rapor")) return;
@@ -498,6 +559,9 @@ export default async function handler(req, res) {
   }
   if (req.body?.islem === "sonNotlar") {
     try { return await sonNotlar(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
+  }
+  if (req.body?.islem === "ata") {
+    try { return await ata(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
   }
   if (req.body?.islem === "ozet") {
     try { return await ozet(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
