@@ -1,3 +1,4 @@
+// v3.1: açılışta tüm veri kaynakları seçili; VIP Datalar ON/OFF anahtar (OFF: tüm kaynaklar)
 // v3.0: Danışman Ata onayı portal renklerinde pencerede (OnayPenceresi.jsx), tarayıcının onay kutusu kalktı
 // v2.9: giriş çubuğu ortak (FiltreCubugu.jsx): Danışman (çoklu, boşsa tümü) · kaynak + VIP · Data tarihi. Şube düğmeleri kalktı
 // v2.8: tıklanan hücrenin listesinde sayfalama (sayfa başına 10 / 20 / 30 / 50); başlıktaki kutucuk o sayfadaki Dataları seçer
@@ -54,7 +55,11 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v3.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v3.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+
+export const TUM_KAYNAKLAR = KAYNAKLAR.map(k => k.id);
+// Hepsi seçiliyse kaynak filtresi gönderilmez (kaynağı boş datalar da sayılır)
+export const kaynakFiltresi = secili => (secili.length === KAYNAKLAR.length ? [] : secili);
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -123,7 +128,7 @@ export async function kisileriYukle() {
 export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null); // kylasId -> { ad, sube, email }
   const [kisiHata, setKisiHata] = useState(null);
-  const [kaynaklar, setKaynaklar] = useState(VIP_KAYNAKLAR); // seçili kaynak id'leri, varsayılan VIP Datalar
+  const [kaynaklar, setKaynaklar] = useState(TUM_KAYNAKLAR); // seçili kaynak id'leri, açılışta tüm kaynaklar
   const [gun, setGun] = useState(null); // null = Tümü, açılışta Tümü
   const [danismanSecim, setDanismanSecim] = useState([]); // boşsa tüm danışmanlar (Diğer dahil)
   const [rapor, setRapor] = useState(null);

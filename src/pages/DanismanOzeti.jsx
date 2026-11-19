@@ -1,3 +1,4 @@
+// v1.6: açılışta tüm veri kaynakları seçili
 // v1.5: giriş çubuğu ortak (FiltreCubugu.jsx): Danışman (tekli) · kaynak + VIP · Tümü / süre. "Danışman Özeti · Son N gün" başlığı kalktı
 // v1.4: staff'ta açılışta kendisi seçili gelir
 // v1.3: danışman ve gün seçimi renkli çerçevede (diğer sekmelerle aynı renkler); bölüm başlıkları sade
@@ -10,7 +11,7 @@
 // Sayılar crm-rapor "ozet" işleminden gelir.
 // Aşama değişiklikleri Kylas'ta geçmiş olarak tutulmadığı için henüz sayılmıyor.
 import { useState, useEffect } from "react";
-import { apiCagir, c, KYLAS_LEAD_URL, tarih, KAYNAKLAR, kisileriYukle, kucuk } from "./CrmRaporu";
+import { apiCagir, c, TUM_KAYNAKLAR, kaynakFiltresi, KYLAS_LEAD_URL, tarih, KAYNAKLAR, kisileriYukle, kucuk } from "./CrmRaporu";
 import FiltreCubugu from "./FiltreCubugu";
 import Ipucu from "./Ipucu";
 
@@ -21,7 +22,7 @@ const ASAMALAR = [
 const ASAMA_ADI = Object.fromEntries(ASAMALAR);
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const SAYFA = 20;
-export const OZET_SURUM = "v1.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const OZET_SURUM = "v1.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ACIKLAMA = {
   baslik: "Seçili danışmanın bu dönemdeki işleri ve bu dönemde aldığı yeni datalar. Kaynak seçiliyse sadece o kaynaklardaki datalar sayılır. Tümü: tüm zamanlar.",
@@ -41,7 +42,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
   const [kisiHata, setKisiHata] = useState(null);
   const [kisiId, setKisiId] = useState(null); // açılışta boş: danışman seçilmeden istek gitmez
   const [gun, setGun] = useState(7); // null = Tümü
-  const [kaynaklar, setKaynaklar] = useState([]); // boşsa tüm kaynaklar
+  const [kaynaklar, setKaynaklar] = useState(TUM_KAYNAKLAR); // açılışta tüm kaynaklar; boşsa da tüm kaynaklar
   const [veri, setVeri] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
@@ -52,7 +53,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
     kisileriYukle().then(setKisiler).catch(() => setKisiHata("Danışman listesi okunamadı."));
   }, []);
 
-  // Rolüne göre seçilebilir danışmanlar (Aktivite Tablosu ile aynı kural)
+  // Rolüne göre seçilebilir danışmanlar (Takip Tablosu ile aynı kural)
   const tumu = kisiler ? Object.entries(kisiler).map(([id, k]) => ({ id, ...k })).filter(k => k.personelde) : [];
   const secilebilir = (isAdmin || isManager ? tumu.filter(k => k.satis) : tumu)
     .filter(k => {
@@ -73,7 +74,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
     setYukleniyor(true);
     setHata(null);
     const zamanlayici = setTimeout(() => {
-      apiCagir({ islem: "ozet", ownerId: Number(kisiId), gun, kaynaklar })
+      apiCagir({ islem: "ozet", ownerId: Number(kisiId), gun, kaynaklar: kaynakFiltresi(kaynaklar) })
         .then(d => { if (!iptal) setVeri(d); })
         .catch(e => { if (!iptal) { setVeri(null); setHata(e.message); } })
         .finally(() => { if (!iptal) setYukleniyor(false); });

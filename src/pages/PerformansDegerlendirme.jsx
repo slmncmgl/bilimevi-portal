@@ -36,7 +36,7 @@ const ACIKLAMA = {
   tarih: "Kayıt dönüşümü bu tarih aralığında oluşan datalardan hesaplanır. Müsaitlik barını etkilemez.",
   danisman: "Satıra tıklayınca müsaitlik puanının nedenleri açılır.",
   musaitlik: "Yeni data atamaya ne kadar uygun: %60 takip + %25 yük + %15 hız. Kylas'ta bitiş tarihiyle müsait değil (izinli) işaretli danışman öneriye girmez.",
-  takipsiz: `Takipsiz kuralı Aktivite Tablosu ile aynı (${SESSIZ_GUN} gün): İlgili ve VIP Görüşme'de task yoksa takipsiz, diğerlerinde task yok ve son etkinlik eski.`,
+  takipsiz: `Takipsiz kuralı Takip Tablosu ile aynı (${SESSIZ_GUN} gün): İlgili ve VIP Görüşme'de task yoksa takipsiz, diğerlerinde task yok ve son etkinlik eski.`,
   kayit: "Data tarihi seçimine göre oluşan datalardan Kylas'ta Yeni Kayıt aşamasında olanlar. Yaz okulu grup kayıtları CRM dışında olduğu için dahil değil. Müsaitlik barına girmez.",
   yeni: "Yeni aşamasında 1 günden uzun süredir bekleyen data sayısı (ilk temas gecikiyor).",
   oneri: "Bu şubede müsaitliği en yüksek, izinli olmayan danışman.",

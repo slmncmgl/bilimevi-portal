@@ -1,15 +1,16 @@
+// v1.1: VIP Datalar ON/OFF anahtar: ON sadece VIP, OFF tüm kaynaklar; OFF soluk görünür, dönen neon her iki durumda da var
 // v1.0: sekmelerin standart giriş çubuğu (Aktivite Tablosu, Danışman Özeti, Data Tablosu; Performans Tablosu hariç)
 // Soldan sağa: Danışman (turkuaz çerçeve) · Veri kaynağı + ★ VIP Datalar (turuncu çerçeve) · Tümü + süre listesi (mor çerçeve).
 // danisman: { liste, secili, onChange, tekli?, bosMetin?, yukleniyor? } verilmezse danışman kutusu görünmez (ör. staff).
 // kaynak:   { secili, onChange, bosMetin? }
 // tarih:    TarihSecici özellikleri + ipucu (mor çerçevenin üzerine gelince açıklama)
-import { c, Cerceve, KAYNAKLAR } from "./CrmRaporu";
+import { c, Cerceve, KAYNAKLAR, TUM_KAYNAKLAR } from "./CrmRaporu";
 import DanismanSecici from "./DanismanSecici";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 
-const VIP_ACIKLAMA = "Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing. Tekrar tıklayınca VIP filtresi kalkar.";
+const VIP_ACIKLAMA = "ON: sadece VIP kaynaklar (Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing). OFF: tüm kaynaklar.";
 
 export default function FiltreCubugu({ danisman, kaynak, tarih }) {
   const vipSecili = kaynak.secili.length === VIP_KAYNAKLAR.length && VIP_KAYNAKLAR.every(id => kaynak.secili.includes(id));
@@ -27,8 +28,9 @@ export default function FiltreCubugu({ danisman, kaynak, tarih }) {
         <Cerceve tur="kaynak">
           <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynak.secili} onChange={kaynak.onChange} bosMetin={kaynak.bosMetin || "Tüm kaynaklar"} />
           <Ipucu metin={VIP_ACIKLAMA} isaret={false}>
-            <button onClick={() => kaynak.onChange(vipSecili ? [] : VIP_KAYNAKLAR)} className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}>
-              <span>★ VIP Datalar</span>
+            <button onClick={() => kaynak.onChange(vipSecili ? TUM_KAYNAKLAR : VIP_KAYNAKLAR)} role="switch" aria-checked={vipSecili}
+              className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}>
+              <span>★ VIP Datalar <b className="vip-durum">{vipSecili ? "ON" : "OFF"}</b></span>
             </button>
           </Ipucu>
         </Cerceve>
@@ -46,9 +48,11 @@ const VIP_CSS = `
 .vip-neon::before { content: ""; position: absolute; inset: -200%; z-index: -1;
   background: conic-gradient(from 0deg, transparent 0 55%, #f59e0b 65%, #fde047 72%, #f472b6 80%, #a855f7 88%, transparent 95%);
   animation: vipDon 2.4s linear infinite; }
-.vip-neon > span { display: block; padding: 5px 14px; border-radius: 999px; background: #fffbeb; color: #92400e;
+.vip-neon > span { display: flex; align-items: center; gap: 8px; padding: 5px 8px 5px 14px; border-radius: 999px; background: #f8fafc; color: #94a3b8;
   font-size: 12px; font-weight: 700; letter-spacing: 0.2px; transition: all 0.15s; }
-.vip-neon:hover > span { background: #fef3c7; }
+.vip-neon:hover > span { background: #f1f5f9; color: #64748b; }
+.vip-durum { padding: 1px 7px; border-radius: 999px; font-size: 10px; letter-spacing: 0.5px; background: #e2e8f0; color: #64748b; }
+.vip-neon-aktif .vip-durum { background: rgba(255,255,255,0.28); color: #fff; }
 .vip-neon-aktif > span { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
 .vip-neon-aktif:hover > span { background: linear-gradient(135deg, #f59e0b, #b45309); }
 @keyframes vipDon { to { transform: rotate(360deg); } }

@@ -1,3 +1,4 @@
+// v4.2: Aktivite Tablosu -> Takip Tablosu; açılışta tüm kaynaklar; VIP Datalar ON/OFF
 // v4.1: Data Tablosu v3.0 (Danışman Ata onay penceresi)
 // v4.0: Aktivite, Danışman Özeti ve Data Tablosu aynı giriş çubuğunu kullanır (FiltreCubugu.jsx)
 // v3.9: Data Tablosu v2.8 (listede sayfalama)
@@ -39,12 +40,12 @@ import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerl
 import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v4.1"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v4.2"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
 const SEKME_SURUMU = {
-  takip: `Aktivite Tablosu ${AKTIVITE_SURUM}`,
+  takip: `Takip Tablosu ${AKTIVITE_SURUM}`,
   ozet: `Danışman Özeti ${OZET_SURUM}`,
   crm: `Data Tablosu ${CRM_SURUM}`,
   deg: `Performans Tablosu ${DEGERLENDIRME_SURUM}`,
@@ -52,7 +53,7 @@ const SEKME_SURUMU = {
 };
 const surumMetni = sekme => `${SEKME_SURUMU[sekme] || `Performans Analizi ${PERFORMANS_SURUM}`}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
 // Performans Tablosu sadece admin/director/owner'da görünür
-const SEKMELER = [["takip", "Aktivite Tablosu"], ["ozet", "Danışman Özeti"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu", "admin"], ["quiz", "Quiz Skorları"]];
+const SEKMELER = [["takip", "Takip Tablosu"], ["ozet", "Danışman Özeti"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu", "admin"], ["quiz", "Quiz Skorları"]];
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
