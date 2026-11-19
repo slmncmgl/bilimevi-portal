@@ -1,3 +1,4 @@
+// v1.4: KampanyaAra dışa açıldı (Takip Tablosu liste başlığının sağında); açılır kutu body'ye çizilir, tablo kesmesin
 // v1.3: Campaign Name araması çubuğun en sağında huni ikonuyla açılan küçük kutuda; aktifken kelime ikonun yanında
 // v1.2: isteğe bağlı Campaign Name "içerir" arama kutusu (kampanya: { deger, onChange }), pembe çerçeve; şimdilik Takip Tablosu
 // v1.1: VIP Datalar ON/OFF anahtar: ON sadece VIP, OFF tüm kaynaklar; OFF soluk görünür, dönen neon her iki durumda da var
@@ -7,6 +8,7 @@
 // kaynak:   { secili, onChange, bosMetin? }
 // tarih:    TarihSecici özellikleri + ipucu (mor çerçevenin üzerine gelince açıklama)
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { c, Cerceve, KAYNAKLAR, TUM_KAYNAKLAR } from "./CrmRaporu";
 import DanismanSecici from "./DanismanSecici";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
@@ -48,8 +50,9 @@ export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
 
 // Campaign Name "içerir" araması: çubuğun en sağında huni ikonu; tıklayınca açılır kutu.
 // Yazmayı bırakınca (600 ms) üst bileşene gider. Arama varken ikon pembe dolar ve yanında kelime görünür (✕ temizler).
-function KampanyaAra({ deger, onChange }) {
-  const [acik, setAcik] = useState(false);
+export function KampanyaAra({ deger, onChange }) {
+  const [acik, setAcik] = useState(false); // false ya da { ust, sag } (açılır kutunun ekrandaki yeri)
+  const panelRef = useRef(null);
   const [yazi, setYazi] = useState(deger || "");
   const kutu = useRef(null);
   useEffect(() => { setYazi(deger || ""); }, [deger]);
@@ -60,17 +63,26 @@ function KampanyaAra({ deger, onChange }) {
   }, [yazi]);
   useEffect(() => {
     if (!acik) return;
-    const disari = e => { if (kutu.current && !kutu.current.contains(e.target)) setAcik(false); };
+    const disari = e => { if (!kutu.current?.contains(e.target) && !panelRef.current?.contains(e.target)) setAcik(false); };
+    // Sayfa kayınca ya da liste kısalınca kutu huninin altında kalsın (kapanmasın, yazarken kesilmesin)
+    const kapat = () => { const r = kutu.current?.getBoundingClientRect(); if (r) setAcik({ ust: r.bottom + 8, sag: Math.max(8, window.innerWidth - r.right) }); };
+    window.addEventListener("scroll", kapat, true);
+    window.addEventListener("resize", kapat);
     const tus = e => { if (e.key === "Escape" || e.key === "Enter") setAcik(false); };
     document.addEventListener("mousedown", disari);
     document.addEventListener("keydown", tus);
-    return () => { document.removeEventListener("mousedown", disari); document.removeEventListener("keydown", tus); };
-  }, [acik]);
+    return () => { document.removeEventListener("mousedown", disari); document.removeEventListener("keydown", tus); window.removeEventListener("scroll", kapat, true); window.removeEventListener("resize", kapat); };
+  }, [!!acik]);
+  function ac() {
+    if (acik) { setAcik(false); return; }
+    const r = kutu.current.getBoundingClientRect();
+    setAcik({ ust: r.bottom + 8, sag: Math.max(8, window.innerWidth - r.right) });
+  }
   const temizle = () => { setYazi(""); onChange(""); };
   const aktif = !!deger;
 
   return (
-    <div ref={kutu} style={{ position: "relative", marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
+    <div ref={kutu} style={{ position: "relative", display: "flex", alignItems: "center", gap: "8px" }}>
       {aktif && (
         <span style={k.etiket} title={`Campaign Name içerir: ${deger}`}>
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>{deger}</span>
@@ -78,15 +90,15 @@ function KampanyaAra({ deger, onChange }) {
         </span>
       )}
       <Ipucu metin={acik ? null : "Campaign Name ile süz"} isaret={false}>
-        <button type="button" onClick={() => setAcik(a => !a)} aria-expanded={acik} aria-label="Campaign Name filtresi"
+        <button type="button" onClick={ac} aria-expanded={!!acik} aria-label="Campaign Name filtresi"
           style={{ ...k.huni, ...(aktif || acik ? k.huniAktif : {}) }}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill={aktif ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
             <path d="M3 4h18l-7 8.5V19l-4 2v-8.5L3 4z" />
           </svg>
         </button>
       </Ipucu>
-      {acik && (
-        <div style={k.panel}>
+      {acik && createPortal(
+        <div ref={panelRef} style={{ ...k.panel, top: acik.ust, right: acik.sag }}>
           <div style={{ fontSize: "11px", fontWeight: 700, color: "#9d174d", marginBottom: "8px" }}>Campaign Name içerir</div>
           <span style={{ position: "relative", display: "flex", alignItems: "center" }}>
             <input autoFocus value={yazi} onChange={e => setYazi(e.target.value.slice(0, 100))} placeholder="ör. yaz okulu" aria-label="Campaign Name içerir"
@@ -94,7 +106,8 @@ function KampanyaAra({ deger, onChange }) {
             {yazi && <button type="button" onClick={temizle} aria-label="Aramayı temizle" style={{ ...k.etiketX, position: "absolute", right: "10px" }}>✕</button>}
           </span>
           <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "8px" }}>Büyük/küçük harf fark etmez. Yazmayı bırakınca liste güncellenir.</div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -104,7 +117,7 @@ const k = {
   huni: { width: "38px", height: "38px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b",
     display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" },
   huniAktif: { borderColor: "#db2777", background: "#fdf2f8", color: "#db2777" },
-  panel: { position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 50, width: "280px", background: "#fff", border: "1.5px solid #f9a8d4",
+  panel: { position: "fixed", zIndex: 9000, width: "280px", background: "#fff", border: "1.5px solid #f9a8d4",
     borderRadius: "14px", boxShadow: "0 12px 32px rgba(15,23,42,0.14)", padding: "12px", fontFamily: "'Sora', sans-serif" },
   girdi: { width: "100%", height: "36px", padding: "0 30px 0 12px", borderRadius: "10px", border: "1.5px solid", color: "#0f172a",
     fontSize: "13px", fontWeight: 600, fontFamily: "'Sora', sans-serif", outline: "none", boxSizing: "border-box" },

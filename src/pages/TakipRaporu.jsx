@@ -1,3 +1,4 @@
+// v4.0: Campaign Name hunisi liste başlığının en sağında (giriş çubuğundan taşındı)
 // v3.9: listede Oluşturma sütunu yerine her zaman Campaign Name
 // v3.8: Campaign Name araması huni ikonlu açılır kutuda (FiltreCubugu v1.3)
 // v3.7: Campaign Name "içerir" araması (giriş çubuğunda pembe kutu); arama varken listede Campaign Name sütunu
@@ -43,12 +44,12 @@
 // Rol kuralı diğer sekmelerle aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
 import { useState, useEffect, useRef } from "react";
 import { VIP_KAYNAKLAR } from "./KaynakSecici";
-import FiltreCubugu from "./FiltreCubugu";
+import FiltreCubugu, { KampanyaAra } from "./FiltreCubugu";
 import DanismanAta from "./DanismanAta";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v3.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v4.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -136,19 +137,20 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [isaretli, setIsaretli] = useState([]);
   const [aktarim, setAktarim] = useState(false);
   const [yenile, setYenile] = useState(0);
-  const sessiz = useRef(false);
+  const sessiz = useRef(false); // true ise yenilemede ekran spinner'a dönmez (aktarma sonrası, Campaign Name araması)
+  const [arkaYukleniyor, setArkaYukleniyor] = useState(false); // sessiz yenileme sürüyor: liste soluk
   useEffect(() => { setListeSahip(null); setIsaretli([]); }, [danismanAnahtari, sessizGun, kaynakAnahtari, kampanya]);
   useEffect(() => {
     if (!danismanlar.length) { setRapor(null); return; }
     let iptal = false;
-    if (!sessiz.current) setYukleniyor(true);
+    if (!sessiz.current) setYukleniyor(true); else setArkaYukleniyor(true);
     sessiz.current = false;
     setHata(null);
     const zamanlayici = setTimeout(() => {
       apiCagir({ islem: "takip", ownerIds: danismanlar.map(Number), sessizGun, kaynaklar: kaynakFiltresi(kaynaklar), kampanya })
         .then(d => { if (!iptal) setRapor(d); })
         .catch(e => { if (!iptal) { setRapor(null); setHata(e.message); } })
-        .finally(() => { if (!iptal) setYukleniyor(false); });
+        .finally(() => { if (!iptal) { setYukleniyor(false); setArkaYukleniyor(false); } });
     }, 400);
     return () => { iptal = true; clearTimeout(zamanlayici); };
   }, [danismanAnahtari, sessizGun, kaynakAnahtari, kampanya, yenile]);
@@ -191,8 +193,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         danisman={isAdmin || isManager ? { liste: subeyeGore, secili: danismanlar, onChange: setDanismanlar, yukleniyor: !kisiler && !kisiHata } : null}
         kaynak={{ secili: kaynaklar, onChange: setKaynaklar }}
         tarih={{ deger: sessizGun || null, onChange: v => setSessizGun(v === null ? 0 : v), metin: g => `${g} günden eski`, nMetni: "N günden eski",
-          bosMetin: "Son etkinlik", ipucu: `Son Etkinlik Tarihi: ${ACIKLAMA.sonEtkinlik}` }}
-        kampanya={{ deger: kampanya, onChange: setKampanya }} />
+          bosMetin: "Son etkinlik", ipucu: `Son Etkinlik Tarihi: ${ACIKLAMA.sonEtkinlik}` }} />
 
       {kisiHata && <div style={c.hata}>{kisiHata}</div>}
       {kisiler && !danismanlar.length && (
@@ -252,10 +253,13 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             </div>
           )}
 
-          <div style={c.tablo}>
+          <div style={{ ...c.tablo, opacity: arkaYukleniyor ? 0.55 : 1, transition: "opacity 0.2s" }}>
             <div style={c.tabloBaslik}>
               <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{listeSahip ? kisiAdi(listeSahip) : secimBasligi} · {gecikmisGorunum ? "Gecikmiş task'lı Datalar" : "Takipsiz Datalar"} ({liste.length})</span>
-              {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
+              <span style={{ display: "flex", alignItems: "center", gap: "10px", marginLeft: "auto" }}>
+                {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
+                <KampanyaAra deger={kampanya} onChange={v => { if (rapor) sessiz.current = true; setKampanya(v); }} />
+              </span>
             </div>
             <div style={t.filtreler}>
               <Cerceve tur="asama" metin="Aşama: birden fazla seçilebilir.">
