@@ -1,3 +1,4 @@
+// v2.9: giriş çubuğu ortak (FiltreCubugu.jsx): Danışman (çoklu, boşsa tümü) · kaynak + VIP · Data tarihi. Şube düğmeleri kalktı
 // v2.8: tıklanan hücrenin listesinde sayfalama (sayfa başına 10 / 20 / 30 / 50); başlıktaki kutucuk o sayfadaki Dataları seçer
 // v2.7: listede kutucuk sütunu + "Danışman Ata": seçilen Datalar başka satış danışmanına aktarılır (admin herkese, manager kendi şubesinde)
 // v2.6: filtre başlıkları kalktı; filtreler renkli çerçeve içinde (Cerceve: kaynak turuncu, tarih mor, şube lacivert)
@@ -25,8 +26,8 @@
 // ve Personel sekmelerinden eşlenir; ID sekmesinde olmayan sahipler "Diğer" satırında toplanır.
 // Rol kuralı Quiz Skorları ile aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
 import { useState, useEffect, useRef } from "react";
-import KaynakSecici, { VIP_KAYNAKLAR, kaynakOzeti } from "./KaynakSecici";
-import TarihSecici from "./TarihSecici";
+import { VIP_KAYNAKLAR, kaynakOzeti } from "./KaynakSecici";
+import FiltreCubugu from "./FiltreCubugu";
 import Ipucu from "./Ipucu";
 import { SATIS_EKIBI, satisBul } from "../lib/satisEkibi";
 
@@ -51,7 +52,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v2.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v2.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -122,7 +123,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   const [kisiHata, setKisiHata] = useState(null);
   const [kaynaklar, setKaynaklar] = useState(VIP_KAYNAKLAR); // seçili kaynak id'leri, varsayılan VIP Datalar
   const [gun, setGun] = useState(null); // null = Tümü, açılışta Tümü
-  const [sube, setSube] = useState("Tümü");
+  const [danismanSecim, setDanismanSecim] = useState([]); // boşsa tüm danışmanlar (Diğer dahil)
   const [rapor, setRapor] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
@@ -171,22 +172,23 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
     if (Object.keys(diger.sayilar).length) satirlar.push(diger);
   }
 
-  // Danışman Ata: admin tüm satış ekibine, manager kendi şubesine aktarır; staff'ta kutucuk yok
-  const atamaHedefleri = !kisiler || !(isAdmin || isManager) ? null : Object.entries(kisiler)
+  // Seçicideki danışmanlar ve Danışman Ata hedefleri: admin tüm satış ekibi, manager kendi şubesi; staff'ta ikisi de yok
+  const danismanListesi = !kisiler || !(isAdmin || isManager) ? null : Object.entries(kisiler)
     .map(([id, k]) => ({ id: Number(id), ...k }))
     .filter(k => k.satis && k.personelde && (isAdmin || kucuk(k.sube) === kucuk(user?.branch)))
     .sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr"));
+  const atamaHedefleri = danismanListesi;
 
   const gorunen = satirlar
     .filter(r => {
-      if (isAdmin) return sube === "Tümü" || (!r.diger && kucuk(r.sube) === kucuk(sube));
-      if (isManager) return !r.diger && kucuk(r.sube) === kucuk(user?.branch);
+      const secildi = !danismanSecim.length || (!r.diger && danismanSecim.includes(r.ownerIds[0]));
+      if (isAdmin) return secildi;
+      if (isManager) return !r.diger && kucuk(r.sube) === kucuk(user?.branch) && secildi;
       return !r.diger && kendisiMi(r);
     })
     .map(r => ({ ...r, toplam: Object.values(r.sayilar).reduce((a, b) => a + b, 0) }))
     .sort((a, b) => (a.diger ? 1 : b.diger ? -1 : b.toplam - a.toplam));
 
-  const subeler = ["Tümü", ...[...new Set(satirlar.filter(r => !r.diger && r.sube).map(r => r.sube))].sort((a, b) => a.localeCompare(b, "tr"))];
   const asamalar = rapor?.asamalar || [];
   const sutunToplam = id => gorunen.reduce((a, r) => a + (r.sayilar[id] || 0), 0);
   const genelToplam = gorunen.reduce((a, r) => a + r.toplam, 0);
@@ -207,25 +209,10 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
 
   return (
     <>
-      <div style={c.panel}>
-        <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center" }}>
-          <Cerceve tur="kaynak">
-            <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Kaynak seçin" />
-          </Cerceve>
-          <Cerceve tur="tarih" metin="Data tarihi: datanın Kylas'ta oluşturulduğu tarih. Tümü: tüm zamanlar.">
-            <TarihSecici deger={gun} onChange={setGun} bosMetin="Data tarihi" />
-          </Cerceve>
-          {isAdmin && rapor && subeler.length > 2 && (
-            <Cerceve tur="sube" metin="Şube">
-              <div style={c.chipSatir}>
-                {subeler.map(sb => (
-                  <button key={sb} onClick={() => setSube(sb)} style={sube === sb ? c.chipAktif : c.chip}>{sb}</button>
-                ))}
-              </div>
-            </Cerceve>
-          )}
-        </div>
-      </div>
+      <FiltreCubugu
+        danisman={danismanListesi ? { liste: danismanListesi, secili: danismanSecim, onChange: setDanismanSecim, bosMetin: "Tüm danışmanlar" } : null}
+        kaynak={{ secili: kaynaklar, onChange: setKaynaklar, bosMetin: "Kaynak seçin" }}
+        tarih={{ deger: gun, onChange: setGun, bosMetin: "Data tarihi", ipucu: "Data tarihi: datanın Kylas'ta oluşturulduğu tarih. Tümü: tüm zamanlar." }} />
 
       {kisiHata && <div style={c.hata}>{kisiHata}</div>}
       {!kaynaklar.length && <div style={c.bos}>Raporu görmek için bir ya da birden fazla veri kaynağı seçin.</div>}

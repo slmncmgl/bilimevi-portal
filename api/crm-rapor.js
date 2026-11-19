@@ -1,3 +1,5 @@
+// v3.0: ozet { ownerId, gun: null|1-3650, kaynaklar? }: gun null = tüm zamanlar. kaynaklar verilirse yeni datalar ve aktivite
+//       (not, task) sadece o kaynaklardaki datalar için sayılır (not/task'ın datasının kaynağı tek aramayla okunur).
 // v2.9: degerlendirme (Performans Tablosu) sadece admin: değilse "[yetki]" logu, zorunlu modda 403
 // v2.8: islem "ata": { leadIds (en fazla 25), yeniSahip } -> datanın sahibini (ownerId) Kylas'ta değiştirir. Data Tablosu listesinden.
 //       İzleme modundan bağımsız HER ZAMAN zorunlu yetki: geçerli oturum + admin ya da manager. Hedef satış ekibinden olmalı.
@@ -395,7 +397,6 @@ async function liste(req, res, kurallar, yetki) {
 }
 
 // ---- Son N gün özeti (tek danışman) ----
-const OZET_MAX_GUN = 90;
 const OZET_LISTE_SINIR = 300;
 const TASK_TAMAM = 2614528;
 const tarihSonrasi = (alan, iso) => kural(alan, "greater", iso, "date");
@@ -427,7 +428,7 @@ async function donemNotlari(ownerId, bas) {
       const r = await fetch(`https://api.kylas.io/v1/notes/search?page=${page}&size=1000&sort=createdAt,desc`, {
         method: "POST",
         headers: { "api-key": process.env.KYLAS_API_KEY, "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ jsonRule: { condition: "AND", valid: true, rules: [kural("createdBy", "equal", ownerId), tarihSonrasi("createdAt", bas)] } }),
+        body: JSON.stringify({ jsonRule: { condition: "AND", valid: true, rules: [kural("createdBy", "equal", ownerId), ...(bas ? [tarihSonrasi("createdAt", bas)] : [])] } }),
       });
       if (r.status === 429 && deneme < 5) { await bekle(1200 * deneme); continue; }
       if (!r.ok) throw new Error(`Notlar alınamadı (HTTP ${r.status})`);
@@ -440,25 +441,49 @@ async function donemNotlari(ownerId, bas) {
   return sonuc;
 }
 
+// Verilen data id'lerinden kaynağı listede olanlar (1000'erli aramalar)
+async function kaynaktakiler(idler, kaynaklar) {
+  const sonuc = new Set();
+  for (let i = 0; i < idler.length; i += 1000) {
+    const d = await kylasAra([kural("id", "in", idler.slice(i, i + 1000)), kural("source", "in", kaynaklar)], 0, ["id"]);
+    (d.content || []).forEach(l => sonuc.add(l.id));
+  }
+  return sonuc;
+}
+
 async function ozet(req, res, yetki) {
   const ownerId = Number(req.body?.ownerId);
-  const gun = Number(req.body?.gun);
+  const gun = req.body?.gun === null || req.body?.gun === undefined ? null : Number(req.body.gun);
+  const hamKaynaklar = Array.isArray(req.body?.kaynaklar) ? req.body.kaynaklar : [];
+  const kaynaklar = [...new Set(hamKaynaklar.map(Number))].filter(k => Number.isInteger(k) && k > 0).sort((x, y) => x - y);
   if (!Number.isInteger(ownerId)) return res.status(400).json({ error: "Danışman seçilmedi." });
-  if (!Number.isInteger(gun) || gun < 1 || gun > OZET_MAX_GUN) return res.status(400).json({ error: `Gün 1 ile ${OZET_MAX_GUN} arasında olmalı.` });
+  if (gun !== null && !gecerliGun(gun)) return res.status(400).json({ error: "Geçersiz gün." });
+  if (kaynaklar.length !== hamKaynaklar.length || kaynaklar.length > 30) return res.status(400).json({ error: "Geçersiz veri kaynağı." });
   if (!yetkiKontrol(yetki, [ownerId], res, "crm-rapor ozet")) return;
 
-  const anahtar = `ozet:${ownerId}:${gun}`;
+  const anahtar = `ozet:${ownerId}:${gun}:${kaynaklar.join(",")}`;
   const eski = onbellek.get(anahtar);
   if (eski && Date.now() - eski.zaman < 2 * 60 * 1000) return res.status(200).json(eski.veri);
 
-  const bas = new Date(Date.now() - gun * GUN_MS).toISOString();
-  const basMs = zaman(bas);
-  const [yeniler, notLeadleri, tasklar] = await Promise.all([
-    hepsiniCek([kural("ownerId", "equal", ownerId), kural("pipeline", "equal", PIPELINE_ID), tarihSonrasi("createdAt", bas)], [...LISTE_ALANLARI, "source"]),
+  const bas = gun ? new Date(Date.now() - gun * GUN_MS).toISOString() : null;
+  const basMs = bas ? zaman(bas) : 0;
+  const yeniKurallar = [kural("ownerId", "equal", ownerId), kural("pipeline", "equal", PIPELINE_ID)];
+  if (bas) yeniKurallar.push(tarihSonrasi("createdAt", bas));
+  if (kaynaklar.length) yeniKurallar.push(kural("source", "in", kaynaklar));
+  let [yeniler, notLeadleri, tasklar] = await Promise.all([
+    hepsiniCek(yeniKurallar, [...LISTE_ALANLARI, "source"]),
     donemNotlari(ownerId, bas),
     donemTasklari(basMs),
   ]);
   if (yeniler === null) return res.status(422).json({ error: "Dönem çok kalabalık, daha kısa bir süre seçin." });
+  // Kaynak seçiliyse not ve task'lar sadece o kaynaklardaki datalar için sayılır
+  if (kaynaklar.length) {
+    const ilgili = new Set(notLeadleri.filter(Boolean));
+    tasklar.forEach(t => { const l = taskLead(t); if (l) ilgili.add(l); });
+    const izinli = await kaynaktakiler([...ilgili], kaynaklar);
+    notLeadleri = notLeadleri.filter(id => id && izinli.has(id));
+    tasklar = tasklar.filter(t => izinli.has(taskLead(t)));
+  }
 
   const yeniIdler = new Set(yeniler.map(l => l.id));
   const taskliLead = new Set();

@@ -1,3 +1,4 @@
+// v1.1: tekli mod (Danışman Özeti): bir kişi seçilir, seçince menü kapanır; hızlı seçimler ve şube kutuları gizli
 // v1.0: danışman için açılır çoklu seçim (Aktivite Tablosu). Görünüşü veri kaynağı seçicisiyle (KaynakSecici.jsx) aynı.
 // Danışmanlar şubelere göre gruplu; şube başlığındaki kutu o şubedeki herkesi seçer ya da bırakır.
 // Üstte hızlı seçimler: Tümünü seç, Temizle. Dışarı tıklayınca ya da Esc ile kapanır.
@@ -6,8 +7,9 @@ import { useState, useEffect, useRef } from "react";
 
 const subeAdi = k => k.sube || "Şubesiz";
 
-export function danismanOzeti(danismanlar, secili, bosMetin) {
+export function danismanOzeti(danismanlar, secili, bosMetin, tekli = false) {
   if (!secili.length) return bosMetin;
+  if (tekli) return danismanlar.find(k => k.id === secili[0])?.ad || bosMetin;
   if (danismanlar.length && danismanlar.every(k => secili.includes(k.id))) return `Tüm danışmanlar (${secili.length})`;
   // Seçim tam olarak bir ya da birkaç şubenin tamamıysa şube adlarıyla yaz
   const subeler = [...new Set(danismanlar.map(subeAdi))];
@@ -18,7 +20,7 @@ export function danismanOzeti(danismanlar, secili, bosMetin) {
   return adlar.length > 2 ? `${adlar.slice(0, 2).join(", ")} +${adlar.length - 2}` : adlar.join(", ");
 }
 
-export default function DanismanSecici({ danismanlar, secili, onChange, bosMetin = "Danışman seçin", yukleniyor = false }) {
+export default function DanismanSecici({ danismanlar, secili, onChange, bosMetin = "Danışman seçin", yukleniyor = false, tekli = false }) {
   const [acik, setAcik] = useState(false);
   const kutu = useRef(null);
 
@@ -32,7 +34,10 @@ export default function DanismanSecici({ danismanlar, secili, onChange, bosMetin
   }, [acik]);
 
   const subeler = [...new Set(danismanlar.map(subeAdi))];
-  const degistir = id => onChange(secili.includes(id) ? secili.filter(x => x !== id) : [...secili, id]);
+  const degistir = id => {
+    if (tekli) { onChange([id]); setAcik(false); return; }
+    onChange(secili.includes(id) ? secili.filter(x => x !== id) : [...secili, id]);
+  };
   function subeDegistir(sb) {
     const idler = danismanlar.filter(k => subeAdi(k) === sb).map(k => k.id);
     const hepsi = idler.every(id => secili.includes(id));
@@ -44,28 +49,29 @@ export default function DanismanSecici({ danismanlar, secili, onChange, bosMetin
       <button type="button" onClick={() => setAcik(a => !a)} aria-expanded={acik} disabled={yukleniyor}
         style={{ ...k.tetik, borderColor: acik ? "#0891b2" : secili.length ? "#67c6dc" : "#e2e8f0" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: secili.length ? "#0f172a" : "#94a3b8" }}>
-          {yukleniyor ? "Yükleniyor..." : danismanOzeti(danismanlar, secili, bosMetin)}
+          {yukleniyor ? "Yükleniyor..." : danismanOzeti(danismanlar, secili, bosMetin, tekli)}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-          {secili.length > 0 && <span style={k.rozet}>{secili.length}</span>}
+          {secili.length > 0 && !tekli && <span style={k.rozet}>{secili.length}</span>}
           <span style={{ fontSize: "10px", color: "#64748b", transform: acik ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
         </span>
       </button>
 
       {acik && (
         <div style={k.panel} role="listbox" aria-multiselectable="true">
-          <div style={k.hizli}>
+          {!tekli && <div style={k.hizli}>
             <button type="button" onClick={() => onChange(danismanlar.map(x => x.id))} style={k.hizliBtn}>Tümünü seç</button>
             <button type="button" onClick={() => onChange([])} disabled={!secili.length}
               style={{ ...k.hizliBtn, color: "#dc2626", opacity: secili.length ? 1 : 0.4, cursor: secili.length ? "pointer" : "default" }}>Temizle</button>
-          </div>
+          </div>}
           <div style={{ maxHeight: "360px", overflowY: "auto" }}>
             {subeler.map(sb => {
               const uyeler = danismanlar.filter(x => subeAdi(x) === sb);
               const secilen = uyeler.filter(x => secili.includes(x.id)).length;
               return (
                 <div key={sb} style={{ marginBottom: "6px" }}>
-                  {subeler.length > 1 && (
+                  {subeler.length > 1 && tekli && <div style={{ ...k.grup, cursor: "default" }}>{sb}</div>}
+                  {subeler.length > 1 && !tekli && (
                     <label style={k.grup}>
                       <input type="checkbox" checked={secilen === uyeler.length} ref={el => { if (el) el.indeterminate = secilen > 0 && secilen < uyeler.length; }}
                         onChange={() => subeDegistir(sb)} style={{ accentColor: "#6366f1", margin: 0 }} />
@@ -78,7 +84,7 @@ export default function DanismanSecici({ danismanlar, secili, onChange, bosMetin
                       const var_ = secili.includes(x.id);
                       return (
                         <label key={x.id} style={{ ...k.secenek, background: var_ ? "#ecfeff" : "transparent" }}>
-                          <input type="checkbox" checked={var_} onChange={() => degistir(x.id)} style={{ accentColor: "#0891b2", margin: 0 }} />
+                          <input type={tekli ? "radio" : "checkbox"} checked={var_} onChange={() => degistir(x.id)} style={{ accentColor: "#0891b2", margin: 0 }} />
                           <span style={{ fontWeight: var_ ? 700 : 500 }}>{x.ad}</span>
                         </label>
                       );
@@ -88,9 +94,11 @@ export default function DanismanSecici({ danismanlar, secili, onChange, bosMetin
               );
             })}
           </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "8px", borderTop: "1px solid #f1f5f9" }}>
-            <button type="button" onClick={() => setAcik(false)} style={k.tamam}>Tamam</button>
-          </div>
+          {!tekli && (
+            <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "8px", borderTop: "1px solid #f1f5f9" }}>
+              <button type="button" onClick={() => setAcik(false)} style={k.tamam}>Tamam</button>
+            </div>
+          )}
         </div>
       )}
     </div>

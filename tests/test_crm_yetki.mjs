@@ -34,7 +34,7 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes("/notes/relation")) return yanit(200, { totalElements: 0, content: [], metaData: {} });
   if (url.includes("/notes/search")) {
     const kurallar = JSON.parse(opts.body).jsonRule.rules;
-    assert.ok(kurallar.some(k => k.field === "createdBy") && kurallar.some(k => k.field === "createdAt"), "not araması danışman + tarih süzmeli");
+    assert.ok(kurallar.some(k => k.field === "createdBy"), "not araması danışmana göre süzülmeli");
     return yanit(200, { totalPages: 1, content: [1, 1, 7].map(id => ({ relations: [{ entityType: "LEAD", entityId: id }] })) });
   }
   if (url.includes("/v1/tasks?")) {
@@ -143,7 +143,8 @@ assert.equal(await durum("su@x.com", { islem: "takip", ownerId: 100 }), 403);
 
 // 6. Son N gün özeti (zorunlu mod açık): tek danışman, yetki ve sayımlar
 assert.equal(await durum("su@x.com", { islem: "ozet", ownerId: 200, gun: 7 }), 403, "staff başkasının özetini alamaz");
-assert.equal(await durum("su@x.com", { islem: "ozet", ownerId: 101, gun: 91 }), 400, "90 günden uzun olmaz");
+assert.equal(await durum("su@x.com", { islem: "ozet", ownerId: 101, gun: 4000 }), 400, "3650 günden uzun olmaz");
+assert.equal(await durum("su@x.com", { islem: "ozet", ownerId: 101, gun: null, kaynaklar: [2614512] }), 200, "Tümü + kaynak geçerli");
 assert.equal(await durum("su@x.com", { islem: "ozet", ownerIds: [101, 100], gun: 7 }), 400, "çoklu danışman yok");
 r = await iste("su@x.com", { islem: "ozet", ownerId: 101, gun: 7 });
 assert.equal(r.code, 200);

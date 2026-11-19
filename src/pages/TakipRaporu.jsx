@@ -1,3 +1,4 @@
+// v3.4: giriş çubuğu ortak bileşende (FiltreCubugu.jsx), diğer sekmelerle aynı
 // v3.3: Şube düğmeleri kalktı (şube seçimi danışman menüsünde); filtre başlıkları yerine renkli çerçeveler
 // v3.2: danışman seçimi açılır çoklu menüde (DanismanSecici.jsx), şubelere göre gruplu; Veri kaynağı ve tarihle aynı satırda
 // v3.1: admin/manager listede değilse açılışta danışman seçili gelmez, seçim uyarısı çıkar; filtre başlıkları renkli
@@ -36,13 +37,12 @@
 // Not: Kylas'ın "son aktivite" tarihi otomasyon güncellemeleriyle de değişir, sessizlik süresi gerçekte daha uzun olabilir.
 // Rol kuralı diğer sekmelerle aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
 import { useState, useEffect, useRef } from "react";
-import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
-import TarihSecici from "./TarihSecici";
-import DanismanSecici from "./DanismanSecici";
+import { VIP_KAYNAKLAR } from "./KaynakSecici";
+import FiltreCubugu from "./FiltreCubugu";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v3.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v3.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -122,7 +122,6 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   // Danışman ve kaynak seçimi art arda değişebilir: istek 400 ms bekleyip tek seferde gider
   const danismanAnahtari = [...danismanlar].sort().join(",");
   const kaynakAnahtari = [...kaynaklar].sort((a, b) => a - b).join(",");
-  const vipSecili = kaynaklar.length === VIP_KAYNAKLAR.length && VIP_KAYNAKLAR.every(id => kaynaklar.includes(id));
   useEffect(() => {
     setListeSahip(null);
     if (!danismanlar.length) { setRapor(null); return; }
@@ -167,27 +166,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
   return (
     <>
-      <style>{VIP_CSS}</style>
-      <div style={c.panel}>
-        <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center" }}>
-          {(isAdmin || isManager) && (
-            <Cerceve tur="danisman">
-              <DanismanSecici danismanlar={subeyeGore} secili={danismanlar} onChange={setDanismanlar} yukleniyor={!kisiler && !kisiHata} />
-            </Cerceve>
-          )}
-          <Cerceve tur="kaynak">
-            <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynaklar} onChange={setKaynaklar} bosMetin="Tüm kaynaklar" />
-            <Ipucu metin={ACIKLAMA.vip} isaret={false}>
-              <button onClick={() => setKaynaklar(vipSecili ? [] : VIP_KAYNAKLAR)} className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}>
-                <span>★ VIP Datalar</span>
-              </button>
-            </Ipucu>
-          </Cerceve>
-          <Cerceve tur="tarih" metin={`Son Etkinlik Tarihi: ${ACIKLAMA.sonEtkinlik}`}>
-            <TarihSecici deger={sessizGun || null} onChange={v => setSessizGun(v === null ? 0 : v)} metin={g => `${g} günden eski`} nMetni="N günden eski" bosMetin="Son etkinlik" />
-          </Cerceve>
-        </div>
-      </div>
+      <FiltreCubugu
+        danisman={isAdmin || isManager ? { liste: subeyeGore, secili: danismanlar, onChange: setDanismanlar, yukleniyor: !kisiler && !kisiHata } : null}
+        kaynak={{ secili: kaynaklar, onChange: setKaynaklar }}
+        tarih={{ deger: sessizGun || null, onChange: v => setSessizGun(v === null ? 0 : v), metin: g => `${g} günden eski`, nMetni: "N günden eski",
+          bosMetin: "Son etkinlik", ipucu: `Son Etkinlik Tarihi: ${ACIKLAMA.sonEtkinlik}` }} />
 
       {kisiHata && <div style={c.hata}>{kisiHata}</div>}
       {kisiler && !danismanlar.length && (
@@ -353,21 +336,6 @@ function Kart({ sayi, etiket, ipucu, renk = "#0f172a", zemin = "#fff", cerceve =
 }
 
 // VIP Datalar düğmesi: arkada dönen konik renk geçişi 2px'lik neon çerçeve gibi görünür, dışta altın parıltı nefes alır
-const VIP_CSS = `
-.vip-neon { position: relative; isolation: isolate; overflow: hidden; padding: 2px; border: none; border-radius: 999px;
-  background: transparent; cursor: pointer; font-family: 'Sora', sans-serif; animation: vipParilti 2.4s ease-in-out infinite; }
-.vip-neon::before { content: ""; position: absolute; inset: -200%; z-index: -1;
-  background: conic-gradient(from 0deg, transparent 0 55%, #f59e0b 65%, #fde047 72%, #f472b6 80%, #a855f7 88%, transparent 95%);
-  animation: vipDon 2.4s linear infinite; }
-.vip-neon > span { display: block; padding: 5px 14px; border-radius: 999px; background: #fffbeb; color: #92400e;
-  font-size: 12px; font-weight: 700; letter-spacing: 0.2px; transition: all 0.15s; }
-.vip-neon:hover > span { background: #fef3c7; }
-.vip-neon-aktif > span { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; }
-.vip-neon-aktif:hover > span { background: linear-gradient(135deg, #f59e0b, #b45309); }
-@keyframes vipDon { to { transform: rotate(360deg); } }
-@keyframes vipParilti { 0%, 100% { box-shadow: 0 0 6px rgba(245, 158, 11, 0.35); } 50% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.75), 0 0 28px rgba(244, 114, 182, 0.3); } }
-@media (prefers-reduced-motion: reduce) { .vip-neon, .vip-neon::before { animation: none; } .vip-neon::before { background: linear-gradient(90deg, #f59e0b, #f472b6); } }
-`;
 
 const t = {
   uyari: { display: "flex", alignItems: "center", gap: "12px", padding: "16px 20px", marginBottom: "20px", borderRadius: "16px",

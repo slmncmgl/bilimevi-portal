@@ -1,3 +1,4 @@
+// v1.5: giriş çubuğu ortak (FiltreCubugu.jsx): Danışman (tekli) · kaynak + VIP · Tümü / süre. "Danışman Özeti · Son N gün" başlığı kalktı
 // v1.4: staff'ta açılışta kendisi seçili gelir
 // v1.3: danışman ve gün seçimi renkli çerçevede (diğer sekmelerle aynı renkler); bölüm başlıkları sade
 // v1.2: bölüm başlıkları renkli
@@ -9,8 +10,8 @@
 // Sayılar crm-rapor "ozet" işleminden gelir.
 // Aşama değişiklikleri Kylas'ta geçmiş olarak tutulmadığı için henüz sayılmıyor.
 import { useState, useEffect } from "react";
-import { apiCagir, c, Cerceve, KYLAS_LEAD_URL, tarih, KAYNAKLAR, kisileriYukle, kucuk } from "./CrmRaporu";
-import TarihSecici from "./TarihSecici";
+import { apiCagir, c, KYLAS_LEAD_URL, tarih, KAYNAKLAR, kisileriYukle, kucuk } from "./CrmRaporu";
+import FiltreCubugu from "./FiltreCubugu";
 import Ipucu from "./Ipucu";
 
 const ASAMALAR = [
@@ -20,10 +21,10 @@ const ASAMALAR = [
 const ASAMA_ADI = Object.fromEntries(ASAMALAR);
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const SAYFA = 20;
-export const OZET_SURUM = "v1.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const OZET_SURUM = "v1.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ACIKLAMA = {
-  baslik: "Seçili danışmanın son N gündeki işleri ve bu dönemde aldığı yeni datalar. Tüm veri kaynakları sayılır.",
+  baslik: "Seçili danışmanın bu dönemdeki işleri ve bu dönemde aldığı yeni datalar. Kaynak seçiliyse sadece o kaynaklardaki datalar sayılır. Tümü: tüm zamanlar.",
   not: "Danışmanın bu dönemde Kylas'ta yazdığı not sayısı.",
   notluData: "Danışmanın bu dönemde en az bir not yazdığı farklı data sayısı.",
   taskAcilan: "Danışmanın bu dönemde oluşturduğu task sayısı.",
@@ -39,7 +40,8 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null);
   const [kisiHata, setKisiHata] = useState(null);
   const [kisiId, setKisiId] = useState(null); // açılışta boş: danışman seçilmeden istek gitmez
-  const [gun, setGun] = useState(7);
+  const [gun, setGun] = useState(7); // null = Tümü
+  const [kaynaklar, setKaynaklar] = useState([]); // boşsa tüm kaynaklar
   const [veri, setVeri] = useState(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
@@ -59,7 +61,6 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
       return k.email === kucuk(user?.email) || kucuk(k.ad) === kucuk(user?.name);
     })
     .sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr"));
-  const subeler = [...new Set(secilebilir.map(k => k.sube || "Şubesiz"))];
   // Staff sadece kendini görür: açılışta doğrudan kendisi seçili gelir. Admin ve manager seçmeden istek gitmez.
   useEffect(() => {
     if (kisiler && !kisiId && !isAdmin && !isManager && secilebilir.length === 1) setKisiId(secilebilir[0].id);
@@ -72,13 +73,13 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
     setYukleniyor(true);
     setHata(null);
     const zamanlayici = setTimeout(() => {
-      apiCagir({ islem: "ozet", ownerId: Number(kisiId), gun })
+      apiCagir({ islem: "ozet", ownerId: Number(kisiId), gun, kaynaklar })
         .then(d => { if (!iptal) setVeri(d); })
         .catch(e => { if (!iptal) { setVeri(null); setHata(e.message); } })
         .finally(() => { if (!iptal) setYukleniyor(false); });
     }, 400);
     return () => { iptal = true; clearTimeout(zamanlayici); };
-  }, [kisiId, gun]);
+  }, [kisiId, gun, [...kaynaklar].sort((x, y) => x - y).join(",")]);
 
   useEffect(() => { setGosterilen(SAYFA); }, [filtre]);
 
@@ -92,31 +93,16 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
     : filtre === "dokunulmamis" ? "Dokunulmamış" : ASAMA_ADI[filtre];
 
   return (
+    <>
+    <FiltreCubugu
+      danisman={isAdmin || isManager ? { liste: secilebilir, secili: kisiId ? [kisiId] : [], onChange: ids => setKisiId(ids[0] || null), tekli: true,
+        bosMetin: "Danışman seçin", yukleniyor: !kisiler && !kisiHata } : null}
+      kaynak={{ secili: kaynaklar, onChange: setKaynaklar }}
+      tarih={{ deger: gun, onChange: setGun, bosMetin: "Süre seçin", ipucu: ACIKLAMA.baslik }} />
     <div style={{ ...c.tablo, marginBottom: "20px" }}>
-      <div style={c.tabloBaslik}>
-        <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", display: "inline-flex", alignItems: "center", gap: "10px" }}>
-          <Ipucu metin={ACIKLAMA.baslik}>Danışman Özeti · Son {gun} gün</Ipucu>
-          {yukleniyor && veri && <span style={{ ...c.spinner, width: "14px", height: "14px" }} />}
-        </span>
-        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-          <Cerceve tur="danisman">
-          <select value={kisiId || ""} onChange={e => setKisiId(e.target.value || null)} style={{ ...o.secim, ...(kisiId ? {} : o.secimBos) }} aria-label="Danışman">
-            <option value="">{kisiler ? "Danışman seçin" : "Yükleniyor..."}</option>
-            {subeler.length > 1
-              ? subeler.map(sb => (
-                <optgroup key={sb} label={sb}>
-                  {secilebilir.filter(k => (k.sube || "Şubesiz") === sb).map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
-                </optgroup>
-              ))
-              : secilebilir.map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
-          </select>
-          </Cerceve>
-          <Cerceve tur="tarih"><TarihSecici deger={gun} onChange={setGun} tumu={false} enFazla={90} /></Cerceve>
-        </div>
-      </div>
-
       {kisiHata && <div style={{ ...c.hata, margin: "16px 24px" }}>{kisiHata}</div>}
       {!kisiId && !kisiHata && <div style={{ ...c.bos, padding: "40px 0" }}>Özeti görmek için yukarıdan bir danışman seçin.</div>}
+      {kisiId && yukleniyor && veri && <div style={{ height: "3px", background: "linear-gradient(90deg, #0891b2, #7c3aed)", animation: "fadeUp 0.6s ease-in-out infinite alternate" }} />}
       {kisiId && yukleniyor && !veri && <div style={{ ...c.bos, padding: "28px 0" }}><span style={c.spinner} /> Kylas'tan alınıyor...</div>}
       {kisiId && !yukleniyor && hata && <div style={{ ...c.hata, margin: "16px 24px" }}>{hata}</div>}
 
@@ -205,6 +191,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
         </div>
       )}
     </div>
+    </>
   );
 }
 
