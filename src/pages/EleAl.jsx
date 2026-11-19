@@ -1,3 +1,5 @@
+// v1.1: Kylas kaydı gibi düzen: ortada "Ad (#ID)" başlığı ve iki sıra bilgi (telefon, e-posta, şehir, danışman, form tarihi,
+//       Campaign Name, Data Kaynağı, aşama), altında not kutusu ve önceki notlar. Telefon ve e-posta islem "detay" ile alınır.
 // v1.0: "Bu dataları ele al" (Takip Tablosu). Listedeki datalar tam ekranda tek tek açılır, üstte sıra (3 / 30).
 // Her datada bilgiler ve son 10 not görünür; not yazılmadan sonrakine geçilmez. Not Kylas'a kaydedilir (islem "notEkle"),
 // başına sunucu "[Yazan · Portal]" ekler. Önceki datalara dönülebilir. Kapatınca not girilen datalar üst bileşene bildirilir.
@@ -39,6 +41,8 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   const [cikisSor, setCikisSor] = useState(false);
   const alan = useRef(null);
   const istenen = useRef(new Set());
+  const [detaylar, setDetaylar] = useState({}); // id -> { yukleniyor } | detay | { hata }
+  const detayIstenen = useRef(new Set());
 
   const toplam = leadler.length;
   const l = leadler[sira];
@@ -55,8 +59,19 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
       .then(d => setNotlar(s => ({ ...s, [lead.id]: d })))
       .catch(e => { istenen.current.delete(lead.id); setNotlar(s => ({ ...s, [lead.id]: { hata: e.message } })); });
   }
-  // Açık datanın ve bir sonrakinin notları önceden alınır
-  useEffect(() => { notlariGetir(leadler[sira]); notlariGetir(leadler[sira + 1]); setHata(null); alan.current?.focus(); }, [sira]);
+  function detayGetir(lead) {
+    if (!lead || detayIstenen.current.has(lead.id)) return;
+    detayIstenen.current.add(lead.id);
+    setDetaylar(s => ({ ...s, [lead.id]: { yukleniyor: true } }));
+    apiCagir({ islem: "detay", leadId: lead.id })
+      .then(d => setDetaylar(s => ({ ...s, [lead.id]: d })))
+      .catch(e => { detayIstenen.current.delete(lead.id); setDetaylar(s => ({ ...s, [lead.id]: { hata: e.message } })); });
+  }
+  // Açık datanın ve bir sonrakinin bilgileri ve notları önceden alınır
+  useEffect(() => {
+    [leadler[sira], leadler[sira + 1]].forEach(x => { detayGetir(x); notlariGetir(x); });
+    setHata(null); alan.current?.focus({ preventScroll: true });
+  }, [sira]);
 
   // Sayfa kaymasın; Esc ile çıkış (kaydedilmemiş not varsa sorar)
   useEffect(() => {
@@ -100,6 +115,10 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   }
 
   const n = l ? notlar[l.id] : null;
+  const dt = l ? detaylar[l.id] : null;
+  const dy = !dt || dt.yukleniyor; // detay bekleniyor
+  const kampanya = dt?.kampanya ?? l?.kampanya;
+  const kaynak = dt?.kaynak ?? l?.kaynak;
   const ilerleme = Math.round(((bitti ? toplam : sira) / toplam) * 100);
   const metinYeterli = metin.trim().length >= ENAZ;
   const ileriAcik = (metinYeterli || notVar) && !kaydediliyor && !basari;
@@ -137,37 +156,35 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
       ) : (
         <main key={l.id} className="elal-govde" style={s.govde}>
           <section style={s.kart}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" }}>
-              <h2 style={{ margin: 0, fontSize: "22px", color: "#0f172a", lineHeight: 1.25 }}>{l.ad || <span style={{ color: "#cbd5e1" }}>İsimsiz</span>}</h2>
+            <div style={s.baslikSatir}>
+              <h2 style={s.ad}>{dt?.ad || l.ad || <span style={{ color: "#cbd5e1" }}>İsimsiz</span>}<span style={s.idNo}>(#{l.id})</span></h2>
               {notVar && <span style={s.eklendi}>✓ Not eklendi</span>}
+              <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={s.kylas}>Kylas'ta aç ↗</a>
             </div>
-            <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={s.kylas}>Kylas'ta aç · {l.id} ↗</a>
-            <dl style={s.bilgiler}>
-              <Bilgi ad="Aşama">{ASAMA_ADLARI[l.asama] || "-"}{l.zorunlu && <span style={s.etiketKirmizi}>Task zorunlu</span>}</Bilgi>
-              <Bilgi ad="Kaynak">{kaynakAdi(l.kaynak)}{VIP_KAYNAKLAR.includes(l.kaynak) && <span style={s.etiketSari}>VIP</span>}</Bilgi>
-              <Bilgi ad="Danışman">{kisiAdi(l.ownerId)}</Bilgi>
-              <Bilgi ad="Campaign Name">{l.kampanya || "-"}</Bilgi>
-              <Bilgi ad="Son aktivite">{l.sonAktivite ? `${tarih(l.sonAktivite)} · ${gunOnce(l.sonAktivite)} gün önce` : "Hiç yok"}</Bilgi>
-              {gecikmis && l.sonrakiTask && <Bilgi ad="Task tarihi"><span style={{ color: "#b45309", fontWeight: 700 }}>{tarih(l.sonrakiTask)} · {gunOnce(l.sonrakiTask)} gün gecikti</span></Bilgi>}
-            </dl>
+            {dt?.hata && <div style={{ ...s.hata, marginTop: 0, marginBottom: "14px" }}>{dt.hata} <button type="button" onClick={() => detayGetir(l)} style={s.metinDugme}>Tekrar dene</button></div>}
+            <div className="elal-alanlar" style={s.alanlar}>
+              <Alan ad="Telefon" bekliyor={dy}>
+                {dt?.telefonlar?.length ? <div style={s.liste}>{dt.telefonlar.map(t => <a key={t} href={`tel:${t}`} style={s.iletisim}><span style={s.ikonYesil}>☎</span>{t}</a>)}</div> : "-"}
+              </Alan>
+              <Alan ad="E-posta" bekliyor={dy}>
+                {dt?.epostalar?.length ? <div style={s.liste}>{dt.epostalar.map(e => <a key={e} href={`mailto:${e}`} style={s.iletisim}><span style={s.ikonMavi}>@</span>{e}</a>)}</div> : "-"}
+              </Alan>
+              <Alan ad="Şehir" bekliyor={dy}>{dt?.sehir || "-"}</Alan>
+              <Alan ad="Danışman">{kisiAdi(dt?.ownerId ?? l.ownerId)}</Alan>
+              <Alan ad="Form tarihi" bekliyor={dy}>{dt?.olusturma ? tarih(dt.olusturma, true) : "-"}</Alan>
+              <Alan ad="Campaign Name">{kampanya || "-"}</Alan>
+              <Alan ad="Data Kaynağı">{kaynakAdi(kaynak)}{VIP_KAYNAKLAR.includes(kaynak) && <span style={s.etiketSari}>VIP</span>}</Alan>
+              <Alan ad="Aşama">{ASAMA_ADLARI[l.asama] || "-"}{l.zorunlu && <span style={s.etiketKirmizi}>Task zorunlu</span>}</Alan>
+            </div>
+            <div style={s.altBilgi}>
+              <span>Son aktivite: <b style={{ color: "#0f172a" }}>{l.sonAktivite ? `${tarih(l.sonAktivite)} · ${gunOnce(l.sonAktivite)} gün önce` : "hiç yok"}</b></span>
+              {gecikmis && l.sonrakiTask && <span style={{ color: "#b45309" }}>Task tarihi: <b>{tarih(l.sonrakiTask)} · {gunOnce(l.sonrakiTask)} gün gecikti</b></span>}
+            </div>
           </section>
 
           <section style={s.notKutusu}>
-            <div style={s.bolumBaslik}>Notlar{n?.toplam ? ` (${n.toplam})` : ""}</div>
-            <div style={s.notListe}>
-              {n?.yukleniyor && <div style={s.bilgiMetni}><span className="elal-spin" /> Notlar alınıyor...</div>}
-              {n?.hata && <div style={{ ...s.bilgiMetni, color: "#991b1b" }}>{n.hata} <button type="button" onClick={() => notlariGetir(l)} style={s.metinDugme}>Tekrar dene</button></div>}
-              {n?.notlar && n.notlar.length === 0 && <div style={s.bilgiMetni}>Bu Data'da henüz not yok. İlk notu sen yaz.</div>}
-              {n?.notlar?.map((x, i) => (
-                <div key={i} className={x.yeni ? "elal-yeni-not" : undefined} style={{ ...s.not, ...(x.yeni ? s.notYeni : {}) }}>
-                  <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>{tarih(x.tarih, true)}{x.yazan ? ` · ${x.yazan}` : ""}{x.portal ? " · Portal" : ""}</div>
-                  <div style={{ whiteSpace: "pre-wrap", color: "#0f172a", fontSize: "13px", lineHeight: 1.55 }}>{x.metin || <span style={{ color: "#cbd5e1" }}>Boş not</span>}</div>
-                </div>
-              ))}
-              {n?.toplam > (n?.notlar?.length || 0) && <div style={{ fontSize: "11px", color: "#94a3b8" }}>Son {n.notlar.length} not gösteriliyor, hepsi Kylas'ta.</div>}
-            </div>
-
             <div style={s.yazma}>
+              <div style={s.bolumBaslik}>Yeni not</div>
               <textarea ref={alan} value={metin} disabled={kaydediliyor || basari}
                 onChange={e => setTaslak(t => ({ ...t, [l.id]: e.target.value.slice(0, 3000) }))}
                 onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (ileriAcik) kaydet(); } }}
@@ -184,6 +201,20 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
                 </button>
               </div>
             </div>
+
+            <div style={{ ...s.bolumBaslik, padding: "14px 24px 0" }}>Önceki notlar{n?.toplam ? ` (${n.toplam})` : ""}</div>
+            <div style={s.notListe}>
+              {n?.yukleniyor && <div style={s.bilgiMetni}><span className="elal-spin" /> Notlar alınıyor...</div>}
+              {n?.hata && <div style={{ ...s.bilgiMetni, color: "#991b1b" }}>{n.hata} <button type="button" onClick={() => notlariGetir(l)} style={s.metinDugme}>Tekrar dene</button></div>}
+              {n?.notlar && n.notlar.length === 0 && <div style={s.bilgiMetni}>Bu Data'da henüz not yok. İlk notu sen yaz.</div>}
+              {n?.notlar?.map((x, i) => (
+                <div key={i} className={x.yeni ? "elal-yeni-not" : undefined} style={{ ...s.not, ...(x.yeni ? s.notYeni : {}) }}>
+                  <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>{tarih(x.tarih, true)}{x.yazan ? ` · ${x.yazan}` : ""}{x.portal ? " · Portal" : ""}</div>
+                  <div style={{ whiteSpace: "pre-wrap", color: "#0f172a", fontSize: "13px", lineHeight: 1.55 }}>{x.metin || <span style={{ color: "#cbd5e1" }}>Boş not</span>}</div>
+                </div>
+              ))}
+              {n?.toplam > (n?.notlar?.length || 0) && <div style={{ fontSize: "11px", color: "#94a3b8" }}>Son {n.notlar.length} not gösteriliyor, hepsi Kylas'ta.</div>}
+            </div>
           </section>
         </main>
       )}
@@ -199,11 +230,13 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   );
 }
 
-function Bilgi({ ad, children }) {
+function Alan({ ad, bekliyor, children }) {
   return (
-    <div style={{ display: "contents" }}>
-      <dt style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.4px", paddingTop: "2px" }}>{ad}</dt>
-      <dd style={{ margin: 0, fontSize: "14px", color: "#0f172a", fontWeight: 600, wordBreak: "break-word" }}>{children}</dd>
+    <div style={{ minWidth: 0 }}>
+      <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>{ad}</div>
+      <div style={{ fontSize: "14px", color: "#0f172a", fontWeight: 600, wordBreak: "break-word" }}>
+        {bekliyor ? <span className="elal-iskelet" /> : children}
+      </div>
     </div>
   );
 }
@@ -220,25 +253,36 @@ const s = {
   kapat: { width: "38px", height: "38px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569",
     fontSize: "15px", cursor: "pointer", flexShrink: 0 },
   cubukZemin: { position: "absolute", left: 0, right: 0, bottom: 0, height: "4px", background: "#e2e8f0" },
-  govde: { flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "minmax(280px, 380px) minmax(0, 1fr)", gap: "20px",
-    padding: "24px", maxWidth: "1180px", width: "100%", margin: "0 auto", boxSizing: "border-box" },
-  kart: { alignSelf: "start", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "22px",
+  govde: { flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px",
+    padding: "24px max(24px, calc((100% - 1040px) / 2)) 32px", width: "100%", boxSizing: "border-box" },
+  kart: { flexShrink: 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "22px 24px",
     boxShadow: "0 8px 24px rgba(15,23,42,0.06)" },
-  kylas: { display: "inline-block", marginTop: "8px", fontSize: "12px", fontWeight: 700, color: "#0891b2", textDecoration: "none" },
-  bilgiler: { display: "grid", gridTemplateColumns: "auto 1fr", gap: "12px 14px", margin: "20px 0 0", alignItems: "baseline" },
+  baslikSatir: { display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "20px" },
+  ad: { margin: 0, fontSize: "24px", fontWeight: 600, color: "#0f172a", lineHeight: 1.25, marginRight: "auto", wordBreak: "break-word" },
+  idNo: { marginLeft: "6px", color: "#64748b", fontWeight: 500 },
+  kylas: { flexShrink: 0, padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #a5f3fc", background: "#ecfeff", fontSize: "12px",
+    fontWeight: 700, color: "#0891b2", textDecoration: "none" },
+  alanlar: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "20px 24px" },
+  liste: { display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" },
+  iletisim: { display: "inline-flex", alignItems: "center", gap: "8px", color: "#2563eb", textDecoration: "none", fontWeight: 600 },
+  ikonYesil: { width: "22px", height: "22px", borderRadius: "7px", background: "#dcfce7", color: "#16a34a", display: "inline-flex",
+    alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0 },
+  ikonMavi: { width: "22px", height: "22px", borderRadius: "7px", background: "#dbeafe", color: "#2563eb", display: "inline-flex",
+    alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800, flexShrink: 0 },
+  altBilgi: { display: "flex", gap: "8px 24px", flexWrap: "wrap", marginTop: "20px", paddingTop: "14px", borderTop: "1px solid #f1f5f9",
+    fontSize: "12px", color: "#64748b" },
   etiketKirmizi: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fee2e2", color: "#991b1b", fontSize: "10px", fontWeight: 700 },
   etiketSari: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
   eklendi: { flexShrink: 0, padding: "4px 10px", borderRadius: "999px", background: "#f0fdf4", border: "1.5px solid #86efac", color: "#166534", fontSize: "11px", fontWeight: 700 },
-  notKutusu: { minHeight: 0, display: "flex", flexDirection: "column", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px",
+  notKutusu: { flexShrink: 0, display: "flex", flexDirection: "column", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px",
     boxShadow: "0 8px 24px rgba(15,23,42,0.06)", overflow: "hidden" },
-  bolumBaslik: { padding: "14px 20px", fontSize: "12px", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px",
-    borderBottom: "1px solid #f1f5f9" },
-  notListe: { flex: 1, minHeight: "120px", overflowY: "auto", padding: "14px 20px", display: "flex", flexDirection: "column", gap: "10px" },
+  bolumBaslik: { fontSize: "12px", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" },
+  notListe: { padding: "4px 24px 20px", display: "flex", flexDirection: "column", gap: "10px" },
   not: { padding: "10px 12px", borderRadius: "12px", background: "#f8fafc", border: "1px solid #f1f5f9" },
   notYeni: { background: "#f5f3ff", border: "1px solid #ddd6fe" },
   bilgiMetni: { display: "flex", alignItems: "center", gap: "8px", color: "#64748b", fontSize: "13px" },
   metinDugme: { border: "none", background: "none", color: "#0891b2", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: "13px" },
-  yazma: { borderTop: "1px solid #f1f5f9", padding: "14px 20px 16px", background: "#fcfcff" },
+  yazma: { borderBottom: "1px solid #f1f5f9", padding: "18px 24px", background: "#fcfcff" },
   alan: { width: "100%", minHeight: "110px", resize: "vertical", padding: "12px 14px", borderRadius: "14px", border: "1.5px solid", outline: "none",
     fontFamily: "'Sora', sans-serif", fontSize: "14px", lineHeight: 1.5, color: "#0f172a", boxSizing: "border-box", background: "#fff", transition: "border-color 0.15s" },
   hata: { marginTop: "8px", padding: "8px 12px", borderRadius: "10px", background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", fontSize: "12px" },
@@ -268,8 +312,12 @@ const EKRAN_CSS = `
 .elal-ileri-acik { animation: elalHale 1.8s ease-in-out infinite; }
 .elal-bitti-ikon { width: 88px; height: 88px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 800;
   color: #fff; background: linear-gradient(135deg, #0891b2, #7c3aed 55%, #db2777); box-shadow: 0 16px 40px rgba(124,58,237,0.35); animation: elalPatla 0.5s ease-out; }
-@media (max-width: 820px) { .elal-govde { grid-template-columns: 1fr !important; overflow-y: auto; padding: 16px !important; } }
-@media (prefers-reduced-motion: reduce) { .elal-govde, .elal-cubuk, .elal-yeni-not, .elal-ileri-acik, .elal-bitti-ikon { animation: none !important; } }
+@keyframes elalIskelet { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.elal-iskelet { display: inline-block; width: 70%; height: 14px; border-radius: 6px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%; animation: elalIskelet 1.2s linear infinite; }
+@media (max-width: 820px) { .elal-alanlar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } .elal-govde { padding: 16px !important; } }
+@media (max-width: 480px) { .elal-alanlar { grid-template-columns: 1fr !important; } }
+@media (prefers-reduced-motion: reduce) { .elal-govde, .elal-cubuk, .elal-iskelet, .elal-yeni-not, .elal-ileri-acik, .elal-bitti-ikon { animation: none !important; } }
 `;
 
 // Düğme: akan renk geçişi + üzerinden geçen parıltı; sayı rozeti beyaz

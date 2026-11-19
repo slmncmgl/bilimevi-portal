@@ -1,3 +1,5 @@
+// v3.3: islem "detay": { leadId } -> Ele al ekranı için iletişim bilgileri (telefon, e-posta, şehir, form tarihi, kampanya, kaynak).
+//       Kişisel veri olduğu için izleme modu yok: geçerli oturum; staff kendi, manager şubesinin, admin her datayı görür. "[detay]" logu.
 // v3.2: islem "notEkle": { leadId, metin } -> Kylas'ta dataya not (Takip Tablosu > "Bu dataları ele al").
 //       Not portalın API anahtarıyla (Selman) yazılır, başına "[Yazan Ad · Portal]" eklenir. Yazma her zaman zorunlu yetki:
 //       geçerli oturum; staff kendi, manager şubesinin datasına, admin her dataya. "[not]" önekiyle loglanır (metin loglanmaz).
@@ -612,6 +614,33 @@ async function ata(req, res, yetki) {
   return res.status(200).json(sonuc);
 }
 
+// ---- Data detayı (Ele al ekranı) ----
+async function detay(req, res, yetki) {
+  if (yetki.tur === "anonim") return res.status(401).json({ error: "Oturum doğrulanamadı. Lütfen çıkış yapıp tekrar giriş yapın." });
+  if (yetki.tur === "hata") return res.status(503).json({ error: "Yetki bilgisi okunamadı, biraz sonra tekrar deneyin." });
+  if (!["admin", "manager", "staff"].includes(yetki.tur)) return res.status(403).json({ error: "Bu Data'yı görme yetkiniz yok." });
+  const leadId = Number(req.body?.leadId);
+  if (!Number.isInteger(leadId) || leadId <= 0) return res.status(400).json({ error: "Data seçilmedi." });
+  const r = await kylasGet(`https://api.kylas.io/v1/leads/${leadId}`);
+  if (r.status === 404) return res.status(404).json({ error: "Data bulunamadı." });
+  if (!r.ok) return res.status(502).json({ error: `Data bilgileri alınamadı (HTTP ${r.status})` });
+  const l = await r.json();
+  if (yetki.tur !== "admin" && !yetki.idler.has(Number(l.ownerId))) return res.status(403).json({ error: "Bu Data'yı görme yetkiniz yok." });
+  console.log(`[detay] ${yetki.ad}: data ${leadId}`);
+  const sirala = a => [...(a || [])].sort((x, y) => Number(!!y.primary) - Number(!!x.primary));
+  return res.status(200).json({
+    id: l.id,
+    ad: [l.firstName, l.lastName].filter(Boolean).join(" "),
+    telefonlar: sirala(l.phoneNumbers).map(p => `${p.dialCode || ""}${p.value || ""}`).filter(Boolean),
+    epostalar: sirala(l.emails).map(e => e.value).filter(Boolean),
+    sehir: l.city || "",
+    ownerId: l.ownerId ?? null,
+    olusturma: l.createdAt || null,
+    kampanya: l.utmCampaign || "",
+    kaynak: l.source ?? null,
+  });
+}
+
 // ---- Not ekle (Takip Tablosu > Bu dataları ele al) ----
 const NOT_SINIR = 3000;
 async function notEkle(req, res, yetki) {
@@ -670,6 +699,9 @@ export default async function handler(req, res) {
   }
   if (req.body?.islem === "ozet") {
     try { return await ozet(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
+  }
+  if (req.body?.islem === "detay") {
+    try { return await detay(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
   }
   if (req.body?.islem === "notEkle") {
     try { return await notEkle(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }

@@ -1,3 +1,4 @@
+// v4.3: Ele al ekranı Kylas kaydı düzeninde: ortada ad (#ID) ve iki sıra bilgi (telefon, e-posta dahil), altında notlar (EleAl v1.1)
 // v4.2: liste başlığında huninin solunda "Bu dataları ele al" (EleAl.jsx): datalar tam ekranda sırayla, not girilmeden sonrakine geçilmez,
 //       not Kylas'a yazılır. İşaretli data varsa sadece onlar, yoksa listedeki (aşama süzmesiyle) tüm datalar.
 // v4.1: VIP Datalar OFF VIP kaynakları seçimden çıkarır (FiltreCubugu v1.5)
@@ -53,7 +54,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v4.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v4.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;

@@ -38,6 +38,13 @@ globalThis.fetch = async (url, opts = {}) => {
       { createdAt: "2026-11-18T10:00:00Z", createdBy: 101, description: "eski not" },
     ] });
   }
+  const ld = url.match(/\/v1\/leads\/(\d+)$/);
+  if (ld && !opts.method) {
+    const id = Number(ld[1]);
+    if (!SAHIP[id]) return yanit(404, {});
+    return yanit(200, { id, firstName: "Ece", lastName: "Deneme", ownerId: SAHIP[id], city: "İstanbul", createdAt: "2026-11-01T10:00:00Z", utmCampaign: "Yaz 2027", source: 3024131,
+      phoneNumbers: [{ dialCode: "+90", value: "5000000001", primary: false }, { dialCode: "+90", value: "5000000002", primary: true }], emails: [{ value: "ece@ornek.test", primary: true }] });
+  }
   throw new Error("beklenmeyen istek " + url);
 };
 console.warn = () => {};
@@ -94,4 +101,15 @@ assert.deepEqual(mod.portalEtiketi("[Ayşe Yılmaz · Portal] merhaba"), { yazan
 assert.equal(mod.portalEtiketi("[Ayşe] merhaba"), null);
 assert.equal(mod.portalEtiketi("merhaba [Ayşe · Portal]"), null);
 
-process.stdout.write("Not ekleme testleri geçti.\n");
+// 7. Detay: kişisel veri, izleme modunda bile zorunlu yetki
+const detay = (email, leadId) => iste(email, { islem: "detay", leadId });
+assert.equal((await detay(null, 1)).code, 401);
+assert.equal((await detay("nur@x.com", 1)).code, 403, "staff başkasının datasını göremez");
+assert.equal((await detay("mehmet@x.com", 2)).code, 403, "manager başka şubeyi göremez");
+assert.equal((await detay("ali@x.com", 99)).code, 404);
+r = await detay("nil@x.com", 1);
+assert.equal(r.code, 200);
+assert.deepEqual(r.body, { id: 1, ad: "Ece Deneme", telefonlar: ["+905000000002", "+905000000001"], epostalar: ["ece@ornek.test"], sehir: "İstanbul",
+  ownerId: 101, olusturma: "2026-11-01T10:00:00Z", kampanya: "Yaz 2027", kaynak: 3024131 });
+
+process.stdout.write("Not ekleme ve detay testleri geçti.\n");
