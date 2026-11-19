@@ -474,7 +474,7 @@ export function NotBalonu({ lead, onbellek }) {
 
 const chipTemel = { padding: "7px 14px", borderRadius: "999px", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif", transition: "all 0.15s" };
 // Filtre çerçevelerinin renkleri: aynı filtre her sekmede aynı renkte (başlık yerine renkli çerçeve)
-export const BASLIK_RENK = { danisman: "#0891b2", sube: "#6366f1", kaynak: "#d97706", tarih: "#7c3aed", asama: "#059669" };
+export const BASLIK_RENK = { danisman: "#0891b2", sube: "#6366f1", kaynak: "#d97706", tarih: "#7c3aed", asama: "#059669", kampanya: "#db2777" };
 // Filtreyi saran renkli çerçeve. metin verilirse üzerine gelince açıklama balonu çıkar (açılır menülü filtrelerde verilmez, balon menüyü örter).
 export function Cerceve({ tur, metin, children, style }) {
   const renk = BASLIK_RENK[tur];

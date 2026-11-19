@@ -1,3 +1,4 @@
+// v3.1: takip { kampanya?: metin } -> Campaign Name (utmCampaign) bu metni içeren datalar (Kylas "contains", harf duyarsız); satırlarda kampanya
 // v3.0: ozet { ownerId, gun: null|1-3650, kaynaklar? }: gun null = tüm zamanlar. kaynaklar verilirse yeni datalar ve aktivite
 //       (not, task) sadece o kaynaklardaki datalar için sayılır (not/task'ın datasının kaynağı tek aramayla okunur).
 // v2.9: degerlendirme (Performans Tablosu) sadece admin: değilse "[yetki]" logu, zorunlu modda 403
@@ -334,11 +335,14 @@ async function takip(req, res, yetki) {
   const hamKaynaklar = Array.isArray(req.body?.kaynaklar) ? req.body.kaynaklar : [];
   const kaynaklar = [...new Set(hamKaynaklar.map(Number))].filter(k => Number.isInteger(k) && k > 0);
   if (kaynaklar.length !== hamKaynaklar.length || kaynaklar.length > 30) return res.status(400).json({ error: "Geçersiz veri kaynağı." });
+  const kampanya = typeof req.body?.kampanya === "string" ? req.body.kampanya.trim() : "";
+  if (kampanya.length > 100) return res.status(400).json({ error: "Campaign Name araması en fazla 100 karakter olabilir." });
   if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor takip")) return;
 
   const kurallar = [sahipKurali(ownerIds), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", TAKIP_ASAMALARI)];
   if (kaynaklar.length) kurallar.push(kural("source", "in", kaynaklar));
-  const leadler = await hepsiniCek(kurallar, [...LISTE_ALANLARI, "source"]);
+  if (kampanya) kurallar.push(kural("utmCampaign", "contains", kampanya, "string"));
+  const leadler = await hepsiniCek(kurallar, [...LISTE_ALANLARI, "source", "utmCampaign"]);
   if (leadler === null) return res.status(422).json({ error: "Seçimde 10.000'den fazla açık Data var, daha az danışman ya da kaynak seçin." });
 
   const simdi = Date.now();
@@ -350,7 +354,7 @@ async function takip(req, res, yetki) {
   const gecikmis = [];
   const satir = l => ({
     id: l.id, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), ownerId: l.ownerId, asama: l.pipelineStage, kaynak: l.source,
-    olusturma: l.createdAt || null, sonAktivite: l.latestActivityCreatedAt || null, sonrakiTask: l.taskDueOn || null,
+    kampanya: l.utmCampaign || "", olusturma: l.createdAt || null, sonAktivite: l.latestActivityCreatedAt || null, sonrakiTask: l.taskDueOn || null,
   });
   for (const l of leadler) {
     const d = danismanlar[l.ownerId] || (danismanlar[l.ownerId] = bosOzet());
@@ -370,7 +374,7 @@ async function takip(req, res, yetki) {
   }
   takipsiz.sort((a, b) => (zaman(a.sonAktivite) || 0) - (zaman(b.sonAktivite) || 0));
   gecikmis.sort((a, b) => zaman(a.sonrakiTask) - zaman(b.sonrakiTask));
-  return res.status(200).json({ ozet, danismanlar, sessizGun, kaynaklar, takipsiz, gecikmis, guncellendi: new Date().toISOString() });
+  return res.status(200).json({ ozet, danismanlar, sessizGun, kaynaklar, kampanya, takipsiz, gecikmis, guncellendi: new Date().toISOString() });
 }
 
 async function liste(req, res, kurallar, yetki) {

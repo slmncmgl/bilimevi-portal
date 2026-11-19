@@ -1,9 +1,11 @@
+// v1.2: isteğe bağlı Campaign Name "içerir" arama kutusu (kampanya: { deger, onChange }), pembe çerçeve; şimdilik Takip Tablosu
 // v1.1: VIP Datalar ON/OFF anahtar: ON sadece VIP, OFF tüm kaynaklar; OFF soluk görünür, dönen neon her iki durumda da var
 // v1.0: sekmelerin standart giriş çubuğu (Aktivite Tablosu, Danışman Özeti, Data Tablosu; Performans Tablosu hariç)
 // Soldan sağa: Danışman (turkuaz çerçeve) · Veri kaynağı + ★ VIP Datalar (turuncu çerçeve) · Tümü + süre listesi (mor çerçeve).
 // danisman: { liste, secili, onChange, tekli?, bosMetin?, yukleniyor? } verilmezse danışman kutusu görünmez (ör. staff).
 // kaynak:   { secili, onChange, bosMetin? }
 // tarih:    TarihSecici özellikleri + ipucu (mor çerçevenin üzerine gelince açıklama)
+import { useState, useEffect } from "react";
 import { c, Cerceve, KAYNAKLAR, TUM_KAYNAKLAR } from "./CrmRaporu";
 import DanismanSecici from "./DanismanSecici";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
@@ -12,7 +14,7 @@ import Ipucu from "./Ipucu";
 
 const VIP_ACIKLAMA = "ON: sadece VIP kaynaklar (Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing). OFF: tüm kaynaklar.";
 
-export default function FiltreCubugu({ danisman, kaynak, tarih }) {
+export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
   const vipSecili = kaynak.secili.length === VIP_KAYNAKLAR.length && VIP_KAYNAKLAR.every(id => kaynak.secili.includes(id));
   const { ipucu, ...tarihOzellik } = tarih;
   return (
@@ -37,8 +39,33 @@ export default function FiltreCubugu({ danisman, kaynak, tarih }) {
         <Cerceve tur="tarih" metin={ipucu}>
           <TarihSecici {...tarihOzellik} />
         </Cerceve>
+        {kampanya && <KampanyaAra deger={kampanya.deger} onChange={kampanya.onChange} />}
       </div>
     </div>
+  );
+}
+
+// Campaign Name "içerir" araması: yazmayı bırakınca (600 ms) üst bileşene gider; ✕ temizler
+function KampanyaAra({ deger, onChange }) {
+  const [yazi, setYazi] = useState(deger || "");
+  useEffect(() => { setYazi(deger || ""); }, [deger]);
+  useEffect(() => {
+    if (yazi.trim() === (deger || "")) return;
+    const z = setTimeout(() => onChange(yazi.trim()), 600);
+    return () => clearTimeout(z);
+  }, [yazi]);
+  return (
+    <Cerceve tur="kampanya" metin="Campaign Name bu metni içeren datalar listelenir (büyük/küçük harf fark etmez).">
+      <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+        <input value={yazi} onChange={e => setYazi(e.target.value.slice(0, 100))} placeholder="Campaign Name içerir..." aria-label="Campaign Name içerir"
+          style={{ height: "34px", width: "220px", padding: "0 30px 0 14px", borderRadius: "999px", border: `1.5px solid ${yazi ? "#db2777" : "#e2e8f0"}`,
+            background: yazi ? "#fdf2f8" : "#fff", color: "#0f172a", fontSize: "12px", fontWeight: 600, fontFamily: "'Sora', sans-serif", outline: "none" }} />
+        {yazi && (
+          <button type="button" onClick={() => { setYazi(""); onChange(""); }} aria-label="Aramayı temizle"
+            style={{ position: "absolute", right: "8px", border: "none", background: "transparent", color: "#9d174d", cursor: "pointer", fontSize: "12px", padding: "2px" }}>✕</button>
+        )}
+      </span>
+    </Cerceve>
   );
 }
 
