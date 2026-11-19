@@ -1,3 +1,4 @@
+// v2.8: tıklanan hücrenin listesinde sayfalama (sayfa başına 10 / 20 / 30 / 50); başlıktaki kutucuk o sayfadaki Dataları seçer
 // v2.7: listede kutucuk sütunu + "Danışman Ata": seçilen Datalar başka satış danışmanına aktarılır (admin herkese, manager kendi şubesinde)
 // v2.6: filtre başlıkları kalktı; filtreler renkli çerçeve içinde (Cerceve: kaynak turuncu, tarih mor, şube lacivert)
 // v2.5: filtre başlıkları renkli (Veri kaynağı, Data tarihi, Şube; BASLIK_RENK / etiket ortak)
@@ -50,7 +51,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v2.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v2.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
@@ -304,6 +305,12 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
   const ref = useRef(null);
   const notOnbellek = useRef({});
   const atanabilir = !!hedefler?.length;
+  const [sayfaBoyu, setSayfaBoyu] = useState(20);
+  const [sayfa, setSayfa] = useState(1);
+  const tumLeadler = veri?.leadler || [];
+  const sayfaSayisi = Math.max(1, Math.ceil(tumLeadler.length / sayfaBoyu));
+  const gecerliSayfa = Math.min(sayfa, sayfaSayisi);
+  const sayfaLeadleri = tumLeadler.slice((gecerliSayfa - 1) * sayfaBoyu, gecerliSayfa * sayfaBoyu);
 
   function yukle() {
     return apiCagir({ islem: "liste", kaynaklar, gun, ownerIds: secim.ownerIds, asama: secim.asama })
@@ -315,7 +322,7 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
     yukle();
   }, []);
 
-  const tumuIsaretli = veri?.leadler.length > 0 && veri.leadler.every(l => isaretli.includes(l.id));
+  const tumuIsaretli = sayfaLeadleri.length > 0 && sayfaLeadleri.every(l => isaretli.includes(l.id));
   const isaretle = id => setIsaretli(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
   const hedefKisi = hedefler?.find(k => String(k.id) === hedef);
   const hedefSubeler = [...new Set((hedefler || []).map(k => k.sube || "Şubesiz"))];
@@ -402,14 +409,15 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
       {!veri && !hata && <div style={c.bos}><span style={c.spinner} /> Datalar alınıyor...</div>}
       {hata && <div style={{ ...c.hata, margin: "16px" }}>{hata}</div>}
       {veri && (
-        <div style={{ overflowX: "auto", maxHeight: "560px", overflowY: "auto" }}>
+        <>
+        <div style={{ overflowX: "auto" }}>
           <table style={c.grid}>
             <thead>
               <tr>
                 {atanabilir && (
                   <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0, width: "36px" }}>
-                    <input type="checkbox" checked={tumuIsaretli} disabled={!!aktarim} aria-label="Tümünü seç"
-                      onChange={() => setIsaretli(tumuIsaretli ? [] : veri.leadler.map(l => l.id))} style={{ accentColor: "#0891b2", cursor: "pointer" }} />
+                    <input type="checkbox" checked={tumuIsaretli} disabled={!!aktarim} aria-label="Bu sayfadakileri seç"
+                      onChange={() => { const idler = sayfaLeadleri.map(l => l.id); setIsaretli(s => (tumuIsaretli ? s.filter(id => !idler.includes(id)) : [...new Set([...s, ...idler])])); }} style={{ accentColor: "#0891b2", cursor: "pointer" }} />
                   </th>
                 )}
                 <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Data ID</th>
@@ -423,7 +431,7 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
               </tr>
             </thead>
             <tbody>
-              {veri.leadler.map((l, i) => (
+              {sayfaLeadleri.map((l, i) => (
                 <tr key={l.id} style={{ background: isaretli.includes(l.id) ? "#ecfeff" : i % 2 ? "#fbfdff" : "#fff" }}>
                   {atanabilir && (
                     <td style={{ ...c.td, textAlign: "center" }}>
@@ -451,7 +459,39 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
             </tbody>
           </table>
         </div>
+        {tumLeadler.length > 0 && (
+          <Sayfalama toplam={tumLeadler.length} sayfaBoyu={sayfaBoyu} onSayfaBoyu={n => { setSayfaBoyu(n); setSayfa(1); }}
+            sayfa={gecerliSayfa} sayfaSayisi={sayfaSayisi} onSayfa={setSayfa} />
+        )}
+        </>
       )}
+    </div>
+  );
+}
+
+// Liste altı sayfalama: sayfa başına 10 / 20 / 30 / 50 ve sayfa düğmeleri (Aktivite Tablosu'ndakiyle aynı görünüm)
+export const SAYFA_BOYLARI = [10, 20, 30, 50];
+export function Sayfalama({ toplam, sayfaBoyu, onSayfaBoyu, sayfa, sayfaSayisi, onSayfa }) {
+  const dugme = (metin, hedef, kapali, baslik) => (
+    <button onClick={() => onSayfa(hedef)} disabled={kapali} title={baslik}
+      style={{ ...c.kucuk, opacity: kapali ? 0.4 : 1, cursor: kapali ? "default" : "pointer" }}>{metin}</button>
+  );
+  return (
+    <div style={c.sayfalama}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>Sayfa başına</span>
+        {SAYFA_BOYLARI.map(n => <button key={n} onClick={() => onSayfaBoyu(n)} style={sayfaBoyu === n ? c.kucukAktif : c.kucuk}>{n}</button>)}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <span style={{ fontSize: "12px", color: "#64748b", fontVariantNumeric: "tabular-nums" }}>
+          {(sayfa - 1) * sayfaBoyu + 1}-{Math.min(sayfa * sayfaBoyu, toplam)} / {toplam}
+        </span>
+        {dugme("«", 1, sayfa === 1, "İlk sayfa")}
+        {dugme("‹", sayfa - 1, sayfa === 1, "Önceki sayfa")}
+        <span style={{ fontSize: "12px", color: "#0f172a", fontWeight: 600, minWidth: "64px", textAlign: "center" }}>Sayfa {sayfa} / {sayfaSayisi}</span>
+        {dugme("›", sayfa + 1, sayfa === sayfaSayisi, "Sonraki sayfa")}
+        {dugme("»", sayfaSayisi, sayfa === sayfaSayisi, "Son sayfa")}
+      </div>
     </div>
   );
 }
@@ -544,6 +584,9 @@ export const c = {
   atamaTamam: { background: "#f0fdf4", color: "#166534", borderBottom: "1px solid #bbf7d0" },
   atamaUyari: { background: "#fffbeb", color: "#92400e", borderBottom: "1px solid #fde68a" },
   atamaHata: { background: "#fef2f2", color: "#991b1b", borderBottom: "1px solid #fecaca" },
+  sayfalama: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", padding: "12px 24px", borderTop: "1px solid #f1f5f9" },
+  kucuk: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
+  kucukAktif: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #0891b2", background: "#0891b2", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
   kapatBtn: { width: "28px", height: "28px", borderRadius: "8px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", cursor: "pointer", fontSize: "12px" },
   link: { color: "#0891b2", fontWeight: 600, textDecoration: "none", fontVariantNumeric: "tabular-nums" },
   vip: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
