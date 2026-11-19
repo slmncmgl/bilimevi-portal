@@ -1,3 +1,4 @@
+// v1.3: Campaign Name araması çubuğun en sağında huni ikonuyla açılan küçük kutuda; aktifken kelime ikonun yanında
 // v1.2: isteğe bağlı Campaign Name "içerir" arama kutusu (kampanya: { deger, onChange }), pembe çerçeve; şimdilik Takip Tablosu
 // v1.1: VIP Datalar ON/OFF anahtar: ON sadece VIP, OFF tüm kaynaklar; OFF soluk görünür, dönen neon her iki durumda da var
 // v1.0: sekmelerin standart giriş çubuğu (Aktivite Tablosu, Danışman Özeti, Data Tablosu; Performans Tablosu hariç)
@@ -5,7 +6,7 @@
 // danisman: { liste, secili, onChange, tekli?, bosMetin?, yukleniyor? } verilmezse danışman kutusu görünmez (ör. staff).
 // kaynak:   { secili, onChange, bosMetin? }
 // tarih:    TarihSecici özellikleri + ipucu (mor çerçevenin üzerine gelince açıklama)
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { c, Cerceve, KAYNAKLAR, TUM_KAYNAKLAR } from "./CrmRaporu";
 import DanismanSecici from "./DanismanSecici";
 import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
@@ -20,7 +21,7 @@ export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
   return (
     <div style={c.panel}>
       <style>{VIP_CSS}</style>
-      <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", alignItems: "center", width: "100%" }}>
         {danisman && (
           <Cerceve tur="danisman">
             <DanismanSecici danismanlar={danisman.liste} secili={danisman.secili} onChange={danisman.onChange} tekli={danisman.tekli}
@@ -45,29 +46,72 @@ export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
   );
 }
 
-// Campaign Name "içerir" araması: yazmayı bırakınca (600 ms) üst bileşene gider; ✕ temizler
+// Campaign Name "içerir" araması: çubuğun en sağında huni ikonu; tıklayınca açılır kutu.
+// Yazmayı bırakınca (600 ms) üst bileşene gider. Arama varken ikon pembe dolar ve yanında kelime görünür (✕ temizler).
 function KampanyaAra({ deger, onChange }) {
+  const [acik, setAcik] = useState(false);
   const [yazi, setYazi] = useState(deger || "");
+  const kutu = useRef(null);
   useEffect(() => { setYazi(deger || ""); }, [deger]);
   useEffect(() => {
     if (yazi.trim() === (deger || "")) return;
     const z = setTimeout(() => onChange(yazi.trim()), 600);
     return () => clearTimeout(z);
   }, [yazi]);
+  useEffect(() => {
+    if (!acik) return;
+    const disari = e => { if (kutu.current && !kutu.current.contains(e.target)) setAcik(false); };
+    const tus = e => { if (e.key === "Escape" || e.key === "Enter") setAcik(false); };
+    document.addEventListener("mousedown", disari);
+    document.addEventListener("keydown", tus);
+    return () => { document.removeEventListener("mousedown", disari); document.removeEventListener("keydown", tus); };
+  }, [acik]);
+  const temizle = () => { setYazi(""); onChange(""); };
+  const aktif = !!deger;
+
   return (
-    <Cerceve tur="kampanya" metin="Campaign Name bu metni içeren datalar listelenir (büyük/küçük harf fark etmez).">
-      <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-        <input value={yazi} onChange={e => setYazi(e.target.value.slice(0, 100))} placeholder="Campaign Name içerir..." aria-label="Campaign Name içerir"
-          style={{ height: "34px", width: "220px", padding: "0 30px 0 14px", borderRadius: "999px", border: `1.5px solid ${yazi ? "#db2777" : "#e2e8f0"}`,
-            background: yazi ? "#fdf2f8" : "#fff", color: "#0f172a", fontSize: "12px", fontWeight: 600, fontFamily: "'Sora', sans-serif", outline: "none" }} />
-        {yazi && (
-          <button type="button" onClick={() => { setYazi(""); onChange(""); }} aria-label="Aramayı temizle"
-            style={{ position: "absolute", right: "8px", border: "none", background: "transparent", color: "#9d174d", cursor: "pointer", fontSize: "12px", padding: "2px" }}>✕</button>
-        )}
-      </span>
-    </Cerceve>
+    <div ref={kutu} style={{ position: "relative", marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px" }}>
+      {aktif && (
+        <span style={k.etiket} title={`Campaign Name içerir: ${deger}`}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>{deger}</span>
+          <button type="button" onClick={temizle} aria-label="Campaign Name aramasını temizle" style={k.etiketX}>✕</button>
+        </span>
+      )}
+      <Ipucu metin={acik ? null : "Campaign Name ile süz"} isaret={false}>
+        <button type="button" onClick={() => setAcik(a => !a)} aria-expanded={acik} aria-label="Campaign Name filtresi"
+          style={{ ...k.huni, ...(aktif || acik ? k.huniAktif : {}) }}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill={aktif ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+            <path d="M3 4h18l-7 8.5V19l-4 2v-8.5L3 4z" />
+          </svg>
+        </button>
+      </Ipucu>
+      {acik && (
+        <div style={k.panel}>
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "#9d174d", marginBottom: "8px" }}>Campaign Name içerir</div>
+          <span style={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <input autoFocus value={yazi} onChange={e => setYazi(e.target.value.slice(0, 100))} placeholder="ör. yaz okulu" aria-label="Campaign Name içerir"
+              style={{ ...k.girdi, borderColor: yazi ? "#db2777" : "#e2e8f0", background: yazi ? "#fdf2f8" : "#fff" }} />
+            {yazi && <button type="button" onClick={temizle} aria-label="Aramayı temizle" style={{ ...k.etiketX, position: "absolute", right: "10px" }}>✕</button>}
+          </span>
+          <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "8px" }}>Büyük/küçük harf fark etmez. Yazmayı bırakınca liste güncellenir.</div>
+        </div>
+      )}
+    </div>
   );
 }
+
+const k = {
+  huni: { width: "38px", height: "38px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b",
+    display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" },
+  huniAktif: { borderColor: "#db2777", background: "#fdf2f8", color: "#db2777" },
+  panel: { position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 50, width: "280px", background: "#fff", border: "1.5px solid #f9a8d4",
+    borderRadius: "14px", boxShadow: "0 12px 32px rgba(15,23,42,0.14)", padding: "12px", fontFamily: "'Sora', sans-serif" },
+  girdi: { width: "100%", height: "36px", padding: "0 30px 0 12px", borderRadius: "10px", border: "1.5px solid", color: "#0f172a",
+    fontSize: "13px", fontWeight: 600, fontFamily: "'Sora', sans-serif", outline: "none", boxSizing: "border-box" },
+  etiket: { display: "inline-flex", alignItems: "center", gap: "6px", height: "28px", padding: "0 6px 0 12px", borderRadius: "999px",
+    background: "#fdf2f8", border: "1.5px solid #f9a8d4", color: "#9d174d", fontSize: "12px", fontWeight: 700 },
+  etiketX: { border: "none", background: "transparent", color: "#9d174d", cursor: "pointer", fontSize: "11px", padding: "2px 4px" },
+};
 
 const VIP_CSS = `
 .vip-neon { position: relative; isolation: isolate; overflow: hidden; padding: 2px; border: none; border-radius: 999px;

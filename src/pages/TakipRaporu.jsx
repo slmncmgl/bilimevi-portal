@@ -1,3 +1,4 @@
+// v3.8: Campaign Name araması huni ikonlu açılır kutuda (FiltreCubugu v1.3)
 // v3.7: Campaign Name "içerir" araması (giriş çubuğunda pembe kutu); arama varken listede Campaign Name sütunu
 // v3.6: listede kutucuk + Danışman Ata (Data Tablosu ile aynı, DanismanAta.jsx): admin herkese, manager kendi şubesinde
 // v3.5: adı Takip Tablosu (eski Aktivite Tablosu); açılışta tüm veri kaynakları seçili
@@ -46,7 +47,7 @@ import DanismanAta from "./DanismanAta";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v3.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v3.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
