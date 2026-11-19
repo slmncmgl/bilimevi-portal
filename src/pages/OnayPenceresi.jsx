@@ -1,9 +1,10 @@
+// v1.1: ikon özelliği (varsayılan ⇄); Ele al çıkış onayında "!"
 // v1.0: portal renklerinde onay penceresi (tarayıcının confirm kutusu yerine). Data Tablosu > Danışman Ata kullanır.
 // Esc ya da arka plana tıklama: Vazgeç. Açılınca odak onay düğmesinde, Enter onaylar.
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-export default function OnayPenceresi({ baslik, children, onayMetni = "Onayla", vazgecMetni = "Vazgeç", onOnay, onVazgec }) {
+export default function OnayPenceresi({ ikon = "⇄", baslik, children, onayMetni = "Onayla", vazgecMetni = "Vazgeç", onOnay, onVazgec }) {
   const onayRef = useRef(null);
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function OnayPenceresi({ baslik, children, onayMetni = "Onayla", 
       <style>{`@keyframes onayGir { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }`}</style>
       <div role="dialog" aria-modal="true" aria-labelledby="onay-baslik" style={o.kutu}>
         <div style={o.ust}>
-          <span style={o.ikon}>⇄</span>
+          <span style={o.ikon}>{ikon}</span>
           <h3 id="onay-baslik" style={o.baslik}>{baslik}</h3>
         </div>
         <div style={o.govde}>{children}</div>

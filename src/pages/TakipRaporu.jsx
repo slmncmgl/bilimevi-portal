@@ -1,3 +1,5 @@
+// v4.2: liste başlığında huninin solunda "Bu dataları ele al" (EleAl.jsx): datalar tam ekranda sırayla, not girilmeden sonrakine geçilmez,
+//       not Kylas'a yazılır. İşaretli data varsa sadece onlar, yoksa listedeki (aşama süzmesiyle) tüm datalar.
 // v4.1: VIP Datalar OFF VIP kaynakları seçimden çıkarır (FiltreCubugu v1.5)
 // v4.0: Campaign Name hunisi liste başlığının en sağında (giriş çubuğundan taşındı)
 // v3.9: listede Oluşturma sütunu yerine her zaman Campaign Name
@@ -47,10 +49,11 @@ import { useState, useEffect, useRef } from "react";
 import { VIP_KAYNAKLAR } from "./KaynakSecici";
 import FiltreCubugu, { KampanyaAra } from "./FiltreCubugu";
 import DanismanAta from "./DanismanAta";
+import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v4.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v4.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -94,6 +97,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [sayfa, setSayfa] = useState(1);
   const [gorunum, setGorunum] = useState("takipsiz"); // "takipsiz" | "gecikmis"
   const notOnbellek = useRef({});
+  const [eleAl, setEleAl] = useState(null); // ele alınan datalar (tam ekran açıkken)
 
   useEffect(() => {
     kisileriYukle().then(setKisiler).catch(() => setKisiHata("Danışman listesi okunamadı."));
@@ -178,6 +182,9 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const sayfaSayisi = Math.max(1, Math.ceil(liste.length / sayfaBoyu));
   const gecerliSayfa = Math.min(sayfa, sayfaSayisi);
   const sayfaListesi = liste.slice((gecerliSayfa - 1) * sayfaBoyu, gecerliSayfa * sayfaBoyu);
+  // Ele al: listede işaretli data varsa onlar, yoksa listedeki tümü (liste sırasıyla)
+  const isaretliListede = liste.filter(x => isaretli.includes(x.id));
+  const eleAlinacak = isaretliListede.length ? isaretliListede : liste;
   const sayfaTumuIsaretli = sayfaListesi.length > 0 && sayfaListesi.every(l => isaretli.includes(l.id));
   function sayfayiIsaretle() {
     const idler = sayfaListesi.map(l => l.id);
@@ -259,6 +266,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{listeSahip ? kisiAdi(listeSahip) : secimBasligi} · {gecikmisGorunum ? "Gecikmiş task'lı Datalar" : "Takipsiz Datalar"} ({liste.length})</span>
               <span style={{ display: "flex", alignItems: "center", gap: "10px", marginLeft: "auto" }}>
                 {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
+                <EleAlDugmesi sayi={eleAlinacak.length} disabled={aktarim} onClick={() => setEleAl(eleAlinacak)} />
                 <KampanyaAra deger={kampanya} onChange={v => { if (rapor) sessiz.current = true; setKampanya(v); }} />
               </span>
             </div>
@@ -360,6 +368,10 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             )}
           </div>
         </>
+      )}
+      {eleAl && (
+        <EleAl leadler={eleAl} kisiAdi={kisiAdi} gecikmis={gecikmisGorunum}
+          onKapat={idler => { idler.forEach(id => { delete notOnbellek.current[id]; }); setEleAl(null); }} />
       )}
     </>
   );
