@@ -1,3 +1,4 @@
+// v3.3: VIP Datalar OFF VIP kaynakları seçimden çıkarır (FiltreCubugu v1.5)
 // v3.2: Danışman Ata çubuğu ortak bileşende (DanismanAta.jsx), Takip Tablosu da kullanır
 // v3.1: açılışta tüm veri kaynakları seçili; VIP Datalar ON/OFF anahtar (OFF: tüm kaynaklar)
 // v3.0: Danışman Ata onayı portal renklerinde pencerede (OnayPenceresi.jsx), tarayıcının onay kutusu kalktı
@@ -56,7 +57,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v3.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v3.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const TUM_KAYNAKLAR = KAYNAKLAR.map(k => k.id);
 // Hepsi seçiliyse kaynak filtresi gönderilmez (kaynağı boş datalar da sayılır)

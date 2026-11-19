@@ -1,3 +1,4 @@
+// v1.5: VIP Datalar OFF: VIP kaynaklar seçimden çıkar, diğer kaynaklar seçili kalır
 // v1.4: KampanyaAra dışa açıldı (Takip Tablosu liste başlığının sağında); açılır kutu body'ye çizilir, tablo kesmesin
 // v1.3: Campaign Name araması çubuğun en sağında huni ikonuyla açılan küçük kutuda; aktifken kelime ikonun yanında
 // v1.2: isteğe bağlı Campaign Name "içerir" arama kutusu (kampanya: { deger, onChange }), pembe çerçeve; şimdilik Takip Tablosu
@@ -15,7 +16,8 @@ import KaynakSecici, { VIP_KAYNAKLAR } from "./KaynakSecici";
 import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 
-const VIP_ACIKLAMA = "ON: sadece VIP kaynaklar (Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing). OFF: tüm kaynaklar.";
+const VIP_DISI = TUM_KAYNAKLAR.filter(id => !VIP_KAYNAKLAR.includes(id));
+const VIP_ACIKLAMA = "ON: sadece VIP kaynaklar (Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing). OFF: VIP kaynaklar çıkar, diğer tüm kaynaklar seçili kalır.";
 
 export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
   const vipSecili = kaynak.secili.length === VIP_KAYNAKLAR.length && VIP_KAYNAKLAR.every(id => kaynak.secili.includes(id));
@@ -33,7 +35,7 @@ export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
         <Cerceve tur="kaynak">
           <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynak.secili} onChange={kaynak.onChange} bosMetin={kaynak.bosMetin || "Tüm kaynaklar"} />
           <Ipucu metin={VIP_ACIKLAMA} isaret={false}>
-            <button onClick={() => kaynak.onChange(vipSecili ? TUM_KAYNAKLAR : VIP_KAYNAKLAR)} role="switch" aria-checked={vipSecili}
+            <button onClick={() => kaynak.onChange(vipSecili ? VIP_DISI : VIP_KAYNAKLAR)} role="switch" aria-checked={vipSecili}
               className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}>
               <span>★ VIP Datalar <b className="vip-durum">{vipSecili ? "ON" : "OFF"}</b></span>
             </button>

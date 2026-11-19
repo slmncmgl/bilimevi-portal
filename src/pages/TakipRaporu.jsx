@@ -1,3 +1,4 @@
+// v4.1: VIP Datalar OFF VIP kaynakları seçimden çıkarır (FiltreCubugu v1.5)
 // v4.0: Campaign Name hunisi liste başlığının en sağında (giriş çubuğundan taşındı)
 // v3.9: listede Oluşturma sütunu yerine her zaman Campaign Name
 // v3.8: Campaign Name araması huni ikonlu açılır kutuda (FiltreCubugu v1.3)
@@ -49,7 +50,7 @@ import DanismanAta from "./DanismanAta";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v4.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v4.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
