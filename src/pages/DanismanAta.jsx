@@ -1,9 +1,10 @@
+// v1.1: "Aktarılıyor" sayacı animasyonlu: tahmini hızla (Data başına ~0,8 sn) artar, bitmeden en fazla toplam-1; bitince N/N gösterip kapanır
 // v1.0: Danışman Ata çubuğu (Data Tablosu ve Takip Tablosu listeleri ortak kullanır)
 // Listede kutucukla seçilen Datalar (isaretli) seçilen satış danışmanına aktarılır: crm-rapor islem "ata", 25'erli parçalar.
 // Onay portal penceresinde (OnayPenceresi.jsx). Sonuç şeridi aktarım bitince görünür.
 // hedefler: [{ id (Kylas ID, sayı), ad, sube }]; admin tüm satış ekibi, manager kendi şubesi. Boşsa çubuk görünmez.
 // onMesgul(true/false): aktarım sürerken liste kutucukları kilitlensin diye. onAktarildi: en az bir Data aktarıldıysa (liste yenilensin).
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { apiCagir, c } from "./CrmRaporu";
 import OnayPenceresi from "./OnayPenceresi";
 
@@ -13,6 +14,22 @@ export default function DanismanAta({ isaretli, setIsaretli, hedefler, onAktaril
   const [aktarim, setAktarim] = useState(null); // { yapilan, toplam } aktarım sürerken
   const [sonuc, setSonuc] = useState(null); // { tur: "tamam" | "uyari" | "hata", metin }
   const [onayAcik, setOnayAcik] = useState(false);
+  const [sayac, setSayac] = useState(0); // ekranda görünen (animasyonlu) sayı
+
+  // Sunucu Datalar arasında ~0,7 sn bekliyor: sayaç bu hızla kendiliğinden artar, gerçek sayının altına düşmez,
+  // iş bitmeden toplam-1'i geçmez. Bitince (aktarim.bitti) toplam gösterilir.
+  useEffect(() => {
+    if (!aktarim) return;
+    if (aktarim.bitti) { setSayac(aktarim.toplam); return; }
+    const basla = Date.now();
+    const zamanlayici = setInterval(() => {
+      const tahmin = Math.floor((Date.now() - basla) / 800);
+      setSayac(Math.min(aktarim.toplam - 1, Math.max(aktarim.yapilan, tahmin)));
+    }, 120);
+    return () => clearInterval(zamanlayici);
+  }, [aktarim?.bitti, aktarim?.toplam]);
+  useEffect(() => { if (aktarim && !aktarim.bitti) setSayac(s => Math.max(s, Math.min(aktarim.toplam - 1, aktarim.yapilan))); }, [aktarim?.yapilan]);
+
   if (!hedefler?.length) return null;
 
   const hedefKisi = hedefler.find(k => String(k.id) === hedef);
@@ -25,6 +42,7 @@ export default function DanismanAta({ isaretli, setIsaretli, hedefler, onAktaril
     const liste = [...isaretli];
     const toplam = { aktarilan: 0, zatenSahibi: 0, sorunlu: 0 };
     let hataMetni = null;
+    setSayac(0);
     setAktarim({ yapilan: 0, toplam: liste.length });
     onMesgul?.(true);
     for (let i = 0; i < liste.length; i += 25) {
@@ -35,6 +53,10 @@ export default function DanismanAta({ isaretli, setIsaretli, hedefler, onAktaril
         toplam.sorunlu += d.hatali.length + d.bulunamayan.length;
       } catch (e) { hataMetni = e.message; break; }
       setAktarim({ yapilan: Math.min(i + 25, liste.length), toplam: liste.length });
+    }
+    if (!hataMetni) { // bitti: kısa bir an N/N göster, sonra kapan
+      setAktarim({ yapilan: liste.length, toplam: liste.length, bitti: true });
+      await new Promise(c => setTimeout(c, 700));
     }
     setAktarim(null);
     onMesgul?.(false);
@@ -70,7 +92,15 @@ export default function DanismanAta({ isaretli, setIsaretli, hedefler, onAktaril
           <span style={{ fontWeight: 700, color: "#0f172a" }}>{isaretli.length} Data seçildi</span>
           {aktarim ? (
             <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", color: "#475569" }}>
-              <span style={{ ...c.spinner, width: "14px", height: "14px" }} /> Aktarılıyor {aktarim.yapilan}/{aktarim.toplam}
+              {aktarim.bitti
+                ? <span style={{ color: "#16a34a", fontWeight: 800 }}>✓</span>
+                : <span style={{ ...c.spinner, width: "14px", height: "14px" }} />}
+              {aktarim.bitti ? "Aktarıldı" : "Aktarılıyor"}{" "}
+              <b style={{ color: "#0f172a", fontVariantNumeric: "tabular-nums" }}>{sayac}/{aktarim.toplam}</b>
+              <span style={{ width: "90px", height: "6px", borderRadius: "999px", background: "#cffafe", overflow: "hidden", display: "inline-block" }}>
+                <span style={{ display: "block", height: "100%", width: `${Math.round((sayac / aktarim.toplam) * 100)}%`,
+                  background: aktarim.bitti ? "#16a34a" : "#0891b2", borderRadius: "999px", transition: "width 0.25s ease-out" }} />
+              </span>
             </span>
           ) : !ataAcik ? (
             <>
