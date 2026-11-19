@@ -1,3 +1,4 @@
+// v3.6: listede kutucuk + Danışman Ata (Data Tablosu ile aynı, DanismanAta.jsx): admin herkese, manager kendi şubesinde
 // v3.5: adı Takip Tablosu (eski Aktivite Tablosu); açılışta tüm veri kaynakları seçili
 // v3.4: giriş çubuğu ortak bileşende (FiltreCubugu.jsx), diğer sekmelerle aynı
 // v3.3: Şube düğmeleri kalktı (şube seçimi danışman menüsünde); filtre başlıkları yerine renkli çerçeveler
@@ -40,10 +41,11 @@
 import { useState, useEffect, useRef } from "react";
 import { VIP_KAYNAKLAR } from "./KaynakSecici";
 import FiltreCubugu from "./FiltreCubugu";
+import DanismanAta from "./DanismanAta";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v3.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v3.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -117,17 +119,26 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     if (!kisiler) return;
     setDanismanlar(s => s.filter(id => secilebilir.some(k => k.id === id)));
   }, [secilebilirAnahtar]);
+  const hedefler = isAdmin || isManager ? secilebilir.map(k => ({ ...k, id: Number(k.id) }))
+    .sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr")) : null;
+  const atanabilir = !!hedefler?.length;
   const subeyeGore = [...secilebilir].sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr"));
   const hepsiSecili = secilebilir.length > 0 && secilebilir.every(k => danismanlar.includes(k.id));
 
   // Danışman ve kaynak seçimi art arda değişebilir: istek 400 ms bekleyip tek seferde gider
   const danismanAnahtari = [...danismanlar].sort().join(",");
   const kaynakAnahtari = [...kaynaklar].sort((a, b) => a - b).join(",");
+  // Danışman Ata: seçilen datalar, aktarım sürüyor mu, aktarım sonrası sessiz yenileme
+  const [isaretli, setIsaretli] = useState([]);
+  const [aktarim, setAktarim] = useState(false);
+  const [yenile, setYenile] = useState(0);
+  const sessiz = useRef(false);
+  useEffect(() => { setListeSahip(null); setIsaretli([]); }, [danismanAnahtari, sessizGun, kaynakAnahtari]);
   useEffect(() => {
-    setListeSahip(null);
     if (!danismanlar.length) { setRapor(null); return; }
     let iptal = false;
-    setYukleniyor(true);
+    if (!sessiz.current) setYukleniyor(true);
+    sessiz.current = false;
     setHata(null);
     const zamanlayici = setTimeout(() => {
       apiCagir({ islem: "takip", ownerIds: danismanlar.map(Number), sessizGun, kaynaklar: kaynakFiltresi(kaynaklar) })
@@ -136,7 +147,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         .finally(() => { if (!iptal) setYukleniyor(false); });
     }, 400);
     return () => { iptal = true; clearTimeout(zamanlayici); };
-  }, [danismanAnahtari, sessizGun, kaynakAnahtari]);
+  }, [danismanAnahtari, sessizGun, kaynakAnahtari, yenile]);
 
   const coklu = danismanlar.length > 1;
   const kisiAdi = id => kisiler?.[String(id)]?.ad || `#${id}`;
@@ -160,6 +171,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const sayfaSayisi = Math.max(1, Math.ceil(liste.length / sayfaBoyu));
   const gecerliSayfa = Math.min(sayfa, sayfaSayisi);
   const sayfaListesi = liste.slice((gecerliSayfa - 1) * sayfaBoyu, gecerliSayfa * sayfaBoyu);
+  const sayfaTumuIsaretli = sayfaListesi.length > 0 && sayfaListesi.every(l => isaretli.includes(l.id));
+  function sayfayiIsaretle() {
+    const idler = sayfaListesi.map(l => l.id);
+    setIsaretli(s => (sayfaTumuIsaretli ? s.filter(id => !idler.includes(id)) : [...new Set([...s, ...idler])]));
+  }
 
   const o = rapor?.ozet;
   // Takip oranı: task zorunlu datalardan (İlgili + VIP Görüşme) ileri tarihli task'ı olanların payı
@@ -248,6 +264,10 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                 </div>
               </Cerceve>
             </div>
+            {atanabilir && (
+              <DanismanAta isaretli={isaretli} setIsaretli={setIsaretli} hedefler={hedefler} onMesgul={setAktarim}
+                onAktarildi={() => { sessiz.current = true; setYenile(n => n + 1); }} />
+            )}
             {liste.length === 0 ? (
               <div style={c.bos}>Bu raporda Data yok.</div>
             ) : (
@@ -256,6 +276,12 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                 <table style={c.grid}>
                   <thead>
                     <tr>
+                      {atanabilir && (
+                        <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0, width: "36px" }}>
+                          <input type="checkbox" checked={sayfaTumuIsaretli} disabled={aktarim} aria-label="Bu sayfadakileri seç" onChange={sayfayiIsaretle}
+                            style={{ accentColor: "#0891b2", cursor: "pointer" }} />
+                        </th>
+                      )}
                       {["Data ID", "Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}>Oluşturma</th>
                       {gecikmisGorunum && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
@@ -267,7 +293,14 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                     {sayfaListesi.map((l, i) => {
                       const g = gunOnce(l.sonAktivite);
                       return (
-                        <tr key={l.id} style={{ background: i % 2 ? "#fbfdff" : "#fff" }}>
+                        <tr key={l.id} style={{ background: isaretli.includes(l.id) ? "#ecfeff" : i % 2 ? "#fbfdff" : "#fff" }}>
+                          {atanabilir && (
+                            <td style={{ ...c.td, textAlign: "center" }}>
+                              <input type="checkbox" checked={isaretli.includes(l.id)} disabled={aktarim} aria-label={`Data ${l.id} seç`}
+                                onChange={() => setIsaretli(s => (s.includes(l.id) ? s.filter(x => x !== l.id) : [...s, l.id]))}
+                                style={{ accentColor: "#0891b2", cursor: "pointer" }} />
+                            </td>
+                          )}
                           <td style={{ ...c.td, textAlign: "left" }}>
                             <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={c.link}>{l.id}</a>
                           </td>

@@ -1,3 +1,4 @@
+// v3.2: Danışman Ata çubuğu ortak bileşende (DanismanAta.jsx), Takip Tablosu da kullanır
 // v3.1: açılışta tüm veri kaynakları seçili; VIP Datalar ON/OFF anahtar (OFF: tüm kaynaklar)
 // v3.0: Danışman Ata onayı portal renklerinde pencerede (OnayPenceresi.jsx), tarayıcının onay kutusu kalktı
 // v2.9: giriş çubuğu ortak (FiltreCubugu.jsx): Danışman (çoklu, boşsa tümü) · kaynak + VIP · Data tarihi. Şube düğmeleri kalktı
@@ -30,7 +31,7 @@
 import { useState, useEffect, useRef } from "react";
 import { VIP_KAYNAKLAR, kaynakOzeti } from "./KaynakSecici";
 import FiltreCubugu from "./FiltreCubugu";
-import OnayPenceresi from "./OnayPenceresi";
+import DanismanAta from "./DanismanAta";
 import Ipucu from "./Ipucu";
 import { SATIS_EKIBI, satisBul } from "../lib/satisEkibi";
 
@@ -55,7 +56,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v3.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v3.2"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const TUM_KAYNAKLAR = KAYNAKLAR.map(k => k.id);
 // Hepsi seçiliyse kaynak filtresi gönderilmez (kaynağı boş datalar da sayılır)
@@ -292,11 +293,7 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
   const [veri, setVeri] = useState(null);
   const [hata, setHata] = useState(null);
   const [isaretli, setIsaretli] = useState([]); // Danışman Ata için seçilen data id'leri
-  const [ataAcik, setAtaAcik] = useState(false);
-  const [hedef, setHedef] = useState("");
-  const [aktarim, setAktarim] = useState(null); // { yapilan, toplam } aktarım sürerken
-  const [sonuc, setSonuc] = useState(null); // { tur: "tamam" | "uyari" | "hata", metin }
-  const [onayAcik, setOnayAcik] = useState(false);
+  const [aktarim, setAktarim] = useState(false); // aktarım sürerken kutucuklar kilitli
   const ref = useRef(null);
   const notOnbellek = useRef({});
   const atanabilir = !!hedefler?.length;
@@ -319,36 +316,6 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
 
   const tumuIsaretli = sayfaLeadleri.length > 0 && sayfaLeadleri.every(l => isaretli.includes(l.id));
   const isaretle = id => setIsaretli(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
-  const hedefKisi = hedefler?.find(k => String(k.id) === hedef);
-  const hedefSubeler = [...new Set((hedefler || []).map(k => k.sube || "Şubesiz"))];
-
-  async function aktar() {
-    if (!hedefKisi || !isaretli.length) return;
-    setOnayAcik(false);
-    setSonuc(null);
-    const toplam = { aktarilan: 0, zatenSahibi: 0, sorunlu: 0 };
-    let hataMetni = null;
-    setAktarim({ yapilan: 0, toplam: isaretli.length });
-    for (let i = 0; i < isaretli.length; i += 25) {
-      const parca = isaretli.slice(i, i + 25);
-      try {
-        const d = await apiCagir({ islem: "ata", leadIds: parca, yeniSahip: hedefKisi.id });
-        toplam.aktarilan += d.aktarilan.length;
-        toplam.zatenSahibi += d.zatenSahibi.length;
-        toplam.sorunlu += d.hatali.length + d.bulunamayan.length;
-      } catch (e) { hataMetni = e.message; break; }
-      setAktarim({ yapilan: Math.min(i + 25, isaretli.length), toplam: isaretli.length });
-    }
-    setAktarim(null);
-    if (toplam.aktarilan || toplam.zatenSahibi || !hataMetni) { setIsaretli([]); setAtaAcik(false); setHedef(""); } // tamamen başarısızsa seçim kalır
-    const parcalar = [];
-    if (toplam.aktarilan) parcalar.push(`${toplam.aktarilan} Data ${hedefKisi.ad} adlı danışmana aktarıldı.`);
-    if (toplam.zatenSahibi) parcalar.push(`${toplam.zatenSahibi} Data zaten onundu.`);
-    if (toplam.sorunlu) parcalar.push(`${toplam.sorunlu} Data aktarılamadı, tekrar deneyin.`);
-    if (hataMetni) parcalar.push(hataMetni);
-    setSonuc({ tur: hataMetni && !toplam.aktarilan ? "hata" : toplam.sorunlu || hataMetni ? "uyari" : "tamam", metin: parcalar.join(" ") });
-    if (toplam.aktarilan) { yukle(); onAktarildi?.(); }
-  }
 
   const asamaAdi = id => asamalar.find(a => a.id === id)?.ad || "";
 
@@ -363,52 +330,9 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
           <button onClick={onKapat} style={c.kapatBtn} title="Kapat">✕</button>
         </span>
       </div>
-      {onayAcik && hedefKisi && (
-        <OnayPenceresi baslik="Danışman ata" onayMetni={`${isaretli.length} Data'yı aktar`} onOnay={aktar} onVazgec={() => setOnayAcik(false)}>
-          <b style={{ color: "#0f172a" }}>{isaretli.length} Data</b>, <b style={{ color: "#0891b2" }}>{hedefKisi.ad}</b>
-          {hedefKisi.sube ? <span style={{ color: "#94a3b8" }}> · {hedefKisi.sube}</span> : null} adlı danışmana aktarılacak.
-          <div style={{ marginTop: "10px", padding: "10px 12px", borderRadius: "12px", background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: "12px" }}>
-            Kylas'ta Data sahibi hemen değişir.
-          </div>
-        </OnayPenceresi>
-      )}
-      {sonuc && (
-        <div style={{ ...c.atamaSonuc, ...(sonuc.tur === "tamam" ? c.atamaTamam : sonuc.tur === "uyari" ? c.atamaUyari : c.atamaHata) }}>
-          <span>{sonuc.metin}</span>
-          <button onClick={() => setSonuc(null)} style={c.kapatBtn} title="Kapat">✕</button>
-        </div>
-      )}
-      {atanabilir && isaretli.length > 0 && (
-        <div style={c.atamaCubugu}>
-          <span style={{ fontWeight: 700, color: "#0f172a" }}>{isaretli.length} Data seçildi</span>
-          {aktarim ? (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", color: "#475569" }}>
-              <span style={{ ...c.spinner, width: "14px", height: "14px" }} /> Aktarılıyor {aktarim.yapilan}/{aktarim.toplam}
-            </span>
-          ) : !ataAcik ? (
-            <>
-              <button onClick={() => setAtaAcik(true)} style={c.chipAktif}>Danışman Ata</button>
-              <button onClick={() => setIsaretli([])} style={c.chip}>Seçimi temizle</button>
-            </>
-          ) : (
-            <>
-              <select value={hedef} onChange={e => setHedef(e.target.value)} autoFocus aria-label="Atanacak danışman"
-                style={{ ...c.atamaSecim, ...(hedef ? {} : { color: "#64748b", borderColor: "#e2e8f0", background: "#fff" }) }}>
-                <option value="">Danışman seçin</option>
-                {hedefSubeler.length > 1
-                  ? hedefSubeler.map(sb => (
-                    <optgroup key={sb} label={sb}>
-                      {hedefler.filter(k => (k.sube || "Şubesiz") === sb).map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
-                    </optgroup>
-                  ))
-                  : hedefler.map(k => <option key={k.id} value={k.id}>{k.ad}</option>)}
-              </select>
-              <button onClick={() => setOnayAcik(true)} disabled={!hedefKisi}
-                style={{ ...c.chipAktif, opacity: hedefKisi ? 1 : 0.4, cursor: hedefKisi ? "pointer" : "default" }}>Aktar</button>
-              <button onClick={() => { setAtaAcik(false); setHedef(""); }} style={c.chip}>Vazgeç</button>
-            </>
-          )}
-        </div>
+      {atanabilir && (
+        <DanismanAta isaretli={isaretli} setIsaretli={setIsaretli} hedefler={hedefler} onMesgul={setAktarim}
+          onAktarildi={() => { yukle(); onAktarildi?.(); }} />
       )}
       {!veri && !hata && <div style={c.bos}><span style={c.spinner} /> Datalar alınıyor...</div>}
       {hata && <div style={{ ...c.hata, margin: "16px" }}>{hata}</div>}

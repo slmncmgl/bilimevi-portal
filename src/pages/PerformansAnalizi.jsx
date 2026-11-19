@@ -1,3 +1,4 @@
+// v4.3: Takip Tablosu v3.6 (Danışman Ata), Data Tablosu v3.2
 // v4.2: Aktivite Tablosu -> Takip Tablosu; açılışta tüm kaynaklar; VIP Datalar ON/OFF
 // v4.1: Data Tablosu v3.0 (Danışman Ata onay penceresi)
 // v4.0: Aktivite, Danışman Özeti ve Data Tablosu aynı giriş çubuğunu kullanır (FiltreCubugu.jsx)
@@ -40,7 +41,7 @@ import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerl
 import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v4.2"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v4.3"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
