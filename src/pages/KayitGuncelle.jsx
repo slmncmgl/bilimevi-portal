@@ -1,8 +1,8 @@
-// KayitGuncelle.jsx v1.83
+// KayitGuncelle.jsx v1.84
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.83"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.84"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
@@ -685,6 +685,7 @@ export default function KayitGuncelle() {
 
   const [tc, setTc] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sorguSuruyor, setSorguSuruyor] = useState(false); // v1.84: Sorgula butonundaki spin
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState("Özet");
@@ -1025,6 +1026,38 @@ export default function KayitGuncelle() {
       if (elle) setYenileniyor(false); else setOgrencilerLoading(false);
     }
   }
+  // v1.84: Sorgula, Enter ve arama önerisi seçimi aynı işi yapar: tüm liste arkada yeniden çekilir.
+  // Ekrandaki liste boşalmaz, yeni liste gelince sonuçlar sessizce güncellenir; hata olursa eski liste kalır.
+  // Aynı anda tek arka yenileme çalışır (üst üste basılırsa süren istek beklenir).
+  const arkaYenilemeRef = useRef(null);
+  function arkadaYenile() {
+    if (arkaYenilemeRef.current) return arkaYenilemeRef.current;
+    const istek = listeIstegi()
+      .then(liste => {
+        if (!liste) return;
+        setOgrencilerim(liste);
+        setListeZamani(Date.now());
+        setSimdi(Date.now());
+      })
+      .finally(() => { arkaYenilemeRef.current = null; });
+    arkaYenilemeRef.current = istek;
+    return istek;
+  }
+
+  // Butondaki spin: TC aramasında kayıt açılana kadar, diğer aramalarda (ad, okul, form, boş kutu) liste yenilenene kadar döner
+  async function aramaSorgula(deger = tc) {
+    if (!user?.name || sorguSuruyor || loading) return;
+    const ham = String(deger || "").trim();
+    setSorguSuruyor(true);
+    try {
+      const yenileme = arkadaYenile();
+      if (ham && !/[^\d\s]/.test(ham)) await sorgula();
+      else await yenileme;
+    } finally {
+      setSorguSuruyor(false);
+    }
+  }
+
   useEffect(() => { listeyiGetir(); }, [user?.name]);
 
   const sonGuncelleme = (() => {
@@ -1806,7 +1839,7 @@ export default function KayitGuncelle() {
                 onBlur={() => setOneriAcik(false)}
                 onKeyDown={e => {
                   if (e.key === "Escape") setOneriAcik(false);
-                  if (e.key === "Enter") { setOneriAcik(false); sorgula(); }
+                  if (e.key === "Enter") { setOneriAcik(false); aramaSorgula(); }
                 }}
                 placeholder="Ad Soyad, TC, okul veya form adı"
                 style={{ ...s.searchInput, width: "100%", boxSizing: "border-box" }}
@@ -1816,7 +1849,7 @@ export default function KayitGuncelle() {
                   {aramaOnerileri.map(o => (
                     <div
                       key={o.tur + o.deger}
-                      onMouseDown={e => { e.preventDefault(); setTc(o.deger); setSayfa(1); setOneriAcik(false); }}
+                      onMouseDown={e => { e.preventDefault(); setTc(o.deger); setSayfa(1); setOneriAcik(false); aramaSorgula(o.deger); }}
                       style={s.oneriSatir}
                       onMouseEnter={e => { e.currentTarget.style.background = "#f1f5f9"; }}
                       onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
@@ -1828,8 +1861,18 @@ export default function KayitGuncelle() {
                 </div>
               )}
             </div>
-            <button onClick={() => sorgula()} disabled={loading} style={s.searchBtn}>
-              {loading ? "..." : "Sorgula"}
+            <button
+              onClick={() => aramaSorgula()} disabled={loading || sorguSuruyor} aria-busy={loading || sorguSuruyor}
+              style={{ ...s.searchBtn, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                cursor: loading || sorguSuruyor ? "default" : "pointer" }}
+            >
+              {(loading || sorguSuruyor) && (
+                <span aria-hidden="true" style={{
+                  width: "14px", height: "14px", flex: "none", borderRadius: "50%", display: "inline-block",
+                  border: "2px solid rgba(255,255,255,0.35)", borderTopColor: "#fff", animation: "spin 0.8s linear infinite",
+                }} />
+              )}
+              Sorgula
             </button>
           </div>
           {!data && (
