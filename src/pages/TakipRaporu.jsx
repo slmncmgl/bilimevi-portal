@@ -1,3 +1,4 @@
+// v6.0: Campaign Name sütunu en fazla "Study Expo - Şubat 2026" genişliğinde (166 px); sığmayan ad kısalır, üzerine gelince balonda tam hali
 // v5.9: Task beklenen kartı kaldırıldı; ileri tarihli açık task'ı olan data takipsiz sayılmaz (gerçek task listesi, crm-rapor v3.9)
 // v5.8: not/task bağlı danışmanın kendi Kylas token'ıyla gider (crm-rapor v3.8); aktivite skoru kendi adına açılan notları da sayar
 // v5.7: liste başlığında bugünkü portal aktivitesi: "/ N aktivite" (bugün portaldan not girilen Data sayısı, crm-rapor v3.7)
@@ -71,7 +72,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v5.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -379,8 +380,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                             {kaynakAdi(l.kaynak)}
                             {VIP_KAYNAKLAR.includes(l.kaynak) && <span style={t.vip}>VIP</span>}
                           </td>
-                          <td style={{ ...c.td, textAlign: "left", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={l.kampanya}>
-                            {l.kampanya || <span style={{ color: "#cbd5e1" }}>·</span>}
+                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>
+                            {l.kampanya ? <KampanyaHucresi metin={l.kampanya} /> : <span style={{ color: "#cbd5e1" }}>·</span>}
                           </td>
                           {taskSutunu && <TaskHucresi l={l} />}
                           <td style={{ ...c.td, whiteSpace: "nowrap" }}>
@@ -427,6 +428,21 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
       )}
     </>
   );
+}
+
+// Campaign Name hücresi: en fazla "Study Expo - Şubat 2026" genişliği (13px Sora'da 164 px). Taşarsa "…" ile kısalır
+// ve üzerine gelince tam ad balonda görünür; sığıyorsa balon çıkmaz.
+const KAMPANYA_EN = 166;
+function KampanyaHucresi({ metin }) {
+  const ref = useRef(null);
+  const [tasti, setTasti] = useState(false);
+  useEffect(() => { const el = ref.current; if (el) setTasti(el.scrollWidth > el.clientWidth + 1); }, [metin]);
+  const icerik = (
+    <span ref={ref} style={{ display: "inline-block", maxWidth: `${KAMPANYA_EN}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>
+      {metin}
+    </span>
+  );
+  return tasti ? <Ipucu metin={metin} isaret={false}>{icerik}</Ipucu> : icerik;
 }
 
 // Task tarihi hücresi: gecikmiş (turuncu, kaç gün gecikti), ileri (yeşil, kaç gün kaldı), yok (zorunluysa kırmızı)
