@@ -1,3 +1,4 @@
+// v2.9: numaranın yanında Kylas arama ikonu (mobil bildirim) ve WhatsApp butonu (wa.me: telefonda uygulama, bilgisayarda Web)
 // v2.8: arama sonucu, bildirimin gittiği Kylas hesabını ve Kylas yanıt kodunu gösterir; süre 6 sn -> 12 sn
 // v2.7: numaraya tıklayınca tıklayan danışmanın Kylas mobil uygulamasına arama bildirimi gider (islem "aramaBaslat").
 //       Sonuç numaranın yanında görünür; Kylas bağlantısı yoksa "CRM'de aç" seçeneği çıkar.
@@ -328,11 +329,28 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
                   const a = arama?.leadId === l.id && arama?.telefon === t ? arama : null;
                   return (
                     <div key={t} style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
-                      <Ipucu metin="Tıklayınca arama bildirimi telefonundaki Kylas uygulamasına gider (Kylas'ta oturumun açık olmalı)." isaret={false}>
-                        <button type="button" onClick={() => aramaGonder(l.id, t)} disabled={a?.durum === "gidiyor"} style={s.aramaDugme}>
-                          <span style={s.ikonYesil}>☎</span>{t}
-                        </button>
-                      </Ipucu>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <Ipucu metin="Tıklayınca arama bildirimi telefonundaki Kylas uygulamasına gider (Kylas'ta oturumun açık olmalı)." isaret={false}>
+                          <button type="button" onClick={() => aramaGonder(l.id, t)} disabled={a?.durum === "gidiyor"} style={s.aramaDugme}>
+                            <span style={s.ikonYesil}>☎</span>{t}
+                          </button>
+                        </Ipucu>
+                        <Ipucu metin="Telefondaki Kylas uygulamasında aramayı başlat" isaret={false}>
+                          <button type="button" aria-label="Kylas ile ara" onClick={() => aramaGonder(l.id, t)} disabled={a?.durum === "gidiyor"} style={s.aramaIkon}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
+                              <path d="M15 2a7 7 0 0 1 7 7" /><path d="M15 6a3 3 0 0 1 3 3" />
+                            </svg>
+                          </button>
+                        </Ipucu>
+                        <Ipucu metin="WhatsApp'ta aç (telefonda uygulama, bilgisayarda WhatsApp Web)" isaret={false}>
+                          <a href={`https://wa.me/${t.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp'ta aç" style={s.wpDugme}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                              <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2.01-1.42.25-.7.25-1.29.17-1.42-.07-.13-.27-.2-.57-.35M12.05 21.5h-.01a9.4 9.4 0 0 1-4.8-1.31l-.34-.2-3.57.94.95-3.48-.22-.36a9.4 9.4 0 0 1-1.44-5.02c0-5.2 4.23-9.43 9.44-9.43a9.38 9.38 0 0 1 9.43 9.44c0 5.2-4.24 9.43-9.44 9.43m8.02-17.46A11.27 11.27 0 0 0 12.05.72C5.8.72.71 5.8.7 12.06c0 2 .52 3.95 1.52 5.67L.6 23.6l6.01-1.58a11.3 11.3 0 0 0 5.43 1.38h.01c6.25 0 11.34-5.08 11.34-11.34 0-3.03-1.18-5.88-3.32-8.02" />
+                            </svg>
+                          </a>
+                        </Ipucu>
+                      </div>
                       {a && (
                         <span style={{ fontSize: "11px", fontWeight: 700, color: a.durum === "hata" ? "#b91c1c" : a.durum === "tamam" ? "#166534" : "#64748b" }}>
                           {a.durum === "gidiyor" ? "Telefona gönderiliyor..." : a.durum === "tamam" ? `✓ ${a.mesaj}` : a.mesaj}
@@ -637,6 +655,10 @@ const s = {
   liste: { display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" },
   aramaDugme: { display: "inline-flex", alignItems: "center", gap: "8px", padding: 0, border: "none", background: "none", color: "#2563eb", fontSize: "14px",
     fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  aramaIkon: { display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0, border: "none", background: "none", color: "#1d4ed8",
+    cursor: "pointer", width: "24px", height: "24px" },
+  wpDugme: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "50%",
+    background: "#25d366", textDecoration: "none", flexShrink: 0 },
   iletisim: { display: "inline-flex", alignItems: "center", gap: "8px", color: "#2563eb", textDecoration: "none", fontWeight: 600 },
   ikonYesil: { width: "22px", height: "22px", borderRadius: "7px", background: "#dcfce7", color: "#16a34a", display: "inline-flex",
     alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0 },

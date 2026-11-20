@@ -1,3 +1,4 @@
+// v6.7: Ele Al ekranında numara yanında Kylas arama ikonu ve WhatsApp butonu (EleAl v2.9)
 // v6.6: arama bildirimi Kylas web başlıklarıyla; sonuçta gittiği hesap görünür (EleAl v2.8, crm-rapor v3.12)
 // v6.5: numaraya tıklayınca danışmanın Kylas mobil uygulamasına arama bildirimi (EleAl v2.7, crm-rapor v3.11)
 // v6.4: "Eskiyi Tamamla ve Yenisini Oluştur" Yeni task penceresinde, satırlardaki "Tamamla + Yeni" kalktı (EleAl v2.6)
@@ -78,7 +79,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
