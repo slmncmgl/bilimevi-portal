@@ -19,6 +19,7 @@ import KayitFormLinkleri from './pages/KayitFormLinkleri';
 import KayitTakip from './pages/KayitTakip';
 import TestLogin from './pages/TestLogin';
 import TestGiris, { TEST_GIRIS_ANAHTARI } from './pages/TestGiris';
+import KylasBaglantilari from './pages/KylasBaglantilari';
 
 // Test Login ile açılan sekmede her sayfanın üstünde: kimin hesabında olunduğunu unutturmamak için
 function TestGirisSeridi() {
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="/kayit-takip" element={<KayitTakip />} />
         <Route path="/test-login" element={<TestLogin />} />
         <Route path="/test-giris" element={<TestGiris />} />
+        <Route path="/kylas-baglantilari" element={<KylasBaglantilari />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>
