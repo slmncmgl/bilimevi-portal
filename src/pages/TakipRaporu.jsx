@@ -1,3 +1,4 @@
+// v5.9: Task beklenen kartı kaldırıldı; ileri tarihli açık task'ı olan data takipsiz sayılmaz (gerçek task listesi, crm-rapor v3.9)
 // v5.8: not/task bağlı danışmanın kendi Kylas token'ıyla gider (crm-rapor v3.8); aktivite skoru kendi adına açılan notları da sayar
 // v5.7: liste başlığında bugünkü portal aktivitesi: "/ N aktivite" (bugün portaldan not girilen Data sayısı, crm-rapor v3.7)
 // v5.6: her karta tıklanınca altta listesi: Açık Data, Task beklenen, İleri tarihli task, Gecikmiş task, Takipsiz (Takip oranı -> Task beklenen).
@@ -70,7 +71,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v5.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v5.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -261,8 +262,6 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           <div style={t.kartlar}>
             <Kart sayi={o.toplam} etiket="Açık Data" ipucu={ACIKLAMA.acik} renk="#0e7490" cerceve="#a5f3fc"
               secili={gorunum === "acik"} onClick={() => setGorunum("acik")} />
-            <Kart sayi={o.taskBeklenen} etiket="Task beklenen" ipucu={ACIKLAMA.taskBeklenen} renk="#4338ca" cerceve="#c7d2fe"
-              secili={gorunum === "taskBeklenen"} onClick={() => setGorunum("taskBeklenen")} />
             <Kart sayi={o.ileriTask} etiket="İleri tarihli task" ipucu={ACIKLAMA.ileriTask} renk="#166534" zemin="#f0fdf4" cerceve="#86efac"
               secili={gorunum === "ileri"} onClick={() => setGorunum("ileri")} />
             <Kart sayi={o.gecikmisTask} etiket="Gecikmiş task" ipucu={ACIKLAMA.gecikmisTask} renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"

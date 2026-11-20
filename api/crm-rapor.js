@@ -1,3 +1,7 @@
+// v3.10: tumTasklar sayfaları paralel çeker, 3 dk önbellek, eşzamanlı istekler tek yüklemeyi paylaşır
+// v3.9: takip sınıflaması (ileri/gecikmiş/takipsiz) Kylas'ın taskDueOn alanı yerine GERÇEK açık task listesinden (tumTasklar):
+//       portaldan yeni açılan task'lar taskDueOn'a geç yansıdığı için ileri task'lı data takipsizde kalıyordu. İleri task'ı olan
+//       data hiçbir zaman takipsiz sayılmaz. Task listesi alınamazsa eski taskDueOn yöntemine düşer.
 // v3.8: not/task bağlı danışmanın KENDİ token'ıyla gider (Kylas'ta onun adına, etiketsiz). Bağlantı yoksa ya da yazma
 //       başarısızsa eski yönteme düşer (Selman anahtarı + "[Ad · Portal]" etiketi). Giriş yapan e-posta token'dan okunur.
 //       portalAktivite artık danışmanın kendi adına açtığı notları da sayar (etiketli + kendi id'li).
@@ -302,13 +306,14 @@ const taskZorunlu = l => l.pipelineStage === ILGILI || (l.pipelineStage === GORU
 
 const zaman = v => (v ? new Date(v).getTime() : null);
 // Bir açık data'nın takip durumu: task zorunlu mu, task'ı ne durumda, takipsiz mi (kural v2.0)
-function takipDurumu(l, simdi, sinir) {
-  const task = zaman(l.taskDueOn);
+function takipDurumu(l, simdi, sinir, gercek = null) {
+  // gercek: { tur, tarih } gerçek açık task'lardan; yoksa Kylas'ın taskDueOn alanı
+  const task = gercek ? (gercek.tur === "yok" ? null : zaman(gercek.tarih)) : zaman(l.taskDueOn);
   const zorunlu = taskZorunlu(l);
   const akt = zaman(l.latestActivityCreatedAt);
   return {
     zorunlu,
-    taskTur: task && task >= simdi ? "ileri" : task ? "gecikmis" : "yok",
+    taskTur: gercek ? gercek.tur : task && task >= simdi ? "ileri" : task ? "gecikmis" : "yok",
     // Zorunlu kümede task yoksa doğrudan takipsiz; diğerlerinde task yok + sessizlik
     takipsiz: !task && (zorunlu || !akt || akt < sinir),
   };
@@ -442,19 +447,33 @@ async function takip(req, res, yetki) {
 
   const simdi = Date.now();
   const sinir = simdi - sessizGun * 24 * 60 * 60 * 1000;
+  // Gerçek açık task'lar: data başına { tur: ileri|gecikmis, tarih }. İleri task'ı varsa ileri kazanır (en yakın tarih).
+  let leadTask = null;
+  try {
+    leadTask = new Map();
+    for (const t of await tumTasklar()) {
+      const lead = taskLead(t);
+      if (!lead || !t.dueDate || t.status === TASK_TAMAM || t.status === TASK_IPTAL) continue;
+      const due = zaman(t.dueDate);
+      const tur = due >= simdi ? "ileri" : "gecikmis";
+      const cur = leadTask.get(lead);
+      if (!cur || (tur === "ileri" && cur.tur !== "ileri") || (tur === cur.tur && due < cur.due)) leadTask.set(lead, { tur, tarih: t.dueDate, due });
+    }
+  } catch (e) { console.warn(`[takip] task listesi alınamadı, taskDueOn kullanılıyor: ${e.message}`); leadTask = null; }
+  const gercekTask = id => (leadTask ? leadTask.get(id) || { tur: "yok", tarih: null } : null);
   const bosOzet = () => ({ toplam: 0, taskBeklenen: 0, ileriTask: 0, gecikmisTask: 0, taskYok: 0, takipsiz: 0 });
   const ozet = bosOzet();
   const danismanlar = Object.fromEntries(ownerIds.map(id => [id, bosOzet()]));
   const acik = [];
   const satir = l => ({
     id: l.id, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), ownerId: l.ownerId, asama: l.pipelineStage, kaynak: l.source,
-    kampanya: l.utmCampaign || "", olusturma: l.createdAt || null, sonAktivite: l.latestActivityCreatedAt || null, sonrakiTask: l.taskDueOn || null,
+    kampanya: l.utmCampaign || "", olusturma: l.createdAt || null, sonAktivite: l.latestActivityCreatedAt || null, sonrakiTask: (leadTask ? leadTask.get(l.id)?.tarih : l.taskDueOn) || null,
   });
   for (const l of leadler) {
     const d = danismanlar[l.ownerId] || (danismanlar[l.ownerId] = bosOzet());
     const say = alan => { ozet[alan]++; d[alan]++; };
     say("toplam");
-    const t = takipDurumu(l, simdi, sinir);
+    const t = takipDurumu(l, simdi, sinir, gercekTask(l.id));
     if (t.zorunlu) {
       say("taskBeklenen");
       if (t.taskTur === "ileri") say("ileriTask");
@@ -721,19 +740,26 @@ async function detay(req, res, yetki) {
 
 // ---- Task'lar (Toplu Data Follow Up) ----
 let taskOnbellek = null; // { zaman, liste }
+let taskYukleniyor = null; // aynı anda gelen istekler tek yüklemeyi paylaşsın
 async function tumTasklar() {
-  if (taskOnbellek && Date.now() - taskOnbellek.zaman < 90 * 1000) return taskOnbellek.liste;
-  const liste = [];
-  for (let page = 0; page < 30; page++) {
-    const r = await kylasGet(`https://api.kylas.io/v1/tasks?page=${page}&size=1000&sort=updatedAt,desc`);
-    if (r.status === 429) throw new Error(YOGUN);
-    if (!r.ok) throw new Error(`Task'lar alınamadı (HTTP ${r.status})`);
-    const d = await r.json();
-    liste.push(...(d.content || []));
-    if (page + 1 >= (d.totalPages || 0)) break;
-  }
-  taskOnbellek = { zaman: Date.now(), liste };
-  return liste;
+  if (taskOnbellek && Date.now() - taskOnbellek.zaman < 3 * 60 * 1000) return taskOnbellek.liste;
+  if (taskYukleniyor) return taskYukleniyor;
+  taskYukleniyor = (async () => {
+    const sayfa = async page => {
+      const r = await kylasGet(`https://api.kylas.io/v1/tasks?page=${page}&size=1000&sort=updatedAt,desc`);
+      if (r.status === 429) throw new Error(YOGUN);
+      if (!r.ok) throw new Error(`Task'lar alınamadı (HTTP ${r.status})`);
+      return r.json();
+    };
+    // İlk sayfa toplam sayfa sayısını verir, kalanlar paralel (hız sınırı kylasIstek sırasında korunur)
+    const ilk = await sayfa(0);
+    const toplamSayfa = Math.min(ilk.totalPages || 1, 30);
+    const kalan = await Promise.all(Array.from({ length: toplamSayfa - 1 }, (_, i) => sayfa(i + 1)));
+    const liste = [ilk, ...kalan].flatMap(d => d.content || []);
+    taskOnbellek = { zaman: Date.now(), liste };
+    return liste;
+  })();
+  try { return await taskYukleniyor; } finally { taskYukleniyor = null; }
 }
 
 // Yazma ve kişisel veri işlemlerinde ortak kontrol: izleme modu yok. Hata varsa yanıtı gönderip false döner.
