@@ -1,3 +1,4 @@
+// v3.5: VIP Datalar varsayılanda ON, "Tüm Kaynaklar" (FiltreCubugu v1.6)
 // v3.4: apiCagir: Kylas yoğunken (503) okuma istekleri 2 ve 4 sn sonra tekrar denenir
 // v3.3: VIP Datalar OFF VIP kaynakları seçimden çıkarır (FiltreCubugu v1.5)
 // v3.2: Danışman Ata çubuğu ortak bileşende (DanismanAta.jsx), Takip Tablosu da kullanır
@@ -58,7 +59,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v3.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v3.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const TUM_KAYNAKLAR = KAYNAKLAR.map(k => k.id);
 // Hepsi seçiliyse kaynak filtresi gönderilmez (kaynağı boş datalar da sayılır)

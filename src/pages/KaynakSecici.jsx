@@ -11,7 +11,7 @@ export { VIP_KAYNAKLAR };
 
 export function kaynakOzeti(kaynaklar, secili, bosMetin) {
   if (!secili.length) return bosMetin;
-  if (secili.length === kaynaklar.length) return "Tüm kaynaklar";
+  if (secili.length === kaynaklar.length) return "Tüm Kaynaklar";
   if (secili.length === VIP_KAYNAKLAR.length && VIP_KAYNAKLAR.every(id => secili.includes(id))) return "★ VIP Datalar";
   const adlar = kaynaklar.filter(k => secili.includes(k.id)).map(k => k.ad);
   return adlar.length > 2 ? `${adlar.slice(0, 2).join(", ")} +${adlar.length - 2}` : adlar.join(", ");

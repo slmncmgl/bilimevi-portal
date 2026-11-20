@@ -1,3 +1,4 @@
+// v1.8: VIP Datalar varsayılanda ON, "Tüm Kaynaklar" (FiltreCubugu v1.6)
 // v1.7: VIP Datalar OFF VIP kaynakları seçimden çıkarır (FiltreCubugu v1.5)
 // v1.6: açılışta tüm veri kaynakları seçili
 // v1.5: giriş çubuğu ortak (FiltreCubugu.jsx): Danışman (tekli) · kaynak + VIP · Tümü / süre. "Danışman Özeti · Son N gün" başlığı kalktı
@@ -23,7 +24,7 @@ const ASAMALAR = [
 const ASAMA_ADI = Object.fromEntries(ASAMALAR);
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const SAYFA = 20;
-export const OZET_SURUM = "v1.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const OZET_SURUM = "v1.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ACIKLAMA = {
   baslik: "Seçili danışmanın bu dönemdeki işleri ve bu dönemde aldığı yeni datalar. Kaynak seçiliyse sadece o kaynaklardaki datalar sayılır. Tümü: tüm zamanlar.",

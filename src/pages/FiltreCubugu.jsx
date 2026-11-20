@@ -1,3 +1,5 @@
+// v1.6: VIP Datalar, VIP kaynakların hepsi seçimdeyse ON (renkli) görünür; varsayılanda tüm kaynaklar seçili olduğu için ON.
+//       ON iken tıklayınca VIP kaynaklar çıkar (diğerleri kalır), OFF iken tıklayınca sadece VIP seçilir. "Tüm Kaynaklar" büyük harf.
 // v1.5: VIP Datalar OFF: VIP kaynaklar seçimden çıkar, diğer kaynaklar seçili kalır
 // v1.4: KampanyaAra dışa açıldı (Takip Tablosu liste başlığının sağında); açılır kutu body'ye çizilir, tablo kesmesin
 // v1.3: Campaign Name araması çubuğun en sağında huni ikonuyla açılan küçük kutuda; aktifken kelime ikonun yanında
@@ -17,10 +19,15 @@ import TarihSecici from "./TarihSecici";
 import Ipucu from "./Ipucu";
 
 // Not: CrmRaporu bu dosyayı import ediyor (döngü). Oradan gelen listeleri modül yüklenirken okuma, sadece bileşen içinde kullan.
-const VIP_ACIKLAMA = "ON: sadece VIP kaynaklar (Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing). OFF: VIP kaynaklar çıkar, diğer tüm kaynaklar seçili kalır.";
+const VIP_ACIKLAMA = "ON: VIP kaynaklar (Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing) seçimde. ON iken tıklayınca VIP kaynaklar seçimden çıkar; OFF iken tıklayınca sadece VIP kaynaklar seçilir.";
 
 export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
-  const vipSecili = kaynak.secili.length === VIP_KAYNAKLAR.length && VIP_KAYNAKLAR.every(id => kaynak.secili.includes(id));
+  const vipSecili = VIP_KAYNAKLAR.every(id => kaynak.secili.includes(id)); // VIP kaynakların hepsi seçimde
+  const vipDegistir = () => {
+    if (!vipSecili) return kaynak.onChange(VIP_KAYNAKLAR);
+    const kalan = kaynak.secili.filter(id => !VIP_KAYNAKLAR.includes(id));
+    kaynak.onChange(kalan.length ? kalan : TUM_KAYNAKLAR.filter(id => !VIP_KAYNAKLAR.includes(id)));
+  };
   const { ipucu, ...tarihOzellik } = tarih;
   return (
     <div style={c.panel}>
@@ -33,9 +40,9 @@ export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
           </Cerceve>
         )}
         <Cerceve tur="kaynak">
-          <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynak.secili} onChange={kaynak.onChange} bosMetin={kaynak.bosMetin || "Tüm kaynaklar"} />
+          <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynak.secili} onChange={kaynak.onChange} bosMetin={kaynak.bosMetin || "Tüm Kaynaklar"} />
           <Ipucu metin={VIP_ACIKLAMA} isaret={false}>
-            <button onClick={() => kaynak.onChange(vipSecili ? TUM_KAYNAKLAR.filter(id => !VIP_KAYNAKLAR.includes(id)) : VIP_KAYNAKLAR)} role="switch" aria-checked={vipSecili}
+            <button onClick={vipDegistir} role="switch" aria-checked={vipSecili}
               className={`vip-neon${vipSecili ? " vip-neon-aktif" : ""}`}>
               <span>★ VIP Datalar <b className="vip-durum">{vipSecili ? "ON" : "OFF"}</b></span>
             </button>
