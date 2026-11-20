@@ -106,7 +106,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
       {kisiHata && <div style={{ ...c.hata, margin: "16px 24px" }}>{kisiHata}</div>}
       {!kisiId && !kisiHata && <div style={{ ...c.bos, padding: "40px 0" }}>Özeti görmek için yukarıdan bir danışman seçin.</div>}
       {kisiId && yukleniyor && veri && <div style={{ height: "3px", background: "linear-gradient(90deg, #0891b2, #7c3aed)", animation: "fadeUp 0.6s ease-in-out infinite alternate" }} />}
-      {kisiId && yukleniyor && !veri && <div style={{ ...c.bos, padding: "28px 0" }}><span style={c.spinner} /> Kylas'tan alınıyor...</div>}
+      {kisiId && yukleniyor && !veri && <div style={{ ...c.bos, padding: "28px 0" }}><span style={c.spinner} /> CRM'den Alınıyor...</div>}
       {kisiId && !yukleniyor && hata && <div style={{ ...c.hata, margin: "16px 24px" }}>{hata}</div>}
 
       {kisiId && !hata && veri && (

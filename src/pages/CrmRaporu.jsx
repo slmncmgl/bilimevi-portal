@@ -235,7 +235,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
       {kisiHata && <div style={c.hata}>{kisiHata}</div>}
       {!kaynaklar.length && <div style={c.bos}>Raporu görmek için bir ya da birden fazla veri kaynağı seçin.</div>}
       {kaynaklar.length > 0 && yukleniyor && (
-        <div style={c.bos}><span style={c.spinner} /> Kylas'tan sayılar alınıyor...</div>
+        <div style={c.bos}><span style={c.spinner} /> CRM'den Sayılar Alınıyor...</div>
       )}
       {kaynaklar.length > 0 && !yukleniyor && hata && <div style={c.hata}>{hata}</div>}
 

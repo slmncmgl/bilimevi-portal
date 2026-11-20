@@ -137,7 +137,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
 
       {kisiHata && <div style={c.hata}>{kisiHata}</div>}
       {kisiler && !gorunen.length && <div style={c.bos}>Görüntüleyebileceğiniz danışman bulunmuyor.</div>}
-      {gorunen.length > 0 && yukleniyor && <div style={c.bos}><span style={c.spinner} /> Kylas'tan sayılar alınıyor...</div>}
+      {gorunen.length > 0 && yukleniyor && <div style={c.bos}><span style={c.spinner} /> CRM'den Sayılar Alınıyor...</div>}
       {gorunen.length > 0 && !yukleniyor && hata && <div style={c.hata}>{hata}</div>}
 
       {gorunen.length > 0 && !yukleniyor && !hata && rapor && subeler.map(sube => {

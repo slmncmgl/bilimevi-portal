@@ -1,3 +1,4 @@
+// v6.17: diğer sekmelerdeki yükleme yazıları da "CRM'den ... Alınıyor..."
 // v6.16: yükleme yazısı "CRM'den Datalar Alınıyor..."
 // v6.15: rapor yüklenirken kartlar (içinde dönen halka) ve liste başlığı (Günlük Aktivite, arama, butonlar) ekranda; "alınıyor" yazısı listenin yerinde
 // v6.14: arama kutusu yazısı "Data Ara: Ad / Telefon / Mail / ID"
@@ -88,7 +89,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.16"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.17"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
