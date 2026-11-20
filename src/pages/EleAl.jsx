@@ -1,3 +1,4 @@
+// v2.0: düğme yazısı "Dataları Ele Al"
 // v1.9: sayacın iki yanında ‹ önceki ve › atla: › not girmeden sonrakine geçer, data "atlandı" sayılır. Bitiş ekranında
 //       "Atlananları ele al (N)" atlananları yeni bir turda sırayla açar. Not girilen data atlananlardan çıkar.
 // v1.8: task penceresi animasyonsuz açılır. Sağ sütun 120 px (Task oluştur düğmesi kadar): üst şerit ve tüm kartlar aynı sağ
@@ -47,7 +48,7 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="currentColor" />
       </svg>
-      <span>Bu dataları ele al</span>
+      <span>Dataları Ele Al</span>
       <b className="elal-sayi">{sayi}</b>
     </button>
   );
