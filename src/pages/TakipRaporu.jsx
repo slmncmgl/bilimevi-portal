@@ -1,3 +1,4 @@
+// v6.12: Data arama kutusu satırdaki boşluğu doldurur, daha belirgin (mor çerçeve, büyük yazı)
 // v6.11: liste başlığında danışman/kart özeti yok, sadece "Günlük Aktivite: N"
 // v6.10: Data araması e-posta adresiyle de süzer (crm-rapor v3.14)
 // v6.9: liste başlığında Data araması (ad, ID, telefon); liste, aşama sayıları ve Dataları Ele Al süzülmüş listeyle çalışır (crm-rapor v3.13)
@@ -83,7 +84,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.11"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.12"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -331,12 +332,12 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                 )}
               </span>
               <span style={t.dataAra}>
-                <span style={{ color: "#94a3b8", fontSize: "13px" }}>⌕</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.4" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
                 <input value={dataAra} onChange={e => setDataAra(e.target.value)} placeholder="Data ara: ad, ID, telefon, e-posta" maxLength={60}
                   aria-label="Listede Data ara" style={t.dataAraGirdi} />
                 {dataAra && <button type="button" onClick={() => setDataAra("")} aria-label="Aramayı temizle" style={t.dataAraSil}>✕</button>}
               </span>
-              <span style={{ display: "flex", alignItems: "center", gap: "10px", marginLeft: "auto" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
                 <EleAlDugmesi sayi={eleAlinacak.length} disabled={aktarim} onClick={() => setEleAl(eleAlinacak)} />
                 <KampanyaAra deger={kampanya} onChange={v => { if (rapor) sessiz.current = true; setKampanya(v); }} />
@@ -513,10 +514,10 @@ const t = {
   kartEtiket: { fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4px" },
   zorunlu: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fee2e2", color: "#991b1b", fontSize: "10px", fontWeight: 700 },
   aktivite: { marginLeft: "4px", color: "#7c3aed", fontWeight: 800 },
-  dataAra: { display: "inline-flex", alignItems: "center", gap: "6px", width: "280px", maxWidth: "100%", padding: "6px 12px", borderRadius: "999px",
-    border: "1.5px solid #e2e8f0", background: "#fff" },
-  dataAraGirdi: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "none", fontSize: "12px", color: "#0f172a", fontFamily: "'Sora', sans-serif" },
-  dataAraSil: { border: "none", background: "none", color: "#94a3b8", fontSize: "11px", cursor: "pointer", padding: 0 },
+  dataAra: { display: "flex", alignItems: "center", gap: "10px", flex: "1 1 280px", minWidth: "220px", padding: "10px 16px", borderRadius: "999px",
+    border: "2px solid #a78bfa", background: "#faf5ff", boxShadow: "0 2px 10px rgba(124,58,237,0.12)" },
+  dataAraGirdi: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "none", fontSize: "14px", fontWeight: 600, color: "#0f172a", fontFamily: "'Sora', sans-serif" },
+  dataAraSil: { border: "none", background: "none", color: "#7c3aed", fontSize: "14px", fontWeight: 800, cursor: "pointer", padding: 0 },
   vip: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
   filtreler: { display: "flex", gap: "24px", flexWrap: "wrap", padding: "14px 24px", borderBottom: "1px solid #f1f5f9", background: "#fafcff" },
   sayfalama: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", padding: "12px 24px", borderTop: "1px solid #f1f5f9" },
