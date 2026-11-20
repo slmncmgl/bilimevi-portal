@@ -1,3 +1,4 @@
+// v6.16: yükleme yazısı "CRM'den Datalar Alınıyor..."
 // v6.15: rapor yüklenirken kartlar (içinde dönen halka) ve liste başlığı (Günlük Aktivite, arama, butonlar) ekranda; "alınıyor" yazısı listenin yerinde
 // v6.14: arama kutusu yazısı "Data Ara: Ad / Telefon / Mail / ID"
 // v6.13: "Günlük Aktivite" her zaman görünür; değer okunana kadar 0
@@ -87,7 +88,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.15"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.16"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -345,7 +346,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                 <KampanyaAra deger={kampanya} onChange={v => { if (rapor) sessiz.current = true; setKampanya(v); }} />
               </span>
             </div>
-            {yukleniyor ? <div style={c.bos}><span style={c.spinner} /> Kylas'tan Datalar alınıyor...</div> : <>
+            {yukleniyor ? <div style={c.bos}><span style={c.spinner} /> CRM'den Datalar Alınıyor...</div> : <>
             <div style={t.filtreler}>
               <Cerceve tur="asama" metin="Aşama: birden fazla seçilebilir.">
                 <div style={c.chipSatir}>
