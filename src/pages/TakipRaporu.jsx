@@ -1,3 +1,4 @@
+// v5.8: not/task bağlı danışmanın kendi Kylas token'ıyla gider (crm-rapor v3.8); aktivite skoru kendi adına açılan notları da sayar
 // v5.7: liste başlığında bugünkü portal aktivitesi: "/ N aktivite" (bugün portaldan not girilen Data sayısı, crm-rapor v3.7)
 // v5.6: her karta tıklanınca altta listesi: Açık Data, Task beklenen, İleri tarihli task, Gecikmiş task, Takipsiz (Takip oranı -> Task beklenen).
 //       Takipsiz dışındaki listelerde Task tarihi sütunu (gecikti / kaldı / Task yok). Sunucu tek açık liste döner (crm-rapor v3.6)
@@ -69,7 +70,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v5.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v5.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -310,7 +311,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             <div style={c.tabloBaslik}>
               <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{listeSahip ? kisiAdi(listeSahip) : secimBasligi} · {gorunumTanim.ad} ({liste.length})
                 {aktivite !== null && (
-                  <Ipucu metin="Bugün portaldan (Dataları Ele Al) not girilen Data sayısı. Gece 00:00'da sıfırlanır." isaret={false}>
+                  <Ipucu metin="Bugün bu danışman adına açılan not sayısı (portaldan; bağlı danışmanlarda Kylas'ta kendi adına görünür). Gece 00:00'da sıfırlanır." isaret={false}>
                     <span style={t.aktivite}> / {aktivite} aktivite</span>
                   </Ipucu>
                 )}

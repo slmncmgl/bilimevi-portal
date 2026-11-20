@@ -1,3 +1,6 @@
+// v3.8: not/task bağlı danışmanın KENDİ token'ıyla gider (Kylas'ta onun adına, etiketsiz). Bağlantı yoksa ya da yazma
+//       başarısızsa eski yönteme düşer (Selman anahtarı + "[Ad · Portal]" etiketi). Giriş yapan e-posta token'dan okunur.
+//       portalAktivite artık danışmanın kendi adına açtığı notları da sayar (etiketli + kendi id'li).
 // v3.7: islem "portalAktivite": { ownerIds } -> bugün (TR saatiyle 00:00'dan beri) portaldan not girilen, bu danışmanlara ait
 //       Data sayısı ({ veri, not }). Portal notları Selman adına kayıtlı ve "[Ad · Portal]" etiketli olanlardır. 60 sn önbellek,
 //       not eklenince silinir. Takip Tablosu liste başlığında "/ N aktivite".
@@ -68,7 +71,8 @@
 //   islem "liste": + { ownerIds: [..], asama: <stage id> | null } -> lead listesi (en fazla LISTE_SINIR)
 //   islem "takip": { ownerId, sessizGun: 14 } -> özet + takipsiz lead'ler (task yok, son aktivite sessizGun'den eski)
 //   islem "notlar": { leadId, ownerId } -> son 3 not (HTML temizlenmiş düz metin)
-import { oturumKontrol } from "./_oturum.js";
+import { oturumKontrol, tokenCoz } from "./_oturum.js";
+import { anahtarVar, coz, kullaniciTokeni, tokenGecersiz } from "./_kylasKullanici.js";
 import { yetkiBul, yetkiKontrol, zorunluMu, dizinGetir } from "./_yetki.js";
 import { satisBul } from "../src/lib/satisEkibi.js";
 import { VIP_KAYNAKLAR } from "../src/lib/vipKaynaklar.js";
@@ -98,6 +102,33 @@ function kural(field, operator, value, type = "long") {
 
 // Kylas hız sınırına (HTTP 429) takılınca bekleyip tekrar dener: en fazla 5 deneme, Retry-After varsa ona uyar
 const bekle = ms => new Promise(c => setTimeout(c, ms));
+const N8N_WEBHOOK = "https://n8n.bilimevi.cloud/webhook";
+
+// Giriş yapan danışmanın Kylas token'ı (bağlantısı varsa) ya da null. E-posta token'dan; bağlantı n8n'den; şifre çözülüp giriş.
+async function aktorToken(req) {
+  const email = tokenCoz(req).kullanici?.email;
+  if (!email || !process.env.N8N_PORTAL_TOKEN || !anahtarVar()) return null;
+  let b;
+  try {
+    const r = await fetch(`${N8N_WEBHOOK}/kylas-baglanti-getir?email=${encodeURIComponent(email)}`, { headers: { "X-Portal-Token": process.env.N8N_PORTAL_TOKEN } });
+    if (!r.ok) return null;
+    b = (await r.json().catch(() => ({})))?.baglanti;
+  } catch { return null; }
+  if (!b?.sifreli) return null;
+  try {
+    const token = await kullaniciTokeni(email, coz(b.sifreli));
+    return { email, token, kylasId: Number(b.kylasId) || null };
+  } catch (e) { console.warn(`[token] ${email}: ${e.message}`); return null; }
+}
+
+// Bearer token'la Kylas'a yazar (429'da tekrar dener). Kullanıcı token'ı api-key'den bağımsız gitmeli.
+async function bearerYaz(url, token, method, govde) {
+  for (let d = 1; ; d++) {
+    const r = await fetch(url, { method, headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(govde) });
+    if (r.status === 429 && d < 4) { await bekle(1200 * d); continue; }
+    return r;
+  }
+}
 
 // ---- Kylas hız sınırı ----
 // Kylas yanıt başlıkları: x-ratelimit-burst-capacity 10, x-ratelimit-replenish-rate 5 (saniyede); her istek 2 birim düşüyor
@@ -769,16 +800,26 @@ async function taskEkle(req, res, yetki) {
   if (sahip === null) return res.status(404).json({ error: "Data bulunamadı." });
   if (!sahipYetkili(yetki, sahip)) return res.status(403).json({ error: "Bu Data'ya task açma yetkiniz yok." });
 
-  const r = await kylasYaz("https://api.kylas.io/v1/tasks/", "POST", {
-    name: ad, type: tur, status: TASK_ACIK, assignedTo: sahip, dueDate: tarih.toISOString(),
-    description: `[${htmlKacir(yetki.ad)} · Portal]`, relation: [{ targetEntityId: leadId, targetEntityType: "LEAD" }], customFieldValues: {},
-  });
-  if (!r.ok) {
-    console.warn(`[task] ${yetki.ad}: data ${leadId} task açılamadı (HTTP ${r.status})`);
-    return res.status(r.status === 429 ? 503 : 502).json({ error: r.status === 429 ? YOGUN : `Task Kylas'ta açılamadı (HTTP ${r.status}).` });
+  const taskGovde = { name: ad, type: tur, status: TASK_ACIK, assignedTo: sahip, dueDate: tarih.toISOString(), relation: [{ targetEntityId: leadId, targetEntityType: "LEAD" }], customFieldValues: {} };
+  const akt = await aktorToken(req);
+  let t = null, yontem = "etiket";
+  if (akt) {
+    for (let deneme = 1; deneme <= 2; deneme++) {
+      const br = await bearerYaz("https://api.kylas.io/v1/tasks/", akt.token, "POST", { ...taskGovde, description: "" });
+      if (br.status === 401 && deneme === 1) { tokenGecersiz(akt.email); const a2 = await aktorToken(req); if (a2) { akt.token = a2.token; continue; } }
+      if (br.ok) { t = await br.json().catch(() => ({})); yontem = "kullanici"; }
+      break;
+    }
   }
-  const t = await r.json().catch(() => ({}));
-  console.log(`[task] ${yetki.ad}: data ${leadId} task ${t.id ?? "?"} açtı -> ${sahip}`);
+  if (!t) {
+    const r = await kylasYaz("https://api.kylas.io/v1/tasks/", "POST", { ...taskGovde, description: `[${htmlKacir(yetki.ad)} · Portal]` });
+    if (!r.ok) {
+      console.warn(`[task] ${yetki.ad}: data ${leadId} task açılamadı (HTTP ${r.status})`);
+      return res.status(r.status === 429 ? 503 : 502).json({ error: r.status === 429 ? YOGUN : `Task Kylas'ta açılamadı (HTTP ${r.status}).` });
+    }
+    t = await r.json().catch(() => ({}));
+  }
+  console.log(`[task] ${yetki.ad} (${yontem}): data ${leadId} task ${t.id ?? "?"} açtı -> ${sahip}`);
   taskOnbellek = null;
   onbellek.clear(); // takip ve özet sayıları değişti
   return res.status(200).json({ task: taskSatiri({ ...t, name: t.name ?? ad, dueDate: t.dueDate ?? tarih.toISOString(), type: t.type ?? tur, status: t.status ?? TASK_ACIK, assignedTo: t.assignedTo ?? sahip, createdBy: t.createdBy ?? API_SAHIBI, description: t.description ?? `[${yetki.ad} · Portal]` }) });
@@ -799,16 +840,27 @@ async function taskTamamla(req, res, yetki) {
     if (!(sahip !== null && sahipYetkili(yetki, sahip)) && !yetki.idler.has(Number(t.assignedTo))) return res.status(403).json({ error: "Bu task'ı tamamlama yetkiniz yok." });
   }
   if (t.status === TASK_TAMAM) return res.status(200).json({ task: taskSatiri(t), zaten: true });
-  const r = await kylasYaz(`https://api.kylas.io/v1/tasks/${taskId}`, "PUT", {
-    name: t.name, dueDate: t.dueDate, type: t.type, status: TASK_TAMAM, priority: t.priority, reminder: t.reminder,
-    assignedTo: t.assignedTo, description: t.description, relation: t.relation, customFieldValues: t.customFieldValues || {},
-  });
-  if (!r.ok) {
-    console.warn(`[task] ${yetki.ad}: task ${taskId} tamamlanamadı (HTTP ${r.status})`);
-    return res.status(r.status === 429 ? 503 : 502).json({ error: r.status === 429 ? YOGUN : `Task Kylas'ta tamamlanamadı (HTTP ${r.status}).` });
+  const putGovde = { name: t.name, dueDate: t.dueDate, type: t.type, status: TASK_TAMAM, priority: t.priority, reminder: t.reminder,
+    assignedTo: t.assignedTo, description: t.description, relation: t.relation, customFieldValues: t.customFieldValues || {} };
+  const akt = await aktorToken(req);
+  let yeni = null, yontem = "etiket";
+  if (akt) {
+    for (let deneme = 1; deneme <= 2; deneme++) {
+      const br = await bearerYaz(`https://api.kylas.io/v1/tasks/${taskId}`, akt.token, "PUT", putGovde);
+      if (br.status === 401 && deneme === 1) { tokenGecersiz(akt.email); const a2 = await aktorToken(req); if (a2) { akt.token = a2.token; continue; } }
+      if (br.ok) { yeni = await br.json().catch(() => ({})); yontem = "kullanici"; }
+      break;
+    }
   }
-  const yeni = await r.json().catch(() => ({}));
-  console.log(`[task] ${yetki.ad}: task ${taskId} (data ${leadId ?? "-"}) tamamlandı`);
+  if (!yeni) {
+    const r = await kylasYaz(`https://api.kylas.io/v1/tasks/${taskId}`, "PUT", putGovde);
+    if (!r.ok) {
+      console.warn(`[task] ${yetki.ad}: task ${taskId} tamamlanamadı (HTTP ${r.status})`);
+      return res.status(r.status === 429 ? 503 : 502).json({ error: r.status === 429 ? YOGUN : `Task Kylas'ta tamamlanamadı (HTTP ${r.status}).` });
+    }
+    yeni = await r.json().catch(() => ({}));
+  }
+  console.log(`[task] ${yetki.ad} (${yontem}): task ${taskId} (data ${leadId ?? "-"}) tamamlandı`);
   taskOnbellek = null;
   onbellek.clear();
   return res.status(200).json({ task: taskSatiri({ ...t, ...yeni, status: TASK_TAMAM, completedAt: yeni.completedAt || new Date().toISOString() }) });
@@ -830,8 +882,13 @@ async function portalAktivite(req, res, yetki) {
   const eski = aktiviteOnbellek.get(anahtar);
   if (eski && Date.now() - eski.zaman < 60 * 1000) return res.status(200).json(eski.veri);
 
-  const notlar = (await notAra(API_SAHIBI, bugunBaslangici().toISOString()))
-    .filter(n => n.lead && portalEtiketi(metneCevir(n.description)));
+  const bas = bugunBaslangici().toISOString();
+  // Bağlantısı olmayan danışmanlar: Selman adına "[Ad · Portal]" etiketli notlar
+  const etiketli = (await notAra(API_SAHIBI, bas)).filter(n => n.lead && portalEtiketi(metneCevir(n.description)));
+  // Bağlı danışmanlar: notu kendi id'siyle açar (etiketsiz)
+  const kendi = [];
+  for (const id of ownerIds) (await notAra(id, bas)).forEach(n => { if (n.lead) kendi.push(n); });
+  const notlar = [...etiketli, ...kendi];
   const leadIdler = [...new Set(notlar.map(n => n.lead))];
   const sahip = new Map();
   for (let i = 0; i < leadIdler.length; i += 1000) {
@@ -864,23 +921,37 @@ async function notEkle(req, res, yetki) {
   if (!lead) return res.status(404).json({ error: "Data bulunamadı." });
   if (yetki.tur !== "admin" && !yetki.idler.has(Number(lead.ownerId))) return res.status(403).json({ error: "Bu Data'ya not ekleme yetkiniz yok." });
 
-  const aciklama = `[${htmlKacir(yetki.ad)} · Portal] ${htmlKacir(metin).replace(/\n/g, "<br>")}`;
-  let r;
-  for (let deneme = 1; ; deneme++) {
-    r = await kylasIstek("https://api.kylas.io/v1/notes/relation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sourceEntity: { description: aciklama }, targetEntityId: leadId, targetEntityType: "LEAD" }),
-    });
-    if (r.status === 429 && deneme < 5) { await bekle(1500 * deneme); continue; }
-    break;
+  const plain = htmlKacir(metin).replace(/\n/g, "<br>");
+  // 1) Giriş yapan danışmanın kendi token'ıyla (Kylas'ta onun adına, etiketsiz)
+  const akt = await aktorToken(req);
+  let n = null, yontem = "etiket";
+  if (akt) {
+    for (let deneme = 1; deneme <= 2; deneme++) {
+      const br = await bearerYaz("https://api.kylas.io/v1/notes/relation", akt.token, "POST", { sourceEntity: { description: plain }, targetEntityId: leadId, targetEntityType: "LEAD" });
+      if (br.status === 401 && deneme === 1) { tokenGecersiz(akt.email); const a2 = await aktorToken(req); if (a2) { akt.token = a2.token; continue; } }
+      if (br.ok) { n = await br.json().catch(() => ({})); yontem = "kullanici"; }
+      break; // başarısızsa (lead görünmüyor vb.) eski yönteme düş
+    }
   }
-  if (!r.ok) {
-    console.warn(`[not] ${yetki.ad}: data ${leadId} notu yazılamadı (HTTP ${r.status})`);
-    return res.status(r.status === 429 ? 503 : 502).json({ error: r.status === 429 ? YOGUN : `Not Kylas'a kaydedilemedi (HTTP ${r.status}).` });
+  // 2) Olmazsa eski yöntem: Selman anahtarı + "[Ad · Portal]" etiketi
+  if (!n) {
+    const aciklama = `[${htmlKacir(yetki.ad)} · Portal] ${plain}`;
+    let r;
+    for (let deneme = 1; ; deneme++) {
+      r = await kylasIstek("https://api.kylas.io/v1/notes/relation", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceEntity: { description: aciklama }, targetEntityId: leadId, targetEntityType: "LEAD" }),
+      });
+      if (r.status === 429 && deneme < 5) { await bekle(1500 * deneme); continue; }
+      break;
+    }
+    if (!r.ok) {
+      console.warn(`[not] ${yetki.ad}: data ${leadId} notu yazılamadı (HTTP ${r.status})`);
+      return res.status(r.status === 429 ? 503 : 502).json({ error: r.status === 429 ? YOGUN : `Not Kylas'a kaydedilemedi (HTTP ${r.status}).` });
+    }
+    n = await r.json().catch(() => ({}));
   }
-  const n = await r.json().catch(() => ({}));
-  console.log(`[not] ${yetki.ad}: data ${leadId} not ${n.id ?? "?"}`);
+  console.log(`[not] ${yetki.ad} (${yontem}): data ${leadId} not ${n.id ?? "?"}`);
   for (const k of onbellek.keys()) if (k.startsWith("ozet:")) onbellek.delete(k); // not sayıları değişti
   for (const k of notOnbellek.keys()) if (k.startsWith(`notlar:${leadId}:`)) notOnbellek.delete(k);
   aktiviteOnbellek.clear();
