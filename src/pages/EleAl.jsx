@@ -1,3 +1,5 @@
+// v1.8: task penceresi animasyonsuz açılır. Sağ sütun 120 px (Task oluştur düğmesi kadar): üst şerit ve tüm kartlar aynı sağ
+//       çizgide biter; ✕, Task oluştur ve Kaydet ve Sonrakine Geç bu çizgide. İçerik en fazla 931 px (eskiden 1040).
 // v1.7: ✕ sayacın hemen yanında; "Task oluştur" sağ sütunda (Kylas'ta aç ile aynı çizgi). Task oluşturma açılır pencerede
 //       (düğmeden sola doğru açılır, arka plan bulanık), "Task oluştur" ile hemen Kylas'a yazılır. "Tamamla + Yeni" aynı pencereyi
 //       dolu açar. Not kutusunun altındaki task formu kalktı; sonrakine geçmek için not yine zorunlu.
@@ -25,6 +27,10 @@ const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const gunOnce = v => (v ? Math.floor((Date.now() - new Date(v).getTime()) / 86400000) : null);
 const ENAZ = 2; // not en az bu kadar karakter
+// Ortak 4 sütun: ilk üçü esnek, sağdaki sütun Task oluştur düğmesi kadar. Üst şerit ve kartlar bu ızgarayla hizalanır.
+const SAG_SUTUN = 120;
+const SUTUNLAR = `repeat(3, minmax(0, 1fr)) ${SAG_SUTUN}px`;
+const ICERIK = 931; // en geniş içerik (kart dış kenarları): 3 x 229 + 120 + aralıklar + kart iç boşluğu
 const TASK_TURLERI = [[2614523, "Follow Up"], [2614522, "Call"], [2614524, "Reminder"], [2614525, "Todo"]];
 const ikiHane = n => String(n).padStart(2, "0");
 const yerelGun = d => `${d.getFullYear()}-${ikiHane(d.getMonth() + 1)}-${ikiHane(d.getDate())}`;
@@ -309,7 +315,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
               {hata && <div style={s.hata}>{hata}</div>}
               <div className="elal-izgara" style={s.altSatir}>
                 <button type="button" onClick={() => setSira(sira - 1)} disabled={sira === 0 || kaydediliyor} style={{ ...s.geri, opacity: sira === 0 ? 0.35 : 1, justifySelf: "start" }}>‹ Önceki</button>
-                <span style={{ fontSize: "11px", color: "#94a3b8", gridColumn: 3, justifySelf: "end", whiteSpace: "nowrap" }}>{notVar && !metinYeterli ? "" : "⌘/Ctrl + Enter"}</span>
+                <span style={{ fontSize: "11px", color: "#94a3b8", gridColumn: 2, justifySelf: "end", whiteSpace: "nowrap" }}>{notVar && !metinYeterli ? "" : "⌘/Ctrl + Enter"}</span>
                 <button type="button" onClick={kaydet} disabled={!ileriAcik} className={ileriAcik ? "elal-ileri-acik" : undefined}
                   style={{ ...s.ileri, ...(ileriAcik ? {} : s.ileriKapali), ...(basari ? s.ileriBasari : {}) }}
                   title={ileriAcik ? undefined : "Sonrakine geçmek için not yaz"}>
@@ -350,7 +356,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   );
 }
 
-// Task oluşturma penceresi: tıklanan düğmenin sağ kenarına yaslanır, sola doğru açılır; arka plan bulanıklaşır.
+// Task oluşturma penceresi: tıklanan düğmenin sağ kenarına yaslanır, sola doğru uzanır; arka plan bulanıklaşır (animasyon yok).
 // "Task oluştur" ile hemen Kylas'a yazılır (onOlustur). Esc ya da arka plana tıklama kapatır.
 function TaskPenceresi({ rect, atanan, ilk, onOlustur, onKapat }) {
   const [f, setF] = useState(() => bosForm(ilk?.ad || "", ilk?.tur || 2614523));
@@ -381,10 +387,9 @@ function TaskPenceresi({ rect, atanan, ilk, onOlustur, onKapat }) {
 
   return createPortal(
     <>
-      <div className="tp-arka" style={p.arka} onMouseDown={() => !calisiyor && onKapat()} />
-      <div role="dialog" aria-modal="true" aria-label="Yeni task" className={`tp-kutu ${asagi ? "tp-asagi" : "tp-yukari"}`}
+      <div style={p.arka} onMouseDown={() => !calisiyor && onKapat()} />
+      <div role="dialog" aria-modal="true" aria-label="Yeni task" 
         style={{ ...p.kutu, width: genislik, right: sag, ...konum }}>
-        <style>{PENCERE_CSS}</style>
         <div style={p.ust}>
           <span style={p.ikon}>＋</span>
           <div style={{ minWidth: 0 }}>
@@ -454,15 +459,6 @@ const p = {
     fontWeight: 800, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 6px 16px rgba(22,163,74,0.32)" },
 };
 
-// Sağdan sola açılma: kırpma alanı sağ kenardan sola doğru genişler, kutu hafifçe sola kayar; arka plan yumuşakça bulanıklaşır
-const PENCERE_CSS = `
-@keyframes tpArka { from { opacity: 0; backdrop-filter: blur(0); } to { opacity: 1; } }
-@keyframes tpAc { from { clip-path: inset(0 0 0 100% round 20px); opacity: 0.4; transform: translateX(14px); } to { clip-path: inset(0 0 0 0 round 20px); opacity: 1; transform: none; } }
-.tp-arka { animation: tpArka 0.25s ease-out; }
-.tp-kutu { animation: tpAc 0.34s cubic-bezier(0.2, 0.8, 0.2, 1); transform-origin: right top; }
-.tp-yukari { transform-origin: right bottom; }
-@media (prefers-reduced-motion: reduce) { .tp-arka, .tp-kutu { animation: none; } }
-`;
 
 function Alan({ ad, bekliyor, children }) {
   return (
@@ -479,25 +475,25 @@ const s = {
   zemin: { position: "fixed", inset: 0, zIndex: 9500, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", fontFamily: "'Sora', sans-serif",
     background: "radial-gradient(1200px 600px at 10% -10%, #ecfeff 0%, transparent 60%), radial-gradient(900px 500px at 110% 0%, #f5f3ff 0%, transparent 55%), #f8fafc",
     animation: "elalGir 0.22s ease-out" },
-  ust: { position: "sticky", top: 0, zIndex: 3, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: "24px", alignItems: "center", padding: "14px calc(max(24px, (100% - 1040px) / 2) + 25.5px) 18px", background: "rgba(255,255,255,0.85)",
+  ust: { position: "sticky", top: 0, zIndex: 3, display: "grid", gridTemplateColumns: SUTUNLAR, columnGap: "24px", alignItems: "center", padding: `14px calc(max(24px, (100% - ${ICERIK}px) / 2) + 25.5px) 18px`, background: "rgba(255,255,255,0.85)",
     backdropFilter: "blur(8px)", borderBottom: "1px solid #e2e8f0", flexShrink: 0 },
   logo: { width: "38px", height: "38px", borderRadius: "12px", background: "linear-gradient(135deg, #0891b2, #7c3aed 60%, #db2777)",
     display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px rgba(124,58,237,0.35)", flexShrink: 0 },
-  sagBlok: { gridColumn: 4, display: "flex", alignItems: "center", justifyContent: "flex-start", gap: "12px", minWidth: 0 },
+  sagBlok: { gridColumn: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", minWidth: 0 },
   sayac: { fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
   kapat: { width: "38px", height: "38px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569",
     fontSize: "15px", cursor: "pointer", flexShrink: 0 },
   cubukZemin: { position: "absolute", left: 0, right: 0, bottom: 0, height: "4px", background: "#e2e8f0" },
   govde: { flexShrink: 0, display: "flex", flexDirection: "column", gap: "16px",
-    padding: "24px max(24px, calc((100% - 1040px) / 2)) 32px", width: "100%", boxSizing: "border-box" },
+    padding: `24px max(24px, calc((100% - ${ICERIK}px) / 2)) 32px`, width: "100%", boxSizing: "border-box" },
   kart: { flexShrink: 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "22px 24px",
     boxShadow: "0 8px 24px rgba(15,23,42,0.06)" },
-  baslikSatir: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: "24px", alignItems: "center", marginBottom: "20px" },
+  baslikSatir: { display: "grid", gridTemplateColumns: SUTUNLAR, columnGap: "24px", alignItems: "center", marginBottom: "20px" },
   ad: { margin: 0, fontSize: "24px", fontWeight: 600, color: "#0f172a", lineHeight: 1.25, wordBreak: "break-word" },
   idNo: { marginLeft: "6px", color: "#64748b", fontWeight: 500 },
   kylas: { gridColumn: 4, justifySelf: "start", padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #a5f3fc", background: "#ecfeff", fontSize: "12px",
     fontWeight: 700, color: "#0891b2", textDecoration: "none" },
-  alanlar: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "20px 24px" },
+  alanlar: { display: "grid", gridTemplateColumns: SUTUNLAR, gap: "20px 24px" },
   liste: { display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" },
   iletisim: { display: "inline-flex", alignItems: "center", gap: "8px", color: "#2563eb", textDecoration: "none", fontWeight: 600 },
   ikonYesil: { width: "22px", height: "22px", borderRadius: "7px", background: "#dcfce7", color: "#16a34a", display: "inline-flex",
@@ -506,13 +502,13 @@ const s = {
     alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800, flexShrink: 0 },
   altBilgi: { display: "flex", gap: "8px 24px", flexWrap: "wrap", marginTop: "20px", paddingTop: "14px", borderTop: "1px solid #f1f5f9",
     fontSize: "12px", color: "#64748b" },
-  etiketKirmizi: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fee2e2", color: "#991b1b", fontSize: "10px", fontWeight: 700 },
-  etiketSari: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
+  etiketKirmizi: { display: "inline-block", whiteSpace: "nowrap", marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fee2e2", color: "#991b1b", fontSize: "10px", fontWeight: 700 },
+  etiketSari: { display: "inline-block", whiteSpace: "nowrap", marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
   eklendi: { flexShrink: 0, padding: "4px 10px", borderRadius: "999px", background: "#f0fdf4", border: "1.5px solid #86efac", color: "#166534", fontSize: "11px", fontWeight: 700 },
   taskKart: { flexShrink: 0, display: "flex", flexDirection: "column", gap: "8px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px",
     padding: "18px 24px", boxShadow: "0 8px 24px rgba(15,23,42,0.06)" },
-  taskBaslik: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: "24px", alignItems: "center", marginBottom: "4px" },
-  taskEkleDugme: { gridColumn: 4, justifySelf: "start", padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#f0fdf4", color: "#166534", fontSize: "12px",
+  taskBaslik: { display: "grid", gridTemplateColumns: SUTUNLAR, columnGap: "24px", alignItems: "center", marginBottom: "4px" },
+  taskEkleDugme: { gridColumn: 4, width: "100%", whiteSpace: "nowrap", padding: "6px 10px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#f0fdf4", color: "#166534", fontSize: "12px",
     fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   taskSatir: { display: "grid", gridTemplateColumns: "auto minmax(0, 1fr) auto auto", gap: "6px 14px", alignItems: "center", padding: "10px 12px",
     borderRadius: "12px", background: "#f8fafc", border: "1px solid #f1f5f9", fontSize: "13px" },
@@ -542,10 +538,10 @@ const s = {
   alan: { width: "100%", minHeight: "110px", resize: "vertical", padding: "12px 14px", borderRadius: "14px", border: "1.5px solid", outline: "none",
     fontFamily: "'Sora', sans-serif", fontSize: "14px", lineHeight: 1.5, color: "#0f172a", boxSizing: "border-box", background: "#fff", transition: "border-color 0.15s" },
   hata: { marginTop: "8px", padding: "8px 12px", borderRadius: "10px", background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", fontSize: "12px" },
-  altSatir: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: "24px", alignItems: "center", marginTop: "12px" },
+  altSatir: { display: "grid", gridTemplateColumns: SUTUNLAR, columnGap: "24px", alignItems: "center", marginTop: "12px" },
   geri: { padding: "9px 16px", borderRadius: "999px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "13px",
     fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
-  ileri: { gridColumn: 4, width: "100%", padding: "10px 16px", whiteSpace: "nowrap", borderRadius: "999px", border: "none", color: "#fff", fontSize: "13px", fontWeight: 800, cursor: "pointer",
+  ileri: { gridColumn: "3 / 5", justifySelf: "end", width: "auto", padding: "10px 22px", whiteSpace: "nowrap", borderRadius: "999px", border: "none", color: "#fff", fontSize: "13px", fontWeight: 800, cursor: "pointer",
     fontFamily: "'Sora', sans-serif", background: "linear-gradient(135deg, #0891b2, #7c3aed)", boxShadow: "0 6px 18px rgba(124,58,237,0.35)", transition: "all 0.2s" },
   ileriKapali: { background: "#e2e8f0", color: "#94a3b8", boxShadow: "none", cursor: "not-allowed" },
   ileriBasari: { background: "linear-gradient(135deg, #16a34a, #059669)", boxShadow: "0 6px 18px rgba(22,163,74,0.35)" },

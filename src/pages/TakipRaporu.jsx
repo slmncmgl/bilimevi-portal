@@ -1,3 +1,4 @@
+// v5.0: Toplu Data Follow Up: kartlar Task oluştur hizasına daraldı, task penceresi animasyonsuz (EleAl v1.8)
 // v4.9: Toplu Data Follow Up: ✕ sayacın yanında, task oluşturma açılır pencerede (EleAl v1.7)
 // v4.8: Toplu Data Follow Up'ta task'lar: listele, tamamla, Tamamla + yeni, notla birlikte task aç (EleAl v1.6); task değişince liste yenilenir
 // v4.7: Ele al ekranının başlığı "Toplu Data Follow Up" (EleAl v1.5)
@@ -60,7 +61,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v4.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v5.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
