@@ -1,3 +1,4 @@
+// v3.14: takip listesi satırlarında "eposta" da döner (Data araması e-postayla da süzer)
 // v3.13: takip listesindeki her satırda "tel" (telefonların rakamları) döner; ekrandaki Data araması ad, ID ve telefonla süzer
 // v3.12: aramaBaslat isteği Kylas web'inki gibi Origin/Referer (app.kylas.io) ile gider; yanıtta bildirimin gittiği hesap
 //       (ad, Kylas ID) ve Kylas'ın HTTP kodu döner, ekranda görünür. Log'a da yazılır.
@@ -448,7 +449,7 @@ async function takip(req, res, yetki) {
   const kurallar = [sahipKurali(ownerIds), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", TAKIP_ASAMALARI)];
   if (kaynaklar.length) kurallar.push(kural("source", "in", kaynaklar));
   if (kampanya) kurallar.push(kural("utmCampaign", "contains", kampanya, "string"));
-  const leadler = await hepsiniCek(kurallar, [...LISTE_ALANLARI, "source", "utmCampaign", "phoneNumbers"]);
+  const leadler = await hepsiniCek(kurallar, [...LISTE_ALANLARI, "source", "utmCampaign", "phoneNumbers", "emails"]);
   if (leadler === null) return res.status(422).json({ error: "Seçimde 10.000'den fazla açık Data var, daha az danışman ya da kaynak seçin." });
 
   const simdi = Date.now();
@@ -475,6 +476,7 @@ async function takip(req, res, yetki) {
     id: l.id, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), ownerId: l.ownerId, asama: l.pipelineStage, kaynak: l.source,
     kampanya: l.utmCampaign || "", olusturma: l.createdAt || null, sonAktivite: l.latestActivityCreatedAt || null, sonrakiTask: (leadTask ? leadTask.get(l.id)?.tarih : l.taskDueOn) || null,
     tel: (l.phoneNumbers || []).map(p => `${p.dialCode || ""}${p.value || ""}`.replace(/\D/g, "")).filter(Boolean), // sadece listede arama için (rakamlar)
+    eposta: (l.emails || []).map(e => String(e?.value || "").trim().toLowerCase()).filter(Boolean), // sadece listede arama için
   });
   for (const l of leadler) {
     const d = danismanlar[l.ownerId] || (danismanlar[l.ownerId] = bosOzet());

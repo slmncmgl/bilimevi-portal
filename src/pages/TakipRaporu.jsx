@@ -1,3 +1,4 @@
+// v6.10: Data araması e-posta adresiyle de süzer (crm-rapor v3.14)
 // v6.9: liste başlığında Data araması (ad, ID, telefon); liste, aşama sayıları ve Dataları Ele Al süzülmüş listeyle çalışır (crm-rapor v3.13)
 // v6.8: Task tarihi ve Son aktivite sütunlarında "x gün sonra / x gün" yazısı kaldırıldı, sadece tarih
 // v6.7: Ele Al ekranında numara yanında Kylas arama ikonu ve WhatsApp butonu (EleAl v2.9)
@@ -81,7 +82,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.10"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -330,7 +331,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               </span>
               <span style={t.dataAra}>
                 <span style={{ color: "#94a3b8", fontSize: "13px" }}>⌕</span>
-                <input value={dataAra} onChange={e => setDataAra(e.target.value)} placeholder="Data ara: ad, ID ya da telefon" maxLength={60}
+                <input value={dataAra} onChange={e => setDataAra(e.target.value)} placeholder="Data ara: ad, ID, telefon, e-posta" maxLength={60}
                   aria-label="Listede Data ara" style={t.dataAraGirdi} />
                 {dataAra && <button type="button" onClick={() => setDataAra("")} aria-label="Aramayı temizle" style={t.dataAraSil}>✕</button>}
               </span>
@@ -468,7 +469,8 @@ function dataAraSuz(aranan) {
   const q = sade(aranan);
   if (!q) return () => true;
   const rakam = /^[\d\s+()-]+$/.test(q) ? q.replace(/\D/g, "").replace(/^0+/, "") : "";
-  return l => sade(l.ad).includes(q) || (rakam.length >= 3 && (String(l.id).includes(rakam) || (l.tel || []).some(x => x.includes(rakam))));
+  const ham = String(aranan).trim().toLowerCase();
+  return l => sade(l.ad).includes(q) || (ham.length >= 3 && (l.eposta || []).some(e => e.includes(ham))) || (rakam.length >= 3 && (String(l.id).includes(rakam) || (l.tel || []).some(x => x.includes(rakam))));
 }
 
 // Task tarihi hücresi: gecikmiş (turuncu, kaç gün gecikti), ileri (yeşil, kaç gün kaldı), yok (zorunluysa kırmızı)
@@ -510,7 +512,7 @@ const t = {
   kartEtiket: { fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4px" },
   zorunlu: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fee2e2", color: "#991b1b", fontSize: "10px", fontWeight: 700 },
   aktivite: { marginLeft: "4px", color: "#7c3aed", fontWeight: 800 },
-  dataAra: { display: "inline-flex", alignItems: "center", gap: "6px", width: "260px", maxWidth: "100%", padding: "6px 12px", borderRadius: "999px",
+  dataAra: { display: "inline-flex", alignItems: "center", gap: "6px", width: "280px", maxWidth: "100%", padding: "6px 12px", borderRadius: "999px",
     border: "1.5px solid #e2e8f0", background: "#fff" },
   dataAraGirdi: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "none", fontSize: "12px", color: "#0f172a", fontFamily: "'Sora', sans-serif" },
   dataAraSil: { border: "none", background: "none", color: "#94a3b8", fontSize: "11px", cursor: "pointer", padding: 0 },
