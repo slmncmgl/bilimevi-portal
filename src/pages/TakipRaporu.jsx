@@ -1,3 +1,4 @@
+// v6.9: liste başlığında Data araması (ad, ID, telefon); liste, aşama sayıları ve Dataları Ele Al süzülmüş listeyle çalışır (crm-rapor v3.13)
 // v6.8: Task tarihi ve Son aktivite sütunlarında "x gün sonra / x gün" yazısı kaldırıldı, sadece tarih
 // v6.7: Ele Al ekranında numara yanında Kylas arama ikonu ve WhatsApp butonu (EleAl v2.9)
 // v6.6: arama bildirimi Kylas web başlıklarıyla; sonuçta gittiği hesap görünür (EleAl v2.8, crm-rapor v3.12)
@@ -80,7 +81,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -136,6 +137,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [gorunum, setGorunum] = useState("takipsiz"); // GORUNUMLER anahtarı: acik | taskBeklenen | ileri | gecikmis | takipsiz
   const notOnbellek = useRef({});
   const [eleAl, setEleAl] = useState(null); // ele alınan datalar (tam ekran açıkken)
+  const [dataAra, setDataAra] = useState(""); // liste içi Data araması (ad, ID, telefon)
   const [aktivite, setAktivite] = useState(null); // bugün portaldan not girilen Data sayısı
   const [aktiviteYenile, setAktiviteYenile] = useState(0);
 
@@ -225,13 +227,15 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const asamaSuz = l => (!asamaSecim.length || asamaSecim.includes(l.asama)) && (!listeSahip || String(l.ownerId) === listeSahip);
   const gorunumTanim = GORUNUMLER[gorunum] || GORUNUMLER.takipsiz;
   const taskSutunu = gorunum !== "takipsiz";
-  const tumTakipsiz = (rapor?.acik || []).filter(gorunumTanim.suz).sort(gorunumTanim.sirala);
+  const tumTakipsiz = (rapor?.acik || []).filter(gorunumTanim.suz).filter(dataAraSuz(dataAra)).sort(gorunumTanim.sirala);
   const liste = tumTakipsiz.filter(asamaSuz);
   const asamaSayisi = id => tumTakipsiz.filter(l => (id === null || l.asama === id) && (!listeSahip || String(l.ownerId) === listeSahip)).length;
   const asamaDegistir = id => setAsamaSecim(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
 
   // Sayfalama: filtre, sayfa boyu ya da rapor değişince ilk sayfaya dön
-  useEffect(() => { setSayfa(1); }, [asamaSecim, sayfaBoyu, rapor, gorunum, listeSahip]);
+  useEffect(() => { setSayfa(1); }, [asamaSecim, sayfaBoyu, rapor, gorunum, listeSahip, dataAra]);
+  // Kart ya da listedeki danışman değişince Data araması sıfırlanır
+  useEffect(() => { setDataAra(""); }, [gorunum, listeSahip]);
   const sayfaSayisi = Math.max(1, Math.ceil(liste.length / sayfaBoyu));
   const gecerliSayfa = Math.min(sayfa, sayfaSayisi);
   const sayfaListesi = liste.slice((gecerliSayfa - 1) * sayfaBoyu, gecerliSayfa * sayfaBoyu);
@@ -323,6 +327,12 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                     <span style={t.aktivite}> / {aktivite} aktivite</span>
                   </Ipucu>
                 )}
+              </span>
+              <span style={t.dataAra}>
+                <span style={{ color: "#94a3b8", fontSize: "13px" }}>⌕</span>
+                <input value={dataAra} onChange={e => setDataAra(e.target.value)} placeholder="Data ara: ad, ID ya da telefon" maxLength={60}
+                  aria-label="Listede Data ara" style={t.dataAraGirdi} />
+                {dataAra && <button type="button" onClick={() => setDataAra("")} aria-label="Aramayı temizle" style={t.dataAraSil}>✕</button>}
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: "10px", marginLeft: "auto" }}>
                 {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
@@ -452,6 +462,15 @@ function KampanyaHucresi({ metin }) {
   return tasti ? <Ipucu metin={metin} isaret={false}>{icerik}</Ipucu> : icerik;
 }
 
+// Liste içi Data araması: ad (Türkçe harf ve büyük/küçük duyarsız), Data ID ya da telefon (rakamlar; baştaki 0 ve +90 önemsiz)
+const sade = m => String(m || "").toLocaleLowerCase("tr").replace(/ı/g, "i").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+function dataAraSuz(aranan) {
+  const q = sade(aranan);
+  if (!q) return () => true;
+  const rakam = /^[\d\s+()-]+$/.test(q) ? q.replace(/\D/g, "").replace(/^0+/, "") : "";
+  return l => sade(l.ad).includes(q) || (rakam.length >= 3 && (String(l.id).includes(rakam) || (l.tel || []).some(x => x.includes(rakam))));
+}
+
 // Task tarihi hücresi: gecikmiş (turuncu, kaç gün gecikti), ileri (yeşil, kaç gün kaldı), yok (zorunluysa kırmızı)
 function TaskHucresi({ l }) {
   if (!l.sonrakiTask) return <td style={{ ...c.td, whiteSpace: "nowrap", color: l.zorunlu ? "#dc2626" : "#94a3b8", fontWeight: l.zorunlu ? 600 : 400 }}>Task yok</td>;
@@ -491,6 +510,10 @@ const t = {
   kartEtiket: { fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4px" },
   zorunlu: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fee2e2", color: "#991b1b", fontSize: "10px", fontWeight: 700 },
   aktivite: { marginLeft: "4px", color: "#7c3aed", fontWeight: 800 },
+  dataAra: { display: "inline-flex", alignItems: "center", gap: "6px", width: "260px", maxWidth: "100%", padding: "6px 12px", borderRadius: "999px",
+    border: "1.5px solid #e2e8f0", background: "#fff" },
+  dataAraGirdi: { flex: 1, minWidth: 0, border: "none", outline: "none", background: "none", fontSize: "12px", color: "#0f172a", fontFamily: "'Sora', sans-serif" },
+  dataAraSil: { border: "none", background: "none", color: "#94a3b8", fontSize: "11px", cursor: "pointer", padding: 0 },
   vip: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
   filtreler: { display: "flex", gap: "24px", flexWrap: "wrap", padding: "14px 24px", borderBottom: "1px solid #f1f5f9", background: "#fafcff" },
   sayfalama: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", padding: "12px 24px", borderTop: "1px solid #f1f5f9" },
