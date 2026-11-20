@@ -1,3 +1,5 @@
+// v2.4: "Yeni not" (3/4) ve "Task'lar" (1/4) aynı satırda; "Önceki notlar" sol sütunda Yeni not'un hemen altında. Dar task sütununda
+//       task satırları alt alta (tür + ad, tarih, düğmeler). Telefon genişliğinde ikisi alt alta.
 // v2.3: alt yazıda açılan listenin adı (listeAdi: Açık / Task beklenen / İleri / Gecikmiş / Takipsiz Datalar); task tarihi varsa
 //       her listede gösterilir (gecikti / kaldı).
 // v2.2: "Kylas'ta aç" -> "CRM'de Göster". Telefon arama bağlantısı değil: tıklanınca datanın Kylas sayfası açılır,
@@ -319,46 +321,11 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
             </div>
           </section>
 
-          <section style={s.taskKart}>
-            <div className="elal-izgara" style={s.taskBaslik}>
-              <span style={{ ...s.bolumBaslik, marginBottom: 0, gridColumn: "1 / 4" }}>Task'lar{acikTasklar.length ? ` · ${acikTasklar.length} açık` : ""}</span>
-              <button type="button" onClick={e => pencereAc(e.currentTarget)} style={s.taskEkleDugme} aria-haspopup="dialog">＋ Task oluştur</button>
-            </div>
-            {tk?.yukleniyor && <div style={s.bilgiMetni}><span className="elal-spin" /> Task'lar alınıyor...</div>}
-            {tk?.hata && <div style={{ ...s.bilgiMetni, color: "#991b1b" }}>{tk.hata} <button type="button" onClick={() => tasklariGetir(l, true)} style={s.metinDugme}>Tekrar dene</button></div>}
-            {tk?.tasklar && tk.tasklar.length === 0 && <div style={s.bilgiMetni}>Bu Data'da task yok.</div>}
-            {[...acikTasklar, ...kapaliTasklar.slice(0, 3)].map(t => {
-              const islem = taskIslem[t.id];
-              const kapali = t.durum !== "acik" && t.durum !== "surecte";
-              return (
-                <div key={t.id} className={`elal-task${t.yeni ? " elal-yeni-not" : ""}`} style={{ ...s.taskSatir, ...(kapali ? s.taskKapali : t.gecikmis ? s.taskGecikmis : {}) }}>
-                  <span style={{ ...s.taskTur, ...(kapali ? { background: "#f1f5f9", color: "#94a3b8" } : {}) }}>{kapali ? "✓" : t.tur || "Task"}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, color: kapali ? "#94a3b8" : "#0f172a", textDecoration: kapali ? "line-through" : "none", wordBreak: "break-word" }}>{t.ad || "İsimsiz task"}</div>
-                    <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>
-                      {[t.atanan ? kisiAdi(t.atanan) : null, t.portalYazan ? `${t.portalYazan} açtı (Portal)` : null, t.durum === "iptal" ? "İptal" : null].filter(Boolean).join(" · ")}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: "12px", fontWeight: 700, whiteSpace: "nowrap", color: kapali ? "#94a3b8" : t.gecikmis ? "#b91c1c" : "#166534" }}>
-                    {t.tarih ? tarih(t.tarih, true) : "-"}{!kapali && t.gecikmis ? ` · ${gunOnce(t.tarih)} gün gecikti` : ""}
-                  </div>
-                  <div className="elal-task-dugmeler" style={s.taskDugmeler}>
-                    {!kapali && (
-                      <>
-                        <button type="button" disabled={islem === "calisiyor"} onClick={() => tamamla(t, null)} style={s.taskTamam}>{islem === "calisiyor" ? "..." : "✓ Tamamlandı"}</button>
-                        <button type="button" disabled={islem === "calisiyor"} onClick={e => tamamla(t, e.currentTarget)} style={s.taskYeni} title="Bu task'ı tamamla ve aynı adla yeni task hazırla">Tamamla + Yeni</button>
-                      </>
-                    )}
-                  </div>
-                  {islem && islem !== "calisiyor" && <div style={{ ...s.hata, gridColumn: "1 / -1", marginTop: 0 }}>{islem}</div>}
-                </div>
-              );
-            })}
-            {kapaliTasklar.length > 3 && <div style={{ fontSize: "11px", color: "#94a3b8" }}>+{kapaliTasklar.length - 3} tamamlanmış task daha, hepsi Kylas'ta.</div>}
-          </section>
 
+          <div className="elal-ikili" style={s.ikili}>
+          <div style={s.solSutun}>
           <section style={s.notKutusu}>
-            <div style={s.yazma}>
+            <div style={{ ...s.yazma, borderBottom: "none" }}>
               <div style={s.bolumBaslik}>Yeni not</div>
               <textarea ref={alan} value={metin} disabled={kaydediliyor || basari}
                 onChange={e => setTaslak(t => ({ ...t, [l.id]: e.target.value.slice(0, 3000) }))}
@@ -376,7 +343,8 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
                 </button>
               </div>
             </div>
-
+          </section>
+          <section style={s.notKutusu}>
             <div style={{ ...s.bolumBaslik, padding: "14px 24px 0" }}>Önceki notlar{n?.toplam ? ` (${n.toplam})` : ""}</div>
             <div style={s.notListe}>
               {n?.yukleniyor && <div style={s.bilgiMetni}><span className="elal-spin" /> Notlar alınıyor...</div>}
@@ -391,6 +359,45 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
               {n?.toplam > (n?.notlar?.length || 0) && <div style={{ fontSize: "11px", color: "#94a3b8" }}>Son {n.notlar.length} not gösteriliyor, hepsi Kylas'ta.</div>}
             </div>
           </section>
+          </div>
+          <section style={s.taskKart}>
+            <div className="elal-izgara" style={s.taskBaslik}>
+              <span style={{ ...s.bolumBaslik, marginBottom: 0 }}>Task'lar{acikTasklar.length ? ` · ${acikTasklar.length} açık` : ""}</span>
+              <button type="button" onClick={e => pencereAc(e.currentTarget)} style={s.taskEkleDugme} aria-haspopup="dialog">＋ Task oluştur</button>
+            </div>
+            {tk?.yukleniyor && <div style={s.bilgiMetni}><span className="elal-spin" /> Task'lar alınıyor...</div>}
+            {tk?.hata && <div style={{ ...s.bilgiMetni, color: "#991b1b" }}>{tk.hata} <button type="button" onClick={() => tasklariGetir(l, true)} style={s.metinDugme}>Tekrar dene</button></div>}
+            {tk?.tasklar && tk.tasklar.length === 0 && <div style={s.bilgiMetni}>Bu Data'da task yok.</div>}
+            {[...acikTasklar, ...kapaliTasklar.slice(0, 3)].map(t => {
+              const islem = taskIslem[t.id];
+              const kapali = t.durum !== "acik" && t.durum !== "surecte";
+              return (
+                <div key={t.id} className={`elal-task${t.yeni ? " elal-yeni-not" : ""}`} style={{ ...s.taskSatir, ...(kapali ? s.taskKapali : t.gecikmis ? s.taskGecikmis : {}) }}>
+                  <span style={{ ...s.taskTur, ...(kapali ? { background: "#f1f5f9", color: "#94a3b8" } : {}) }}>{kapali ? "✓" : t.tur || "Task"}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, color: kapali ? "#94a3b8" : "#0f172a", textDecoration: kapali ? "line-through" : "none", wordBreak: "break-word" }}>{t.ad || "İsimsiz task"}</div>
+                    <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>
+                      {[t.atanan ? kisiAdi(t.atanan) : null, t.portalYazan ? `${t.portalYazan} açtı (Portal)` : null, t.durum === "iptal" ? "İptal" : null].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                  <div style={{ gridColumn: "1 / -1", fontSize: "12px", fontWeight: 700, color: kapali ? "#94a3b8" : t.gecikmis ? "#b91c1c" : "#166534" }}>
+                    {t.tarih ? tarih(t.tarih, true) : "-"}{!kapali && t.gecikmis ? ` · ${gunOnce(t.tarih)} gün gecikti` : ""}
+                  </div>
+                  <div className="elal-task-dugmeler" style={s.taskDugmeler}>
+                    {!kapali && (
+                      <>
+                        <button type="button" disabled={islem === "calisiyor"} onClick={() => tamamla(t, null)} style={s.taskTamam}>{islem === "calisiyor" ? "..." : "✓ Tamamlandı"}</button>
+                        <button type="button" disabled={islem === "calisiyor"} onClick={e => tamamla(t, e.currentTarget)} style={s.taskYeni} title="Bu task'ı tamamla ve aynı adla yeni task hazırla">Tamamla + Yeni</button>
+                      </>
+                    )}
+                  </div>
+                  {islem && islem !== "calisiyor" && <div style={{ ...s.hata, gridColumn: "1 / -1", marginTop: 0 }}>{islem}</div>}
+                </div>
+              );
+            })}
+            {kapaliTasklar.length > 3 && <div style={{ fontSize: "11px", color: "#94a3b8" }}>+{kapaliTasklar.length - 3} tamamlanmış task daha, hepsi Kylas'ta.</div>}
+          </section>
+          </div>
         </main>
       )}
 
@@ -562,16 +569,18 @@ const s = {
   etiketSari: { display: "inline-block", whiteSpace: "nowrap", marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
   eklendi: { flexShrink: 0, padding: "4px 10px", borderRadius: "999px", background: "#f0fdf4", border: "1.5px solid #86efac", color: "#166534", fontSize: "11px", fontWeight: 700 },
   taskKart: { flexShrink: 0, display: "flex", flexDirection: "column", gap: "8px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px",
-    padding: "18px 24px", boxShadow: "0 8px 24px rgba(15,23,42,0.06)" },
-  taskBaslik: { display: "grid", gridTemplateColumns: SUTUNLAR, columnGap: "24px", alignItems: "center", marginBottom: "4px" },
-  taskEkleDugme: { gridColumn: 4, width: "100%", whiteSpace: "nowrap", padding: "6px 10px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#f0fdf4", color: "#166534", fontSize: "12px",
+    padding: "16px", boxShadow: "0 8px 24px rgba(15,23,42,0.06)", minWidth: 0 },
+  ikili: { display: "grid", gridTemplateColumns: "minmax(0, 3fr) minmax(0, 1fr)", gap: "16px", alignItems: "start", flexShrink: 0 },
+  solSutun: { display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 },
+  taskBaslik: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "4px" },
+  taskEkleDugme: { whiteSpace: "nowrap", padding: "6px 10px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#f0fdf4", color: "#166534", fontSize: "12px",
     fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
-  taskSatir: { display: "grid", gridTemplateColumns: "auto minmax(0, 1fr) auto auto", gap: "6px 14px", alignItems: "center", padding: "10px 12px",
+  taskSatir: { display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)", gap: "6px 10px", alignItems: "center", padding: "10px 12px",
     borderRadius: "12px", background: "#f8fafc", border: "1px solid #f1f5f9", fontSize: "13px" },
   taskGecikmis: { background: "#fef2f2", border: "1px solid #fecaca" },
   taskKapali: { background: "#fff", border: "1px dashed #e2e8f0" },
-  taskTur: { minWidth: "74px", textAlign: "center", boxSizing: "border-box", padding: "3px 8px", borderRadius: "8px", background: "#ecfeff", color: "#0e7490", fontSize: "11px", fontWeight: 700, whiteSpace: "nowrap" },
-  taskDugmeler: { display: "flex", gap: "6px", justifyContent: "flex-end" },
+  taskTur: { minWidth: 0, textAlign: "center", boxSizing: "border-box", padding: "3px 8px", borderRadius: "8px", background: "#ecfeff", color: "#0e7490", fontSize: "11px", fontWeight: 700, whiteSpace: "nowrap" },
+  taskDugmeler: { gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", gap: "6px", justifyContent: "flex-start" },
   taskTamam: { padding: "6px 10px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#fff", color: "#166534", fontSize: "11.5px",
     fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", whiteSpace: "nowrap" },
   taskYeni: { padding: "6px 10px", borderRadius: "999px", border: "none", background: "linear-gradient(135deg, #16a34a, #059669)", color: "#fff",
@@ -623,7 +632,7 @@ const EKRAN_CSS = `
 @keyframes elalIskelet { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 .elal-iskelet { display: inline-block; width: 70%; height: 14px; border-radius: 6px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%; animation: elalIskelet 1.2s linear infinite; }
-@media (max-width: 820px) { .elal-alanlar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } .elal-govde { padding: 16px !important; } .elal-ust { padding-left: 41.5px !important; padding-right: 41.5px !important; display: flex !important; gap: 12px; }
+@media (max-width: 820px) { .elal-ikili { grid-template-columns: 1fr !important; } .elal-alanlar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } .elal-govde { padding: 16px !important; } .elal-ust { padding-left: 41.5px !important; padding-right: 41.5px !important; display: flex !important; gap: 12px; }
   .elal-sag { margin-left: auto; } .elal-izgara { display: flex !important; flex-wrap: wrap; gap: 10px; } .elal-izgara > :last-child { margin-left: auto; width: auto !important; } }
 @media (max-width: 480px) { .elal-alanlar { grid-template-columns: 1fr !important; } }
 @media (max-width: 640px) { .elal-task { grid-template-columns: auto minmax(0, 1fr) !important; } .elal-task > :nth-child(3) { grid-column: 1 / -1; } .elal-task-dugmeler { grid-column: 1 / -1; justify-content: flex-start !important; }

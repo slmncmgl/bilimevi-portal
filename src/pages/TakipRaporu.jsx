@@ -1,3 +1,4 @@
+// v6.1: Toplu Data Follow Up: Yeni not (3/4) ve Task'lar (1/4) aynı satırda, Önceki notlar altında (EleAl v2.4)
 // v6.0: Campaign Name sütunu en fazla "Study Expo - Şubat 2026" genişliğinde (166 px); sığmayan ad kısalır, üzerine gelince balonda tam hali
 // v5.9: Task beklenen kartı kaldırıldı; ileri tarihli açık task'ı olan data takipsiz sayılmaz (gerçek task listesi, crm-rapor v3.9)
 // v5.8: not/task bağlı danışmanın kendi Kylas token'ıyla gider (crm-rapor v3.8); aktivite skoru kendi adına açılan notları da sayar
@@ -72,7 +73,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.0"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.1"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
