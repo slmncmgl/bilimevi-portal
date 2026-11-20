@@ -1,3 +1,4 @@
+// v1.4: kaydırma tüm ekranda, üst şerit yapışkan: kaydırma çubuğu üst şerit ve kartları aynı kaydırır, ✕ ile ileri düğmesi aynı çizgide
 // v1.3: sayaç, "Kylas'ta aç" ve ileri düğmesi Danışman sütununun başladığı yerde (4 sütunlu ortak ızgara).
 //       İleri düğmesi her durumda "Kaydet ve Sonrakine Geç" (son datada "Kaydet ve Bitir").
 // v1.2: üst şerit kartla hizalı: sol kenar Telefon sütununda, sağ kenar Danışman sütununun bittiği yerde
@@ -249,10 +250,10 @@ function Alan({ ad, bekliyor, children }) {
 }
 
 const s = {
-  zemin: { position: "fixed", inset: 0, zIndex: 9500, display: "flex", flexDirection: "column", fontFamily: "'Sora', sans-serif",
+  zemin: { position: "fixed", inset: 0, zIndex: 9500, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", fontFamily: "'Sora', sans-serif",
     background: "radial-gradient(1200px 600px at 10% -10%, #ecfeff 0%, transparent 60%), radial-gradient(900px 500px at 110% 0%, #f5f3ff 0%, transparent 55%), #f8fafc",
     animation: "elalGir 0.22s ease-out" },
-  ust: { position: "relative", display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: "24px", alignItems: "center", padding: "14px calc(max(24px, (100% - 1040px) / 2) + 25.5px) 18px", background: "rgba(255,255,255,0.85)",
+  ust: { position: "sticky", top: 0, zIndex: 3, display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: "24px", alignItems: "center", padding: "14px calc(max(24px, (100% - 1040px) / 2) + 25.5px) 18px", background: "rgba(255,255,255,0.85)",
     backdropFilter: "blur(8px)", borderBottom: "1px solid #e2e8f0", flexShrink: 0 },
   logo: { width: "38px", height: "38px", borderRadius: "12px", background: "linear-gradient(135deg, #0891b2, #7c3aed 60%, #db2777)",
     display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px rgba(124,58,237,0.35)", flexShrink: 0 },
@@ -261,7 +262,7 @@ const s = {
   kapat: { width: "38px", height: "38px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569",
     fontSize: "15px", cursor: "pointer", flexShrink: 0 },
   cubukZemin: { position: "absolute", left: 0, right: 0, bottom: 0, height: "4px", background: "#e2e8f0" },
-  govde: { flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: "16px",
+  govde: { flexShrink: 0, display: "flex", flexDirection: "column", gap: "16px",
     padding: "24px max(24px, calc((100% - 1040px) / 2)) 32px", width: "100%", boxSizing: "border-box" },
   kart: { flexShrink: 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "22px 24px",
     boxShadow: "0 8px 24px rgba(15,23,42,0.06)" },
