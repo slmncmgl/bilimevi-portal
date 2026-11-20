@@ -1,3 +1,4 @@
+// v5.7: liste başlığında bugünkü portal aktivitesi: "/ N aktivite" (bugün portaldan not girilen Data sayısı, crm-rapor v3.7)
 // v5.6: her karta tıklanınca altta listesi: Açık Data, Task beklenen, İleri tarihli task, Gecikmiş task, Takipsiz (Takip oranı -> Task beklenen).
 //       Takipsiz dışındaki listelerde Task tarihi sütunu (gecikti / kaldı / Task yok). Sunucu tek açık liste döner (crm-rapor v3.6)
 // v5.5: Kylas hız sınırı: sunucuda ortak istek sırası ve 429 tekrar denemesi, tarayıcıda yoğunlukta otomatik tekrar (crm-rapor v3.5)
@@ -68,7 +69,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v5.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v5.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -124,6 +125,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [gorunum, setGorunum] = useState("takipsiz"); // GORUNUMLER anahtarı: acik | taskBeklenen | ileri | gecikmis | takipsiz
   const notOnbellek = useRef({});
   const [eleAl, setEleAl] = useState(null); // ele alınan datalar (tam ekran açıkken)
+  const [aktivite, setAktivite] = useState(null); // bugün portaldan not girilen Data sayısı
+  const [aktiviteYenile, setAktiviteYenile] = useState(0);
 
   useEffect(() => {
     kisileriYukle().then(setKisiler).catch(() => setKisiHata("Danışman listesi okunamadı."));
@@ -185,6 +188,18 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     }, 400);
     return () => { iptal = true; clearTimeout(zamanlayici); };
   }, [danismanAnahtari, sessizGun, kaynakAnahtari, kampanya, yenile]);
+
+  // Bugünkü portal aktivitesi: başlıkta görünen danışman(lar) için
+  const aktiviteSahipleri = (listeSahip ? [listeSahip] : danismanlar).map(Number);
+  const aktiviteAnahtari = [...aktiviteSahipleri].sort((a, b) => a - b).join(",");
+  useEffect(() => {
+    if (!aktiviteSahipleri.length || !rapor) { setAktivite(null); return; }
+    let iptal = false;
+    apiCagir({ islem: "portalAktivite", ownerIds: aktiviteSahipleri })
+      .then(d => { if (!iptal) setAktivite(d.veri); })
+      .catch(() => { if (!iptal) setAktivite(null); });
+    return () => { iptal = true; };
+  }, [aktiviteAnahtari, !!rapor, aktiviteYenile]);
 
   const coklu = danismanlar.length > 1;
   const kisiAdi = id => kisiler?.[String(id)]?.ad || `#${id}`;
@@ -293,7 +308,13 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
           <div style={{ ...c.tablo, opacity: arkaYukleniyor ? 0.55 : 1, transition: "opacity 0.2s" }}>
             <div style={c.tabloBaslik}>
-              <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{listeSahip ? kisiAdi(listeSahip) : secimBasligi} · {gorunumTanim.ad} ({liste.length})</span>
+              <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>{listeSahip ? kisiAdi(listeSahip) : secimBasligi} · {gorunumTanim.ad} ({liste.length})
+                {aktivite !== null && (
+                  <Ipucu metin="Bugün portaldan (Dataları Ele Al) not girilen Data sayısı. Gece 00:00'da sıfırlanır." isaret={false}>
+                    <span style={t.aktivite}> / {aktivite} aktivite</span>
+                  </Ipucu>
+                )}
+              </span>
               <span style={{ display: "flex", alignItems: "center", gap: "10px", marginLeft: "auto" }}>
                 {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
                 <EleAlDugmesi sayi={eleAlinacak.length} disabled={aktarim} onClick={() => setEleAl(eleAlinacak)} />
@@ -401,6 +422,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             idler.forEach(id => { delete notOnbellek.current[id]; });
             setEleAl(null);
             if (taskDegisti) { sessiz.current = true; setYenile(n => n + 1); } // takipsiz / gecikmiş listesi değişmiş olabilir
+            if (idler.length) setAktiviteYenile(n => n + 1);
           }} />
       )}
     </>
@@ -446,6 +468,7 @@ const t = {
   kartSayi: { fontSize: "26px", fontWeight: 700, marginBottom: "4px", fontVariantNumeric: "tabular-nums" },
   kartEtiket: { fontSize: "11px", color: "#64748b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.4px" },
   zorunlu: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fee2e2", color: "#991b1b", fontSize: "10px", fontWeight: 700 },
+  aktivite: { marginLeft: "4px", color: "#7c3aed", fontWeight: 800 },
   vip: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
   filtreler: { display: "flex", gap: "24px", flexWrap: "wrap", padding: "14px 24px", borderBottom: "1px solid #f1f5f9", background: "#fafcff" },
   sayfalama: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", padding: "12px 24px", borderTop: "1px solid #f1f5f9" },

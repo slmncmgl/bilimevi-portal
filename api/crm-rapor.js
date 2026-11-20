@@ -1,3 +1,6 @@
+// v3.7: islem "portalAktivite": { ownerIds } -> bugün (TR saatiyle 00:00'dan beri) portaldan not girilen, bu danışmanlara ait
+//       Data sayısı ({ veri, not }). Portal notları Selman adına kayıtlı ve "[Ad · Portal]" etiketli olanlardır. 60 sn önbellek,
+//       not eklenince silinir. Takip Tablosu liste başlığında "/ N aktivite".
 // v3.6: takip yanıtında takipsiz ve gecikmis listeleri yerine tek "acik" listesi: her açık data { ..., zorunlu, taskTur
 //       ("ileri" | "gecikmis" | "yok"), takipsiz }. Takip Tablosu kartlarının hepsi bu listeyi süzerek altta gösterir.
 // v3.5: Kylas hız sınırı: kova 10 birim, saniyede 5 birim dolar, her istek 2 birim yer (20.11.2026 ölçüldü) => saniyede ~2,5
@@ -811,6 +814,38 @@ async function taskTamamla(req, res, yetki) {
   return res.status(200).json({ task: taskSatiri({ ...t, ...yeni, status: TASK_TAMAM, completedAt: yeni.completedAt || new Date().toISOString() }) });
 }
 
+// ---- Bugünkü portal aktivitesi ----
+const aktiviteOnbellek = new Map(); // ownerIds -> { zaman, veri }
+function bugunBaslangici() {
+  const tr = new Date(Date.now() + 3 * 60 * 60 * 1000); // Türkiye UTC+3
+  tr.setUTCHours(0, 0, 0, 0);
+  return new Date(tr.getTime() - 3 * 60 * 60 * 1000);
+}
+async function portalAktivite(req, res, yetki) {
+  const ham = Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : [];
+  const ownerIds = [...new Set(ham.map(Number))].filter(Number.isInteger);
+  if (!ownerIds.length || ownerIds.length !== ham.length || ownerIds.length > 100) return res.status(400).json({ error: "Danışman seçilmedi." });
+  if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor portalAktivite")) return;
+  const anahtar = [...ownerIds].sort((a, b) => a - b).join(",");
+  const eski = aktiviteOnbellek.get(anahtar);
+  if (eski && Date.now() - eski.zaman < 60 * 1000) return res.status(200).json(eski.veri);
+
+  const notlar = (await notAra(API_SAHIBI, bugunBaslangici().toISOString()))
+    .filter(n => n.lead && portalEtiketi(metneCevir(n.description)));
+  const leadIdler = [...new Set(notlar.map(n => n.lead))];
+  const sahip = new Map();
+  for (let i = 0; i < leadIdler.length; i += 1000) {
+    const d = await kylasAra([kural("id", "in", leadIdler.slice(i, i + 1000))], 0, ["id", "ownerId"]);
+    (d.content || []).forEach(l => sahip.set(l.id, Number(l.ownerId)));
+  }
+  const istenen = new Set(ownerIds);
+  const bizim = notlar.filter(n => istenen.has(sahip.get(n.lead)));
+  const veri = { veri: new Set(bizim.map(n => n.lead)).size, not: bizim.length, baslangic: bugunBaslangici().toISOString() };
+  aktiviteOnbellek.set(anahtar, { zaman: Date.now(), veri });
+  if (aktiviteOnbellek.size > 200) aktiviteOnbellek.delete(aktiviteOnbellek.keys().next().value);
+  return res.status(200).json(veri);
+}
+
 // ---- Not ekle (Takip Tablosu > Bu dataları ele al) ----
 const NOT_SINIR = 3000;
 async function notEkle(req, res, yetki) {
@@ -848,6 +883,7 @@ async function notEkle(req, res, yetki) {
   console.log(`[not] ${yetki.ad}: data ${leadId} not ${n.id ?? "?"}`);
   for (const k of onbellek.keys()) if (k.startsWith("ozet:")) onbellek.delete(k); // not sayıları değişti
   for (const k of notOnbellek.keys()) if (k.startsWith(`notlar:${leadId}:`)) notOnbellek.delete(k);
+  aktiviteOnbellek.clear();
   return res.status(200).json({ id: n.id ?? null, tarih: n.createdAt ? new Date(n.createdAt).toISOString() : new Date().toISOString() });
 }
 
@@ -874,7 +910,7 @@ export default async function handler(req, res) {
   if (req.body?.islem === "ozet") {
     try { return await ozet(req, res, yetki); } catch (err) { return hataYaz(res, err); }
   }
-  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla]]) {
+  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite]]) {
     if (req.body?.islem === ad) {
       try { return await fn(req, res, yetki); } catch (err) { return hataYaz(res, err); }
     }
