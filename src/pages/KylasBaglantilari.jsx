@@ -39,7 +39,10 @@ export default function KylasBaglantilari() {
     try {
       const r = await fetch("/api/kylas-baglanti", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ islem: "kaydet", girdiler }) });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || `İstek başarısız (HTTP ${r.status})`);
+      if (!r.ok) {
+        if (d.tani) throw new Error(`${d.error} · Sunucu seni şöyle görüyor: tur=${d.tani.tur}, e-posta=${d.tani.gorulenEmail || "yok"}, token=${d.tani.tokenHata || "var"}`);
+        throw new Error(d.error || `İstek başarısız (HTTP ${r.status})`);
+      }
       setSonuc(d.sonuc || []);
       setMetin(""); // şifreler ekranda kalmasın
     } catch (e) { setHata(e.message); }

@@ -4,7 +4,7 @@
 //   POST { islem:"kaydet", girdiler:[{email,sifre}] } -> her satır için { email, ok, ad?, kylasId?, hata? }
 //   POST { islem:"durum", epostalar:[...] }           -> { durum: { email: { bagli, ad, guncelleme } } }
 //   POST { islem:"sil", email }                       -> bağlantıyı pasif yapar
-import { oturumKontrol } from "./_oturum.js";
+import { oturumKontrol, tokenCoz } from "./_oturum.js";
 import { yetkiBul } from "./_yetki.js";
 import { sifrele, anahtarVar, kylasGiris } from "./_kylasKullanici.js";
 
@@ -37,7 +37,11 @@ export default async function handler(req, res) {
   }
   if (!oturumKontrol(req, res, "kylas-baglanti")) return;
   const yetki = await yetkiBul(req);
-  if (yetki.tur !== "admin") return res.status(403).json({ error: "Bu işlem sadece yöneticilere açık." });
+  if (yetki.tur !== "admin") {
+    const t = tokenCoz(req);
+    return res.status(403).json({ error: "Bu işlem sadece yöneticilere açık.",
+      tani: { tur: yetki.tur, tokenHata: t.hata || null, gorulenEmail: t.kullanici?.email || null } });
+  }
   if (!process.env.N8N_PORTAL_TOKEN) return res.status(500).json({ error: "N8N_PORTAL_TOKEN tanımlı değil." });
   if (!anahtarVar()) return res.status(500).json({ error: "KYLAS_SIFRE_ANAHTARI tanımlı değil (Vercel ortam değişkeni)." });
   const headers = { "Content-Type": "application/json", "X-Portal-Token": process.env.N8N_PORTAL_TOKEN };
