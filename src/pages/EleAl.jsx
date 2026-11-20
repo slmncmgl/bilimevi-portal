@@ -1,3 +1,5 @@
+// v2.2: "Kylas'ta aç" -> "CRM'de Göster". Telefon arama bağlantısı değil: tıklanınca datanın Kylas sayfası açılır,
+//       üzerine gelince "telefon uygulamasına göndermek için CRM'deki butona tıklayın" ipucu çıkar.
 // v2.1: üst şerit, düğmedeki renklerin pastel ve hafif şeffaf geçişi (turkuaz, mor, pembe)
 // v2.0: düğme yazısı "Dataları Ele Al"
 // v1.9: sayacın iki yanında ‹ önceki ve › atla: › not girmeden sonrakine geçer, data "atlandı" sayılır. Bitiş ekranında
@@ -26,6 +28,7 @@ import { createPortal } from "react-dom";
 import { apiCagir, tarih, KYLAS_LEAD_URL, KAYNAKLAR } from "./CrmRaporu";
 import { VIP_KAYNAKLAR } from "./KaynakSecici";
 import OnayPenceresi from "./OnayPenceresi";
+import Ipucu from "./Ipucu";
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
@@ -285,12 +288,16 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, gecikmis, onKapat })
                 <h2 style={s.ad}>{dt?.ad || l.ad || <span style={{ color: "#cbd5e1" }}>İsimsiz</span>}<span style={s.idNo}>(#{l.id})</span></h2>
                 {notVar && <span style={s.eklendi}>✓ Not eklendi</span>}
               </div>
-              <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={s.kylas}>Kylas'ta aç ↗</a>
+              <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={s.kylas}>CRM'de Göster ↗</a>
             </div>
             {dt?.hata && <div style={{ ...s.hata, marginTop: 0, marginBottom: "14px" }}>{dt.hata} <button type="button" onClick={() => detayGetir(l)} style={s.metinDugme}>Tekrar dene</button></div>}
             <div className="elal-alanlar" style={s.alanlar}>
               <Alan ad="Telefon" bekliyor={dy}>
-                {dt?.telefonlar?.length ? <div style={s.liste}>{dt.telefonlar.map(t => <a key={t} href={`tel:${t}`} style={s.iletisim}><span style={s.ikonYesil}>☎</span>{t}</a>)}</div> : "-"}
+                {dt?.telefonlar?.length ? <div style={s.liste}>{dt.telefonlar.map(t => (
+                  <Ipucu key={t} metin="Telefon uygulamasına göndermek için CRM arayüzündeki arama butonuna tıklayın. Numaraya tıklayınca datanın CRM sayfası açılır." isaret={false}>
+                    <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={s.iletisim}><span style={s.ikonYesil}>☎</span>{t}</a>
+                  </Ipucu>
+                ))}</div> : "-"}
               </Alan>
               <Alan ad="E-posta" bekliyor={dy}>
                 {dt?.epostalar?.length ? <div style={s.liste}>{dt.epostalar.map(e => <a key={e} href={`mailto:${e}`} style={s.iletisim}><span style={s.ikonMavi}>@</span>{e}</a>)}</div> : "-"}
@@ -536,7 +543,7 @@ const s = {
   baslikSatir: { display: "grid", gridTemplateColumns: SUTUNLAR, columnGap: "24px", alignItems: "center", marginBottom: "20px" },
   ad: { margin: 0, fontSize: "24px", fontWeight: 600, color: "#0f172a", lineHeight: 1.25, wordBreak: "break-word" },
   idNo: { marginLeft: "6px", color: "#64748b", fontWeight: 500 },
-  kylas: { gridColumn: 4, justifySelf: "start", padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #a5f3fc", background: "#ecfeff", fontSize: "12px",
+  kylas: { gridColumn: 4, justifySelf: "end", whiteSpace: "nowrap", padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #a5f3fc", background: "#ecfeff", fontSize: "12px",
     fontWeight: 700, color: "#0891b2", textDecoration: "none" },
   alanlar: { display: "grid", gridTemplateColumns: SUTUNLAR, gap: "20px 24px" },
   liste: { display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" },
