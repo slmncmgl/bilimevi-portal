@@ -1,3 +1,5 @@
+// v2.5: Task'lar kartının yüksekliği her zaman Yeni not kadar (task'lar taşarsa kart içinde kayar);
+//       Önceki notlar altta, üstteki iki kartın toplam genişliğinde.
 // v2.4: "Yeni not" (3/4) ve "Task'lar" (1/4) aynı satırda; "Önceki notlar" sol sütunda Yeni not'un hemen altında. Dar task sütununda
 //       task satırları alt alta (tür + ad, tarih, düğmeler). Telefon genişliğinde ikisi alt alta.
 // v2.3: alt yazıda açılan listenin adı (listeAdi: Açık / Task beklenen / İleri / Gecikmiş / Takipsiz Datalar); task tarihi varsa
@@ -323,7 +325,6 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
 
 
           <div className="elal-ikili" style={s.ikili}>
-          <div style={s.solSutun}>
           <section style={s.notKutusu}>
             <div style={{ ...s.yazma, borderBottom: "none" }}>
               <div style={s.bolumBaslik}>Yeni not</div>
@@ -344,23 +345,8 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
               </div>
             </div>
           </section>
-          <section style={s.notKutusu}>
-            <div style={{ ...s.bolumBaslik, padding: "14px 24px 0" }}>Önceki notlar{n?.toplam ? ` (${n.toplam})` : ""}</div>
-            <div style={s.notListe}>
-              {n?.yukleniyor && <div style={s.bilgiMetni}><span className="elal-spin" /> Notlar alınıyor...</div>}
-              {n?.hata && <div style={{ ...s.bilgiMetni, color: "#991b1b" }}>{n.hata} <button type="button" onClick={() => notlariGetir(l)} style={s.metinDugme}>Tekrar dene</button></div>}
-              {n?.notlar && n.notlar.length === 0 && <div style={s.bilgiMetni}>Bu Data'da henüz not yok. İlk notu sen yaz.</div>}
-              {n?.notlar?.map((x, i) => (
-                <div key={i} className={x.yeni ? "elal-yeni-not" : undefined} style={{ ...s.not, ...(x.yeni ? s.notYeni : {}) }}>
-                  <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>{tarih(x.tarih, true)}{x.yazan ? ` · ${x.yazan}` : ""}{x.portal ? " · Portal" : ""}</div>
-                  <div style={{ whiteSpace: "pre-wrap", color: "#0f172a", fontSize: "13px", lineHeight: 1.55 }}>{x.metin || <span style={{ color: "#cbd5e1" }}>Boş not</span>}</div>
-                </div>
-              ))}
-              {n?.toplam > (n?.notlar?.length || 0) && <div style={{ fontSize: "11px", color: "#94a3b8" }}>Son {n.notlar.length} not gösteriliyor, hepsi Kylas'ta.</div>}
-            </div>
-          </section>
-          </div>
-          <section style={s.taskKart}>
+          <div className="elal-task-hucre" style={s.taskHucre}>
+          <section className="elal-task-kart" style={{ ...s.taskKart, ...s.taskKartSabit }}>
             <div className="elal-izgara" style={s.taskBaslik}>
               <span style={{ ...s.bolumBaslik, marginBottom: 0 }}>Task'lar{acikTasklar.length ? ` · ${acikTasklar.length} açık` : ""}</span>
               <button type="button" onClick={e => pencereAc(e.currentTarget)} style={s.taskEkleDugme} aria-haspopup="dialog">＋ Task oluştur</button>
@@ -398,6 +384,22 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
             {kapaliTasklar.length > 3 && <div style={{ fontSize: "11px", color: "#94a3b8" }}>+{kapaliTasklar.length - 3} tamamlanmış task daha, hepsi Kylas'ta.</div>}
           </section>
           </div>
+          </div>
+          <section style={s.notKutusu}>
+            <div style={{ ...s.bolumBaslik, padding: "14px 24px 0" }}>Önceki notlar{n?.toplam ? ` (${n.toplam})` : ""}</div>
+            <div style={s.notListe}>
+              {n?.yukleniyor && <div style={s.bilgiMetni}><span className="elal-spin" /> Notlar alınıyor...</div>}
+              {n?.hata && <div style={{ ...s.bilgiMetni, color: "#991b1b" }}>{n.hata} <button type="button" onClick={() => notlariGetir(l)} style={s.metinDugme}>Tekrar dene</button></div>}
+              {n?.notlar && n.notlar.length === 0 && <div style={s.bilgiMetni}>Bu Data'da henüz not yok. İlk notu sen yaz.</div>}
+              {n?.notlar?.map((x, i) => (
+                <div key={i} className={x.yeni ? "elal-yeni-not" : undefined} style={{ ...s.not, ...(x.yeni ? s.notYeni : {}) }}>
+                  <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>{tarih(x.tarih, true)}{x.yazan ? ` · ${x.yazan}` : ""}{x.portal ? " · Portal" : ""}</div>
+                  <div style={{ whiteSpace: "pre-wrap", color: "#0f172a", fontSize: "13px", lineHeight: 1.55 }}>{x.metin || <span style={{ color: "#cbd5e1" }}>Boş not</span>}</div>
+                </div>
+              ))}
+              {n?.toplam > (n?.notlar?.length || 0) && <div style={{ fontSize: "11px", color: "#94a3b8" }}>Son {n.notlar.length} not gösteriliyor, hepsi Kylas'ta.</div>}
+            </div>
+          </section>
         </main>
       )}
 
@@ -570,8 +572,10 @@ const s = {
   eklendi: { flexShrink: 0, padding: "4px 10px", borderRadius: "999px", background: "#f0fdf4", border: "1.5px solid #86efac", color: "#166534", fontSize: "11px", fontWeight: 700 },
   taskKart: { flexShrink: 0, display: "flex", flexDirection: "column", gap: "8px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px",
     padding: "16px", boxShadow: "0 8px 24px rgba(15,23,42,0.06)", minWidth: 0 },
-  ikili: { display: "grid", gridTemplateColumns: "minmax(0, 3fr) minmax(0, 1fr)", gap: "16px", alignItems: "start", flexShrink: 0 },
-  solSutun: { display: "flex", flexDirection: "column", gap: "16px", minWidth: 0 },
+  ikili: { display: "grid", gridTemplateColumns: "minmax(0, 3fr) minmax(0, 1fr)", gap: "16px", alignItems: "stretch", flexShrink: 0 },
+  // Task hücresi satır yüksekliğine katkı vermez; kart hücreyi doldurur, taşan task'lar kart içinde kayar
+  taskHucre: { position: "relative", minWidth: 0 },
+  taskKartSabit: { position: "absolute", inset: 0, overflowY: "auto", boxSizing: "border-box" },
   taskBaslik: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "4px" },
   taskEkleDugme: { whiteSpace: "nowrap", padding: "6px 10px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#f0fdf4", color: "#166534", fontSize: "12px",
     fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
@@ -632,7 +636,7 @@ const EKRAN_CSS = `
 @keyframes elalIskelet { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 .elal-iskelet { display: inline-block; width: 70%; height: 14px; border-radius: 6px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%; animation: elalIskelet 1.2s linear infinite; }
-@media (max-width: 820px) { .elal-ikili { grid-template-columns: 1fr !important; } .elal-alanlar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } .elal-govde { padding: 16px !important; } .elal-ust { padding-left: 41.5px !important; padding-right: 41.5px !important; display: flex !important; gap: 12px; }
+@media (max-width: 820px) { .elal-ikili { grid-template-columns: 1fr !important; } .elal-task-kart { position: static !important; overflow: visible !important; } .elal-alanlar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } .elal-govde { padding: 16px !important; } .elal-ust { padding-left: 41.5px !important; padding-right: 41.5px !important; display: flex !important; gap: 12px; }
   .elal-sag { margin-left: auto; } .elal-izgara { display: flex !important; flex-wrap: wrap; gap: 10px; } .elal-izgara > :last-child { margin-left: auto; width: auto !important; } }
 @media (max-width: 480px) { .elal-alanlar { grid-template-columns: 1fr !important; } }
 @media (max-width: 640px) { .elal-task { grid-template-columns: auto minmax(0, 1fr) !important; } .elal-task > :nth-child(3) { grid-column: 1 / -1; } .elal-task-dugmeler { grid-column: 1 / -1; justify-content: flex-start !important; }
