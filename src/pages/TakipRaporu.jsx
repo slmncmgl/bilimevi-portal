@@ -1,3 +1,4 @@
+// v6.20: renkli çerçeveler 9 tuşu 2 sn basılı tutulunca kapanır/açılır (CrmRaporu Cerceve)
 // v6.19: arama kutusu aşama çerçevesiyle aynı genişlikte; Günlük Aktivite, Dataları Ele Al butonunun altında (aşama satırının sağında)
 // v6.18: arama kutusu veri kaynağı kutusuyla aynı genişlikte, solda; Günlük Aktivite sağında
 // v6.17: diğer sekmelerdeki yükleme yazıları da "CRM'den ... Alınıyor..."
@@ -91,7 +92,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.19"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.20"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;

@@ -31,7 +31,7 @@
 // Sayılar /api/crm-rapor'dan gelir. Danışman adı ve şubesi İzin Yönetimi'ndeki ID (e-posta -> Kylas ID)
 // ve Personel sekmelerinden eşlenir; ID sekmesinde olmayan sahipler "Diğer" satırında toplanır.
 // Rol kuralı Quiz Skorları ile aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { VIP_KAYNAKLAR, kaynakOzeti } from "./KaynakSecici";
 import FiltreCubugu from "./FiltreCubugu";
 import DanismanAta from "./DanismanAta";
@@ -486,11 +486,35 @@ const chipTemel = { padding: "7px 14px", borderRadius: "999px", fontSize: "12px"
 // Filtre çerçevelerinin renkleri: aynı filtre her sekmede aynı renkte (başlık yerine renkli çerçeve)
 export const BASLIK_RENK = { danisman: "#0891b2", sube: "#6366f1", kaynak: "#d97706", tarih: "#7c3aed", asama: "#059669", kampanya: "#db2777" };
 // Filtreyi saran renkli çerçeve. metin verilirse üzerine gelince açıklama balonu çıkar (açılır menülü filtrelerde verilmez, balon menüyü örter).
+// Renkli çerçeveler: klavyede 9 tuşu 2 sn basılı tutulunca kapanır/açılır (yazı kutusundayken sayılmaz). Tercih tarayıcıda saklanır.
+const CERCEVE_ANAHTAR = "bilimevi_cerceve_gizli";
+const cerceveDurum = { gizli: false, dinleyen: new Set() };
+try { cerceveDurum.gizli = localStorage.getItem(CERCEVE_ANAHTAR) === "1"; } catch { /* saklama yoksa açık başlar */ }
+if (typeof window !== "undefined" && !window.__cerceveTusu) {
+  window.__cerceveTusu = true;
+  let zaman = null;
+  const yazida = e => { const t = e.target; return t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable); };
+  const birak = () => { clearTimeout(zaman); zaman = null; };
+  window.addEventListener("keydown", e => {
+    if (e.key !== "9" || e.ctrlKey || e.metaKey || e.altKey || yazida(e)) return;
+    if (zaman) return; // basılı tutarken tekrar eden keydown
+    zaman = setTimeout(() => {
+      cerceveDurum.gizli = !cerceveDurum.gizli;
+      try { localStorage.setItem(CERCEVE_ANAHTAR, cerceveDurum.gizli ? "1" : "0"); } catch { /* yoksay */ }
+      cerceveDurum.dinleyen.forEach(f => f());
+    }, 2000);
+  });
+  window.addEventListener("keyup", e => { if (e.key === "9") birak(); });
+  window.addEventListener("blur", birak);
+}
+const cerceveAbone = f => { cerceveDurum.dinleyen.add(f); return () => cerceveDurum.dinleyen.delete(f); };
+
 export function Cerceve({ tur, metin, children, style }) {
   const renk = BASLIK_RENK[tur];
+  const gizli = useSyncExternalStore(cerceveAbone, () => cerceveDurum.gizli);
   const kutu = (
     <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "6px", borderRadius: "18px",
-      border: `1.5px solid ${renk}`, background: `${renk}0d`, ...style }}>
+      border: `1.5px solid ${gizli ? "transparent" : renk}`, background: gizli ? "transparent" : `${renk}0d`, transition: "border-color 0.2s, background 0.2s", ...style }}>
       {children}
     </div>
   );
