@@ -1,3 +1,5 @@
+// v3.6: takip yanıtında takipsiz ve gecikmis listeleri yerine tek "acik" listesi: her açık data { ..., zorunlu, taskTur
+//       ("ileri" | "gecikmis" | "yok"), takipsiz }. Takip Tablosu kartlarının hepsi bu listeyi süzerek altta gösterir.
 // v3.5: Kylas hız sınırı: kova 10 birim, saniyede 5 birim dolar, her istek 2 birim yer (20.11.2026 ölçüldü) => saniyede ~2,5
 //       istek, 5 anlık. Kylas'a giden bütün istekler kylasIstek'ten geçer. Ortak kova saniyede 2,2 istek bırakır (4 anlık), sıra korunur. 429 gelirse kova boşaltılır, istek bekleyip 6 kereye kadar
 //       tekrar denenir. Hepsi yine 429 ise kullanıcıya 503 "Kylas yoğun". notlar yanıtı 45 sn önbellekte (not ekleyince silinir).
@@ -409,8 +411,7 @@ async function takip(req, res, yetki) {
   const bosOzet = () => ({ toplam: 0, taskBeklenen: 0, ileriTask: 0, gecikmisTask: 0, taskYok: 0, takipsiz: 0 });
   const ozet = bosOzet();
   const danismanlar = Object.fromEntries(ownerIds.map(id => [id, bosOzet()]));
-  const takipsiz = [];
-  const gecikmis = [];
+  const acik = [];
   const satir = l => ({
     id: l.id, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), ownerId: l.ownerId, asama: l.pipelineStage, kaynak: l.source,
     kampanya: l.utmCampaign || "", olusturma: l.createdAt || null, sonAktivite: l.latestActivityCreatedAt || null, sonrakiTask: l.taskDueOn || null,
@@ -423,17 +424,15 @@ async function takip(req, res, yetki) {
     if (t.zorunlu) {
       say("taskBeklenen");
       if (t.taskTur === "ileri") say("ileriTask");
-      else if (t.taskTur === "gecikmis") { say("gecikmisTask"); gecikmis.push(satir(l)); }
+      else if (t.taskTur === "gecikmis") say("gecikmisTask");
       else say("taskYok");
     }
-    if (t.takipsiz) {
-      say("takipsiz");
-      takipsiz.push({ ...satir(l), zorunlu: t.zorunlu });
-    }
+    if (t.takipsiz) say("takipsiz");
+    acik.push({ ...satir(l), zorunlu: t.zorunlu, taskTur: t.taskTur, takipsiz: t.takipsiz });
   }
-  takipsiz.sort((a, b) => (zaman(a.sonAktivite) || 0) - (zaman(b.sonAktivite) || 0));
-  gecikmis.sort((a, b) => zaman(a.sonrakiTask) - zaman(b.sonrakiTask));
-  return res.status(200).json({ ozet, danismanlar, sessizGun, kaynaklar, kampanya, takipsiz, gecikmis, guncellendi: new Date().toISOString() });
+  // Varsayılan sıra: son etkinliği en eski olan önce (hiç olmayan en başta)
+  acik.sort((a, b) => (zaman(a.sonAktivite) || 0) - (zaman(b.sonAktivite) || 0));
+  return res.status(200).json({ ozet, danismanlar, sessizGun, kaynaklar, kampanya, acik, guncellendi: new Date().toISOString() });
 }
 
 async function liste(req, res, kurallar, yetki) {

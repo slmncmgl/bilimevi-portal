@@ -1,3 +1,5 @@
+// v2.3: alt yazıda açılan listenin adı (listeAdi: Açık / Task beklenen / İleri / Gecikmiş / Takipsiz Datalar); task tarihi varsa
+//       her listede gösterilir (gecikti / kaldı).
 // v2.2: "Kylas'ta aç" -> "CRM'de Göster". Telefon arama bağlantısı değil: tıklanınca datanın Kylas sayfası açılır,
 //       üzerine gelince "telefon uygulamasına göndermek için CRM'deki butona tıklayın" ipucu çıkar.
 // v2.1: üst şerit, düğmedeki renklerin pastel ve hafif şeffaf geçişi (turkuaz, mor, pembe)
@@ -58,7 +60,7 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
   );
 }
 
-export default function EleAl({ leadler: ilkListe, kisiAdi, gecikmis, onKapat }) {
+export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat }) {
   const [leadler, setLeadler] = useState(ilkListe); // bu turda ele alınan datalar (atlananlar turunda sadece onlar)
   const [tur, setTur] = useState(1);
   const [atlanan, setAtlanan] = useState({}); // id -> true (not girmeden geçilen)
@@ -248,7 +250,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, gecikmis, onKapat })
           </span>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a" }}>Toplu Data Follow Up</div>
-            <div style={{ fontSize: "12px", color: "#64748b" }}>{gecikmis ? "Gecikmiş task'lı Datalar" : "Takipsiz Datalar"} · {girilen} Data'ya not girildi{atlananSayi ? ` · ${atlananSayi} atlandı` : ""}{tur > 1 ? ` · Atlananlar, ${tur}. tur` : ""}</div>
+            <div style={{ fontSize: "12px", color: "#64748b" }}>{listeAdi} · {girilen} Data'ya not girildi{atlananSayi ? ` · ${atlananSayi} atlandı` : ""}{tur > 1 ? ` · Atlananlar, ${tur}. tur` : ""}</div>
           </div>
         </div>
         <div className="elal-sag" style={s.sagBlok}>
@@ -311,7 +313,9 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, gecikmis, onKapat })
             </div>
             <div style={s.altBilgi}>
               <span>Son aktivite: <b style={{ color: "#0f172a" }}>{l.sonAktivite ? `${tarih(l.sonAktivite)} · ${gunOnce(l.sonAktivite)} gün önce` : "hiç yok"}</b></span>
-              {gecikmis && l.sonrakiTask && <span style={{ color: "#b45309" }}>Task tarihi: <b>{tarih(l.sonrakiTask)} · {gunOnce(l.sonrakiTask)} gün gecikti</b></span>}
+              {l.sonrakiTask && (new Date(l.sonrakiTask).getTime() < Date.now()
+                ? <span style={{ color: "#b45309" }}>Task tarihi: <b>{tarih(l.sonrakiTask)} · {gunOnce(l.sonrakiTask) > 0 ? `${gunOnce(l.sonrakiTask)} gün gecikti` : "bugün, saati geçti"}</b></span>
+                : <span style={{ color: "#166534" }}>Task tarihi: <b>{tarih(l.sonrakiTask)}</b></span>)}
             </div>
           </section>
 
