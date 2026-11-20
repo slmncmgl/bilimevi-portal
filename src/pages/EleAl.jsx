@@ -1,3 +1,4 @@
+// v1.5: üst başlık "Toplu Data Follow Up"
 // v1.4: kaydırma tüm ekranda, üst şerit yapışkan: kaydırma çubuğu üst şerit ve kartları aynı kaydırır, ✕ ile ileri düğmesi aynı çizgide
 // v1.3: sayaç, "Kylas'ta aç" ve ileri düğmesi Danışman sütununun başladığı yerde (4 sütunlu ortak ızgara).
 //       İleri düğmesi her durumda "Kaydet ve Sonrakine Geç" (son datada "Kaydet ve Bitir").
@@ -128,7 +129,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   const ileriAcik = (metinYeterli || notVar) && !kaydediliyor && !basari;
 
   return createPortal(
-    <div style={s.zemin} role="dialog" aria-modal="true" aria-label="Dataları ele al">
+    <div style={s.zemin} role="dialog" aria-modal="true" aria-label="Toplu Data Follow Up">
       <style>{EKRAN_CSS}</style>
       <header className="elal-ust" style={s.ust}>
         <div style={{ gridColumn: "1 / 4", display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
@@ -138,7 +139,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
             </svg>
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a" }}>Dataları ele al</div>
+            <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a" }}>Toplu Data Follow Up</div>
             <div style={{ fontSize: "12px", color: "#64748b" }}>{gecikmis ? "Gecikmiş task'lı Datalar" : "Takipsiz Datalar"} · {girilen} Data'ya not girildi</div>
           </div>
         </div>

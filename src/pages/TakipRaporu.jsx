@@ -1,3 +1,4 @@
+// v4.7: Ele al ekranının başlığı "Toplu Data Follow Up" (EleAl v1.5)
 // v4.6: Ele al: ✕ ve ileri düğmesi kaydırma çubuğu varken de aynı çizgide (EleAl v1.4)
 // v4.5: Ele al: sayaç, Kylas'ta aç ve ileri düğmesi Danışman sütunu hizasında; düğme "Kaydet ve Sonrakine Geç" (EleAl v1.3)
 // v4.4: Ele al üst şeridi kartla hizalı (EleAl v1.2)
@@ -57,7 +58,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v4.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v4.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
