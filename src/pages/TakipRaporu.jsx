@@ -1,3 +1,4 @@
+// v6.8: Task tarihi ve Son aktivite sütunlarında "x gün sonra / x gün" yazısı kaldırıldı, sadece tarih
 // v6.7: Ele Al ekranında numara yanında Kylas arama ikonu ve WhatsApp butonu (EleAl v2.9)
 // v6.6: arama bildirimi Kylas web başlıklarıyla; sonuçta gittiği hesap görünür (EleAl v2.8, crm-rapor v3.12)
 // v6.5: numaraya tıklayınca danışmanın Kylas mobil uygulamasına arama bildirimi (EleAl v2.7, crm-rapor v3.11)
@@ -79,7 +80,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -367,7 +368,6 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   </thead>
                   <tbody>
                     {sayfaListesi.map((l, i) => {
-                      const g = gunOnce(l.sonAktivite);
                       return (
                         <tr key={l.id} style={{ background: isaretli.includes(l.id) ? "#ecfeff" : i % 2 ? "#fbfdff" : "#fff" }}>
                           {atanabilir && (
@@ -392,7 +392,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           </td>
                           {taskSutunu && <TaskHucresi l={l} />}
                           <td style={{ ...c.td, whiteSpace: "nowrap" }}>
-                            {l.sonAktivite ? <>{tarih(l.sonAktivite)} <span style={{ color: g > 30 ? "#dc2626" : "#94a3b8", fontSize: "11px" }}>· {g} gün</span></> : <span style={{ color: "#dc2626" }}>Hiç yok</span>}
+                            {l.sonAktivite ? tarih(l.sonAktivite) :<span style={{ color: "#dc2626" }}>Hiç yok</span>}
                           </td>
                           <td style={{ ...c.td, textAlign: "center" }}><NotBalonu lead={l} onbellek={notOnbellek} /></td>
                         </tr>
@@ -455,11 +455,10 @@ function KampanyaHucresi({ metin }) {
 // Task tarihi hücresi: gecikmiş (turuncu, kaç gün gecikti), ileri (yeşil, kaç gün kaldı), yok (zorunluysa kırmızı)
 function TaskHucresi({ l }) {
   if (!l.sonrakiTask) return <td style={{ ...c.td, whiteSpace: "nowrap", color: l.zorunlu ? "#dc2626" : "#94a3b8", fontWeight: l.zorunlu ? 600 : 400 }}>Task yok</td>;
-  const g = gunOnce(l.sonrakiTask);
   const gecikti = new Date(l.sonrakiTask).getTime() < Date.now();
   return (
     <td style={{ ...c.td, whiteSpace: "nowrap", color: gecikti ? "#b45309" : "#166534", fontWeight: 600 }}>
-      {tarih(l.sonrakiTask)} <span style={{ fontSize: "11px", fontWeight: 400 }}>· {gecikti ? (g > 0 ? `${g} gün gecikti` : "bugün, saati geçti") : -g <= 0 ? "bugün" : `${-g} gün sonra`}</span>
+      {tarih(l.sonrakiTask)}
     </td>
   );
 }
