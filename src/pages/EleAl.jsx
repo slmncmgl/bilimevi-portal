@@ -1,3 +1,5 @@
+// v1.9: sayacın iki yanında ‹ önceki ve › atla: › not girmeden sonrakine geçer, data "atlandı" sayılır. Bitiş ekranında
+//       "Atlananları ele al (N)" atlananları yeni bir turda sırayla açar. Not girilen data atlananlardan çıkar.
 // v1.8: task penceresi animasyonsuz açılır. Sağ sütun 120 px (Task oluştur düğmesi kadar): üst şerit ve tüm kartlar aynı sağ
 //       çizgide biter; ✕, Task oluştur ve Kaydet ve Sonrakine Geç bu çizgide. İçerik en fazla 931 px (eskiden 1040).
 // v1.7: ✕ sayacın hemen yanında; "Task oluştur" sağ sütunda (Kylas'ta aç ile aynı çizgi). Task oluşturma açılır pencerede
@@ -51,7 +53,10 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
   );
 }
 
-export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
+export default function EleAl({ leadler: ilkListe, kisiAdi, gecikmis, onKapat }) {
+  const [leadler, setLeadler] = useState(ilkListe); // bu turda ele alınan datalar (atlananlar turunda sadece onlar)
+  const [tur, setTur] = useState(1);
+  const [atlanan, setAtlanan] = useState({}); // id -> true (not girmeden geçilen)
   const [sira, setSira] = useState(0);
   const siraRef = useRef(0);
   siraRef.current = sira;
@@ -78,6 +83,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   const metin = taslak[l?.id] || "";
   const notVar = !!yazilan[l?.id];
   const girilen = Object.keys(yazilan).length;
+  const atlananSayi = Object.keys(atlanan).filter(id => !yazilan[id]).length;
   const kaydedilmemis = Object.values(taslak).some(v => v.trim());
 
   function notlariGetir(lead) {
@@ -108,7 +114,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   useEffect(() => {
     [leadler[sira], leadler[sira + 1]].forEach(x => { detayGetir(x); tasklariGetir(x); notlariGetir(x); });
     setHata(null); alan.current?.focus({ preventScroll: true });
-  }, [sira]);
+  }, [sira, tur]);
 
   // Sayfa kaymasın; Esc ile çıkış (kaydedilmemiş not varsa sorar)
   useEffect(() => {
@@ -126,6 +132,27 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   function ilerle() {
     if (sira + 1 >= toplam) setBitti(true);
     else setSira(sira + 1);
+  }
+  // Not girmeden sonrakine geç: data sonra ele alınmak üzere atlananlara yazılır
+  function atla() {
+    if (kaydediliyor || basari || bitti) return;
+    if (!yazilan[l.id]) setAtlanan(s => ({ ...s, [l.id]: true }));
+    ilerle();
+  }
+  function geri() {
+    if (kaydediliyor || basari) return;
+    if (bitti) { setBitti(false); return; }
+    if (sira > 0) setSira(sira - 1);
+  }
+  // Atlananlar için yeni tur
+  function atlananlariAc() {
+    const yeni = ilkListe.filter(x => atlanan[x.id] && !yazilan[x.id]);
+    if (!yeni.length) return;
+    setLeadler(yeni);
+    setAtlanan({});
+    setSira(0);
+    setBitti(false);
+    setTur(t => t + 1);
   }
 
   // Task listesinde bir satırı günceller ya da başa ekler
@@ -177,6 +204,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
     try {
       const d = await apiCagir({ islem: "notEkle", leadId, metin: m });
       setYazilan(s => ({ ...s, [leadId]: (s[leadId] || 0) + 1 }));
+      setAtlanan(s => { if (!s[leadId]) return s; const k = { ...s }; delete k[leadId]; return k; });
       setTaslak(s => ({ ...s, [leadId]: "" }));
       setNotlar(s => {
         const eski = s[leadId]?.notlar ? s[leadId] : { notlar: [], toplam: 0 };
@@ -207,7 +235,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
     <div style={s.zemin} role="dialog" aria-modal="true" aria-label="Toplu Data Follow Up">
       <style>{EKRAN_CSS}</style>
       <header className="elal-ust" style={s.ust}>
-        <div style={{ gridColumn: "1 / 4", display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+        <div style={{ gridColumn: "1 / 3", display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
           <span style={s.logo}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
               <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.5" fill="#fff" />
@@ -215,15 +243,19 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
           </span>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a" }}>Toplu Data Follow Up</div>
-            <div style={{ fontSize: "12px", color: "#64748b" }}>{gecikmis ? "Gecikmiş task'lı Datalar" : "Takipsiz Datalar"} · {girilen} Data'ya not girildi</div>
+            <div style={{ fontSize: "12px", color: "#64748b" }}>{gecikmis ? "Gecikmiş task'lı Datalar" : "Takipsiz Datalar"} · {girilen} Data'ya not girildi{atlananSayi ? ` · ${atlananSayi} atlandı` : ""}{tur > 1 ? ` · Atlananlar, ${tur}. tur` : ""}</div>
           </div>
         </div>
         <div className="elal-sag" style={s.sagBlok}>
+          <button type="button" onClick={geri} disabled={(sira === 0 && !bitti) || kaydediliyor} style={{ ...s.ok, opacity: sira === 0 && !bitti ? 0.35 : 1 }}
+            aria-label="Önceki Data" title="Önceki Data">‹</button>
           <div style={s.sayac} aria-live="polite">
             <span style={{ fontSize: "26px", fontWeight: 800, color: "#0f172a" }}>{bitti ? toplam : sira + 1}</span>
             <span style={{ fontSize: "16px", color: "#94a3b8", fontWeight: 700 }}> / {toplam}</span>
           </div>
-          <button type="button" onClick={kapatIste} style={s.kapat} aria-label="Kapat">✕</button>
+          <button type="button" onClick={atla} disabled={bitti || kaydediliyor || basari} style={{ ...s.ok, ...s.okAtla, opacity: bitti ? 0.35 : 1 }}
+            aria-label="Atla, sonra ele al" title="Not girmeden sonrakine geç (sonra ele almak için atlananlara eklenir)">›</button>
+          <button type="button" onClick={kapatIste} style={{ ...s.kapat, marginLeft: "6px" }} aria-label="Kapat">✕</button>
         </div>
         <div style={s.cubukZemin}><div className="elal-cubuk" style={{ width: `${ilerleme}%` }} /></div>
       </header>
@@ -231,9 +263,17 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
       {bitti ? (
         <main style={s.bitti}>
           <div className="elal-bitti-ikon">✓</div>
-          <h2 style={{ margin: "18px 0 6px", fontSize: "24px", color: "#0f172a" }}>Hepsi ele alındı</h2>
-          <p style={{ margin: 0, color: "#475569", fontSize: "14px" }}>{toplam} Data'nın {girilen} tanesine not girildi. Notlar Kylas'a kaydedildi.</p>
-          <button type="button" onClick={() => onKapat(Object.keys(yazilan).map(Number), taskDegisti.current)} style={{ ...s.ileri, gridColumn: "auto", width: "auto", padding: "10px 22px", marginTop: "24px" }}>Listeye dön</button>
+          <h2 style={{ margin: "18px 0 6px", fontSize: "24px", color: "#0f172a" }}>{atlananSayi ? "Tur bitti" : "Hepsi ele alındı"}</h2>
+          <p style={{ margin: 0, color: "#475569", fontSize: "14px" }}>
+            {ilkListe.length} Data'nın {girilen} tanesine not girildi.{atlananSayi ? ` ${atlananSayi} Data sonraya bırakıldı.` : " Notlar Kylas'a kaydedildi."}
+          </p>
+          <div style={{ display: "flex", gap: "10px", marginTop: "24px", flexWrap: "wrap", justifyContent: "center" }}>
+            {atlananSayi > 0 && (
+              <button type="button" onClick={atlananlariAc} style={{ ...s.ileri, gridColumn: "auto", width: "auto", padding: "10px 22px" }}>Atlananları ele al ({atlananSayi})</button>
+            )}
+            <button type="button" onClick={() => onKapat(Object.keys(yazilan).map(Number), taskDegisti.current)}
+              style={atlananSayi ? { ...s.geri, padding: "10px 22px" } : { ...s.ileri, gridColumn: "auto", width: "auto", padding: "10px 22px" }}>Listeye dön</button>
+          </div>
         </main>
       ) : (
         <main key={l.id} className="elal-govde" style={s.govde}>
@@ -479,7 +519,10 @@ const s = {
     backdropFilter: "blur(8px)", borderBottom: "1px solid #e2e8f0", flexShrink: 0 },
   logo: { width: "38px", height: "38px", borderRadius: "12px", background: "linear-gradient(135deg, #0891b2, #7c3aed 60%, #db2777)",
     display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px rgba(124,58,237,0.35)", flexShrink: 0 },
-  sagBlok: { gridColumn: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", minWidth: 0 },
+  sagBlok: { gridColumn: "3 / 5", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", minWidth: 0 },
+  ok: { width: "34px", height: "34px", borderRadius: "11px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "20px",
+    fontWeight: 700, lineHeight: 1, cursor: "pointer", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", paddingBottom: "2px" },
+  okAtla: { borderColor: "#c4b5fd", background: "#f5f3ff", color: "#6d28d9" },
   sayac: { fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
   kapat: { width: "38px", height: "38px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569",
     fontSize: "15px", cursor: "pointer", flexShrink: 0 },
