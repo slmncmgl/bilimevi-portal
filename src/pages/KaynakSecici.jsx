@@ -1,3 +1,4 @@
+// v1.3: listede sol sütun VIP olmayanlar, sağ sütun VIP'ler; ikisi de kendi içinde alfabetik
 // v1.2: VIP listesi src/lib/vipKaynaklar.js'e taşındı (sunucu da aynı listeyi kullanır)
 // v1.1: VIP Datalar'a Setrow Marketing eklendi (6 kaynak)
 // v1.0: veri kaynağı için açılır çoklu seçim (CRM Raporu ve Aktivite Tablosu ortak kullanır)
@@ -30,6 +31,12 @@ export default function KaynakSecici({ kaynaklar, secili, onChange, bosMetin = "
     return () => { document.removeEventListener("mousedown", disari); document.removeEventListener("keydown", esc); };
   }, [acik]);
 
+  // Sol sütun: VIP olmayanlar, sağ sütun: VIP'ler; ikisi de kendi içinde alfabetik
+  const alfabetik = (a, b) => a.ad.localeCompare(b.ad, "tr");
+  const sutunlar = [
+    kaynaklar.filter(x => !VIP_KAYNAKLAR.includes(x.id)).sort(alfabetik),
+    kaynaklar.filter(x => VIP_KAYNAKLAR.includes(x.id)).sort(alfabetik),
+  ];
   const degistir = id => onChange(secili.includes(id) ? secili.filter(x => x !== id) : [...secili, id]);
   const vipSecili = secili.length === VIP_KAYNAKLAR.length && VIP_KAYNAKLAR.every(id => secili.includes(id));
 
@@ -55,16 +62,20 @@ export default function KaynakSecici({ kaynaklar, secili, onChange, bosMetin = "
               style={{ ...k.hizliBtn, color: "#dc2626", opacity: secili.length ? 1 : 0.4, cursor: secili.length ? "pointer" : "default" }}>Temizle</button>
           </div>
           <div style={k.liste}>
-            {kaynaklar.map(x => {
-              const var_ = secili.includes(x.id);
-              return (
-                <label key={x.id} style={{ ...k.secenek, background: var_ ? "#ecfeff" : "transparent" }}>
-                  <input type="checkbox" checked={var_} onChange={() => degistir(x.id)} style={{ accentColor: "#0891b2", margin: 0 }} />
-                  <span style={{ fontWeight: var_ ? 700 : 500 }}>{x.ad}</span>
-                  {VIP_KAYNAKLAR.includes(x.id) && <span style={k.vipEtiket}>VIP</span>}
-                </label>
-              );
-            })}
+            {sutunlar.map((sutun, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                {sutun.map(x => {
+                  const var_ = secili.includes(x.id);
+                  return (
+                    <label key={x.id} style={{ ...k.secenek, background: var_ ? "#ecfeff" : "transparent" }}>
+                      <input type="checkbox" checked={var_} onChange={() => degistir(x.id)} style={{ accentColor: "#0891b2", margin: 0 }} />
+                      <span style={{ fontWeight: var_ ? 700 : 500 }}>{x.ad}</span>
+                      {VIP_KAYNAKLAR.includes(x.id) && <span style={k.vipEtiket}>VIP</span>}
+                    </label>
+                  );
+                })}
+              </div>
+            ))}
           </div>
           <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "8px", borderTop: "1px solid #f1f5f9" }}>
             <button type="button" onClick={() => setAcik(false)} style={k.tamam}>Tamam</button>
@@ -88,7 +99,7 @@ const k = {
     fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   vip: { borderColor: "#fcd34d", background: "#fffbeb", color: "#92400e" },
   vipAktif: { borderColor: "#d97706", background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#fff" },
-  liste: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 8px", paddingBottom: "8px" },
+  liste: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 8px", paddingBottom: "8px", alignItems: "start" },
   secenek: { display: "flex", alignItems: "center", gap: "8px", padding: "7px 8px", borderRadius: "8px", fontSize: "13px",
     color: "#0f172a", cursor: "pointer", userSelect: "none" },
   vipEtiket: { marginLeft: "auto", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
