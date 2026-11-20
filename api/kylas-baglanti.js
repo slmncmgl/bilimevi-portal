@@ -10,6 +10,19 @@ import { sifrele, anahtarVar, kylasGiris } from "./_kylasKullanici.js";
 
 const N8N = "https://n8n.bilimevi.cloud/webhook";
 const EN_FAZLA = 60;
+const bekle = ms => new Promise(c => setTimeout(c, ms));
+
+// Kylas girişini 429'da (hız sınırı) bekleyip tekrar dener
+async function girisDene(email, sifre) {
+  for (let deneme = 1; ; deneme++) {
+    try {
+      return await kylasGiris(email, sifre);
+    } catch (e) {
+      if (e.durum === 429 && deneme < 5) { await bekle(1500 * deneme); continue; }
+      throw e;
+    }
+  }
+}
 
 async function n8nKaydet(headers, satir) {
   const r = await fetch(`${N8N}/kylas-baglanti-kaydet`, { method: "POST", headers, body: JSON.stringify(satir) });
@@ -52,17 +65,22 @@ export default async function handler(req, res) {
       const girdiler = Array.isArray(req.body?.girdiler) ? req.body.girdiler : [];
       if (!girdiler.length || girdiler.length > EN_FAZLA) return res.status(400).json({ error: `1-${EN_FAZLA} satır girin.` });
       const sonuc = [];
-      for (const g of girdiler) {
+      for (let i = 0; i < girdiler.length; i++) {
+        const g = girdiler[i];
         const email = String(g?.email || "").trim().toLowerCase();
         const sifre = String(g?.sifre || "");
         if (!email || !sifre) { sonuc.push({ email, ok: false, hata: "E-posta ve şifre gerekli." }); continue; }
+        if (i > 0) await bekle(500); // Kylas hız sınırını aşmamak için satırlar arası bekleme
         try {
-          const token = await kylasGiris(email, sifre);          // doğrular
+          const token = await girisDene(email, sifre);          // doğrular (429'da tekrar dener)
           const { id, ad } = await kylasKimlik(token);
           await n8nKaydet(headers, { email, kylasId: String(id ?? ""), ad, sifreli: sifrele(sifre), durum: "aktif" });
           sonuc.push({ email, ok: true, ad, kylasId: id });
         } catch (e) {
-          sonuc.push({ email, ok: false, hata: e.durum === 401 ? "E-posta ya da şifre yanlış." : e.message });
+          const hata = e.durum === 401 ? "E-posta ya da şifre yanlış."
+            : e.durum === 429 ? "Kylas yoğun, bu satırı birazdan tekrar deneyin."
+            : e.message;
+          sonuc.push({ email, ok: false, hata });
         }
       }
       return res.status(200).json({ sonuc });

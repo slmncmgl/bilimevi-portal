@@ -12,6 +12,9 @@
   "functions": {
     "api/crm-rapor.js": {
       "maxDuration": 60
+    },
+    "api/kylas-baglanti.js": {
+      "maxDuration": 60
     }
   }
 }
