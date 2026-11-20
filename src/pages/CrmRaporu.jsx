@@ -1,3 +1,4 @@
+// v3.4: apiCagir: Kylas yoğunken (503) okuma istekleri 2 ve 4 sn sonra tekrar denenir
 // v3.3: VIP Datalar OFF VIP kaynakları seçimden çıkarır (FiltreCubugu v1.5)
 // v3.2: Danışman Ata çubuğu ortak bileşende (DanismanAta.jsx), Takip Tablosu da kullanır
 // v3.1: açılışta tüm veri kaynakları seçili; VIP Datalar ON/OFF anahtar (OFF: tüm kaynaklar)
@@ -57,7 +58,7 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v3.3"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v3.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const TUM_KAYNAKLAR = KAYNAKLAR.map(k => k.id);
 // Hepsi seçiliyse kaynak filtresi gönderilmez (kaynağı boş datalar da sayılır)
@@ -65,11 +66,18 @@ export const kaynakFiltresi = secili => (secili.length === KAYNAKLAR.length ? []
 
 export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${id}`;
 
+// Kylas yoğunsa (sunucu 503 döner) okuma istekleri 2 ve 4 sn sonra kendiliğinden tekrar denenir.
+// Yazma istekleri (not, task, atama) tekrarlanmaz: sunucu zaten kendi içinde tekrar dener, çift kayıt olmasın.
+const YAZMA_ISLEMLERI = ["notEkle", "taskEkle", "taskTamamla", "ata"];
 export async function apiCagir(govde) {
-  const r = await fetch("/api/crm-rapor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(govde) });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error || `İstek başarısız (HTTP ${r.status})`);
-  return d;
+  const okuma = !YAZMA_ISLEMLERI.includes(govde?.islem);
+  for (let deneme = 1; ; deneme++) {
+    const r = await fetch("/api/crm-rapor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(govde) });
+    const d = await r.json().catch(() => ({}));
+    if ((r.status === 503 || r.status === 429) && okuma && deneme < 3) { await new Promise(c => setTimeout(c, 2000 * deneme)); continue; }
+    if (!r.ok) throw new Error(d.error || `İstek başarısız (HTTP ${r.status})`);
+    return d;
+  }
 }
 
 export function tarih(v, saatli = false) {
