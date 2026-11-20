@@ -1,3 +1,6 @@
+// v1.7: ✕ sayacın hemen yanında; "Task oluştur" sağ sütunda (Kylas'ta aç ile aynı çizgi). Task oluşturma açılır pencerede
+//       (düğmeden sola doğru açılır, arka plan bulanık), "Task oluştur" ile hemen Kylas'a yazılır. "Tamamla + Yeni" aynı pencereyi
+//       dolu açar. Not kutusunun altındaki task formu kalktı; sonrakine geçmek için not yine zorunlu.
 // v1.6: Task'lar: bilgi kartının altında datanın task'ları (açıklar önce, gecikmiş kırmızı), "Tamamlandı" ve "Tamamla + yeni"
 //       düğmeleri. Not kutusunun altında isteğe bağlı "Task da oluştur" (ad, tür, tarih, saat): not ile birlikte kaydedilir,
 //       datanın danışmanına atanır. Not yine zorunlu. Task değiştiyse kapanınca Takip Tablosu sessizce yenilenir.
@@ -26,7 +29,7 @@ const TASK_TURLERI = [[2614523, "Follow Up"], [2614522, "Call"], [2614524, "Remi
 const ikiHane = n => String(n).padStart(2, "0");
 const yerelGun = d => `${d.getFullYear()}-${ikiHane(d.getMonth() + 1)}-${ikiHane(d.getDate())}`;
 const gunSonra = n => { const d = new Date(); d.setDate(d.getDate() + n); return yerelGun(d); };
-const yeniForm = (ad = "", tur = 2614523) => ({ acik: true, ad, tur, tarih: gunSonra(1), saat: "10:00" });
+const bosForm = (ad = "", tur = 2614523) => ({ ad, tur, tarih: gunSonra(1), saat: "10:00" });
 
 export function EleAlDugmesi({ sayi, onClick, disabled }) {
   return (
@@ -44,6 +47,8 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
 
 export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   const [sira, setSira] = useState(0);
+  const siraRef = useRef(0);
+  siraRef.current = sira;
   const [notlar, setNotlar] = useState({}); // id -> { yukleniyor } | { notlar, toplam } | { hata }
   const [yazilan, setYazilan] = useState({}); // id -> eklenen not sayısı (bu oturumda)
   const [taslak, setTaslak] = useState({}); // id -> yazılan ama kaydedilmemiş metin
@@ -58,10 +63,9 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   const detayIstenen = useRef(new Set());
   const [tasklar, setTasklar] = useState({}); // id -> { yukleniyor } | { tasklar, toplam } | { hata }
   const taskIstenen = useRef(new Set());
-  const [taskForm, setTaskForm] = useState({}); // data id -> { acik, ad, tur, tarih, saat }
+  const [pencere, setPencere] = useState(null); // açık task penceresi: { leadId, ownerId, rect, ilk }
   const [taskIslem, setTaskIslem] = useState({}); // task id -> "calisiyor" | hata metni
   const taskDegisti = useRef(false);
-  const taskAdAlani = useRef(null);
 
   const toplam = leadler.length;
   const l = leadler[sira];
@@ -108,7 +112,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   }, []);
   const kapatIste = () => { if (kaydedilmemis && !bitti) setCikisSor(true); else onKapat(Object.keys(yazilan).map(Number), taskDegisti.current); };
   useEffect(() => {
-    const tus = e => { if (e.key === "Escape" && !cikisSor) kapatIste(); };
+    const tus = e => { if (e.key === "Escape" && !cikisSor && !pencere) kapatIste(); };
     document.addEventListener("keydown", tus);
     return () => document.removeEventListener("keydown", tus);
   });
@@ -128,17 +132,29 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
     taskDegisti.current = true;
   }
 
-  async function tamamla(task, yenisi) {
+  // Task penceresini tıklanan düğmenin yanında açar
+  function pencereAc(dugme, ilk = null) {
+    const r = dugme.getBoundingClientRect();
+    setPencere({ leadId: l.id, ownerId: dt?.ownerId ?? l.ownerId, rect: { sol: r.left, sag: r.right, ust: r.top, alt: r.bottom }, ilk });
+  }
+  async function taskOlustur(f) {
+    const leadId = pencere.leadId;
+    const d = await apiCagir({ islem: "taskEkle", leadId, ad: f.ad.trim(), tur: Number(f.tur), tarih: new Date(`${f.tarih}T${f.saat || "10:00"}`).toISOString() });
+    taskGuncelle(leadId, { ...d.task, yeni: true }, true);
+    setPencere(null);
+  }
+
+  async function tamamla(task, yenisiDugme) {
     if (taskIslem[task.id] === "calisiyor") return;
+    const rect = yenisiDugme?.getBoundingClientRect();
     const leadId = l.id;
     setTaskIslem(s => ({ ...s, [task.id]: "calisiyor" }));
     try {
       const d = await apiCagir({ islem: "taskTamamla", taskId: task.id });
       taskGuncelle(leadId, { ...task, ...d.task });
       setTaskIslem(s => { const k = { ...s }; delete k[task.id]; return k; });
-      if (yenisi) {
-        setTaskForm(s => ({ ...s, [leadId]: yeniForm(task.ad, task.turId || 2614523) }));
-        setTimeout(() => taskAdAlani.current?.focus(), 50);
+      if (rect && leadId === leadler[siraRef.current]?.id) {
+        setPencere({ leadId, ownerId: dt?.ownerId ?? l.ownerId, rect: { sol: rect.left, sag: rect.right, ust: rect.top, alt: rect.bottom }, ilk: { ad: task.ad, tur: task.turId || 2614523 } });
       }
     } catch (e) {
       setTaskIslem(s => ({ ...s, [task.id]: e.message }));
@@ -148,39 +164,18 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   async function kaydet() {
     const m = metin.trim();
     if (kaydediliyor) return;
-    const f = taskForm[l.id];
-    const taskVar = !!f?.acik;
-    if (m.length < ENAZ && !notVar) return;
-    if (m.length < ENAZ && !taskVar) { ilerle(); return; }
-    let taskTarih = null;
-    if (taskVar) {
-      if ((f.ad || "").trim().length < 2) { setHata("Task için bir ad yaz (ör. Tekrar ara) ya da task'tan vazgeç."); return; }
-      taskTarih = new Date(`${f.tarih}T${f.saat || "10:00"}`);
-      if (isNaN(taskTarih)) { setHata("Task için tarih ve saat seç."); return; }
-    }
+    if (m.length < ENAZ) { if (notVar) ilerle(); return; }
     setKaydediliyor(true);
     setHata(null);
     const leadId = l.id;
     try {
-      if (m.length >= ENAZ) {
-        const d = await apiCagir({ islem: "notEkle", leadId, metin: m });
-        setYazilan(s => ({ ...s, [leadId]: (s[leadId] || 0) + 1 }));
-        setTaslak(s => ({ ...s, [leadId]: "" }));
-        setNotlar(s => {
-          const eski = s[leadId]?.notlar ? s[leadId] : { notlar: [], toplam: 0 };
-          return { ...s, [leadId]: { notlar: [{ tarih: d.tarih, yazan: "Sen", metin: m, portal: true, yeni: true }, ...eski.notlar], toplam: (eski.toplam || 0) + 1 } };
-        });
-      }
-      if (taskVar) {
-        try {
-          const d = await apiCagir({ islem: "taskEkle", leadId, ad: f.ad.trim(), tur: Number(f.tur), tarih: taskTarih.toISOString() });
-          taskGuncelle(leadId, { ...d.task, yeni: true }, true);
-          setTaskForm(s => ({ ...s, [leadId]: { ...f, acik: false } }));
-        } catch (e) {
-          setHata(`${m.length >= ENAZ ? "Not kaydedildi ama task açılamadı: " : ""}${e.message}`);
-          return;
-        }
-      }
+      const d = await apiCagir({ islem: "notEkle", leadId, metin: m });
+      setYazilan(s => ({ ...s, [leadId]: (s[leadId] || 0) + 1 }));
+      setTaslak(s => ({ ...s, [leadId]: "" }));
+      setNotlar(s => {
+        const eski = s[leadId]?.notlar ? s[leadId] : { notlar: [], toplam: 0 };
+        return { ...s, [leadId]: { notlar: [{ tarih: d.tarih, yazan: "Sen", metin: m, portal: true, yeni: true }, ...eski.notlar], toplam: (eski.toplam || 0) + 1 } };
+      });
       setBasari(true);
       setTimeout(() => { setBasari(false); ilerle(); }, 650);
     } catch (e) {
@@ -199,8 +194,6 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
   const metinYeterli = metin.trim().length >= ENAZ;
   const ileriAcik = (metinYeterli || notVar) && !kaydediliyor && !basari;
   const tk = l ? tasklar[l.id] : null;
-  const form = l ? taskForm[l.id] : null;
-  const formDegis = degisim => setTaskForm(s => ({ ...s, [l.id]: { ...s[l.id], ...degisim } }));
   const acikTasklar = tk?.tasklar?.filter(t => t.durum === "acik" || t.durum === "surecte") || [];
   const kapaliTasklar = tk?.tasklar?.filter(t => t.durum !== "acik" && t.durum !== "surecte") || [];
 
@@ -268,11 +261,9 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
           </section>
 
           <section style={s.taskKart}>
-            <div style={s.taskBaslik}>
-              <span style={{ ...s.bolumBaslik, marginBottom: 0 }}>Task'lar{acikTasklar.length ? ` · ${acikTasklar.length} açık` : ""}</span>
-              {!form?.acik && (
-                <button type="button" onClick={() => { setTaskForm(s => ({ ...s, [l.id]: yeniForm() })); setTimeout(() => taskAdAlani.current?.focus(), 50); }} style={s.taskEkleDugme}>＋ Task oluştur</button>
-              )}
+            <div className="elal-izgara" style={s.taskBaslik}>
+              <span style={{ ...s.bolumBaslik, marginBottom: 0, gridColumn: "1 / 4" }}>Task'lar{acikTasklar.length ? ` · ${acikTasklar.length} açık` : ""}</span>
+              <button type="button" onClick={e => pencereAc(e.currentTarget)} style={s.taskEkleDugme} aria-haspopup="dialog">＋ Task oluştur</button>
             </div>
             {tk?.yukleniyor && <div style={s.bilgiMetni}><span className="elal-spin" /> Task'lar alınıyor...</div>}
             {tk?.hata && <div style={{ ...s.bilgiMetni, color: "#991b1b" }}>{tk.hata} <button type="button" onClick={() => tasklariGetir(l, true)} style={s.metinDugme}>Tekrar dene</button></div>}
@@ -295,8 +286,8 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
                   <div className="elal-task-dugmeler" style={s.taskDugmeler}>
                     {!kapali && (
                       <>
-                        <button type="button" disabled={islem === "calisiyor"} onClick={() => tamamla(t, false)} style={s.taskTamam}>{islem === "calisiyor" ? "..." : "✓ Tamamlandı"}</button>
-                        <button type="button" disabled={islem === "calisiyor"} onClick={() => tamamla(t, true)} style={s.taskYeni} title="Bu task'ı tamamla ve aynı adla yeni task hazırla">Tamamla + Yeni</button>
+                        <button type="button" disabled={islem === "calisiyor"} onClick={() => tamamla(t, null)} style={s.taskTamam}>{islem === "calisiyor" ? "..." : "✓ Tamamlandı"}</button>
+                        <button type="button" disabled={islem === "calisiyor"} onClick={e => tamamla(t, e.currentTarget)} style={s.taskYeni} title="Bu task'ı tamamla ve aynı adla yeni task hazırla">Tamamla + Yeni</button>
                       </>
                     )}
                   </div>
@@ -315,32 +306,6 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
                 onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (ileriAcik) kaydet(); } }}
                 placeholder={notVar ? "İstersen bir not daha ekle..." : "Bu Data için ne yaptın? Notunu yaz..."} aria-label="Yeni not"
                 style={{ ...s.alan, borderColor: metinYeterli ? "#7c3aed" : "#e2e8f0" }} />
-              {form?.acik ? (
-                <div style={s.taskForm}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                    <span style={{ fontSize: "12px", fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: "0.5px" }}>Yeni task · {kisiAdi(dt?.ownerId ?? l.ownerId)}</span>
-                    <button type="button" onClick={() => formDegis({ acik: false })} style={s.metinDugme}>Task'tan vazgeç</button>
-                  </div>
-                  <div className="elal-task-alanlar" style={s.taskAlanlar}>
-                    <input ref={taskAdAlani} value={form.ad} onChange={e => formDegis({ ad: e.target.value.slice(0, 200) })} placeholder="Task adı (ör. Tekrar ara)"
-                      aria-label="Task adı" style={{ ...s.girdi, gridColumn: "1 / 3" }} />
-                    <select value={form.tur} onChange={e => formDegis({ tur: Number(e.target.value) })} aria-label="Task türü" style={s.girdi}>
-                      {TASK_TURLERI.map(([id, ad]) => <option key={id} value={id}>{ad}</option>)}
-                    </select>
-                    <span />
-                    <input type="date" value={form.tarih} min={gunSonra(0)} onChange={e => formDegis({ tarih: e.target.value })} aria-label="Task tarihi" style={s.girdi} />
-                    <input type="time" value={form.saat} onChange={e => formDegis({ saat: e.target.value })} aria-label="Task saati" style={s.girdi} />
-                    <div style={{ gridColumn: "3 / 5", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
-                      {[[1, "Yarın"], [3, "3 gün"], [7, "1 hafta"], [14, "2 hafta"]].map(([g, ad]) => (
-                        <button key={g} type="button" onClick={() => formDegis({ tarih: gunSonra(g) })} style={form.tarih === gunSonra(g) ? s.cipAktif : s.cip}>{ad}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: "11px", color: "#64748b", marginTop: "8px" }}>Not ile birlikte kaydedilir, datanın danışmanına atanır.</div>
-                </div>
-              ) : (
-                <button type="button" onClick={() => { setTaskForm(s => ({ ...s, [l.id]: yeniForm() })); setTimeout(() => taskAdAlani.current?.focus(), 50); }} style={{ ...s.metinDugme, marginTop: "10px", padding: 0 }}>＋ Task da oluştur</button>
-              )}
               {hata && <div style={s.hata}>{hata}</div>}
               <div className="elal-izgara" style={s.altSatir}>
                 <button type="button" onClick={() => setSira(sira - 1)} disabled={sira === 0 || kaydediliyor} style={{ ...s.geri, opacity: sira === 0 ? 0.35 : 1, justifySelf: "start" }}>‹ Önceki</button>
@@ -348,7 +313,7 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
                 <button type="button" onClick={kaydet} disabled={!ileriAcik} className={ileriAcik ? "elal-ileri-acik" : undefined}
                   style={{ ...s.ileri, ...(ileriAcik ? {} : s.ileriKapali), ...(basari ? s.ileriBasari : {}) }}
                   title={ileriAcik ? undefined : "Sonrakine geçmek için not yaz"}>
-                  {basari ? "✓ Kaydedildi" : kaydediliyor ? "Kaydediliyor..." : notVar && !metinYeterli && !form?.acik ? (sira + 1 >= toplam ? "Bitir" : "Sonrakine Geç") : sira + 1 >= toplam ? "Kaydet ve Bitir" : "Kaydet ve Sonrakine Geç"}
+                  {basari ? "✓ Kaydedildi" : kaydediliyor ? "Kaydediliyor..." : notVar && !metinYeterli ? (sira + 1 >= toplam ? "Bitir" : "Sonrakine Geç") : sira + 1 >= toplam ? "Kaydet ve Bitir" : "Kaydet ve Sonrakine Geç"}
                 </button>
               </div>
             </div>
@@ -370,6 +335,10 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
         </main>
       )}
 
+      {pencere && (
+        <TaskPenceresi rect={pencere.rect} atanan={kisiAdi(pencere.ownerId)} ilk={pencere.ilk}
+          onOlustur={taskOlustur} onKapat={() => setPencere(null)} />
+      )}
       {cikisSor && (
         <OnayPenceresi ikon="!" baslik="Kaydedilmemiş not var" onayMetni="Çık" vazgecMetni="Devam et"
           onOnay={() => onKapat(Object.keys(yazilan).map(Number), taskDegisti.current)} onVazgec={() => setCikisSor(false)}>
@@ -380,6 +349,120 @@ export default function EleAl({ leadler, kisiAdi, gecikmis, onKapat }) {
     document.body,
   );
 }
+
+// Task oluşturma penceresi: tıklanan düğmenin sağ kenarına yaslanır, sola doğru açılır; arka plan bulanıklaşır.
+// "Task oluştur" ile hemen Kylas'a yazılır (onOlustur). Esc ya da arka plana tıklama kapatır.
+function TaskPenceresi({ rect, atanan, ilk, onOlustur, onKapat }) {
+  const [f, setF] = useState(() => bosForm(ilk?.ad || "", ilk?.tur || 2614523));
+  const [calisiyor, setCalisiyor] = useState(false);
+  const [hata, setHata] = useState(null);
+  const adAlani = useRef(null);
+  const degis = d => setF(x => ({ ...x, ...d }));
+  useEffect(() => {
+    adAlani.current?.focus();
+    if (ilk?.ad) adAlani.current?.select();
+    const tus = e => { if (e.key === "Escape") { e.stopPropagation(); onKapat(); } };
+    document.addEventListener("keydown", tus, true);
+    return () => document.removeEventListener("keydown", tus, true);
+  }, []);
+
+  const genislik = Math.min(420, window.innerWidth - 24);
+  const sag = Math.max(12, Math.min(window.innerWidth - rect.sag, window.innerWidth - genislik - 12));
+  const asagi = window.innerHeight - rect.alt > 400 || rect.ust < 400;
+  const konum = asagi ? { top: rect.alt + 10 } : { bottom: window.innerHeight - rect.ust + 10 };
+  const adOk = f.ad.trim().length >= 2;
+
+  async function gonder() {
+    if (!adOk || calisiyor) { if (!adOk) setHata("Task için bir ad yaz (ör. Tekrar ara)."); return; }
+    setCalisiyor(true);
+    setHata(null);
+    try { await onOlustur(f); } catch (e) { setHata(e.message); setCalisiyor(false); }
+  }
+
+  return createPortal(
+    <>
+      <div className="tp-arka" style={p.arka} onMouseDown={() => !calisiyor && onKapat()} />
+      <div role="dialog" aria-modal="true" aria-label="Yeni task" className={`tp-kutu ${asagi ? "tp-asagi" : "tp-yukari"}`}
+        style={{ ...p.kutu, width: genislik, right: sag, ...konum }}>
+        <style>{PENCERE_CSS}</style>
+        <div style={p.ust}>
+          <span style={p.ikon}>＋</span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a" }}>Yeni task</div>
+            <div style={{ fontSize: "12px", color: "#64748b" }}>{atanan} adına atanacak</div>
+          </div>
+          <button type="button" onClick={onKapat} style={p.kapat} aria-label="Kapat">✕</button>
+        </div>
+        <div style={p.govde}>
+          <label style={p.etiket}>Task adı
+            <input ref={adAlani} value={f.ad} onChange={e => degis({ ad: e.target.value.slice(0, 200) })} placeholder="ör. Tekrar ara"
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); gonder(); } }} style={p.girdi} />
+          </label>
+          <label style={p.etiket}>Tür
+            <div style={p.turler}>
+              {TASK_TURLERI.map(([id, ad]) => (
+                <button key={id} type="button" onClick={() => degis({ tur: id })} style={f.tur === id ? p.turAktif : p.tur} aria-pressed={f.tur === id}>{ad}</button>
+              ))}
+            </div>
+          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: "10px" }}>
+            <label style={p.etiket}>Tarih
+              <input type="date" value={f.tarih} min={gunSonra(0)} onChange={e => degis({ tarih: e.target.value })} style={p.girdi} />
+            </label>
+            <label style={p.etiket}>Saat
+              <input type="time" value={f.saat} onChange={e => degis({ saat: e.target.value })} style={p.girdi} />
+            </label>
+          </div>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            {[[0, "Bugün"], [1, "Yarın"], [3, "3 gün"], [7, "1 hafta"], [14, "2 hafta"]].map(([g, ad]) => (
+              <button key={g} type="button" onClick={() => degis({ tarih: gunSonra(g) })} style={f.tarih === gunSonra(g) ? s.cipAktif : s.cip}>{ad}</button>
+            ))}
+          </div>
+          {hata && <div style={{ ...s.hata, marginTop: 0 }}>{hata}</div>}
+        </div>
+        <div style={p.alt}>
+          <button type="button" onClick={onKapat} disabled={calisiyor} style={p.vazgec}>Vazgeç</button>
+          <button type="button" onClick={gonder} disabled={calisiyor} style={{ ...p.olustur, opacity: adOk ? 1 : 0.55 }}>{calisiyor ? "Oluşturuluyor..." : "Task oluştur"}</button>
+        </div>
+      </div>
+    </>,
+    document.body,
+  );
+}
+
+const p = {
+  arka: { position: "fixed", inset: 0, zIndex: 9600, background: "rgba(15, 23, 42, 0.22)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" },
+  kutu: { position: "fixed", zIndex: 9601, background: "#fff", borderRadius: "20px", border: "1.5px solid #bbf7d0", overflow: "hidden",
+    boxShadow: "0 24px 60px rgba(15, 23, 42, 0.28), 0 0 0 6px rgba(34, 197, 94, 0.08)", fontFamily: "'Sora', sans-serif" },
+  ust: { display: "flex", alignItems: "center", gap: "12px", padding: "16px 18px", background: "linear-gradient(135deg, #f0fdf4, #ecfeff)", borderBottom: "1px solid #dcfce7" },
+  ikon: { width: "34px", height: "34px", borderRadius: "11px", background: "linear-gradient(135deg, #16a34a, #0891b2)", color: "#fff", display: "inline-flex",
+    alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 800, flexShrink: 0, boxShadow: "0 6px 14px rgba(22,163,74,0.3)" },
+  kapat: { marginLeft: "auto", width: "32px", height: "32px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer", flexShrink: 0 },
+  govde: { display: "flex", flexDirection: "column", gap: "14px", padding: "16px 18px" },
+  etiket: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "11px", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.4px" },
+  girdi: { height: "40px", padding: "0 12px", borderRadius: "12px", border: "1.5px solid #d1fae5", background: "#fff", color: "#0f172a", fontSize: "14px",
+    fontWeight: 600, fontFamily: "'Sora', sans-serif", outline: "none", boxSizing: "border-box", width: "100%", textTransform: "none", letterSpacing: 0 },
+  turler: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "6px" },
+  tur: { height: "34px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "12px", fontWeight: 700,
+    cursor: "pointer", fontFamily: "'Sora', sans-serif", textTransform: "none", letterSpacing: 0 },
+  turAktif: { height: "34px", borderRadius: "10px", border: "1.5px solid #0891b2", background: "#ecfeff", color: "#0e7490", fontSize: "12px", fontWeight: 800,
+    cursor: "pointer", fontFamily: "'Sora', sans-serif", textTransform: "none", letterSpacing: 0 },
+  alt: { display: "flex", justifyContent: "flex-end", gap: "8px", padding: "12px 18px", background: "#f8fafc", borderTop: "1px solid #f1f5f9" },
+  vazgec: { padding: "9px 16px", borderRadius: "999px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "13px", fontWeight: 600,
+    cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  olustur: { padding: "9px 20px", borderRadius: "999px", border: "none", background: "linear-gradient(135deg, #16a34a, #059669)", color: "#fff", fontSize: "13px",
+    fontWeight: 800, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 6px 16px rgba(22,163,74,0.32)" },
+};
+
+// Sağdan sola açılma: kırpma alanı sağ kenardan sola doğru genişler, kutu hafifçe sola kayar; arka plan yumuşakça bulanıklaşır
+const PENCERE_CSS = `
+@keyframes tpArka { from { opacity: 0; backdrop-filter: blur(0); } to { opacity: 1; } }
+@keyframes tpAc { from { clip-path: inset(0 0 0 100% round 20px); opacity: 0.4; transform: translateX(14px); } to { clip-path: inset(0 0 0 0 round 20px); opacity: 1; transform: none; } }
+.tp-arka { animation: tpArka 0.25s ease-out; }
+.tp-kutu { animation: tpAc 0.34s cubic-bezier(0.2, 0.8, 0.2, 1); transform-origin: right top; }
+.tp-yukari { transform-origin: right bottom; }
+@media (prefers-reduced-motion: reduce) { .tp-arka, .tp-kutu { animation: none; } }
+`;
 
 function Alan({ ad, bekliyor, children }) {
   return (
@@ -400,7 +483,7 @@ const s = {
     backdropFilter: "blur(8px)", borderBottom: "1px solid #e2e8f0", flexShrink: 0 },
   logo: { width: "38px", height: "38px", borderRadius: "12px", background: "linear-gradient(135deg, #0891b2, #7c3aed 60%, #db2777)",
     display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px rgba(124,58,237,0.35)", flexShrink: 0 },
-  sagBlok: { gridColumn: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", minWidth: 0 },
+  sagBlok: { gridColumn: 4, display: "flex", alignItems: "center", justifyContent: "flex-start", gap: "12px", minWidth: 0 },
   sayac: { fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
   kapat: { width: "38px", height: "38px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569",
     fontSize: "15px", cursor: "pointer", flexShrink: 0 },
@@ -428,8 +511,8 @@ const s = {
   eklendi: { flexShrink: 0, padding: "4px 10px", borderRadius: "999px", background: "#f0fdf4", border: "1.5px solid #86efac", color: "#166534", fontSize: "11px", fontWeight: 700 },
   taskKart: { flexShrink: 0, display: "flex", flexDirection: "column", gap: "8px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px",
     padding: "18px 24px", boxShadow: "0 8px 24px rgba(15,23,42,0.06)" },
-  taskBaslik: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "4px" },
-  taskEkleDugme: { padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#f0fdf4", color: "#166534", fontSize: "12px",
+  taskBaslik: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", columnGap: "24px", alignItems: "center", marginBottom: "4px" },
+  taskEkleDugme: { gridColumn: 4, justifySelf: "start", padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#f0fdf4", color: "#166534", fontSize: "12px",
     fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   taskSatir: { display: "grid", gridTemplateColumns: "auto minmax(0, 1fr) auto auto", gap: "6px 14px", alignItems: "center", padding: "10px 12px",
     borderRadius: "12px", background: "#f8fafc", border: "1px solid #f1f5f9", fontSize: "13px" },
@@ -441,8 +524,6 @@ const s = {
     fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", whiteSpace: "nowrap" },
   taskYeni: { padding: "6px 10px", borderRadius: "999px", border: "none", background: "linear-gradient(135deg, #16a34a, #059669)", color: "#fff",
     fontSize: "11.5px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", whiteSpace: "nowrap" },
-  taskForm: { marginTop: "12px", padding: "14px", borderRadius: "14px", border: "1.5px solid #86efac", background: "#f7fef9" },
-  taskAlanlar: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "8px" },
   girdi: { height: "36px", padding: "0 10px", borderRadius: "10px", border: "1.5px solid #d1fae5", background: "#fff", color: "#0f172a", fontSize: "13px",
     fontFamily: "'Sora', sans-serif", outline: "none", boxSizing: "border-box", width: "100%", minWidth: 0 },
   cip: { padding: "5px 10px", borderRadius: "999px", border: "1.5px solid #d1fae5", background: "#fff", color: "#166534", fontSize: "11.5px", fontWeight: 600,
@@ -494,7 +575,7 @@ const EKRAN_CSS = `
   .elal-sag { margin-left: auto; } .elal-izgara { display: flex !important; flex-wrap: wrap; gap: 10px; } .elal-izgara > :last-child { margin-left: auto; width: auto !important; } }
 @media (max-width: 480px) { .elal-alanlar { grid-template-columns: 1fr !important; } }
 @media (max-width: 640px) { .elal-task { grid-template-columns: auto minmax(0, 1fr) !important; } .elal-task > :nth-child(3) { grid-column: 1 / -1; } .elal-task-dugmeler { grid-column: 1 / -1; justify-content: flex-start !important; }
-  .elal-task-alanlar { grid-template-columns: 1fr 1fr !important; } .elal-task-alanlar > * { grid-column: auto !important; } .elal-task-alanlar > input:first-child { grid-column: 1 / -1 !important; } }
+}
 @media (prefers-reduced-motion: reduce) { .elal-govde, .elal-cubuk, .elal-iskelet, .elal-yeni-not, .elal-ileri-acik, .elal-bitti-ikon { animation: none !important; } }
 `;
 
