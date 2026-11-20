@@ -1,3 +1,8 @@
+// v3.4: Toplu Data Follow Up task işlemleri (hepsi zorunlu yetki: staff kendi, manager şubesinin, admin her datası):
+//       tasklar { leadId } -> datanın task'ları (tüm task'lar 90 sn önbellekte, Kylas lead'e göre süzemiyor);
+//       taskEkle { leadId, ad, tarih (ISO), tur? } -> datanın danışmanına atanır, açıklamada "[Yazan · Portal]";
+//       taskTamamla { taskId } -> task okunur, durum COMPLETED ile geri yazılır (PUT). "[task]" logu.
+//       ozet: portaldan açılan task'lar (Selman adına, etiketinde danışmanın adı) da danışmanın açtığı task sayılır.
 // v3.3: islem "detay": { leadId } -> Ele al ekranı için iletişim bilgileri (telefon, e-posta, şehir, form tarihi, kampanya, kaynak).
 //       Kişisel veri olduğu için izleme modu yok: geçerli oturum; staff kendi, manager şubesinin, admin her datayı görür. "[detay]" logu.
 // v3.2: islem "notEkle": { leadId, metin } -> Kylas'ta dataya not (Takip Tablosu > "Bu dataları ele al").
@@ -426,6 +431,10 @@ async function liste(req, res, kurallar, yetki) {
 // ---- Son N gün özeti (tek danışman) ----
 const OZET_LISTE_SINIR = 300;
 const TASK_TAMAM = 2614528;
+const TASK_ACIK = 2614526;
+const TASK_SURECTE = 2614527;
+const TASK_IPTAL = 2614529;
+export const TASK_TURLERI = { 2614522: "Call", 2614523: "Follow Up", 2614524: "Reminder", 2614525: "Todo" };
 const tarihSonrasi = (alan, iso) => kural(alan, "greater", iso, "date");
 
 // Dönemde güncellenen tüm task'lar (updatedAt'e göre yeniden eskiye, dönem dışına çıkınca durur)
@@ -508,9 +517,10 @@ async function ozet(req, res, yetki) {
   const yeniKurallar = [kural("ownerId", "equal", ownerId), kural("pipeline", "equal", PIPELINE_ID)];
   if (bas) yeniKurallar.push(tarihSonrasi("createdAt", bas));
   if (kaynaklar.length) yeniKurallar.push(kural("source", "in", kaynaklar));
+  const danismanAdi = dizinGetir().then(dz => [...dz.kisiler.values()].find(k => k.kylasId === ownerId)?.ad || null).catch(() => null);
   let [yeniler, notLeadleri, tasklar] = await Promise.all([
     hepsiniCek(yeniKurallar, [...LISTE_ALANLARI, "source"]),
-    dizinGetir().then(dz => [...dz.kisiler.values()].find(k => k.kylasId === ownerId)?.ad || null).catch(() => null).then(ad => donemNotlari(ownerId, bas, ad)),
+    danismanAdi.then(ad => donemNotlari(ownerId, bas, ad)),
     donemTasklari(basMs),
   ]);
   if (yeniler === null) return res.status(422).json({ error: "Dönem çok kalabalık, daha kısa bir süre seçin." });
@@ -523,13 +533,14 @@ async function ozet(req, res, yetki) {
     tasklar = tasklar.filter(t => izinli.has(taskLead(t)));
   }
 
+  const adK = ownerId === API_SAHIBI ? null : kucukHarf(await danismanAdi);
   const yeniIdler = new Set(yeniler.map(l => l.id));
   const taskliLead = new Set();
   let acilan = 0, tamamlanan = 0;
   for (const t of tasklar) {
     const lead = taskLead(t);
     if (lead && yeniIdler.has(lead)) taskliLead.add(lead);
-    if (t.createdBy === ownerId && zaman(t.createdAt) >= basMs) acilan++;
+    if (zaman(t.createdAt) >= basMs && (t.createdBy === ownerId || (adK && Number(t.createdBy) === API_SAHIBI && kucukHarf(portalEtiketi(metneCevir(t.description))?.yazan) === adK))) acilan++;
     if (t.status === TASK_TAMAM && Number(t.assignedTo ?? t.ownerId) === ownerId && zaman(t.completedAt) >= basMs) tamamlanan++;
   }
   const notSayisi = {};
@@ -641,6 +652,130 @@ async function detay(req, res, yetki) {
   });
 }
 
+// ---- Task'lar (Toplu Data Follow Up) ----
+let taskOnbellek = null; // { zaman, liste }
+async function tumTasklar() {
+  if (taskOnbellek && Date.now() - taskOnbellek.zaman < 90 * 1000) return taskOnbellek.liste;
+  const liste = [];
+  for (let page = 0; page < 30; page++) {
+    const r = await kylasGet(`https://api.kylas.io/v1/tasks?page=${page}&size=1000&sort=updatedAt,desc`);
+    if (!r.ok) throw new Error(`Task'lar alınamadı (HTTP ${r.status})`);
+    const d = await r.json();
+    liste.push(...(d.content || []));
+    if (page + 1 >= (d.totalPages || 0)) break;
+  }
+  taskOnbellek = { zaman: Date.now(), liste };
+  return liste;
+}
+
+// Yazma ve kişisel veri işlemlerinde ortak kontrol: izleme modu yok. Hata varsa yanıtı gönderip false döner.
+function yazmaYetkisi(yetki, res) {
+  if (yetki.tur === "anonim") { res.status(401).json({ error: "Oturum doğrulanamadı. Lütfen çıkış yapıp tekrar giriş yapın." }); return false; }
+  if (yetki.tur === "hata") { res.status(503).json({ error: "Yetki bilgisi okunamadı, biraz sonra tekrar deneyin." }); return false; }
+  if (!["admin", "manager", "staff"].includes(yetki.tur) || !yetki.ad) { res.status(403).json({ error: "Bu işlem için yetkiniz yok." }); return false; }
+  return true;
+}
+async function leadSahibi(leadId) {
+  const d = await kylasAra([kural("id", "equal", leadId)], 0, ["id", "ownerId"]);
+  const l = (d.content || [])[0];
+  return l ? Number(l.ownerId) : null;
+}
+const sahipYetkili = (yetki, ownerId) => yetki.tur === "admin" || yetki.idler.has(Number(ownerId));
+
+function taskSatiri(t, simdi = Date.now()) {
+  const durum = t.status === TASK_TAMAM ? "tamam" : t.status === TASK_IPTAL ? "iptal" : t.status === TASK_SURECTE ? "surecte" : "acik";
+  const aciklama = metneCevir(t.description);
+  const etiket = Number(t.createdBy) === API_SAHIBI ? portalEtiketi(aciklama) : null;
+  return {
+    id: t.id, ad: t.name || "", tarih: t.dueDate || null, durum, tur: TASK_TURLERI[t.type] || "", turId: t.type ?? null,
+    atanan: t.assignedTo ?? t.ownerId ?? null, tamamlanma: t.completedAt || null,
+    gecikmis: (durum === "acik" || durum === "surecte") && !!t.dueDate && zaman(t.dueDate) < simdi,
+    aciklama: etiket ? etiket.metin : aciklama, portalYazan: etiket?.yazan || null,
+  };
+}
+
+async function tasklar(req, res, yetki) {
+  if (!yazmaYetkisi(yetki, res)) return;
+  const leadId = Number(req.body?.leadId);
+  if (!Number.isInteger(leadId) || leadId <= 0) return res.status(400).json({ error: "Data seçilmedi." });
+  const sahip = await leadSahibi(leadId);
+  if (sahip === null) return res.status(404).json({ error: "Data bulunamadı." });
+  if (!sahipYetkili(yetki, sahip)) return res.status(403).json({ error: "Bu Data'yı görme yetkiniz yok." });
+  const simdi = Date.now();
+  const satirlar = (await tumTasklar()).filter(t => taskLead(t) === leadId).map(t => taskSatiri(t, simdi));
+  const acik = satirlar.filter(t => t.durum === "acik" || t.durum === "surecte").sort((a, b) => zaman(a.tarih) - zaman(b.tarih));
+  const kapali = satirlar.filter(t => !acik.includes(t)).sort((a, b) => zaman(b.tamamlanma || b.tarih) - zaman(a.tamamlanma || a.tarih));
+  return res.status(200).json({ tasklar: [...acik, ...kapali].slice(0, 20), toplam: satirlar.length });
+}
+
+async function kylasYaz(url, method, govde) {
+  for (let deneme = 1; ; deneme++) {
+    const r = await fetch(url, {
+      method, headers: { "api-key": process.env.KYLAS_API_KEY, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify(govde),
+    });
+    if (r.status === 429 && deneme < 5) { await bekle(1500 * deneme); continue; }
+    return r;
+  }
+}
+
+async function taskEkle(req, res, yetki) {
+  if (!yazmaYetkisi(yetki, res)) return;
+  const leadId = Number(req.body?.leadId);
+  const ad = String(req.body?.ad ?? "").trim();
+  const tarih = new Date(String(req.body?.tarih ?? ""));
+  const tur = req.body?.tur === undefined ? 2614523 : Number(req.body.tur);
+  if (!Number.isInteger(leadId) || leadId <= 0) return res.status(400).json({ error: "Data seçilmedi." });
+  if (ad.length < 2 || ad.length > 200) return res.status(400).json({ error: "Task adı 2-200 karakter olmalı." });
+  if (isNaN(tarih) || tarih.getTime() < Date.now() - GUN_MS || tarih.getTime() > Date.now() + 400 * GUN_MS) return res.status(400).json({ error: "Geçerli bir task tarihi seçin." });
+  if (!TASK_TURLERI[tur]) return res.status(400).json({ error: "Geçersiz task türü." });
+  const sahip = await leadSahibi(leadId);
+  if (sahip === null) return res.status(404).json({ error: "Data bulunamadı." });
+  if (!sahipYetkili(yetki, sahip)) return res.status(403).json({ error: "Bu Data'ya task açma yetkiniz yok." });
+
+  const r = await kylasYaz("https://api.kylas.io/v1/tasks/", "POST", {
+    name: ad, type: tur, status: TASK_ACIK, assignedTo: sahip, dueDate: tarih.toISOString(),
+    description: `[${htmlKacir(yetki.ad)} · Portal]`, relation: [{ targetEntityId: leadId, targetEntityType: "LEAD" }], customFieldValues: {},
+  });
+  if (!r.ok) {
+    console.warn(`[task] ${yetki.ad}: data ${leadId} task açılamadı (HTTP ${r.status})`);
+    return res.status(502).json({ error: `Task Kylas'ta açılamadı (HTTP ${r.status}).` });
+  }
+  const t = await r.json().catch(() => ({}));
+  console.log(`[task] ${yetki.ad}: data ${leadId} task ${t.id ?? "?"} açtı -> ${sahip}`);
+  taskOnbellek = null;
+  onbellek.clear(); // takip ve özet sayıları değişti
+  return res.status(200).json({ task: taskSatiri({ ...t, name: t.name ?? ad, dueDate: t.dueDate ?? tarih.toISOString(), type: t.type ?? tur, status: t.status ?? TASK_ACIK, assignedTo: t.assignedTo ?? sahip, createdBy: t.createdBy ?? API_SAHIBI, description: t.description ?? `[${yetki.ad} · Portal]` }) });
+}
+
+async function taskTamamla(req, res, yetki) {
+  if (!yazmaYetkisi(yetki, res)) return;
+  const taskId = Number(req.body?.taskId);
+  if (!Number.isInteger(taskId) || taskId <= 0) return res.status(400).json({ error: "Task seçilmedi." });
+  const g = await kylasGet(`https://api.kylas.io/v1/tasks/${taskId}`);
+  if (g.status === 404) return res.status(404).json({ error: "Task bulunamadı." });
+  if (!g.ok) return res.status(502).json({ error: `Task okunamadı (HTTP ${g.status})` });
+  const t = await g.json();
+  const leadId = taskLead(t);
+  if (yetki.tur !== "admin") {
+    const sahip = leadId ? await leadSahibi(leadId) : null;
+    if (!(sahip !== null && sahipYetkili(yetki, sahip)) && !yetki.idler.has(Number(t.assignedTo))) return res.status(403).json({ error: "Bu task'ı tamamlama yetkiniz yok." });
+  }
+  if (t.status === TASK_TAMAM) return res.status(200).json({ task: taskSatiri(t), zaten: true });
+  const r = await kylasYaz(`https://api.kylas.io/v1/tasks/${taskId}`, "PUT", {
+    name: t.name, dueDate: t.dueDate, type: t.type, status: TASK_TAMAM, priority: t.priority, reminder: t.reminder,
+    assignedTo: t.assignedTo, description: t.description, relation: t.relation, customFieldValues: t.customFieldValues || {},
+  });
+  if (!r.ok) {
+    console.warn(`[task] ${yetki.ad}: task ${taskId} tamamlanamadı (HTTP ${r.status})`);
+    return res.status(502).json({ error: `Task Kylas'ta tamamlanamadı (HTTP ${r.status}).` });
+  }
+  const yeni = await r.json().catch(() => ({}));
+  console.log(`[task] ${yetki.ad}: task ${taskId} (data ${leadId ?? "-"}) tamamlandı`);
+  taskOnbellek = null;
+  onbellek.clear();
+  return res.status(200).json({ task: taskSatiri({ ...t, ...yeni, status: TASK_TAMAM, completedAt: yeni.completedAt || new Date().toISOString() }) });
+}
+
 // ---- Not ekle (Takip Tablosu > Bu dataları ele al) ----
 const NOT_SINIR = 3000;
 async function notEkle(req, res, yetki) {
@@ -699,6 +834,11 @@ export default async function handler(req, res) {
   }
   if (req.body?.islem === "ozet") {
     try { return await ozet(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
+  }
+  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla]]) {
+    if (req.body?.islem === ad) {
+      try { return await fn(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
+    }
   }
   if (req.body?.islem === "detay") {
     try { return await detay(req, res, yetki); } catch (err) { return res.status(502).json({ error: err.message }); }
