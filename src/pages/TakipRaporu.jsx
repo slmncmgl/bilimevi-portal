@@ -1,3 +1,4 @@
+// v6.15: rapor yüklenirken kartlar (içinde dönen halka) ve liste başlığı (Günlük Aktivite, arama, butonlar) ekranda; "alınıyor" yazısı listenin yerinde
 // v6.14: arama kutusu yazısı "Data Ara: Ad / Telefon / Mail / ID"
 // v6.13: "Günlük Aktivite" her zaman görünür; değer okunana kadar 0
 // v6.12: Data arama kutusu satırdaki boşluğu doldurur, daha belirgin (mor çerçeve, büyük yazı)
@@ -86,7 +87,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.14"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.15"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -272,24 +273,23 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           <span><b>Danışman seçin.</b> Raporu görmek için yukarıdan bir ya da birden fazla danışman seçin{isAdmin ? ", ya da önce şube seçip Tümünü seç'e basın" : ""}.</span>
         </div>
       )}
-      {danismanlar.length > 0 && yukleniyor && <div style={c.bos}><span style={c.spinner} /> Kylas'tan Datalar alınıyor...</div>}
       {danismanlar.length > 0 && !yukleniyor && hata && <div style={c.hata}>{hata}</div>}
 
-      {danismanlar.length > 0 && !yukleniyor && !hata && rapor && (
+      {danismanlar.length > 0 && (yukleniyor || (!hata && rapor)) && (
         <>
           <div style={t.kartlar}>
-            <Kart sayi={o.toplam} etiket="Açık Data" ipucu={ACIKLAMA.acik} renk="#0e7490" cerceve="#a5f3fc"
+            <Kart sayi={yukleniyor ? DONEN : o.toplam} etiket="Açık Data" ipucu={ACIKLAMA.acik} renk="#0e7490" cerceve="#a5f3fc"
               secili={gorunum === "acik"} onClick={() => setGorunum("acik")} />
-            <Kart sayi={o.ileriTask} etiket="İleri tarihli task" ipucu={ACIKLAMA.ileriTask} renk="#166534" zemin="#f0fdf4" cerceve="#86efac"
+            <Kart sayi={yukleniyor ? DONEN : o.ileriTask} etiket="İleri tarihli task" ipucu={ACIKLAMA.ileriTask} renk="#166534" zemin="#f0fdf4" cerceve="#86efac"
               secili={gorunum === "ileri"} onClick={() => setGorunum("ileri")} />
-            <Kart sayi={o.gecikmisTask} etiket="Gecikmiş task" ipucu={ACIKLAMA.gecikmisTask} renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
+            <Kart sayi={yukleniyor ? DONEN : o.gecikmisTask} etiket="Gecikmiş task" ipucu={ACIKLAMA.gecikmisTask} renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
               secili={gorunum === "gecikmis"} onClick={() => setGorunum("gecikmis")} />
-            <Kart sayi={o.takipsiz} etiket="Takipsiz" ipucu={ACIKLAMA.takipsiz(sessizGun)} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
+            <Kart sayi={yukleniyor ? DONEN : o.takipsiz} etiket="Takipsiz" ipucu={ACIKLAMA.takipsiz(sessizGun)} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
               secili={gorunum === "takipsiz"} onClick={() => setGorunum("takipsiz")} />
-            <Kart sayi={`%${takipOrani}`} etiket="Takip oranı" ipucu={ACIKLAMA.takipOrani} onClick={() => setGorunum("taskBeklenen")} />
+            <Kart sayi={yukleniyor ? DONEN : `%${takipOrani}`} etiket="Takip oranı" ipucu={ACIKLAMA.takipOrani} onClick={() => setGorunum("taskBeklenen")} />
           </div>
 
-          {coklu && karsilastirma.length > 0 && (
+          {!yukleniyor && coklu && karsilastirma.length > 0 && (
             <div style={{ ...c.tablo, marginBottom: "20px" }}>
               <div style={c.tabloBaslik}>
                 <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}><Ipucu metin={ACIKLAMA.karsilastirma}>Danışman karşılaştırması</Ipucu> · {secimBasligi}</span>
@@ -341,10 +341,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
-                <EleAlDugmesi sayi={eleAlinacak.length} disabled={aktarim} onClick={() => setEleAl(eleAlinacak)} />
+                <EleAlDugmesi sayi={yukleniyor ? 0 : eleAlinacak.length} disabled={aktarim || yukleniyor} onClick={() => setEleAl(eleAlinacak)} />
                 <KampanyaAra deger={kampanya} onChange={v => { if (rapor) sessiz.current = true; setKampanya(v); }} />
               </span>
             </div>
+            {yukleniyor ? <div style={c.bos}><span style={c.spinner} /> Kylas'tan Datalar alınıyor...</div> : <>
             <div style={t.filtreler}>
               <Cerceve tur="asama" metin="Aşama: birden fazla seçilebilir.">
                 <div style={c.chipSatir}>
@@ -436,6 +437,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               </div>
               </>
             )}
+            </>}
           </div>
         </>
       )}
@@ -487,6 +489,10 @@ function TaskHucresi({ l }) {
     </td>
   );
 }
+
+// Kart içinde sayı yerine dönen halka (rapor yüklenirken)
+const DONEN = <span style={{ display: "inline-block", width: "22px", height: "22px", border: "3px solid rgba(148,163,184,0.3)", borderTopColor: "currentColor",
+  borderRadius: "50%", animation: "spin 0.8s linear infinite", verticalAlign: "middle" }} />;
 
 // Kart: açıklaması üzerine gelince balonda. Tıklanabilir kartlarda seçili olanın çerçevesi koyulaşır.
 function Kart({ sayi, etiket, ipucu, renk = "#0f172a", zemin = "#fff", cerceve = "#e2e8f0", onClick, secili }) {
