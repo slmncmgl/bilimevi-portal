@@ -1,3 +1,5 @@
+// v2.6: "Tamamla + Yeni" task satırlarından kalktı; Yeni task penceresinde, datanın açık task'ı varsa
+//       "Eskiyi Tamamla ve Yenisini Oluştur" (birden fazla açık task'ta hangisinin tamamlanacağı seçilir).
 // v2.5: Task'lar kartının yüksekliği her zaman Yeni not kadar (task'lar taşarsa kart içinde kayar);
 //       Önceki notlar altta, üstteki iki kartın toplam genişliğinde.
 // v2.4: "Yeni not" (3/4) ve "Task'lar" (1/4) aynı satırda; "Önceki notlar" sol sütunda Yeni not'un hemen altında. Dar task sütununda
@@ -29,7 +31,7 @@
 // Her datada bilgiler ve son 10 not görünür; not yazılmadan sonrakine geçilmez. Not Kylas'a kaydedilir (islem "notEkle"),
 // başına sunucu "[Yazan · Portal]" ekler. Önceki datalara dönülebilir. Kapatınca not girilen datalar üst bileşene bildirilir.
 // EleAlDugmesi: liste başlığındaki parlayan düğme.
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { apiCagir, tarih, KYLAS_LEAD_URL, KAYNAKLAR } from "./CrmRaporu";
 import { VIP_KAYNAKLAR } from "./KaynakSecici";
@@ -188,18 +190,24 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
     setPencere(null);
   }
 
-  async function tamamla(task, yenisiDugme) {
+  // Penceredeki "Eskiyi Tamamla ve Yenisini Oluştur": önce seçilen açık task tamamlanır, sonra yeni task açılır
+  async function eskiyiTamamlaYeniOlustur(f, eskiId) {
+    const leadId = pencere.leadId;
+    const eski = (tasklar[leadId]?.tasklar || []).find(t => t.id === eskiId);
+    const d = await apiCagir({ islem: "taskTamamla", taskId: eskiId });
+    if (eski) taskGuncelle(leadId, { ...eski, ...d.task }); else taskDegisti.current = true;
+    try { await taskOlustur(f); }
+    catch (e) { throw new Error(`Eski task tamamlandı ama yenisi açılamadı: ${e.message}`); }
+  }
+
+  async function tamamla(task) {
     if (taskIslem[task.id] === "calisiyor") return;
-    const rect = yenisiDugme?.getBoundingClientRect();
     const leadId = l.id;
     setTaskIslem(s => ({ ...s, [task.id]: "calisiyor" }));
     try {
       const d = await apiCagir({ islem: "taskTamamla", taskId: task.id });
       taskGuncelle(leadId, { ...task, ...d.task });
       setTaskIslem(s => { const k = { ...s }; delete k[task.id]; return k; });
-      if (rect && leadId === leadler[siraRef.current]?.id) {
-        setPencere({ leadId, ownerId: dt?.ownerId ?? l.ownerId, rect: { sol: rect.left, sag: rect.right, ust: rect.top, alt: rect.bottom }, ilk: { ad: task.ad, tur: task.turId || 2614523 } });
-      }
     } catch (e) {
       setTaskIslem(s => ({ ...s, [task.id]: e.message }));
     }
@@ -372,8 +380,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
                   <div className="elal-task-dugmeler" style={s.taskDugmeler}>
                     {!kapali && (
                       <>
-                        <button type="button" disabled={islem === "calisiyor"} onClick={() => tamamla(t, null)} style={s.taskTamam}>{islem === "calisiyor" ? "..." : "✓ Tamamlandı"}</button>
-                        <button type="button" disabled={islem === "calisiyor"} onClick={e => tamamla(t, e.currentTarget)} style={s.taskYeni} title="Bu task'ı tamamla ve aynı adla yeni task hazırla">Tamamla + Yeni</button>
+                        <button type="button" disabled={islem === "calisiyor"} onClick={() => tamamla(t)} style={s.taskTamam}>{islem === "calisiyor" ? "..." : "✓ Tamamlandı"}</button>
                       </>
                     )}
                   </div>
@@ -405,7 +412,8 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
 
       {pencere && (
         <TaskPenceresi rect={pencere.rect} atanan={kisiAdi(pencere.ownerId)} ilk={pencere.ilk}
-          onOlustur={taskOlustur} onKapat={() => setPencere(null)} />
+          acikTasklar={(tasklar[pencere.leadId]?.tasklar || []).filter(t => t.durum === "acik" || t.durum === "surecte")}
+          onOlustur={taskOlustur} onTamamlaOlustur={eskiyiTamamlaYeniOlustur} onKapat={() => setPencere(null)} />
       )}
       {cikisSor && (
         <OnayPenceresi ikon="!" baslik="Kaydedilmemiş not var" onayMetni="Çık" vazgecMetni="Devam et"
@@ -420,8 +428,10 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
 
 // Task oluşturma penceresi: tıklanan düğmenin sağ kenarına yaslanır, sola doğru uzanır; arka plan bulanıklaşır (animasyon yok).
 // "Task oluştur" ile hemen Kylas'a yazılır (onOlustur). Esc ya da arka plana tıklama kapatır.
-function TaskPenceresi({ rect, atanan, ilk, onOlustur, onKapat }) {
+function TaskPenceresi({ rect, atanan, ilk, acikTasklar = [], onOlustur, onTamamlaOlustur, onKapat }) {
   const [f, setF] = useState(() => bosForm(ilk?.ad || "", ilk?.tur || 2614523));
+  const [eskiId, setEskiId] = useState(() => acikTasklar[0]?.id ?? null);
+  const eskiGecerli = acikTasklar.some(t => t.id === eskiId) ? eskiId : acikTasklar[0]?.id ?? null;
   const [calisiyor, setCalisiyor] = useState(false);
   const [hata, setHata] = useState(null);
   const adAlani = useRef(null);
@@ -436,8 +446,17 @@ function TaskPenceresi({ rect, atanan, ilk, onOlustur, onKapat }) {
 
   const genislik = Math.min(420, window.innerWidth - 24);
   const sag = Math.max(12, Math.min(window.innerWidth - rect.sag, window.innerWidth - genislik - 12));
-  const asagi = window.innerHeight - rect.alt > 400 || rect.ust < 400;
-  const konum = asagi ? { top: rect.alt + 10 } : { bottom: window.innerHeight - rect.ust + 10 };
+  // Yüksekliği ölçüp ekrana sığdır: tercihen düğmenin altına, sığmazsa yukarı kaydır (en az 12 px kenar boşluğu)
+  const kutuRef = useRef(null);
+  const [ust, setUst] = useState(null);
+  useLayoutEffect(() => {
+    const h = kutuRef.current?.offsetHeight || 0;
+    const asagi = window.innerHeight - rect.alt - 22 >= h || rect.ust < h + 22;
+    let t = asagi ? rect.alt + 10 : rect.ust - 10 - h;
+    t = Math.max(12, Math.min(t, window.innerHeight - h - 12));
+    setUst(t);
+  }, [acikTasklar.length, hata]);
+  const konum = { top: ust ?? 0, visibility: ust === null ? "hidden" : "visible" };
   const adOk = f.ad.trim().length >= 2;
 
   async function gonder() {
@@ -446,11 +465,17 @@ function TaskPenceresi({ rect, atanan, ilk, onOlustur, onKapat }) {
     setHata(null);
     try { await onOlustur(f); } catch (e) { setHata(e.message); setCalisiyor(false); }
   }
+  async function tamamlaVeOlustur() {
+    if (!adOk || calisiyor || !eskiGecerli) { if (!adOk) setHata("Yeni task için bir ad yaz (ör. Tekrar ara)."); return; }
+    setCalisiyor(true);
+    setHata(null);
+    try { await onTamamlaOlustur(f, eskiGecerli); } catch (e) { setHata(e.message); setCalisiyor(false); }
+  }
 
   return createPortal(
     <>
       <div style={p.arka} onMouseDown={() => !calisiyor && onKapat()} />
-      <div role="dialog" aria-modal="true" aria-label="Yeni task" 
+      <div ref={kutuRef} role="dialog" aria-modal="true" aria-label="Yeni task" 
         style={{ ...p.kutu, width: genislik, right: sag, ...konum }}>
         <div style={p.ust}>
           <span style={p.ikon}>＋</span>
@@ -485,6 +510,23 @@ function TaskPenceresi({ rect, atanan, ilk, onOlustur, onKapat }) {
               <button key={g} type="button" onClick={() => degis({ tarih: gunSonra(g) })} style={f.tarih === gunSonra(g) ? s.cipAktif : s.cip}>{ad}</button>
             ))}
           </div>
+          {acikTasklar.length > 0 && (
+            <div style={p.eskiKutu}>
+              <div style={{ fontSize: "11px", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.4px" }}>Tamamlanacak task</div>
+              {acikTasklar.length > 1 ? (
+                <select value={eskiGecerli ?? ""} onChange={e => setEskiId(Number(e.target.value))} disabled={calisiyor} style={p.girdi} aria-label="Tamamlanacak task">
+                  {acikTasklar.map(t => <option key={t.id} value={t.id}>{t.ad || "İsimsiz task"}{t.tarih ? ` · ${tarih(t.tarih)}` : ""}{t.gecikmis ? " (gecikmiş)" : ""}</option>)}
+                </select>
+              ) : (
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
+                  {acikTasklar[0].ad || "İsimsiz task"}{acikTasklar[0].tarih ? <span style={{ fontWeight: 500, color: acikTasklar[0].gecikmis ? "#b91c1c" : "#64748b" }}> · {tarih(acikTasklar[0].tarih)}{acikTasklar[0].gecikmis ? " (gecikmiş)" : ""}</span> : null}
+                </div>
+              )}
+              <button type="button" onClick={tamamlaVeOlustur} disabled={calisiyor} style={{ ...p.tamamlaOlustur, opacity: adOk ? 1 : 0.55 }}>
+                {calisiyor ? "İşleniyor..." : "Eskiyi Tamamla ve Yenisini Oluştur"}
+              </button>
+            </div>
+          )}
           {hata && <div style={{ ...s.hata, marginTop: 0 }}>{hata}</div>}
         </div>
         <div style={p.alt}>
@@ -499,7 +541,7 @@ function TaskPenceresi({ rect, atanan, ilk, onOlustur, onKapat }) {
 
 const p = {
   arka: { position: "fixed", inset: 0, zIndex: 9600, background: "rgba(15, 23, 42, 0.22)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" },
-  kutu: { position: "fixed", zIndex: 9601, background: "#fff", borderRadius: "20px", border: "1.5px solid #bbf7d0", overflow: "hidden",
+  kutu: { position: "fixed", zIndex: 9601, maxHeight: "calc(100vh - 24px)", overflowY: "auto", background: "#fff", borderRadius: "20px", border: "1.5px solid #bbf7d0",
     boxShadow: "0 24px 60px rgba(15, 23, 42, 0.28), 0 0 0 6px rgba(34, 197, 94, 0.08)", fontFamily: "'Sora', sans-serif" },
   ust: { display: "flex", alignItems: "center", gap: "12px", padding: "16px 18px", background: "linear-gradient(135deg, #f0fdf4, #ecfeff)", borderBottom: "1px solid #dcfce7" },
   ikon: { width: "34px", height: "34px", borderRadius: "11px", background: "linear-gradient(135deg, #16a34a, #0891b2)", color: "#fff", display: "inline-flex",
@@ -517,6 +559,9 @@ const p = {
   alt: { display: "flex", justifyContent: "flex-end", gap: "8px", padding: "12px 18px", background: "#f8fafc", borderTop: "1px solid #f1f5f9" },
   vazgec: { padding: "9px 16px", borderRadius: "999px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "13px", fontWeight: 600,
     cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  eskiKutu: { display: "flex", flexDirection: "column", gap: "8px", padding: "12px", borderRadius: "14px", border: "1.5px solid #bae6fd", background: "#f0f9ff" },
+  tamamlaOlustur: { padding: "10px 16px", borderRadius: "999px", border: "none", background: "linear-gradient(135deg, #0891b2, #0e7490)", color: "#fff", fontSize: "13px",
+    fontWeight: 800, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 6px 16px rgba(8,145,178,0.3)" },
   olustur: { padding: "9px 20px", borderRadius: "999px", border: "none", background: "linear-gradient(135deg, #16a34a, #059669)", color: "#fff", fontSize: "13px",
     fontWeight: 800, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 6px 16px rgba(22,163,74,0.32)" },
 };
