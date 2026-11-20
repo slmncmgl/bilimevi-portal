@@ -1,3 +1,4 @@
+// v6.5: numaraya tıklayınca danışmanın Kylas mobil uygulamasına arama bildirimi (EleAl v2.7, crm-rapor v3.11)
 // v6.4: "Eskiyi Tamamla ve Yenisini Oluştur" Yeni task penceresinde, satırlardaki "Tamamla + Yeni" kalktı (EleAl v2.6)
 // v6.3: Task'lar kartı Yeni not yüksekliğinde, Önceki notlar tam genişlikte (EleAl v2.5)
 // v6.2: "Son Etkinlik" büyük harf; VIP Datalar varsayılanda ON (FiltreCubugu v1.6)
@@ -76,7 +77,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.4"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;

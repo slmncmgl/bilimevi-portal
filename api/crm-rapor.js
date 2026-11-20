@@ -1,3 +1,6 @@
+// v3.11: islem "aramaBaslat": { leadId, telefon } -> tıklayan danışmanın Kylas mobil uygulamasına arama bildirimi
+//       (POST /v1/notifications/initiate-call, danışmanın Bearer token'ıyla; bildirim token sahibinin telefonuna gider).
+//       Numara o dataya kayıtlı olmalı (başka numara aranamaz). Bağlantı yoksa 409 { baglantiYok }. "[arama]" logu (numara loglanmaz).
 // v3.10: tumTasklar sayfaları paralel çeker, 3 dk önbellek, eşzamanlı istekler tek yüklemeyi paylaşır
 // v3.9: takip sınıflaması (ileri/gecikmiş/takipsiz) Kylas'ın taskDueOn alanı yerine GERÇEK açık task listesinden (tumTasklar):
 //       portaldan yeni açılan task'lar taskDueOn'a geç yansıdığı için ileri task'lı data takipsizde kalıyordu. İleri task'ı olan
@@ -711,6 +714,38 @@ async function ata(req, res, yetki) {
 }
 
 // ---- Data detayı (Ele al ekranı) ----
+// ---- Kylas mobil uygulamasına arama bildirimi ----
+async function aramaBaslat(req, res, yetki) {
+  if (!yazmaYetkisi(yetki, res)) return;
+  const leadId = Number(req.body?.leadId);
+  const istenen = String(req.body?.telefon || "").replace(/\s+/g, "");
+  if (!Number.isInteger(leadId) || leadId <= 0 || !istenen) return res.status(400).json({ error: "Data ya da numara eksik." });
+  const r = await kylasGet(`https://api.kylas.io/v1/leads/${leadId}`);
+  if (r.status === 404) return res.status(404).json({ error: "Data bulunamadı." });
+  if (r.status === 429) return res.status(503).json({ error: YOGUN });
+  if (!r.ok) return res.status(502).json({ error: `Data okunamadı (HTTP ${r.status})` });
+  const l = await r.json();
+  if (!sahipYetkili(yetki, l.ownerId)) return res.status(403).json({ error: "Bu Data'yı arama yetkiniz yok." });
+  const kayitli = (l.phoneNumbers || []).map(p => `${p.dialCode || ""}${p.value || ""}`.replace(/\s+/g, ""));
+  if (!kayitli.includes(istenen)) return res.status(400).json({ error: "Bu numara Data'ya kayıtlı değil." });
+  const akt = await aktorToken(req);
+  if (!akt) return res.status(409).json({ error: "Kylas bağlantın yok; arama telefonuna gönderilemiyor.", baglantiYok: true });
+  let ar;
+  for (let deneme = 1; deneme <= 2; deneme++) {
+    ar = await fetch(`https://api.kylas.io/v1/notifications/initiate-call?phoneNumber=${encodeURIComponent(istenen)}`, {
+      method: "POST", headers: { Authorization: `Bearer ${akt.token}`, Accept: "application/json", "Content-Length": "0" },
+    });
+    if (ar.status === 401 && deneme === 1) { tokenGecersiz(akt.email); const a2 = await aktorToken(req); if (a2) { akt.token = a2.token; continue; } }
+    break;
+  }
+  if (!ar.ok) {
+    console.warn(`[arama] ${yetki.ad}: data ${leadId} gönderilemedi (HTTP ${ar.status})`);
+    return res.status(ar.status === 429 ? 503 : 502).json({ error: ar.status === 429 ? YOGUN : `Arama bildirimi gönderilemedi (HTTP ${ar.status}).` });
+  }
+  console.log(`[arama] ${yetki.ad}: data ${leadId} telefona gönderildi`);
+  return res.status(200).json({ ok: true });
+}
+
 async function detay(req, res, yetki) {
   if (yetki.tur === "anonim") return res.status(401).json({ error: "Oturum doğrulanamadı. Lütfen çıkış yapıp tekrar giriş yapın." });
   if (yetki.tur === "hata") return res.status(503).json({ error: "Yetki bilgisi okunamadı, biraz sonra tekrar deneyin." });
@@ -1007,7 +1042,7 @@ export default async function handler(req, res) {
   if (req.body?.islem === "ozet") {
     try { return await ozet(req, res, yetki); } catch (err) { return hataYaz(res, err); }
   }
-  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite]]) {
+  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat]]) {
     if (req.body?.islem === ad) {
       try { return await fn(req, res, yetki); } catch (err) { return hataYaz(res, err); }
     }

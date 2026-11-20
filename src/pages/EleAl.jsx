@@ -1,3 +1,5 @@
+// v2.7: numaraya tıklayınca tıklayan danışmanın Kylas mobil uygulamasına arama bildirimi gider (islem "aramaBaslat").
+//       Sonuç numaranın yanında görünür; Kylas bağlantısı yoksa "CRM'de aç" seçeneği çıkar.
 // v2.6: "Tamamla + Yeni" task satırlarından kalktı; Yeni task penceresinde, datanın açık task'ı varsa
 //       "Eskiyi Tamamla ve Yenisini Oluştur" (birden fazla açık task'ta hangisinin tamamlanacağı seçilir).
 // v2.5: Task'lar kartının yüksekliği her zaman Yeni not kadar (task'lar taşarsa kart içinde kayar);
@@ -89,6 +91,20 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
   const taskIstenen = useRef(new Set());
   const [pencere, setPencere] = useState(null); // açık task penceresi: { leadId, ownerId, rect, ilk }
   const [taskIslem, setTaskIslem] = useState({}); // task id -> "calisiyor" | hata metni
+  const [arama, setArama] = useState(null); // { leadId, telefon, durum: "gidiyor"|"tamam"|"hata", mesaj, baglantiYok }
+  const aramaZaman = useRef(null);
+  async function aramaGonder(leadId, telefon) {
+    if (arama?.durum === "gidiyor") return;
+    clearTimeout(aramaZaman.current);
+    setArama({ leadId, telefon, durum: "gidiyor" });
+    try {
+      await apiCagir({ islem: "aramaBaslat", leadId, telefon });
+      setArama({ leadId, telefon, durum: "tamam", mesaj: "Telefonundaki Kylas'a gönderildi" });
+    } catch (e) {
+      setArama({ leadId, telefon, durum: "hata", mesaj: e.message, baglantiYok: /bağlantın yok/i.test(e.message) });
+    }
+    aramaZaman.current = setTimeout(() => setArama(a => (a?.telefon === telefon ? null : a)), 6000);
+  }
   const taskDegisti = useRef(false);
 
   const toplam = leadler.length;
@@ -307,11 +323,24 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
             {dt?.hata && <div style={{ ...s.hata, marginTop: 0, marginBottom: "14px" }}>{dt.hata} <button type="button" onClick={() => detayGetir(l)} style={s.metinDugme}>Tekrar dene</button></div>}
             <div className="elal-alanlar" style={s.alanlar}>
               <Alan ad="Telefon" bekliyor={dy}>
-                {dt?.telefonlar?.length ? <div style={s.liste}>{dt.telefonlar.map(t => (
-                  <Ipucu key={t} metin="Telefon uygulamasına göndermek için CRM arayüzündeki arama butonuna tıklayın. Numaraya tıklayınca datanın CRM sayfası açılır." isaret={false}>
-                    <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={s.iletisim}><span style={s.ikonYesil}>☎</span>{t}</a>
-                  </Ipucu>
-                ))}</div> : "-"}
+                {dt?.telefonlar?.length ? <div style={s.liste}>{dt.telefonlar.map(t => {
+                  const a = arama?.leadId === l.id && arama?.telefon === t ? arama : null;
+                  return (
+                    <div key={t} style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
+                      <Ipucu metin="Tıklayınca arama bildirimi telefonundaki Kylas uygulamasına gider (Kylas'ta oturumun açık olmalı)." isaret={false}>
+                        <button type="button" onClick={() => aramaGonder(l.id, t)} disabled={a?.durum === "gidiyor"} style={s.aramaDugme}>
+                          <span style={s.ikonYesil}>☎</span>{t}
+                        </button>
+                      </Ipucu>
+                      {a && (
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: a.durum === "hata" ? "#b91c1c" : a.durum === "tamam" ? "#166534" : "#64748b" }}>
+                          {a.durum === "gidiyor" ? "Telefona gönderiliyor..." : a.durum === "tamam" ? `✓ ${a.mesaj}` : a.mesaj}
+                          {a.baglantiYok && <> · <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={{ color: "#0891b2" }}>CRM'de aç ↗</a></>}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}</div> : "-"}
               </Alan>
               <Alan ad="E-posta" bekliyor={dy}>
                 {dt?.epostalar?.length ? <div style={s.liste}>{dt.epostalar.map(e => <a key={e} href={`mailto:${e}`} style={s.iletisim}><span style={s.ikonMavi}>@</span>{e}</a>)}</div> : "-"}
@@ -605,6 +634,8 @@ const s = {
     fontWeight: 700, color: "#0891b2", textDecoration: "none" },
   alanlar: { display: "grid", gridTemplateColumns: SUTUNLAR, gap: "20px 24px" },
   liste: { display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" },
+  aramaDugme: { display: "inline-flex", alignItems: "center", gap: "8px", padding: 0, border: "none", background: "none", color: "#2563eb", fontSize: "14px",
+    fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   iletisim: { display: "inline-flex", alignItems: "center", gap: "8px", color: "#2563eb", textDecoration: "none", fontWeight: 600 },
   ikonYesil: { width: "22px", height: "22px", borderRadius: "7px", background: "#dcfce7", color: "#16a34a", display: "inline-flex",
     alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0 },
