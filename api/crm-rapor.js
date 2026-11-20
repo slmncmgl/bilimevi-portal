@@ -1,3 +1,5 @@
+// v3.12: aramaBaslat isteği Kylas web'inki gibi Origin/Referer (app.kylas.io) ile gider; yanıtta bildirimin gittiği hesap
+//       (ad, Kylas ID) ve Kylas'ın HTTP kodu döner, ekranda görünür. Log'a da yazılır.
 // v3.11: islem "aramaBaslat": { leadId, telefon } -> tıklayan danışmanın Kylas mobil uygulamasına arama bildirimi
 //       (POST /v1/notifications/initiate-call, danışmanın Bearer token'ıyla; bildirim token sahibinin telefonuna gider).
 //       Numara o dataya kayıtlı olmalı (başka numara aranamaz). Bağlantı yoksa 409 { baglantiYok }. "[arama]" logu (numara loglanmaz).
@@ -124,7 +126,7 @@ async function aktorToken(req) {
   if (!b?.sifreli) return null;
   try {
     const token = await kullaniciTokeni(email, coz(b.sifreli));
-    return { email, token, kylasId: Number(b.kylasId) || null };
+    return { email, token, kylasId: Number(b.kylasId) || null, ad: b.ad || "" };
   } catch (e) { console.warn(`[token] ${email}: ${e.message}`); return null; }
 }
 
@@ -733,7 +735,8 @@ async function aramaBaslat(req, res, yetki) {
   let ar;
   for (let deneme = 1; deneme <= 2; deneme++) {
     ar = await fetch(`https://api.kylas.io/v1/notifications/initiate-call?phoneNumber=${encodeURIComponent(istenen)}`, {
-      method: "POST", headers: { Authorization: `Bearer ${akt.token}`, Accept: "application/json", "Content-Length": "0" },
+      method: "POST",
+      headers: { Authorization: `Bearer ${akt.token}`, Accept: "application/json", "Content-Length": "0", Origin: "https://app.kylas.io", Referer: "https://app.kylas.io/" },
     });
     if (ar.status === 401 && deneme === 1) { tokenGecersiz(akt.email); const a2 = await aktorToken(req); if (a2) { akt.token = a2.token; continue; } }
     break;
@@ -742,8 +745,8 @@ async function aramaBaslat(req, res, yetki) {
     console.warn(`[arama] ${yetki.ad}: data ${leadId} gönderilemedi (HTTP ${ar.status})`);
     return res.status(ar.status === 429 ? 503 : 502).json({ error: ar.status === 429 ? YOGUN : `Arama bildirimi gönderilemedi (HTTP ${ar.status}).` });
   }
-  console.log(`[arama] ${yetki.ad}: data ${leadId} telefona gönderildi`);
-  return res.status(200).json({ ok: true });
+  console.log(`[arama] ${yetki.ad}: data ${leadId} -> ${akt.ad || akt.email} (Kylas ${akt.kylasId}) telefonuna gönderildi, Kylas HTTP ${ar.status}`);
+  return res.status(200).json({ ok: true, kime: akt.ad || akt.email, kylasId: akt.kylasId, kylasDurum: ar.status });
 }
 
 async function detay(req, res, yetki) {

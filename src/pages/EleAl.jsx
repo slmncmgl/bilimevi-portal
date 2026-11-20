@@ -1,3 +1,4 @@
+// v2.8: arama sonucu, bildirimin gittiği Kylas hesabını ve Kylas yanıt kodunu gösterir; süre 6 sn -> 12 sn
 // v2.7: numaraya tıklayınca tıklayan danışmanın Kylas mobil uygulamasına arama bildirimi gider (islem "aramaBaslat").
 //       Sonuç numaranın yanında görünür; Kylas bağlantısı yoksa "CRM'de aç" seçeneği çıkar.
 // v2.6: "Tamamla + Yeni" task satırlarından kalktı; Yeni task penceresinde, datanın açık task'ı varsa
@@ -98,12 +99,12 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
     clearTimeout(aramaZaman.current);
     setArama({ leadId, telefon, durum: "gidiyor" });
     try {
-      await apiCagir({ islem: "aramaBaslat", leadId, telefon });
-      setArama({ leadId, telefon, durum: "tamam", mesaj: "Telefonundaki Kylas'a gönderildi" });
+      const d = await apiCagir({ islem: "aramaBaslat", leadId, telefon });
+      setArama({ leadId, telefon, durum: "tamam", mesaj: `${d.kime || "Hesabın"} (Kylas ${d.kylasId ?? "?"}) telefonuna gönderildi · Kylas ${d.kylasDurum ?? ""}` });
     } catch (e) {
       setArama({ leadId, telefon, durum: "hata", mesaj: e.message, baglantiYok: /bağlantın yok/i.test(e.message) });
     }
-    aramaZaman.current = setTimeout(() => setArama(a => (a?.telefon === telefon ? null : a)), 6000);
+    aramaZaman.current = setTimeout(() => setArama(a => (a?.telefon === telefon ? null : a)), 12000);
   }
   const taskDegisti = useRef(false);
 
