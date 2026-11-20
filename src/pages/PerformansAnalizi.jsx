@@ -1,3 +1,4 @@
+// v4.5: sekme çubuğu sayfa genişliğinde, sekmeler eşit bölümlerde ve yazılar bölümlerinin ortasında
 // v4.4: Takip Tablosu v3.7 (Campaign Name araması)
 // v4.3: Takip Tablosu v3.6 (Danışman Ata), Data Tablosu v3.2
 // v4.2: Aktivite Tablosu -> Takip Tablosu; açılışta tüm kaynaklar; VIP Datalar ON/OFF
@@ -42,7 +43,7 @@ import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerl
 import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v4.4"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v4.5"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
@@ -405,7 +406,7 @@ const s = {
   tableTitle: { fontSize: "14px", fontWeight: "700", color: "#0f172a" },
   th: { padding: "10px 16px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" },
   td: { padding: "12px 16px", verticalAlign: "middle" },
-  sekmeler: { display: "inline-flex", gap: "4px", padding: "4px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", marginBottom: "20px" },
-  sekme: { padding: "8px 18px", border: "none", borderRadius: "8px", background: "transparent", color: "#64748b", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
-  sekmeAktif: { padding: "8px 18px", border: "none", borderRadius: "8px", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  sekmeler: { display: "flex", width: "100%", boxSizing: "border-box", gap: "4px", padding: "4px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", marginBottom: "20px" },
+  sekme: { flex: "1 1 0", minWidth: 0, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", padding: "8px 12px", border: "none", borderRadius: "8px", background: "transparent", color: "#64748b", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  sekmeAktif: { flex: "1 1 0", minWidth: 0, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", padding: "8px 12px", border: "none", borderRadius: "8px", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
 };
