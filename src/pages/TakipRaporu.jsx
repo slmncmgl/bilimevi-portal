@@ -1,3 +1,4 @@
+// v6.14: arama kutusu yazısı "Data Ara: Ad / Telefon / Mail / ID"
 // v6.13: "Günlük Aktivite" her zaman görünür; değer okunana kadar 0
 // v6.12: Data arama kutusu satırdaki boşluğu doldurur, daha belirgin (mor çerçeve, büyük yazı)
 // v6.11: liste başlığında danışman/kart özeti yok, sadece "Günlük Aktivite: N"
@@ -85,7 +86,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.13"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.14"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -334,7 +335,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               </span>
               <span style={t.dataAra}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.4" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
-                <input value={dataAra} onChange={e => setDataAra(e.target.value)} placeholder="Data ara: ad, ID, telefon, e-posta" maxLength={60}
+                <input value={dataAra} onChange={e => setDataAra(e.target.value)} placeholder="Data Ara: Ad / Telefon / Mail / ID" maxLength={60}
                   aria-label="Listede Data ara" style={t.dataAraGirdi} />
                 {dataAra && <button type="button" onClick={() => setDataAra("")} aria-label="Aramayı temizle" style={t.dataAraSil}>✕</button>}
               </span>
