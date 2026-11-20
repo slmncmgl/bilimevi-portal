@@ -1,3 +1,4 @@
+// v6.18: arama kutusu veri kaynağı kutusuyla aynı genişlikte, solda; Günlük Aktivite sağında
 // v6.17: diğer sekmelerdeki yükleme yazıları da "CRM'den ... Alınıyor..."
 // v6.16: yükleme yazısı "CRM'den Datalar Alınıyor..."
 // v6.15: rapor yüklenirken kartlar (içinde dönen halka) ve liste başlığı (Günlük Aktivite, arama, butonlar) ekranda; "alınıyor" yazısı listenin yerinde
@@ -89,7 +90,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.17"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.18"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -145,6 +146,17 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [gorunum, setGorunum] = useState("takipsiz"); // GORUNUMLER anahtarı: acik | taskBeklenen | ileri | gecikmis | takipsiz
   const notOnbellek = useRef({});
   const [eleAl, setEleAl] = useState(null); // ele alınan datalar (tam ekran açıkken)
+  // Arama kutusu, filtre çubuğundaki veri kaynağı kutusuyla (Tüm Kaynaklar + VIP) aynı genişlikte
+  const [kaynakEn, setKaynakEn] = useState(0);
+  useEffect(() => {
+    const el = document.querySelector("[data-kaynak-kutu]");
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const olc = () => setKaynakEn(Math.round(el.getBoundingClientRect().width));
+    olc();
+    const g = new ResizeObserver(olc);
+    g.observe(el);
+    return () => g.disconnect();
+  }, []);
   const [dataAra, setDataAra] = useState(""); // liste içi Data araması (ad, ID, telefon)
   const [aktivite, setAktivite] = useState(null); // bugün portaldan not girilen Data sayısı
   const [aktiviteYenile, setAktiviteYenile] = useState(0);
@@ -328,6 +340,12 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
           <div style={{ ...c.tablo, opacity: arkaYukleniyor ? 0.55 : 1, transition: "opacity 0.2s" }}>
             <div style={c.tabloBaslik}>
+              <span style={{ ...t.dataAra, ...(kaynakEn ? { flex: `0 1 ${kaynakEn}px`, width: `${kaynakEn}px` } : null) }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.4" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+                <input value={dataAra} onChange={e => setDataAra(e.target.value)} placeholder="Data Ara: Ad / Telefon / Mail / ID" maxLength={60}
+                  aria-label="Listede Data ara" style={t.dataAraGirdi} />
+                {dataAra && <button type="button" onClick={() => setDataAra("")} aria-label="Aramayı temizle" style={t.dataAraSil}>✕</button>}
+              </span>
               <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
                 {(
                   <Ipucu metin="Bugün bu danışman adına açılan not sayısı (portaldan; bağlı danışmanlarda Kylas'ta kendi adına görünür). Gece 00:00'da sıfırlanır." isaret={false}>
@@ -335,13 +353,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   </Ipucu>
                 )}
               </span>
-              <span style={t.dataAra}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.4" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
-                <input value={dataAra} onChange={e => setDataAra(e.target.value)} placeholder="Data Ara: Ad / Telefon / Mail / ID" maxLength={60}
-                  aria-label="Listede Data ara" style={t.dataAraGirdi} />
-                {dataAra && <button type="button" onClick={() => setDataAra("")} aria-label="Aramayı temizle" style={t.dataAraSil}>✕</button>}
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "10px", marginLeft: "auto" }}>
                 {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
                 <EleAlDugmesi sayi={yukleniyor ? 0 : eleAlinacak.length} disabled={aktarim || yukleniyor} onClick={() => setEleAl(eleAlinacak)} />
                 <KampanyaAra deger={kampanya} onChange={v => { if (rapor) sessiz.current = true; setKampanya(v); }} />

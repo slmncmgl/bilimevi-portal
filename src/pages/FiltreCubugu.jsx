@@ -39,6 +39,7 @@ export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
               bosMetin={danisman.bosMetin} yukleniyor={danisman.yukleniyor} />
           </Cerceve>
         )}
+        <div data-kaynak-kutu style={{ display: "flex" }}>
         <Cerceve tur="kaynak">
           <KaynakSecici kaynaklar={KAYNAKLAR} secili={kaynak.secili} onChange={kaynak.onChange} bosMetin={kaynak.bosMetin || "Tüm Kaynaklar"} />
           <Ipucu metin={VIP_ACIKLAMA} isaret={false}>
@@ -48,6 +49,7 @@ export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
             </button>
           </Ipucu>
         </Cerceve>
+        </div>
         <Cerceve tur="tarih" metin={ipucu}>
           <TarihSecici {...tarihOzellik} />
         </Cerceve>
