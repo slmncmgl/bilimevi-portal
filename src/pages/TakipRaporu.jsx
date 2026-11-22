@@ -1,3 +1,4 @@
+// v6.26: Berat (berat@bilimevi.com) açılışta sadece Instagram DM seçili; seçimi değiştirebilir
 // v6.25: Hatırlat mesajı yeni biçimde: Data Kaynağı + Son Aktivite (crm-rapor v3.16)
 // v6.24: Data ID sütunu kalktı (ad CRM'i açar, üzerine gelince ID + kopyala), Son aktivite "N gün önce", Hatırlat zil ikonu
 // v6.23: admin/director/owner için satır sonunda Hatırlat: danışmana WhatsApp (Hatirlat.jsx, crm-rapor v3.15)
@@ -99,7 +100,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.25"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.26"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -124,6 +125,10 @@ const ACIKLAMA = {
   vip: "Referans, Bilgi İstek Formu, Ofis, Instagram DM, Eski Öğrenci, Setrow Marketing. Tekrar tıklayınca VIP filtresi kalkar.",
 };
 
+// Kişiye özel açılış kaynağı (e-posta -> kaynak id'leri). Sadece ilk seçim, kişi sonra değiştirebilir.
+const ACILIS_KAYNAKLARI = { "berat@bilimevi.com": [2614515] }; // Instagram DM
+export const acilisKaynaklari = user => ACILIS_KAYNAKLARI[kucuk(user?.email)] || TUM_KAYNAKLAR;
+
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const zm = v => (v ? new Date(v).getTime() : 0);
 const sonEtkinlikSirasi = (a, b) => zm(a.sonAktivite) - zm(b.sonAktivite);
@@ -147,7 +152,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState(null);
   const [asamaSecim, setAsamaSecim] = useState([]); // boşsa tüm aşamalar
-  const [kaynaklar, setKaynaklar] = useState(TUM_KAYNAKLAR); // açılışta tüm kaynaklar; boşsa da tüm kaynaklar
+  const [kaynaklar, setKaynaklar] = useState(() => acilisKaynaklari(user)); // açılışta tüm kaynaklar (Berat: Instagram DM); boşsa da tüm kaynaklar
   const [kampanya, setKampanya] = useState(""); // Campaign Name içerir araması
   const [sayfaBoyu, setSayfaBoyu] = useState(20);
   const [sayfa, setSayfa] = useState(1);
