@@ -1,3 +1,4 @@
+// v6.30: Son aktivite yazısı güne göre renkli: yakın tarih turuncu, eskidikçe koyu kırmızı ve kalın (90 gün ve üstü ile "Hiç yok" en koyu)
 // v6.29: Reklam Adı sadece Instagram ve Facebook datalarında; listede hiç yoksa sütun gizli
 // v6.28: "Campaign Name" sütun ve filtre adı "Reklam Adı"; toplu mesaj "en kısa sürede ilgilenebilir misiniz?" (crm-rapor v3.18)
 // v6.27: aşama düğmelerinin sağında Campaign Name hunisi ve mor toplu hatırlatma zili (crm-rapor v3.17); arama kutusu Dataları Ele Al'a kadar uzar
@@ -98,12 +99,12 @@ import { VIP_KAYNAKLAR } from "./KaynakSecici";
 import FiltreCubugu, { KampanyaAra } from "./FiltreCubugu";
 import DanismanAta from "./DanismanAta";
 import EleAl, { EleAlDugmesi } from "./EleAl";
-import { gunOnceYazi } from "../lib/gunOnce";
+import { gunOnceYazi, gunSayisi } from "../lib/gunOnce";
 import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.29"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.30"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -135,6 +136,13 @@ export const acilisKaynaklari = user => ACILIS_KAYNAKLARI[kucuk(user?.email)] ||
 // Reklam Adı sadece reklamdan gelen kaynaklarda anlamlı (Instagram DM reklam değil)
 const REKLAM_KAYNAKLARI = [2675584, 2674021]; // Instagram, Facebook
 const reklamli = l => REKLAM_KAYNAKLARI.includes(l.kaynak);
+
+// Son aktivite rengi: 0 gün turuncu, 90 gün ve üstü koyu kırmızı; arası doğrusal geçiş, eskidikçe kalınlaşır
+const ESKI_GUN = 90;
+const sonAktiviteStili = v => {
+  const o = Math.min(Math.max(gunSayisi(v), 0), ESKI_GUN) / ESKI_GUN;
+  return { color: `hsl(${Math.round(25 - 25 * o)}, ${Math.round(90 - 15 * o)}%, ${Math.round(45 - 15 * o)}%)`, fontWeight: o >= 0.5 ? 800 : o >= 0.15 ? 700 : 600 };
+};
 
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const zm = v => (v ? new Date(v).getTime() : 0);
@@ -447,7 +455,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           )}
                           {taskSutunu && <TaskHucresi l={l} />}
                           <td style={{ ...c.td, whiteSpace: "nowrap" }}>
-                            {l.sonAktivite ? <Ipucu metin={tarih(l.sonAktivite, true)} isaret={false}>{gunOnceYazi(l.sonAktivite)}</Ipucu> :<span style={{ color: "#dc2626" }}>Hiç yok</span>}
+                            {l.sonAktivite ? <Ipucu metin={tarih(l.sonAktivite, true)} isaret={false}><span style={sonAktiviteStili(l.sonAktivite)}>{gunOnceYazi(l.sonAktivite)}</span></Ipucu>  : <span style={{ color: "hsl(0, 75%, 30%)", fontWeight: 800 }}>Hiç yok</span>}
                           </td>
                           <td style={{ ...c.td, textAlign: "center" }}><NotBalonu lead={l} onbellek={notOnbellek} /></td>
                           {isAdmin && (
