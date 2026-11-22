@@ -1,3 +1,4 @@
+// v6.29: Reklam Adı sadece Instagram ve Facebook datalarında; listede hiç yoksa sütun gizli
 // v6.28: "Campaign Name" sütun ve filtre adı "Reklam Adı"; toplu mesaj "en kısa sürede ilgilenebilir misiniz?" (crm-rapor v3.18)
 // v6.27: aşama düğmelerinin sağında Campaign Name hunisi ve mor toplu hatırlatma zili (crm-rapor v3.17); arama kutusu Dataları Ele Al'a kadar uzar
 // v6.26: Berat (berat@bilimevi.com) açılışta sadece Instagram DM seçili; seçimi değiştirebilir
@@ -102,7 +103,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.28"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.29"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -130,6 +131,10 @@ const ACIKLAMA = {
 // Kişiye özel açılış kaynağı (e-posta -> kaynak id'leri). Sadece ilk seçim, kişi sonra değiştirebilir.
 const ACILIS_KAYNAKLARI = { "berat@bilimevi.com": [2614515] }; // Instagram DM
 export const acilisKaynaklari = user => ACILIS_KAYNAKLARI[kucuk(user?.email)] || TUM_KAYNAKLAR;
+
+// Reklam Adı sadece reklamdan gelen kaynaklarda anlamlı (Instagram DM reklam değil)
+const REKLAM_KAYNAKLARI = [2675584, 2674021]; // Instagram, Facebook
+const reklamli = l => REKLAM_KAYNAKLARI.includes(l.kaynak);
 
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const zm = v => (v ? new Date(v).getTime() : 0);
@@ -268,6 +273,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   useEffect(() => { setDataAra(""); }, [gorunum, listeSahip]);
   const sayfaSayisi = Math.max(1, Math.ceil(liste.length / sayfaBoyu));
   const gecerliSayfa = Math.min(sayfa, sayfaSayisi);
+  const reklamSutunu = liste.some(reklamli); // tüm listeye bakılır, sayfa değişince sütun oynamasın
   const sayfaListesi = liste.slice((gecerliSayfa - 1) * sayfaBoyu, gecerliSayfa * sayfaBoyu);
   // Ele al: listede işaretli data varsa onlar, yoksa listedeki tümü (liste sırasıyla)
   const isaretliListede = liste.filter(x => isaretli.includes(x.id));
@@ -409,7 +415,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                             style={{ accentColor: "#0891b2", cursor: "pointer" }} />
                         </th>
                       )}
-                      {["Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak", "Reklam Adı"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
+                      {["Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak", ...(reklamSutunu ? ["Reklam Adı"] : [])].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
                       {taskSutunu && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}><Ipucu metin={ACIKLAMA.sonAktivite}>Son aktivite</Ipucu></th>
                       <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Notlar</th>
@@ -434,9 +440,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                             {kaynakAdi(l.kaynak)}
                             {VIP_KAYNAKLAR.includes(l.kaynak) && <span style={t.vip}>VIP</span>}
                           </td>
-                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>
-                            {l.kampanya ? <KampanyaHucresi metin={l.kampanya} /> : <span style={{ color: "#cbd5e1" }}>·</span>}
-                          </td>
+                          {reklamSutunu && (
+                            <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>
+                              {reklamli(l) && l.kampanya ? <KampanyaHucresi metin={l.kampanya} /> : <span style={{ color: "#cbd5e1" }}>·</span>}
+                            </td>
+                          )}
                           {taskSutunu && <TaskHucresi l={l} />}
                           <td style={{ ...c.td, whiteSpace: "nowrap" }}>
                             {l.sonAktivite ? <Ipucu metin={tarih(l.sonAktivite, true)} isaret={false}>{gunOnceYazi(l.sonAktivite)}</Ipucu> :<span style={{ color: "#dc2626" }}>Hiç yok</span>}
