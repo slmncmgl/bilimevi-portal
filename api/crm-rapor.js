@@ -1,3 +1,5 @@
+// v3.15: islem "hatirlat": { leadId, onizleme, beklenenSahip?, not? } -> datanın danışmanına WhatsApp hatırlatması (n8n data-hatirlat).
+//       Sadece admin/director/owner, izleme modu yok. Gönderen oturumdan, data ve danışman Kylas'tan. "[hatirlat]" logu (metin loglanmaz).
 // v3.14: takip listesi satırlarında "eposta" da döner (Data araması e-postayla da süzer)
 // v3.13: takip listesindeki her satırda "tel" (telefonların rakamları) döner; ekrandaki Data araması ad, ID ve telefonla süzer
 // v3.12: aramaBaslat isteği Kylas web'inki gibi Origin/Referer (app.kylas.io) ile gider; yanıtta bildirimin gittiği hesap
@@ -1029,6 +1031,64 @@ async function notEkle(req, res, yetki) {
 // Beklenmeyen hata: Kylas yoğunsa 503 (tarayıcı tekrar dener), diğerleri 502
 const hataYaz = (res, err) => res.status(err.message === YOGUN ? 503 : 502).json({ error: err.message });
 
+// Hatırlatma mesajındaki task satırı (gün farkı İstanbul takvimiyle)
+function taskYazisi(due, simdi = Date.now()) {
+  if (!due) return "Task yok";
+  const gun = ms => Math.floor((ms + 3 * 60 * 60 * 1000) / GUN_MS);
+  const t = zaman(due);
+  if (t >= simdi) return `Task: ${new Date(t).toLocaleDateString("tr-TR", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", year: "numeric" })}`;
+  const fark = gun(simdi) - gun(t);
+  return fark ? `Task: ${fark} gün gecikti` : "Task: bugün, saati geçti";
+}
+
+async function hatirlat(req, res, yetki) {
+  if (!yazmaYetkisi(yetki, res)) return;
+  if (yetki.tur !== "admin") return res.status(403).json({ error: "Hatırlatmayı sadece yöneticiler gönderebilir." });
+  const leadId = Number(req.body?.leadId);
+  const notMetni = req.body?.not ?? "";
+  const onizleme = req.body?.onizleme !== false;
+  if (!Number.isInteger(leadId) || leadId <= 0) return res.status(400).json({ error: "Geçersiz Data." });
+  if (typeof notMetni !== "string" || notMetni.length > 300) return res.status(400).json({ error: "Not en fazla 300 karakter olabilir." });
+  if (!process.env.N8N_PORTAL_TOKEN) return res.status(500).json({ error: "N8N_PORTAL_TOKEN tanımlı değil." });
+
+  const d = await kylasAra([kural("id", "equal", leadId)], 0, [...LISTE_ALANLARI, "pipeline"]);
+  const l = (d.content || [])[0];
+  if (!l) return res.status(404).json({ error: "Data bulunamadı." });
+  const ownerId = Number(l.ownerId);
+  if (!TAKIP_ASAMALARI.includes(l.pipelineStage)) return res.status(422).json({ error: "Data artık açık aşamada değil, listeyi yenileyin." });
+  if (!onizleme && Number(req.body?.beklenenSahip) !== ownerId) return res.status(409).json({ error: "Datanın danışmanı değişmiş. Pencereyi kapatıp yeniden açın." });
+  const danisman = [...(await dizinGetir()).kisiler.values()].find(k => k.kylasId === ownerId && satisBul(k.ad));
+  if (!danisman) return res.status(422).json({ error: "Datanın sahibi satış ekibinde değil." });
+
+  let due = l.taskDueOn;
+  try {
+    const simdi = Date.now();
+    const acikTasklar = (await tumTasklar())
+      .filter(t => Number(taskLead(t)) === leadId && t.dueDate && t.status !== TASK_TAMAM && t.status !== TASK_IPTAL)
+      .sort((a, b) => zaman(a.dueDate) - zaman(b.dueDate));
+    due = (acikTasklar.find(t => zaman(t.dueDate) >= simdi) || acikTasklar[0])?.dueDate || null;
+  } catch (e) { console.warn(`[hatirlat] task listesi alınamadı, taskDueOn kullanılıyor: ${e.message}`); }
+
+  let r;
+  try {
+    r = await fetch(`${N8N_WEBHOOK}/data-hatirlat`, {
+      method: "POST",
+      signal: AbortSignal.timeout(40000),
+      headers: { "Content-Type": "application/json", "X-Portal-Token": process.env.N8N_PORTAL_TOKEN },
+      body: JSON.stringify({
+        gonderen: yetki.ad, danisman: danisman.ad, onizleme, not: notMetni.trim(),
+        data: { id: leadId, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), asama: ASAMALAR.find(a => a.id === l.pipelineStage).ad, task: taskYazisi(due) },
+      }),
+    });
+  } catch {
+    return res.status(502).json({ error: onizleme ? "Hatırlatma servisine ulaşılamadı." : "Yanıt alınamadı. Mesaj gitmiş olabilir, tekrar göndermeden önce kontrol edin." });
+  }
+  const y = await r.json().catch(() => ({}));
+  if (!onizleme) console.log(`[hatirlat] ${yetki.ad} -> ${danisman.ad}, data ${leadId}: HTTP ${r.status}${y.hat ? ` (${y.hat})` : ""}`);
+  if (!r.ok || !y.metin) return res.status([409, 422].includes(r.status) ? r.status : 502).json({ error: y.error || "Hatırlatma servisi yanıt vermedi." });
+  return res.status(200).json({ ...y, ownerId });
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   if (!oturumKontrol(req, res, "crm-rapor")) return;
@@ -1049,7 +1109,7 @@ export default async function handler(req, res) {
   if (req.body?.islem === "ozet") {
     try { return await ozet(req, res, yetki); } catch (err) { return hataYaz(res, err); }
   }
-  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat]]) {
+  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat], ["hatirlat", hatirlat]]) {
     if (req.body?.islem === ad) {
       try { return await fn(req, res, yetki); } catch (err) { return hataYaz(res, err); }
     }

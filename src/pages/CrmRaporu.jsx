@@ -1,3 +1,4 @@
+// v3.7: apiCagir: hatirlat isteği kendiliğinden tekrarlanmaz (çift WhatsApp olmasın)
 // v3.6: danışman seçimi tekli, Danışman sütunu yok; "Tüm danışmanlar"da sadece toplam satırı
 // v3.5: VIP Datalar varsayılanda ON, "Tüm Kaynaklar" (FiltreCubugu v1.6)
 // v3.4: apiCagir: Kylas yoğunken (503) okuma istekleri 2 ve 4 sn sonra tekrar denenir
@@ -61,7 +62,7 @@ export const KAYNAKLAR = [
 ];
 
 const TUMU = "tumu"; // danışman seçicisindeki "Tüm danışmanlar"
-export const CRM_SURUM = "v3.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v3.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const TUM_KAYNAKLAR = KAYNAKLAR.map(k => k.id);
 // Hepsi seçiliyse kaynak filtresi gönderilmez (kaynağı boş datalar da sayılır)
@@ -71,7 +72,7 @@ export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${
 
 // Kylas yoğunsa (sunucu 503 döner) okuma istekleri 2 ve 4 sn sonra kendiliğinden tekrar denenir.
 // Yazma istekleri (not, task, atama) tekrarlanmaz: sunucu zaten kendi içinde tekrar dener, çift kayıt olmasın.
-const YAZMA_ISLEMLERI = ["notEkle", "taskEkle", "taskTamamla", "ata", "aramaBaslat"];
+const YAZMA_ISLEMLERI = ["notEkle", "taskEkle", "taskTamamla", "ata", "aramaBaslat", "hatirlat"];
 export async function apiCagir(govde) {
   const okuma = !YAZMA_ISLEMLERI.includes(govde?.islem);
   for (let deneme = 1; ; deneme++) {

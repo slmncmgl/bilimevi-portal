@@ -1,10 +1,11 @@
+// v1.2: onayPasif özelliği (Hatırlat penceresi)
 // v1.1: ikon özelliği (varsayılan ⇄); Ele al çıkış onayında "!"
 // v1.0: portal renklerinde onay penceresi (tarayıcının confirm kutusu yerine). Data Tablosu > Danışman Ata kullanır.
 // Esc ya da arka plana tıklama: Vazgeç. Açılınca odak onay düğmesinde, Enter onaylar.
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-export default function OnayPenceresi({ ikon = "⇄", baslik, children, onayMetni = "Onayla", vazgecMetni = "Vazgeç", onOnay, onVazgec }) {
+export default function OnayPenceresi({ ikon = "⇄", baslik, children, onayMetni = "Onayla", vazgecMetni = "Vazgeç", onayPasif = false, onOnay, onVazgec }) {
   const onayRef = useRef(null);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function OnayPenceresi({ ikon = "⇄", baslik, children, onayMetn
         <div style={o.govde}>{children}</div>
         <div style={o.alt}>
           <button type="button" onClick={onVazgec} style={o.vazgec}>{vazgecMetni}</button>
-          <button type="button" ref={onayRef} onClick={onOnay} style={o.onay}>{onayMetni}</button>
+          <button type="button" ref={onayRef} onClick={onOnay} disabled={onayPasif} style={onayPasif ? { ...o.onay, opacity: 0.45, cursor: "default" } : o.onay}>{onayMetni}</button>
         </div>
       </div>
     </div>,

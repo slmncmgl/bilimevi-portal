@@ -1,3 +1,4 @@
+// v6.23: admin/director/owner için satır sonunda Hatırlat: danışmana WhatsApp (Hatirlat.jsx, crm-rapor v3.15)
 // v6.22: danışman seçimi tekli, tablolarda Danışman sütunu çıkmaz
 // v6.21: kaynak listesinde sol sütun VIP olmayanlar, sağ sütun VIP'ler, alfabetik (KaynakSecici v1.3)
 // v6.20: renkli çerçeveler 9 tuşu 2 sn basılı tutulunca kapanır/açılır (CrmRaporu Cerceve)
@@ -91,10 +92,11 @@ import { VIP_KAYNAKLAR } from "./KaynakSecici";
 import FiltreCubugu, { KampanyaAra } from "./FiltreCubugu";
 import DanismanAta from "./DanismanAta";
 import EleAl, { EleAlDugmesi } from "./EleAl";
+import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.22"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.23"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -149,6 +151,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [sayfa, setSayfa] = useState(1);
   const [gorunum, setGorunum] = useState("takipsiz"); // GORUNUMLER anahtarı: acik | taskBeklenen | ileri | gecikmis | takipsiz
   const notOnbellek = useRef({});
+  const [hatirlatLead, setHatirlatLead] = useState(null); // Hatırlat penceresi açık olan data
   const [eleAl, setEleAl] = useState(null); // ele alınan datalar (tam ekran açıkken)
   // Arama kutusu, altındaki aşama çerçevesiyle (Tümü, Na1, ...) aynı genişlikte
   const [asamaEl, setAsamaEl] = useState(null);
@@ -400,6 +403,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                       {taskSutunu && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}><Ipucu metin={ACIKLAMA.sonAktivite}>Son aktivite</Ipucu></th>
                       <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Notlar</th>
+                      {isAdmin && <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Hatırlatma</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -431,6 +435,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                             {l.sonAktivite ? tarih(l.sonAktivite) :<span style={{ color: "#dc2626" }}>Hiç yok</span>}
                           </td>
                           <td style={{ ...c.td, textAlign: "center" }}><NotBalonu lead={l} onbellek={notOnbellek} /></td>
+                          {isAdmin && (
+                            <td style={{ ...c.td, textAlign: "center" }}>
+                              <button type="button" onClick={() => setHatirlatLead(l)} disabled={aktarim} style={t.hatirlat}>Hatırlat</button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -461,6 +470,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           </div>
         </>
       )}
+      {hatirlatLead && <Hatirlat key={hatirlatLead.id} lead={hatirlatLead} onKapat={() => setHatirlatLead(null)} />}
       {eleAl && (
         <EleAl leadler={eleAl} kisiAdi={kisiAdi} listeAdi={gorunumTanim.ad}
           onKapat={(idler, taskDegisti) => {
@@ -532,6 +542,7 @@ function Kart({ sayi, etiket, ipucu, renk = "#0f172a", zemin = "#fff", cerceve =
 // VIP Datalar düğmesi: arkada dönen konik renk geçişi 2px'lik neon çerçeve gibi görünür, dışta altın parıltı nefes alır
 
 const t = {
+  hatirlat: { padding: "4px 12px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#f0fdf4", color: "#166534", fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Sora', sans-serif" },
   uyari: { display: "flex", alignItems: "center", gap: "12px", padding: "16px 20px", marginBottom: "20px", borderRadius: "16px",
     background: "#fffbeb", border: "1.5px solid #fde68a", color: "#92400e", fontSize: "14px", lineHeight: 1.5, animation: "fadeUp 0.3s ease-out" },
   uyariIkon: { flex: "0 0 auto", width: "26px", height: "26px", borderRadius: "50%", background: "#f59e0b", color: "#fff", fontWeight: 800,
