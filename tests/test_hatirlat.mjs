@@ -66,10 +66,10 @@ kopuk = false; asama = 217287; assert.equal((await iste("ali@x.com")).code, 422)
 asama = 218702; sahip = 555; assert.equal((await iste("ali@x.com")).code, 422);
 
 // ---- toplu ----
-assert.equal(topluCumle(12, "takipsiz", []), "12 takipsiz datanızla ilgilenir misiniz?");
-assert.equal(topluCumle(12, "takipsiz", [222366, 253357, 253358, 218701, 218702]), "12 takipsiz datanızla ilgilenir misiniz?");
-assert.equal(topluCumle(3, "takipsiz", [222366]), "Na1 aşamasındaki 3 takipsiz datanızla ilgilenir misiniz?");
-assert.equal(topluCumle(5, "gecikmis", [218702, 222366, 218701]), "Na1, Görüşme ve İlgili aşamalarındaki 5 gecikmiş task'lı datanızla ilgilenir misiniz?");
+assert.equal(topluCumle(12, "takipsiz", []), "12 takipsiz datanızla en kısa sürede ilgilenebilir misiniz?");
+assert.equal(topluCumle(12, "takipsiz", [222366, 253357, 253358, 218701, 218702]), "12 takipsiz datanızla en kısa sürede ilgilenebilir misiniz?");
+assert.equal(topluCumle(3, "takipsiz", [222366]), "Na1 aşamasındaki 3 takipsiz datanızla en kısa sürede ilgilenebilir misiniz?");
+assert.equal(topluCumle(5, "gecikmis", [218702, 222366, 218701]), "Na1, Görüşme ve İlgili aşamalarındaki 5 gecikmiş task'lı datanızla en kısa sürede ilgilenebilir misiniz?");
 async function toplu(email, ek = {}) {
   const r = { code: 200, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } };
   await crm({ method: "POST", headers: { authorization: `Bearer ${tokenUret({ email })}` }, body: { islem: "topluHatirlat", ownerId: 101, sessizGun: 0, kaynaklar: [], kampanya: "", gorunum: "takipsiz", asamalar: [], ...ek } }, r);
@@ -79,7 +79,7 @@ asama = 218702; sahip = 101;
 let tr = await toplu("ali@x.com");
 assert.equal(tr.code, 200); assert.equal(tr.body.onay, 1);
 assert.equal(giden.at(-1).govde.tur, "toplu");
-assert.equal(giden.at(-1).govde.data.cumle, "1 takipsiz datanızla ilgilenir misiniz?");
+assert.equal(giden.at(-1).govde.data.cumle, "1 takipsiz datanızla en kısa sürede ilgilenebilir misiniz?");
 assert.equal((await toplu("ali@x.com", { onizleme: false, onay: 7 })).code, 409);
 assert.equal((await toplu("ali@x.com", { onizleme: false, onay: 1 })).code, 200);
 assert.equal(giden.at(-1).govde.onizleme, false);

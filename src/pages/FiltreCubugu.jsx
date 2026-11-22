@@ -1,3 +1,4 @@
+// v1.7: "Campaign Name" yazıları "Reklam Adı" oldu
 // v1.6: VIP Datalar, VIP kaynakların hepsi seçimdeyse ON (renkli) görünür; varsayılanda tüm kaynaklar seçili olduğu için ON.
 //       ON iken tıklayınca VIP kaynaklar çıkar (diğerleri kalır), OFF iken tıklayınca sadece VIP seçilir. "Tüm Kaynaklar" büyük harf.
 // v1.5: VIP Datalar OFF: VIP kaynaklar seçimden çıkar, diğer kaynaklar seçili kalır
@@ -93,13 +94,13 @@ export function KampanyaAra({ deger, onChange }) {
   return (
     <div ref={kutu} style={{ position: "relative", display: "flex", alignItems: "center", gap: "8px" }}>
       {aktif && (
-        <span style={k.etiket} title={`Campaign Name içerir: ${deger}`}>
+        <span style={k.etiket} title={`Reklam Adı içerir: ${deger}`}>
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "160px" }}>{deger}</span>
-          <button type="button" onClick={temizle} aria-label="Campaign Name aramasını temizle" style={k.etiketX}>✕</button>
+          <button type="button" onClick={temizle} aria-label="Reklam Adı aramasını temizle" style={k.etiketX}>✕</button>
         </span>
       )}
-      <Ipucu metin={acik ? null : "Campaign Name ile süz"} isaret={false}>
-        <button type="button" onClick={ac} aria-expanded={!!acik} aria-label="Campaign Name filtresi"
+      <Ipucu metin={acik ? null : "Reklam Adı ile süz"} isaret={false}>
+        <button type="button" onClick={ac} aria-expanded={!!acik} aria-label="Reklam Adı filtresi"
           style={{ ...k.huni, ...(aktif || acik ? k.huniAktif : {}) }}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill={aktif ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
             <path d="M3 4h18l-7 8.5V19l-4 2v-8.5L3 4z" />
@@ -108,9 +109,9 @@ export function KampanyaAra({ deger, onChange }) {
       </Ipucu>
       {acik && createPortal(
         <div ref={panelRef} style={{ ...k.panel, top: acik.ust, right: acik.sag }}>
-          <div style={{ fontSize: "11px", fontWeight: 700, color: "#9d174d", marginBottom: "8px" }}>Campaign Name içerir</div>
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "#9d174d", marginBottom: "8px" }}>Reklam Adı içerir</div>
           <span style={{ position: "relative", display: "flex", alignItems: "center" }}>
-            <input autoFocus value={yazi} onChange={e => setYazi(e.target.value.slice(0, 100))} placeholder="ör. yaz okulu" aria-label="Campaign Name içerir"
+            <input autoFocus value={yazi} onChange={e => setYazi(e.target.value.slice(0, 100))} placeholder="ör. yaz okulu" aria-label="Reklam Adı içerir"
               style={{ ...k.girdi, borderColor: yazi ? "#db2777" : "#e2e8f0", background: yazi ? "#fdf2f8" : "#fff" }} />
             {yazi && <button type="button" onClick={temizle} aria-label="Aramayı temizle" style={{ ...k.etiketX, position: "absolute", right: "10px" }}>✕</button>}
           </span>

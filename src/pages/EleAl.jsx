@@ -1,3 +1,4 @@
+// v2.10: "Campaign Name" alanı "Reklam Adı"
 // v2.9: numaranın yanında Kylas arama ikonu (mobil bildirim) ve WhatsApp butonu (wa.me: telefonda uygulama, bilgisayarda Web)
 // v2.8: arama sonucu, bildirimin gittiği Kylas hesabını ve Kylas yanıt kodunu gösterir; süre 6 sn -> 12 sn
 // v2.7: numaraya tıklayınca tıklayan danışmanın Kylas mobil uygulamasına arama bildirimi gider (islem "aramaBaslat").
@@ -367,7 +368,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
               <Alan ad="Şehir" bekliyor={dy}>{dt?.sehir || "-"}</Alan>
               <Alan ad="Danışman">{kisiAdi(dt?.ownerId ?? l.ownerId)}</Alan>
               <Alan ad="Form tarihi" bekliyor={dy}>{dt?.olusturma ? tarih(dt.olusturma, true) : "-"}</Alan>
-              <Alan ad="Campaign Name">{kampanya || "-"}</Alan>
+              <Alan ad="Reklam Adı">{kampanya || "-"}</Alan>
               <Alan ad="Data Kaynağı">{kaynakAdi(kaynak)}{VIP_KAYNAKLAR.includes(kaynak) && <span style={s.etiketSari}>VIP</span>}</Alan>
               <Alan ad="Aşama">{ASAMA_ADLARI[l.asama] || "-"}{l.zorunlu && <span style={s.etiketKirmizi}>Task zorunlu</span>}</Alan>
             </div>

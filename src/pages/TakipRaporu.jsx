@@ -1,3 +1,4 @@
+// v6.28: "Campaign Name" sütun ve filtre adı "Reklam Adı"; toplu mesaj "en kısa sürede ilgilenebilir misiniz?" (crm-rapor v3.18)
 // v6.27: aşama düğmelerinin sağında Campaign Name hunisi ve mor toplu hatırlatma zili (crm-rapor v3.17); arama kutusu Dataları Ele Al'a kadar uzar
 // v6.26: Berat (berat@bilimevi.com) açılışta sadece Instagram DM seçili; seçimi değiştirebilir
 // v6.25: Hatırlat mesajı yeni biçimde: Data Kaynağı + Son Aktivite (crm-rapor v3.16)
@@ -101,7 +102,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.27"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.28"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -408,7 +409,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                             style={{ accentColor: "#0891b2", cursor: "pointer" }} />
                         </th>
                       )}
-                      {["Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak", "Campaign Name"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
+                      {["Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak", "Reklam Adı"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
                       {taskSutunu && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}><Ipucu metin={ACIKLAMA.sonAktivite}>Son aktivite</Ipucu></th>
                       <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Notlar</th>

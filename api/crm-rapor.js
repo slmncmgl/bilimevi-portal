@@ -1,3 +1,4 @@
+// v3.18: toplu cümle "... datanızla en kısa sürede ilgilenebilir misiniz?"; hata metninde "Reklam Adı"
 // v3.17: islem "topluHatirlat": { ownerId, sessizGun, kaynaklar, kampanya, gorunum, asamalar, onizleme, onay?, not? } -> danışmana
 //       ekrandaki listenin sayısıyla tek WhatsApp ("Na1 aşamasındaki 12 takipsiz datanızla..."). Sayı takip ile aynı kuralla sunucuda
 //       yeniden hesaplanır; gönderimde önizlemedeki sayıdan farklıysa 409. hatirlat'ta beklenenSahip yerine ortak "onay" alanı.
@@ -451,7 +452,7 @@ async function takip(req, res, yetki) {
   const kaynaklar = [...new Set(hamKaynaklar.map(Number))].filter(k => Number.isInteger(k) && k > 0);
   if (kaynaklar.length !== hamKaynaklar.length || kaynaklar.length > 30) return res.status(400).json({ error: "Geçersiz veri kaynağı." });
   const kampanya = typeof req.body?.kampanya === "string" ? req.body.kampanya.trim() : "";
-  if (kampanya.length > 100) return res.status(400).json({ error: "Campaign Name araması en fazla 100 karakter olabilir." });
+  if (kampanya.length > 100) return res.status(400).json({ error: "Reklam Adı araması en fazla 100 karakter olabilir." });
   if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor takip")) return;
 
   const kurallar = [sahipKurali(ownerIds), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", TAKIP_ASAMALARI)];
@@ -1091,7 +1092,7 @@ const listeYaz = a => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")}
 export function topluCumle(sayi, gorunum, asamaIdleri) {
   const adlar = ASAMALAR.filter(a => asamaIdleri.includes(a.id)).map(a => a.ad); // aşama sırasıyla
   const asama = !adlar.length || adlar.length === TAKIP_ASAMALARI.length ? "" : `${listeYaz(adlar)} ${adlar.length > 1 ? "aşamalarındaki" : "aşamasındaki"} `;
-  return `${asama}${sayi} ${GORUNUM_SUZ[gorunum].kelime} datanızla ilgilenir misiniz?`;
+  return `${asama}${sayi} ${GORUNUM_SUZ[gorunum].kelime} datanızla en kısa sürede ilgilenebilir misiniz?`;
 }
 
 async function topluHatirlat(req, res, yetki) {
