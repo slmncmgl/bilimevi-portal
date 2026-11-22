@@ -1,3 +1,4 @@
+// v3.16: hatirlat mesajında task yerine Data Kaynağı ve Son Aktivite
 // v3.15: islem "hatirlat": { leadId, onizleme, beklenenSahip?, not? } -> datanın danışmanına WhatsApp hatırlatması (n8n data-hatirlat).
 //       Sadece admin/director/owner, izleme modu yok. Gönderen oturumdan, data ve danışman Kylas'tan. "[hatirlat]" logu (metin loglanmaz).
 // v3.14: takip listesi satırlarında "eposta" da döner (Data araması e-postayla da süzer)
@@ -88,6 +89,8 @@ import { oturumKontrol, tokenCoz } from "./_oturum.js";
 import { anahtarVar, coz, kullaniciTokeni, tokenGecersiz } from "./_kylasKullanici.js";
 import { yetkiBul, yetkiKontrol, zorunluMu, dizinGetir } from "./_yetki.js";
 import { satisBul } from "../src/lib/satisEkibi.js";
+import { KAYNAKLAR } from "../src/lib/kaynaklar.js";
+import { gunOnceYazi } from "../src/lib/gunOnce.js";
 import { VIP_KAYNAKLAR } from "../src/lib/vipKaynaklar.js";
 
 const PIPELINE_ID = 31227; // Bilimevi
@@ -1031,16 +1034,6 @@ async function notEkle(req, res, yetki) {
 // Beklenmeyen hata: Kylas yoğunsa 503 (tarayıcı tekrar dener), diğerleri 502
 const hataYaz = (res, err) => res.status(err.message === YOGUN ? 503 : 502).json({ error: err.message });
 
-// Hatırlatma mesajındaki task satırı (gün farkı İstanbul takvimiyle)
-function taskYazisi(due, simdi = Date.now()) {
-  if (!due) return "Task yok";
-  const gun = ms => Math.floor((ms + 3 * 60 * 60 * 1000) / GUN_MS);
-  const t = zaman(due);
-  if (t >= simdi) return `Task: ${new Date(t).toLocaleDateString("tr-TR", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit", year: "numeric" })}`;
-  const fark = gun(simdi) - gun(t);
-  return fark ? `Task: ${fark} gün gecikti` : "Task: bugün, saati geçti";
-}
-
 async function hatirlat(req, res, yetki) {
   if (!yazmaYetkisi(yetki, res)) return;
   if (yetki.tur !== "admin") return res.status(403).json({ error: "Hatırlatmayı sadece yöneticiler gönderebilir." });
@@ -1051,7 +1044,7 @@ async function hatirlat(req, res, yetki) {
   if (typeof notMetni !== "string" || notMetni.length > 300) return res.status(400).json({ error: "Not en fazla 300 karakter olabilir." });
   if (!process.env.N8N_PORTAL_TOKEN) return res.status(500).json({ error: "N8N_PORTAL_TOKEN tanımlı değil." });
 
-  const d = await kylasAra([kural("id", "equal", leadId)], 0, [...LISTE_ALANLARI, "pipeline"]);
+  const d = await kylasAra([kural("id", "equal", leadId)], 0, [...LISTE_ALANLARI, "source"]);
   const l = (d.content || [])[0];
   if (!l) return res.status(404).json({ error: "Data bulunamadı." });
   const ownerId = Number(l.ownerId);
@@ -1059,15 +1052,6 @@ async function hatirlat(req, res, yetki) {
   if (!onizleme && Number(req.body?.beklenenSahip) !== ownerId) return res.status(409).json({ error: "Datanın danışmanı değişmiş. Pencereyi kapatıp yeniden açın." });
   const danisman = [...(await dizinGetir()).kisiler.values()].find(k => k.kylasId === ownerId && satisBul(k.ad));
   if (!danisman) return res.status(422).json({ error: "Datanın sahibi satış ekibinde değil." });
-
-  let due = l.taskDueOn;
-  try {
-    const simdi = Date.now();
-    const acikTasklar = (await tumTasklar())
-      .filter(t => Number(taskLead(t)) === leadId && t.dueDate && t.status !== TASK_TAMAM && t.status !== TASK_IPTAL)
-      .sort((a, b) => zaman(a.dueDate) - zaman(b.dueDate));
-    due = (acikTasklar.find(t => zaman(t.dueDate) >= simdi) || acikTasklar[0])?.dueDate || null;
-  } catch (e) { console.warn(`[hatirlat] task listesi alınamadı, taskDueOn kullanılıyor: ${e.message}`); }
 
   let r;
   try {
@@ -1077,7 +1061,7 @@ async function hatirlat(req, res, yetki) {
       headers: { "Content-Type": "application/json", "X-Portal-Token": process.env.N8N_PORTAL_TOKEN },
       body: JSON.stringify({
         gonderen: yetki.ad, danisman: danisman.ad, onizleme, not: notMetni.trim(),
-        data: { id: leadId, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), asama: ASAMALAR.find(a => a.id === l.pipelineStage).ad, task: taskYazisi(due) },
+        data: { id: leadId, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), asama: ASAMALAR.find(a => a.id === l.pipelineStage).ad, kaynak: KAYNAKLAR.find(k => k.id === Number(l.source))?.ad || (l.source ? "Diğer" : "Belirtilmemiş"), sonAktivite: gunOnceYazi(l.latestActivityCreatedAt) },
       }),
     });
   } catch {

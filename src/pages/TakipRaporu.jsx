@@ -1,3 +1,4 @@
+// v6.25: Hatırlat mesajı yeni biçimde: Data Kaynağı + Son Aktivite (crm-rapor v3.16)
 // v6.24: Data ID sütunu kalktı (ad CRM'i açar, üzerine gelince ID + kopyala), Son aktivite "N gün önce", Hatırlat zil ikonu
 // v6.23: admin/director/owner için satır sonunda Hatırlat: danışmana WhatsApp (Hatirlat.jsx, crm-rapor v3.15)
 // v6.22: danışman seçimi tekli, tablolarda Danışman sütunu çıkmaz
@@ -93,11 +94,12 @@ import { VIP_KAYNAKLAR } from "./KaynakSecici";
 import FiltreCubugu, { KampanyaAra } from "./FiltreCubugu";
 import DanismanAta from "./DanismanAta";
 import EleAl, { EleAlDugmesi } from "./EleAl";
+import { gunOnceYazi } from "../lib/gunOnce";
 import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.24"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.25"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -133,12 +135,6 @@ const GORUNUMLER = {
   ileri: { ad: "İleri tarihli task'lı Datalar", suz: l => l.zorunlu && l.taskTur === "ileri", sirala: taskSirasi },
   gecikmis: { ad: "Gecikmiş task'lı Datalar", suz: l => l.zorunlu && l.taskTur === "gecikmis", sirala: taskSirasi },
   takipsiz: { ad: "Takipsiz Datalar", suz: l => l.takipsiz, sirala: sonEtkinlikSirasi },
-};
-// Takvim günüyle (İstanbul): dün akşamki etkinlik "1 gün önce"
-const takvimGunu = ms => Math.floor((ms + 3 * 3600000) / 86400000);
-const gunOnceYazi = v => {
-  const gun = takvimGunu(Date.now()) - takvimGunu(zm(v));
-  return gun > 0 ? `${gun} gün önce` : "Bugün";
 };
 
 export default function TakipRaporu({ user, isAdmin, isManager }) {

@@ -1,3 +1,4 @@
+// v3.8: kaynak listesi src/lib/kaynaklar.js'e taşındı (sunucu da okuyor)
 // v3.7: apiCagir: hatirlat isteği kendiliğinden tekrarlanmaz (çift WhatsApp olmasın)
 // v3.6: danışman seçimi tekli, Danışman sütunu yok; "Tüm danışmanlar"da sadece toplam satırı
 // v3.5: VIP Datalar varsayılanda ON, "Tüm Kaynaklar" (FiltreCubugu v1.6)
@@ -33,6 +34,7 @@
 // Sayılar /api/crm-rapor'dan gelir. Danışman adı ve şubesi İzin Yönetimi'ndeki ID (e-posta -> Kylas ID)
 // ve Personel sekmelerinden eşlenir; ID sekmesinde olmayan sahipler "Diğer" satırında toplanır.
 // Rol kuralı Quiz Skorları ile aynı: admin/director/owner herkesi, manager kendi şubesini, staff kendini görür.
+import { KAYNAKLAR } from "../lib/kaynaklar";
 import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { VIP_KAYNAKLAR, kaynakOzeti } from "./KaynakSecici";
 import FiltreCubugu from "./FiltreCubugu";
@@ -44,25 +46,10 @@ const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const csvUrl = sekme => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sekme)}`;
 
 // Kylas "Kaynak" picklist ID'leri, lead sayısına göre sıralı (Kasım 2026)
-export const KAYNAKLAR = [
-  { id: 2675584, ad: "Instagram" },
-  { id: 2650987, ad: "Fuar" },
-  { id: 2753894, ad: "Imports" },
-  { id: 2650986, ad: "Bilgi İstek Formu" },
-  { id: 2614512, ad: "Referans" },
-  { id: 2614515, ad: "Instagram DM" },
-  { id: 2674021, ad: "Facebook" },
-  { id: 3024131, ad: "Setrow Marketing" },
-  { id: 2614513, ad: "Telefon" },
-  { id: 2614514, ad: "Ofis" },
-  { id: 2652456, ad: "Google" },
-  { id: 3017966, ad: "Event" },
-  { id: 2941507, ad: "Websitesi" },
-  { id: 3005340, ad: "Eski Öğrenci" },
-];
+export { KAYNAKLAR };
 
 const TUMU = "tumu"; // danışman seçicisindeki "Tüm danışmanlar"
-export const CRM_SURUM = "v3.7"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v3.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const TUM_KAYNAKLAR = KAYNAKLAR.map(k => k.id);
 // Hepsi seçiliyse kaynak filtresi gönderilmez (kaynağı boş datalar da sayılır)
