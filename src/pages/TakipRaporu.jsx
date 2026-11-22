@@ -1,3 +1,4 @@
+// v6.24: Data ID sütunu kalktı (ad CRM'i açar, üzerine gelince ID + kopyala), Son aktivite "N gün önce", Hatırlat zil ikonu
 // v6.23: admin/director/owner için satır sonunda Hatırlat: danışmana WhatsApp (Hatirlat.jsx, crm-rapor v3.15)
 // v6.22: danışman seçimi tekli, tablolarda Danışman sütunu çıkmaz
 // v6.21: kaynak listesinde sol sütun VIP olmayanlar, sağ sütun VIP'ler, alfabetik (KaynakSecici v1.3)
@@ -96,7 +97,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.23"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.24"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -133,7 +134,12 @@ const GORUNUMLER = {
   gecikmis: { ad: "Gecikmiş task'lı Datalar", suz: l => l.zorunlu && l.taskTur === "gecikmis", sirala: taskSirasi },
   takipsiz: { ad: "Takipsiz Datalar", suz: l => l.takipsiz, sirala: sonEtkinlikSirasi },
 };
-const gunOnce = v => (v ? Math.floor((Date.now() - new Date(v).getTime()) / 86400000) : null);
+// Takvim günüyle (İstanbul): dün akşamki etkinlik "1 gün önce"
+const takvimGunu = ms => Math.floor((ms + 3 * 3600000) / 86400000);
+const gunOnceYazi = v => {
+  const gun = takvimGunu(Date.now()) - takvimGunu(zm(v));
+  return gun > 0 ? `${gun} gün önce` : "Bugün";
+};
 
 export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null);
@@ -399,7 +405,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                             style={{ accentColor: "#0891b2", cursor: "pointer" }} />
                         </th>
                       )}
-                      {["Data ID", "Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak", "Campaign Name"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
+                      {["Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak", "Campaign Name"].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
                       {taskSutunu && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}><Ipucu metin={ACIKLAMA.sonAktivite}>Son aktivite</Ipucu></th>
                       <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Notlar</th>
@@ -417,10 +423,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                                 style={{ accentColor: "#0891b2", cursor: "pointer" }} />
                             </td>
                           )}
-                          <td style={{ ...c.td, textAlign: "left" }}>
-                            <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={c.link}>{l.id}</a>
-                          </td>
-                          <td style={{ ...c.td, textAlign: "left", color: "#0f172a", fontWeight: 600, whiteSpace: "nowrap" }}>{l.ad || <span style={{ color: "#cbd5e1" }}>İsimsiz</span>}</td>
+                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}><AdHucresi lead={l} /></td>
                           {coklu && <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>{kisiAdi(l.ownerId)}</td>}
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap", fontWeight: l.asama === ILGILI ? 700 : 400, color: l.asama === ILGILI ? "#0e7490" : undefined }}>{ASAMA_ADLARI[l.asama] || ""}{l.zorunlu && <Ipucu metin={ACIKLAMA.taskZorunlu} isaret={false}><span style={t.zorunlu}>Task zorunlu</span></Ipucu>}</td>
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>
@@ -432,12 +435,13 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           </td>
                           {taskSutunu && <TaskHucresi l={l} />}
                           <td style={{ ...c.td, whiteSpace: "nowrap" }}>
-                            {l.sonAktivite ? tarih(l.sonAktivite) :<span style={{ color: "#dc2626" }}>Hiç yok</span>}
+                            {l.sonAktivite ? <Ipucu metin={tarih(l.sonAktivite, true)} isaret={false}>{gunOnceYazi(l.sonAktivite)}</Ipucu> :<span style={{ color: "#dc2626" }}>Hiç yok</span>}
                           </td>
                           <td style={{ ...c.td, textAlign: "center" }}><NotBalonu lead={l} onbellek={notOnbellek} /></td>
                           {isAdmin && (
                             <td style={{ ...c.td, textAlign: "center" }}>
-                              <button type="button" onClick={() => setHatirlatLead(l)} disabled={aktarim} style={t.hatirlat}>Hatırlat</button>
+                              <button type="button" onClick={() => setHatirlatLead(l)} disabled={aktarim} className="hatirlat-zil"
+                                aria-label={`${l.ad || "Data"}: danışmana hatırlat`} title="Danışmana hatırlat" style={t.hatirlat}><ZilIkonu /></button>
                             </td>
                           )}
                         </tr>
@@ -470,6 +474,10 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           </div>
         </>
       )}
+      {isAdmin && <style>{`@keyframes zilSalla { 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
+        .hatirlat-zil svg { transform-origin: 50% 10%; }
+        .hatirlat-zil:hover:not(:disabled) svg { animation: zilSalla 0.6s ease-in-out; }
+        @media (prefers-reduced-motion: reduce) { .hatirlat-zil:hover:not(:disabled) svg { animation: none; } }`}</style>}
       {hatirlatLead && <Hatirlat key={hatirlatLead.id} lead={hatirlatLead} onKapat={() => setHatirlatLead(null)} />}
       {eleAl && (
         <EleAl leadler={eleAl} kisiAdi={kisiAdi} listeAdi={gorunumTanim.ad}
@@ -481,6 +489,64 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           }} />
       )}
     </>
+  );
+}
+
+// Ad Soyad hücresi: tıklayınca CRM; üzerine gelince yanında Data ID + kopyala (alttaki satırı örtmesin diye sağda açılır)
+function AdHucresi({ lead }) {
+  const [konum, setKonum] = useState(null);
+  const [kopya, setKopya] = useState(null); // ok | hata
+  const ref = useRef(null);
+  const zamanlayici = useRef(null);
+  useEffect(() => () => clearTimeout(zamanlayici.current), []);
+  useEffect(() => {
+    if (!konum) return;
+    const kapat = () => setKonum(null);
+    window.addEventListener("scroll", kapat, true); // sabit konumlu balon kaydırınca addan kopmasın
+    return () => window.removeEventListener("scroll", kapat, true);
+  }, [!!konum]);
+
+  function ac() {
+    clearTimeout(zamanlayici.current);
+    if (konum) return;
+    const r = ref.current.getBoundingClientRect();
+    setKopya(null);
+    setKonum({ left: Math.max(8, Math.min(r.right + 6, window.innerWidth - 220)), top: r.top + r.height / 2 });
+  }
+  const kapatGecikmeli = () => { zamanlayici.current = setTimeout(() => setKonum(null), 150); };
+  async function kopyala() {
+    try { await navigator.clipboard.writeText(String(lead.id)); setKopya("ok"); } catch { setKopya("hata"); }
+  }
+
+  return (
+    <span onMouseEnter={ac} onMouseLeave={kapatGecikmeli} onFocus={ac}
+      onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setKonum(null); }}
+      onKeyDown={e => { if (e.key === "Escape") setKonum(null); }}>
+      <a ref={ref} href={KYLAS_LEAD_URL(lead.id)} target="_blank" rel="noopener noreferrer" style={t.adLink}>{lead.ad || "İsimsiz"}</a>
+      {konum && (
+        // mousedown engellenir: Safari'de düğmeye basınca link odağı kaybedip balonu kapatmasın
+        <span style={{ ...t.idBalon, left: konum.left, top: konum.top }} onMouseDown={e => e.preventDefault()}>
+          <span style={{ color: "#94a3b8" }}>ID</span>
+          <span style={{ userSelect: "all" }}>{lead.id}</span>
+          <button type="button" onClick={kopyala} aria-label="Data ID'yi kopyala" title="Kopyala" style={t.kopyala}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="14" height="14" aria-hidden="true">
+              {kopya === "ok" ? <polyline points="20 6 9 17 4 12" /> : <><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>}
+            </svg>
+          </button>
+          {kopya && <span role="status" style={{ color: kopya === "ok" ? "#86efac" : "#fca5a5" }}>{kopya === "ok" ? "Kopyalandı" : "Kopyalanamadı"}</span>}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// Çalan zil (reminder): üzerine gelince sallanır
+function ZilIkonu() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" aria-hidden="true">
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" fill="#fde68a" />
+      <path d="M10.3 21a2 2 0 0 0 3.4 0" /><path d="M4 2C2.8 3.7 2 5.7 2 8" /><path d="M22 8c0-2.3-.8-4.3-2-6" />
+    </svg>
   );
 }
 
@@ -542,7 +608,10 @@ function Kart({ sayi, etiket, ipucu, renk = "#0f172a", zemin = "#fff", cerceve =
 // VIP Datalar düğmesi: arkada dönen konik renk geçişi 2px'lik neon çerçeve gibi görünür, dışta altın parıltı nefes alır
 
 const t = {
-  hatirlat: { padding: "4px 12px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#f0fdf4", color: "#166534", fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Sora', sans-serif" },
+  hatirlat: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "30px", height: "28px", padding: 0, borderRadius: "8px", border: "1.5px solid #fcd34d", background: "#fffbeb", color: "#b45309", cursor: "pointer" },
+  adLink: { color: "#0e7490", fontWeight: 600, textDecoration: "none" },
+  idBalon: { position: "fixed", zIndex: 9999, transform: "translateY(-50%)", display: "inline-flex", alignItems: "center", gap: "7px", padding: "5px 7px 5px 11px", borderRadius: "10px", background: "#0f172a", color: "#f8fafc", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", boxShadow: "0 10px 28px rgba(15,23,42,0.28)", fontFamily: "'Sora', sans-serif" },
+  kopyala: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "24px", height: "24px", padding: 0, border: "none", borderRadius: "6px", background: "rgba(255,255,255,0.14)", color: "inherit", cursor: "pointer" },
   uyari: { display: "flex", alignItems: "center", gap: "12px", padding: "16px 20px", marginBottom: "20px", borderRadius: "16px",
     background: "#fffbeb", border: "1.5px solid #fde68a", color: "#92400e", fontSize: "14px", lineHeight: 1.5, animation: "fadeUp 0.3s ease-out" },
   uyariIkon: { flex: "0 0 auto", width: "26px", height: "26px", borderRadius: "50%", background: "#f59e0b", color: "#fff", fontWeight: 800,
