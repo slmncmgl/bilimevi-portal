@@ -1,10 +1,11 @@
+// v1.1: tekli ve toplu ortak: govde (istek) ve baslik dışarıdan; gönderimde önizlemenin "onay" değeri geri gider
 // v1.0: Takip Tablosu satırında "Hatırlat": datanın danışmanına WhatsApp (crm-rapor islem "hatirlat")
 // Metni ve hattı sunucu belirler; pencere önizlemeyi gösterir, isteğe bağlı kısa not alır.
 import { useEffect, useRef, useState } from "react";
 import OnayPenceresi from "./OnayPenceresi";
 import { apiCagir } from "./CrmRaporu";
 
-export default function Hatirlat({ lead, onKapat }) {
+export default function Hatirlat({ govde, baslik = "Danışmana Hatırlat", onKapat }) {
   const [onizleme, setOnizleme] = useState(null);
   const [notMetni, setNotMetni] = useState("");
   const [hata, setHata] = useState(null);
@@ -14,11 +15,11 @@ export default function Hatirlat({ lead, onKapat }) {
 
   useEffect(() => {
     let iptal = false;
-    apiCagir({ islem: "hatirlat", leadId: lead.id, onizleme: true })
+    apiCagir({ ...govde, onizleme: true })
       .then(d => { if (!iptal) { setOnizleme(d); setDurum("hazir"); } })
       .catch(e => { if (!iptal) { setHata(e.message); setDurum("hata"); } });
     return () => { iptal = true; };
-  }, [lead.id]);
+  }, []); // pencere her açılışta yeniden kurulur (key)
 
   const kapat = () => { if (!kilit.current) onKapat(); }; // Esc dinleyicisi ilk render'dan kalır, durum yerine ref okunur
 
@@ -28,7 +29,7 @@ export default function Hatirlat({ lead, onKapat }) {
     kilit.current = true;
     setDurum("gonderiliyor");
     try {
-      setSonuc(await apiCagir({ islem: "hatirlat", leadId: lead.id, onizleme: false, beklenenSahip: onizleme.ownerId, not: notMetni }));
+      setSonuc(await apiCagir({ ...govde, onizleme: false, onay: onizleme.onay, not: notMetni }));
       setDurum("gitti");
     } catch (e) {
       setHata(e.message);
@@ -42,7 +43,7 @@ export default function Hatirlat({ lead, onKapat }) {
   const onayMetni = { yukleniyor: "Gönder", hazir: "Gönder", gonderiliyor: "Gönderiliyor...", gitti: "Tamam", hata: "Kapat" }[durum];
 
   return (
-    <OnayPenceresi ikon="!" baslik="Danışmana Hatırlat" onayMetni={onayMetni} onayPasif={bekliyor} onOnay={gonder} onVazgec={kapat}>
+    <OnayPenceresi ikon="!" baslik={baslik} onayMetni={onayMetni} onayPasif={bekliyor} onOnay={gonder} onVazgec={kapat}>
       <div role="status">
         {durum === "yukleniyor" && "Mesaj hazırlanıyor..."}
         {durum === "hata" && <span style={{ color: "#b91c1c" }}>{hata}</span>}

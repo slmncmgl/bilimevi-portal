@@ -19,6 +19,7 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes("sheet=Personel")) return yanit(200, PERSONEL);
   if (url.includes("sheet=ID")) return yanit(200, ID);
   if (url.includes("/search/lead")) return yanit(200, { content: [{ id: 1, firstName: "Test", lastName: "Data", ownerId: sahip, source: 2614512, latestActivityCreatedAt: new Date(Date.now() - 3 * 86400000).toISOString(), pipelineStage: asama }] });
+  if (url.includes("/v1/tasks")) return yanit(200, { totalPages: 1, content: [] });
   if (url.endsWith("/data-hatirlat")) {
     if (kopuk) throw new Error("kopuk");
     giden.push({ govde: JSON.parse(opts.body), token: opts.headers["X-Portal-Token"] });
@@ -34,7 +35,7 @@ process.env.SESSION_SECRET = "test-secret";
 process.env.N8N_PORTAL_TOKEN = "test-token";
 delete process.env.AUTH_ENFORCE; delete process.env.CRM_YETKI_ENFORCE;
 const { tokenUret } = await import("../api/_oturum.js");
-const crm = (await import("../api/crm-rapor.js")).default;
+const { default: crm, topluCumle } = await import("../api/crm-rapor.js");
 
 async function iste(email, ek = {}) {
   const r = { code: 200, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } };
@@ -53,8 +54,8 @@ assert.equal(giden[0].govde.data.sonAktivite, "3 gün önce");
 await iste("ali@x.com", { gonderen: "Oya Owner", danisman: "Başkası" });
 assert.equal(giden.at(-1).govde.gonderen, "Ali Admin");
 assert.equal(giden.at(-1).govde.danisman, "Nil Özer");
-assert.equal((await iste("ali@x.com", { onizleme: false, beklenenSahip: 999 })).code, 409);
-assert.equal((await iste("ali@x.com", { onizleme: false, beklenenSahip: 101 })).code, 200);
+assert.equal((await iste("ali@x.com", { onizleme: false, onay: 999 })).code, 409);
+assert.equal((await iste("ali@x.com", { onizleme: false, onay: 101 })).code, 200);
 assert.equal(giden.at(-1).govde.onizleme, false);
 assert.equal((await iste("ali@x.com", { not: "x".repeat(301) })).code, 400);
 assert.equal((await iste("ali@x.com", { leadId: "abc" })).code, 400);
@@ -63,4 +64,28 @@ n8nKod = 403; assert.equal((await iste("ali@x.com")).code, 502);
 n8nKod = 200; kopuk = true; assert.equal((await iste("ali@x.com")).code, 502);
 kopuk = false; asama = 217287; assert.equal((await iste("ali@x.com")).code, 422);
 asama = 218702; sahip = 555; assert.equal((await iste("ali@x.com")).code, 422);
-yaz("hatirlat: tüm senaryolar geçti");
+
+// ---- toplu ----
+assert.equal(topluCumle(12, "takipsiz", []), "12 takipsiz datanızla ilgilenir misiniz?");
+assert.equal(topluCumle(12, "takipsiz", [222366, 253357, 253358, 218701, 218702]), "12 takipsiz datanızla ilgilenir misiniz?");
+assert.equal(topluCumle(3, "takipsiz", [222366]), "Na1 aşamasındaki 3 takipsiz datanızla ilgilenir misiniz?");
+assert.equal(topluCumle(5, "gecikmis", [218702, 222366, 218701]), "Na1, Görüşme ve İlgili aşamalarındaki 5 gecikmiş task'lı datanızla ilgilenir misiniz?");
+async function toplu(email, ek = {}) {
+  const r = { code: 200, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } };
+  await crm({ method: "POST", headers: { authorization: `Bearer ${tokenUret({ email })}` }, body: { islem: "topluHatirlat", ownerId: 101, sessizGun: 0, kaynaklar: [], kampanya: "", gorunum: "takipsiz", asamalar: [], ...ek } }, r);
+  return r;
+}
+asama = 218702; sahip = 101;
+let tr = await toplu("ali@x.com");
+assert.equal(tr.code, 200); assert.equal(tr.body.onay, 1);
+assert.equal(giden.at(-1).govde.tur, "toplu");
+assert.equal(giden.at(-1).govde.data.cumle, "1 takipsiz datanızla ilgilenir misiniz?");
+assert.equal((await toplu("ali@x.com", { onizleme: false, onay: 7 })).code, 409);
+assert.equal((await toplu("ali@x.com", { onizleme: false, onay: 1 })).code, 200);
+assert.equal(giden.at(-1).govde.onizleme, false);
+assert.equal((await toplu("ali@x.com", { asamalar: [222366] })).code, 422); // Na1'de data yok
+assert.equal((await toplu("ali@x.com", { gorunum: "kotu" })).code, 400);
+assert.equal((await toplu("ali@x.com", { asamalar: [217287] })).code, 400);
+assert.equal((await toplu("mehmet@x.com")).code, 403);
+assert.equal((await toplu("ali@x.com", { ownerId: 555 })).code, 422);
+yaz("hatirlat: tüm senaryolar geçti (toplu dahil)");

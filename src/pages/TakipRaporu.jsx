@@ -1,3 +1,4 @@
+// v6.27: aşama düğmelerinin sağında Campaign Name hunisi ve mor toplu hatırlatma zili (crm-rapor v3.17); arama kutusu Dataları Ele Al'a kadar uzar
 // v6.26: Berat (berat@bilimevi.com) açılışta sadece Instagram DM seçili; seçimi değiştirebilir
 // v6.25: Hatırlat mesajı yeni biçimde: Data Kaynağı + Son Aktivite (crm-rapor v3.16)
 // v6.24: Data ID sütunu kalktı (ad CRM'i açar, üzerine gelince ID + kopyala), Son aktivite "N gün önce", Hatırlat zil ikonu
@@ -100,7 +101,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.26"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.27"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -158,19 +159,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [sayfa, setSayfa] = useState(1);
   const [gorunum, setGorunum] = useState("takipsiz"); // GORUNUMLER anahtarı: acik | taskBeklenen | ileri | gecikmis | takipsiz
   const notOnbellek = useRef({});
-  const [hatirlatLead, setHatirlatLead] = useState(null); // Hatırlat penceresi açık olan data
+  const [hatirlat, setHatirlat] = useState(null); // açık Hatırlat penceresi: { anahtar, govde, baslik }
   const [eleAl, setEleAl] = useState(null); // ele alınan datalar (tam ekran açıkken)
-  // Arama kutusu, altındaki aşama çerçevesiyle (Tümü, Na1, ...) aynı genişlikte
-  const [asamaEl, setAsamaEl] = useState(null);
-  const [asamaEn, setAsamaEn] = useState(0);
-  useEffect(() => {
-    if (!asamaEl || typeof ResizeObserver === "undefined") return;
-    const olc = () => setAsamaEn(Math.round(asamaEl.getBoundingClientRect().width));
-    olc();
-    const g = new ResizeObserver(olc);
-    g.observe(asamaEl);
-    return () => g.disconnect();
-  }, [asamaEl]);
   const [dataAra, setDataAra] = useState(""); // liste içi Data araması (ad, ID, telefon)
   const [aktivite, setAktivite] = useState(null); // bugün portaldan not girilen Data sayısı
   const [aktiviteYenile, setAktiviteYenile] = useState(0);
@@ -266,6 +256,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const asamaSayisi = id => tumTakipsiz.filter(l => (id === null || l.asama === id) && (!listeSahip || String(l.ownerId) === listeSahip)).length;
   const asamaDegistir = id => setAsamaSecim(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
 
+  // Toplu hatırlatma: ekrandaki liste (kart + aşama) tek mesajda. Arama sunucuda tekrarlanamadığı için arama doluyken pasif.
+  const topluPasif = yukleniyor || arkaYukleniyor || aktarim || !!dataAra || !liste.length || danismanlar.length !== 1;
+  const topluAc = () => setHatirlat({ anahtar: `t${Date.now()}`, baslik: "Danışmana Toplu Hatırlat", govde: {
+    islem: "topluHatirlat", ownerId: Number(danismanlar[0]), sessizGun, kaynaklar: kaynakFiltresi(kaynaklar), kampanya, gorunum, asamalar: asamaSecim } });
+
   // Sayfalama: filtre, sayfa boyu ya da rapor değişince ilk sayfaya dön
   useEffect(() => { setSayfa(1); }, [asamaSecim, sayfaBoyu, rapor, gorunum, listeSahip, dataAra]);
   // Kart ya da listedeki danışman değişince Data araması sıfırlanır
@@ -354,20 +349,19 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
           <div style={{ ...c.tablo, opacity: arkaYukleniyor ? 0.55 : 1, transition: "opacity 0.2s" }}>
             <div style={c.tabloBaslik}>
-              <span style={{ ...t.dataAra, ...(asamaEn ? { flex: `0 1 ${asamaEn}px`, width: `${asamaEn}px`, boxSizing: "border-box" } : null) }}>
+              <span style={{ ...t.dataAra, flex: "1 1 auto", minWidth: 0, boxSizing: "border-box" }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.4" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
                 <input value={dataAra} onChange={e => setDataAra(e.target.value)} placeholder="Data Ara: Ad / Telefon / Mail / ID" maxLength={60}
                   aria-label="Listede Data ara" style={t.dataAraGirdi} />
                 {dataAra && <button type="button" onClick={() => setDataAra("")} aria-label="Aramayı temizle" style={t.dataAraSil}>✕</button>}
               </span>
-              <span style={{ display: "flex", alignItems: "center", gap: "10px", marginLeft: "auto" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
                 {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
                 <EleAlDugmesi sayi={yukleniyor ? 0 : eleAlinacak.length} disabled={aktarim || yukleniyor} onClick={() => setEleAl(eleAlinacak)} />
-                <KampanyaAra deger={kampanya} onChange={v => { if (rapor) sessiz.current = true; setKampanya(v); }} />
               </span>
             </div>
             <div style={{ ...t.filtreler, alignItems: "center" }}>
-              <span ref={setAsamaEl} style={{ display: "inline-flex" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
               <Cerceve tur="asama" metin="Aşama: birden fazla seçilebilir.">
                 <div style={c.chipSatir}>
                   <button onClick={() => setAsamaSecim([])} style={!asamaSecim.length ? c.chipAktif : c.chip}>Tümü ({asamaSayisi(null)})</button>
@@ -378,6 +372,14 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   ))}
                 </div>
               </Cerceve>
+              <KampanyaAra deger={kampanya} onChange={v => { if (rapor) sessiz.current = true; setKampanya(v); }} />
+              {isAdmin && (
+                <button type="button" className="hatirlat-zil" style={{ ...t.hatirlat, ...t.topluZil, ...(topluPasif ? { opacity: 0.4, cursor: "default" } : null) }}
+                  disabled={topluPasif} onClick={topluAc} aria-label={`Danışmana toplu hatırlat: ${liste.length} data`}
+                  title={dataAra ? "Arama doluyken toplu hatırlatma gönderilemez" : liste.length ? `Danışmana ${liste.length} data için hatırlat` : "Listede data yok"}>
+                  <ZilIkonu dolgu="#ddd6fe" />
+                </button>
+              )}
               </span>
               <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a", marginLeft: "auto", alignSelf: "center", whiteSpace: "nowrap" }}>
                 {(
@@ -441,7 +443,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           <td style={{ ...c.td, textAlign: "center" }}><NotBalonu lead={l} onbellek={notOnbellek} /></td>
                           {isAdmin && (
                             <td style={{ ...c.td, textAlign: "center" }}>
-                              <button type="button" onClick={() => setHatirlatLead(l)} disabled={aktarim} className="hatirlat-zil"
+                              <button type="button" onClick={() => setHatirlat({ anahtar: `d${l.id}`, govde: { islem: "hatirlat", leadId: l.id } })} disabled={aktarim} className="hatirlat-zil"
                                 aria-label={`${l.ad || "Data"}: danışmana hatırlat`} title="Danışmana hatırlat" style={t.hatirlat}><ZilIkonu /></button>
                             </td>
                           )}
@@ -479,7 +481,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         .hatirlat-zil svg { transform-origin: 50% 10%; }
         .hatirlat-zil:hover:not(:disabled) svg { animation: zilSalla 0.6s ease-in-out; }
         @media (prefers-reduced-motion: reduce) { .hatirlat-zil:hover:not(:disabled) svg { animation: none; } }`}</style>}
-      {hatirlatLead && <Hatirlat key={hatirlatLead.id} lead={hatirlatLead} onKapat={() => setHatirlatLead(null)} />}
+      {hatirlat && <Hatirlat key={hatirlat.anahtar} govde={hatirlat.govde} baslik={hatirlat.baslik} onKapat={() => setHatirlat(null)} />}
       {eleAl && (
         <EleAl leadler={eleAl} kisiAdi={kisiAdi} listeAdi={gorunumTanim.ad}
           onKapat={(idler, taskDegisti) => {
@@ -542,10 +544,10 @@ function AdHucresi({ lead }) {
 }
 
 // Çalan zil (reminder): üzerine gelince sallanır
-function ZilIkonu() {
+function ZilIkonu({ dolgu = "#fde68a" }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" aria-hidden="true">
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" fill="#fde68a" />
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" fill={dolgu} />
       <path d="M10.3 21a2 2 0 0 0 3.4 0" /><path d="M4 2C2.8 3.7 2 5.7 2 8" /><path d="M22 8c0-2.3-.8-4.3-2-6" />
     </svg>
   );
@@ -610,6 +612,7 @@ function Kart({ sayi, etiket, ipucu, renk = "#0f172a", zemin = "#fff", cerceve =
 
 const t = {
   hatirlat: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "30px", height: "28px", padding: 0, borderRadius: "8px", border: "1.5px solid #fcd34d", background: "#fffbeb", color: "#b45309", cursor: "pointer" },
+  topluZil: { width: "34px", height: "32px", borderRadius: "10px", border: "1.5px solid #c4b5fd", background: "#f5f3ff", color: "#6d28d9" },
   adLink: { color: "#0e7490", fontWeight: 600, textDecoration: "none" },
   idBalon: { position: "fixed", zIndex: 9999, transform: "translateY(-50%)", display: "inline-flex", alignItems: "center", gap: "7px", padding: "5px 7px 5px 11px", borderRadius: "10px", background: "#0f172a", color: "#f8fafc", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", boxShadow: "0 10px 28px rgba(15,23,42,0.28)", fontFamily: "'Sora', sans-serif" },
   kopyala: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "24px", height: "24px", padding: 0, border: "none", borderRadius: "6px", background: "rgba(255,255,255,0.14)", color: "inherit", cursor: "pointer" },

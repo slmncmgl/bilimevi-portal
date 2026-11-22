@@ -1,3 +1,6 @@
+// v3.17: islem "topluHatirlat": { ownerId, sessizGun, kaynaklar, kampanya, gorunum, asamalar, onizleme, onay?, not? } -> danışmana
+//       ekrandaki listenin sayısıyla tek WhatsApp ("Na1 aşamasındaki 12 takipsiz datanızla..."). Sayı takip ile aynı kuralla sunucuda
+//       yeniden hesaplanır; gönderimde önizlemedeki sayıdan farklıysa 409. hatirlat'ta beklenenSahip yerine ortak "onay" alanı.
 // v3.16: hatirlat mesajında task yerine Data Kaynağı ve Son Aktivite
 // v3.15: islem "hatirlat": { leadId, onizleme, beklenenSahip?, not? } -> datanın danışmanına WhatsApp hatırlatması (n8n data-hatirlat).
 //       Sadece admin/director/owner, izleme modu yok. Gönderen oturumdan, data ve danışman Kylas'tan. "[hatirlat]" logu (metin loglanmaz).
@@ -1049,28 +1052,76 @@ async function hatirlat(req, res, yetki) {
   if (!l) return res.status(404).json({ error: "Data bulunamadı." });
   const ownerId = Number(l.ownerId);
   if (!TAKIP_ASAMALARI.includes(l.pipelineStage)) return res.status(422).json({ error: "Data artık açık aşamada değil, listeyi yenileyin." });
-  if (!onizleme && Number(req.body?.beklenenSahip) !== ownerId) return res.status(409).json({ error: "Datanın danışmanı değişmiş. Pencereyi kapatıp yeniden açın." });
+  if (!onizleme && Number(req.body?.onay) !== ownerId) return res.status(409).json({ error: "Datanın danışmanı değişmiş. Pencereyi kapatıp yeniden açın." });
   const danisman = [...(await dizinGetir()).kisiler.values()].find(k => k.kylasId === ownerId && satisBul(k.ad));
   if (!danisman) return res.status(422).json({ error: "Datanın sahibi satış ekibinde değil." });
 
+  return hatirlatGonder(res, yetki, { danisman: danisman.ad, onizleme, not: notMetni.trim(), onay: ownerId, kayit: `data ${leadId}`,
+    data: { id: leadId, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), asama: ASAMALAR.find(a => a.id === l.pipelineStage).ad, kaynak: KAYNAKLAR.find(k => k.id === Number(l.source))?.ad || (l.source ? "Diğer" : "Belirtilmemiş"), sonAktivite: gunOnceYazi(l.latestActivityCreatedAt) } });
+}
+
+// n8n'e gönderir, yanıtı ekrana aktarır (tekli ve toplu ortak)
+async function hatirlatGonder(res, yetki, { danisman, onizleme, not, onay, kayit, data, tur = "tekli" }) {
   let r;
   try {
     r = await fetch(`${N8N_WEBHOOK}/data-hatirlat`, {
       method: "POST",
       signal: AbortSignal.timeout(40000),
       headers: { "Content-Type": "application/json", "X-Portal-Token": process.env.N8N_PORTAL_TOKEN },
-      body: JSON.stringify({
-        gonderen: yetki.ad, danisman: danisman.ad, onizleme, not: notMetni.trim(),
-        data: { id: leadId, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), asama: ASAMALAR.find(a => a.id === l.pipelineStage).ad, kaynak: KAYNAKLAR.find(k => k.id === Number(l.source))?.ad || (l.source ? "Diğer" : "Belirtilmemiş"), sonAktivite: gunOnceYazi(l.latestActivityCreatedAt) },
-      }),
+      body: JSON.stringify({ gonderen: yetki.ad, danisman, onizleme, not, tur, data }),
     });
   } catch {
     return res.status(502).json({ error: onizleme ? "Hatırlatma servisine ulaşılamadı." : "Yanıt alınamadı. Mesaj gitmiş olabilir, tekrar göndermeden önce kontrol edin." });
   }
   const y = await r.json().catch(() => ({}));
-  if (!onizleme) console.log(`[hatirlat] ${yetki.ad} -> ${danisman.ad}, data ${leadId}: HTTP ${r.status}${y.hat ? ` (${y.hat})` : ""}`);
+  if (!onizleme) console.log(`[hatirlat] ${yetki.ad} -> ${danisman}, ${kayit}: HTTP ${r.status}${y.hat ? ` (${y.hat})` : ""}`);
   if (!r.ok || !y.metin) return res.status([409, 422].includes(r.status) ? r.status : 502).json({ error: y.error || "Hatırlatma servisi yanıt vermedi." });
-  return res.status(200).json({ ...y, ownerId });
+  return res.status(200).json({ ...y, onay });
+}
+
+// Toplu hatırlatma: ekrandaki kart + aşama seçimiyle aynı liste sunucuda yeniden hesaplanır
+const GORUNUM_SUZ = {
+  acik: { kelime: "açık", suz: () => true },
+  taskBeklenen: { kelime: "task bekleyen", suz: l => l.zorunlu },
+  ileri: { kelime: "ileri tarihli task'lı", suz: l => l.zorunlu && l.taskTur === "ileri" },
+  gecikmis: { kelime: "gecikmiş task'lı", suz: l => l.zorunlu && l.taskTur === "gecikmis" },
+  takipsiz: { kelime: "takipsiz", suz: l => l.takipsiz },
+};
+const listeYaz = a => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} ve ${a.at(-1)}`);
+export function topluCumle(sayi, gorunum, asamaIdleri) {
+  const adlar = ASAMALAR.filter(a => asamaIdleri.includes(a.id)).map(a => a.ad); // aşama sırasıyla
+  const asama = !adlar.length || adlar.length === TAKIP_ASAMALARI.length ? "" : `${listeYaz(adlar)} ${adlar.length > 1 ? "aşamalarındaki" : "aşamasındaki"} `;
+  return `${asama}${sayi} ${GORUNUM_SUZ[gorunum].kelime} datanızla ilgilenir misiniz?`;
+}
+
+async function topluHatirlat(req, res, yetki) {
+  if (!yazmaYetkisi(yetki, res)) return;
+  if (yetki.tur !== "admin") return res.status(403).json({ error: "Hatırlatmayı sadece yöneticiler gönderebilir." });
+  const b = req.body || {};
+  const ownerId = Number(b.ownerId);
+  const onizleme = b.onizleme !== false;
+  const notMetni = b.not ?? "";
+  const ham = Array.isArray(b.asamalar) ? b.asamalar : [];
+  const asamalar = [...new Set(ham.map(Number))];
+  if (!Number.isInteger(ownerId)) return res.status(400).json({ error: "Danışman seçilmedi." });
+  if (!GORUNUM_SUZ[b.gorunum]) return res.status(400).json({ error: "Geçersiz liste." });
+  if (asamalar.length !== ham.length || asamalar.some(a => !TAKIP_ASAMALARI.includes(a))) return res.status(400).json({ error: "Geçersiz aşama." });
+  if (typeof notMetni !== "string" || notMetni.length > 300) return res.status(400).json({ error: "Not en fazla 300 karakter olabilir." });
+  if (!process.env.N8N_PORTAL_TOKEN) return res.status(500).json({ error: "N8N_PORTAL_TOKEN tanımlı değil." });
+  const danisman = [...(await dizinGetir()).kisiler.values()].find(k => k.kylasId === ownerId && satisBul(k.ad));
+  if (!danisman) return res.status(422).json({ error: "Danışman satış ekibinde değil." });
+
+  // takip ile birebir aynı hesap: yanıtı yakalayan sahte res ile çağrılır
+  const yakala = { kod: 200, veri: null, status(k) { this.kod = k; return this; }, json(v) { this.veri = v; return this; } };
+  await takip({ body: { ownerIds: [ownerId], sessizGun: b.sessizGun, kaynaklar: b.kaynaklar || [], kampanya: b.kampanya || "" } }, yakala, yetki);
+  if (yakala.kod !== 200) return res.status(yakala.kod).json(yakala.veri);
+  const sayi = yakala.veri.acik.filter(l => GORUNUM_SUZ[b.gorunum].suz(l) && (!asamalar.length || asamalar.includes(l.asama))).length;
+  if (!sayi) return res.status(422).json({ error: "Bu seçimde data yok." });
+  if (!onizleme && Number(b.onay) !== sayi) return res.status(409).json({ error: `Liste değişmiş (şimdi ${sayi} data). Pencereyi kapatıp yeniden açın.` });
+
+  const anahtar = ["toplu", ownerId, b.gorunum, [...asamalar].sort().join("-"), (b.kaynaklar || []).join("-"), b.kampanya || "", b.sessizGun].join(":");
+  return hatirlatGonder(res, yetki, { danisman: danisman.ad, onizleme, not: notMetni.trim(), onay: sayi, tur: "toplu", kayit: `toplu ${sayi} (${b.gorunum})`,
+    data: { id: anahtar, cumle: topluCumle(sayi, b.gorunum, asamalar) } });
 }
 
 export default async function handler(req, res) {
@@ -1093,7 +1144,7 @@ export default async function handler(req, res) {
   if (req.body?.islem === "ozet") {
     try { return await ozet(req, res, yetki); } catch (err) { return hataYaz(res, err); }
   }
-  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat], ["hatirlat", hatirlat]]) {
+  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat], ["hatirlat", hatirlat], ["topluHatirlat", topluHatirlat]]) {
     if (req.body?.islem === ad) {
       try { return await fn(req, res, yetki); } catch (err) { return hataYaz(res, err); }
     }

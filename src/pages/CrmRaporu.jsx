@@ -1,3 +1,4 @@
+// v3.9: apiCagir: topluHatirlat da kendiliğinden tekrarlanmaz
 // v3.8: kaynak listesi src/lib/kaynaklar.js'e taşındı (sunucu da okuyor)
 // v3.7: apiCagir: hatirlat isteği kendiliğinden tekrarlanmaz (çift WhatsApp olmasın)
 // v3.6: danışman seçimi tekli, Danışman sütunu yok; "Tüm danışmanlar"da sadece toplam satırı
@@ -49,7 +50,7 @@ const csvUrl = sekme => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz
 export { KAYNAKLAR };
 
 const TUMU = "tumu"; // danışman seçicisindeki "Tüm danışmanlar"
-export const CRM_SURUM = "v3.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const CRM_SURUM = "v3.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const TUM_KAYNAKLAR = KAYNAKLAR.map(k => k.id);
 // Hepsi seçiliyse kaynak filtresi gönderilmez (kaynağı boş datalar da sayılır)
@@ -59,7 +60,7 @@ export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${
 
 // Kylas yoğunsa (sunucu 503 döner) okuma istekleri 2 ve 4 sn sonra kendiliğinden tekrar denenir.
 // Yazma istekleri (not, task, atama) tekrarlanmaz: sunucu zaten kendi içinde tekrar dener, çift kayıt olmasın.
-const YAZMA_ISLEMLERI = ["notEkle", "taskEkle", "taskTamamla", "ata", "aramaBaslat", "hatirlat"];
+const YAZMA_ISLEMLERI = ["notEkle", "taskEkle", "taskTamamla", "ata", "aramaBaslat", "hatirlat", "topluHatirlat"];
 export async function apiCagir(govde) {
   const okuma = !YAZMA_ISLEMLERI.includes(govde?.islem);
   for (let deneme = 1; ; deneme++) {

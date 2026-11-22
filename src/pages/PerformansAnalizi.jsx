@@ -1,3 +1,4 @@
+// v4.6: sayfa adı CRM (modül izni sheet'te hâlâ "Performans Analizi" sütunu)
 // v4.5: sekme çubuğu sayfa genişliğinde, sekmeler eşit bölümlerde ve yazılar bölümlerinin ortasında
 // v4.4: Takip Tablosu v3.7 (Campaign Name araması)
 // v4.3: Takip Tablosu v3.6 (Danışman Ata), Data Tablosu v3.2
@@ -43,7 +44,7 @@ import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerl
 import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v4.5"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v4.6"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
@@ -52,9 +53,9 @@ const SEKME_SURUMU = {
   ozet: `Danışman Özeti ${OZET_SURUM}`,
   crm: `Data Tablosu ${CRM_SURUM}`,
   deg: `Performans Tablosu ${DEGERLENDIRME_SURUM}`,
-  quiz: `Quiz Skorları · Performans Analizi ${PERFORMANS_SURUM}`,
+  quiz: `Quiz Skorları · CRM ${PERFORMANS_SURUM}`,
 };
-const surumMetni = sekme => `${SEKME_SURUMU[sekme] || `Performans Analizi ${PERFORMANS_SURUM}`}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
+const surumMetni = sekme => `${SEKME_SURUMU[sekme] || `CRM ${PERFORMANS_SURUM}`}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
 // Performans Tablosu sadece admin/director/owner'da görünür
 const SEKMELER = [["takip", "Takip Tablosu"], ["ozet", "Danışman Özeti"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu", "admin"], ["quiz", "Quiz Skorları"]];
 
@@ -258,7 +259,7 @@ export default function PerformansAnalizi() {
               </svg>
             </div>
             <div>
-              <div style={s.headerTitleText}>Performans Analizi</div>
+              <div style={s.headerTitleText}>CRM</div>
               <div style={s.headerSub}>Aktivite, performans ve data tabloları, sınav sonuçları</div>
             </div>
           </div>
