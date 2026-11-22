@@ -1,3 +1,4 @@
+// v3.6: danışman seçimi tekli, Danışman sütunu yok; "Tüm danışmanlar"da sadece toplam satırı
 // v3.5: VIP Datalar varsayılanda ON, "Tüm Kaynaklar" (FiltreCubugu v1.6)
 // v3.4: apiCagir: Kylas yoğunken (503) okuma istekleri 2 ve 4 sn sonra tekrar denenir
 // v3.3: VIP Datalar OFF VIP kaynakları seçimden çıkarır (FiltreCubugu v1.5)
@@ -59,7 +60,8 @@ export const KAYNAKLAR = [
   { id: 3005340, ad: "Eski Öğrenci" },
 ];
 
-export const CRM_SURUM = "v3.5"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+const TUMU = "tumu"; // danışman seçicisindeki "Tüm danışmanlar"
+export const CRM_SURUM = "v3.6"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 export const TUM_KAYNAKLAR = KAYNAKLAR.map(k => k.id);
 // Hepsi seçiliyse kaynak filtresi gönderilmez (kaynağı boş datalar da sayılır)
@@ -228,7 +230,8 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
   return (
     <>
       <FiltreCubugu
-        danisman={danismanListesi ? { liste: danismanListesi, secili: danismanSecim, onChange: setDanismanSecim, bosMetin: "Tüm danışmanlar" } : null}
+        danisman={danismanListesi ? { tekli: true, liste: [{ id: TUMU, ad: "Tüm danışmanlar", sube: "Tümü" }, ...danismanListesi],
+          secili: danismanSecim.length ? danismanSecim : [TUMU], onChange: ids => { setDanismanSecim(ids[0] === TUMU ? [] : ids); setSecim(null); } } : null}
         kaynak={{ secili: kaynaklar, onChange: setKaynaklar, bosMetin: "Kaynak seçin" }}
         tarih={{ deger: gun, onChange: setGun, bosMetin: "Data tarihi", ipucu: "Data tarihi: datanın Kylas'ta oluşturulduğu tarih. Tümü: tüm zamanlar." }} />
 
@@ -256,20 +259,15 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
               <table style={c.grid}>
                 <thead>
                   <tr>
-                    <th style={{ ...c.th, ...c.ilkSutun, textAlign: "left", background: "#f8fafc", zIndex: 2 }}><Ipucu metin="Sayıya tıklayınca o danışmanın o aşamadaki data listesi açılır.">Danışman</Ipucu></th>
                     {asamalar.map(a => <th key={a.id} style={c.th}>{a.ad}</th>)}
                     <th style={{ ...c.th, background: "#ecfeff", color: "#0e7490" }}>Toplam</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {gorunen.map((r, i) => {
+                  {gorunen.length === 1 && gorunen.map((r, i) => {
                     const zemin = i % 2 ? "#fbfdff" : "#fff";
                     return (
                       <tr key={r.diger ? "diger" : r.email} style={{ background: zemin }}>
-                        <td style={{ ...c.td, ...c.ilkSutun, textAlign: "left", background: zemin, fontWeight: 600, color: r.diger ? "#94a3b8" : "#0f172a", whiteSpace: "nowrap" }}>
-                          {r.diger ? <Ipucu metin="Satış ekibinde olmayan ya da ID sekmesinde eşleşmeyen data sahipleri.">{r.ad}</Ipucu> : r.ad}
-                          {isAdmin && r.sube && <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 500 }}> · {r.sube}</span>}
-                        </td>
                         {asamalar.map(a => <td key={a.id} style={c.td}>{sayiHucresi(r, a, r.sayilar[a.id] || 0)}</td>)}
                         <td style={{ ...c.td, background: "#f0fdff" }}>{sayiHucresi(r, null, r.toplam, { fontWeight: 700, color: "#0891b2" })}</td>
                       </tr>
@@ -277,7 +275,6 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
                   })}
                   {gorunen.length > 1 && (
                     <tr style={{ background: "#f8fafc" }}>
-                      <td style={{ ...c.td, ...c.ilkSutun, textAlign: "left", background: "#f8fafc", fontWeight: 700, color: "#0f172a" }}>Toplam</td>
                       {asamalar.map(a => <td key={a.id} style={{ ...c.td, fontWeight: 700, color: "#0f172a" }}>{sutunToplam(a.id).toLocaleString("tr-TR")}</td>)}
                       <td style={{ ...c.td, fontWeight: 700, color: "#0891b2", background: "#ecfeff" }}>{genelToplam.toLocaleString("tr-TR")}</td>
                     </tr>

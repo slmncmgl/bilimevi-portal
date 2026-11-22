@@ -1,3 +1,4 @@
+// v6.22: danışman seçimi tekli, tablolarda Danışman sütunu çıkmaz
 // v6.21: kaynak listesinde sol sütun VIP olmayanlar, sağ sütun VIP'ler, alfabetik (KaynakSecici v1.3)
 // v6.20: renkli çerçeveler 9 tuşu 2 sn basılı tutulunca kapanır/açılır (CrmRaporu Cerceve)
 // v6.19: arama kutusu aşama çerçevesiyle aynı genişlikte; Günlük Aktivite, Dataları Ele Al butonunun altında (aşama satırının sağında)
@@ -93,7 +94,7 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.21"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.22"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -186,7 +187,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     if (!kisiler || danismanlar.length || !secilebilir.length) return;
     const kendi = secilebilir.find(k => k.email === kucuk(user?.email) || kucuk(k.ad) === kucuk(user?.name));
     if (kendi) setDanismanlar([kendi.id]);
-    else if (!isAdmin && !isManager) setDanismanlar(secilebilir.map(k => k.id));
+    else if (!isAdmin && !isManager) setDanismanlar([secilebilir[0].id]);
   }, [kisiler]);
   // Şube değişince görünmeyen danışmanlar seçimden düşer
   const secilebilirAnahtar = secilebilir.map(k => k.id).join(",");
@@ -278,7 +279,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   return (
     <>
       <FiltreCubugu
-        danisman={isAdmin || isManager ? { liste: subeyeGore, secili: danismanlar, onChange: setDanismanlar, yukleniyor: !kisiler && !kisiHata } : null}
+        danisman={isAdmin || isManager ? { liste: subeyeGore, secili: danismanlar, onChange: setDanismanlar, tekli: true, yukleniyor: !kisiler && !kisiHata } : null}
         kaynak={{ secili: kaynaklar, onChange: setKaynaklar }}
         tarih={{ deger: sessizGun || null, onChange: v => setSessizGun(v === null ? 0 : v), metin: g => `${g} günden eski`, nMetni: "N günden eski",
           bosMetin: "Son Etkinlik", ipucu: `Son Etkinlik Tarihi: ${ACIKLAMA.sonEtkinlik}` }} />
