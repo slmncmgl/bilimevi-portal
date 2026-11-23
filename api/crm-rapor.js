@@ -1,3 +1,4 @@
+// v3.20: tarihi geçmiş task'ı olan data da takipsiz (Yeni hariç)
 // v3.19: takip listesi (Açık Data) "Yeni" aşamasını da içerir; Yeni datalar takipsiz sayılmaz, task zorunlu değil
 // v3.18: toplu cümle "... datanızla en kısa sürede ilgilenebilir misiniz?"; hata metninde "Reklam Adı"
 // v3.17: islem "topluHatirlat": { ownerId, sessizGun, kaynaklar, kampanya, gorunum, asamalar, onizleme, onay?, not? } -> danışmana
@@ -334,11 +335,12 @@ function takipDurumu(l, simdi, sinir, gercek = null) {
   const task = gercek ? (gercek.tur === "yok" ? null : zaman(gercek.tarih)) : zaman(l.taskDueOn);
   const zorunlu = taskZorunlu(l);
   const akt = zaman(l.latestActivityCreatedAt);
+  const taskTur = gercek ? gercek.tur : task && task >= simdi ? "ileri" : task ? "gecikmis" : "yok";
   return {
     zorunlu,
-    taskTur: gercek ? gercek.tur : task && task >= simdi ? "ileri" : task ? "gecikmis" : "yok",
-    // Zorunlu kümede task yoksa doğrudan takipsiz; diğerlerinde task yok + sessizlik
-    takipsiz: !task && (zorunlu || !akt || akt < sinir),
+    taskTur,
+    // Tarihi geçmiş task'ı olan her data takipsiz; zorunlu kümede task yoksa da; diğerlerinde task yok + sessizlik
+    takipsiz: taskTur === "gecikmis" || (!task && (zorunlu || !akt || akt < sinir)),
   };
 }
 

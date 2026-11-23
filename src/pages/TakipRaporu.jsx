@@ -1,3 +1,4 @@
+// v6.32: Takipsiz kartı tarihi geçmiş task'ı olan dataları da içerir (crm-rapor v3.20)
 // v6.31: Açık Data "Yeni" aşamasındaki dataları da içerir (aşama çipi Yeni eklendi; Yeni datalar takipsiz sayılmaz)
 // v6.30: Son aktivite yazısı güne göre renkli: yakın tarih turuncu, eskidikçe koyu kırmızı ve kalın (90 gün ve üstü ile "Hiç yok" en koyu)
 // v6.29: Reklam Adı sadece Instagram ve Facebook datalarında; listede hiç yoksa sütun gizli
@@ -105,7 +106,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.31"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.32"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -120,8 +121,8 @@ const ACIKLAMA = {
   gecikmisTask: "Task zorunlu datalardan (İlgili + VIP Görüşme) task tarihi geçmiş olanlar. Tıklayınca aşağıda listelenir.",
   takipOrani: "İleri tarihli task'ı olan data / task beklenen data (İlgili + VIP Görüşme). Tıklayınca task beklenen datalar listelenir.",
   takipsiz: g => (g
-    ? `İlgili ve VIP Görüşme datasında task yoksa takipsiz. Na1-Na3 ve VIP olmayan Görüşme'de task yok ve son etkinlik ${g} günden eski. Tıklayınca aşağıda listelenir.`
-    : "Task'ı olmayan her açık data takipsiz (son etkinliğe bakılmıyor). İlgili ve VIP Görüşme'de task zorunlu. Tıklayınca aşağıda listelenir."),
+    ? `Task tarihi geçmişse takipsiz. İlgili ve VIP Görüşme datasında task yoksa takipsiz. Na1-Na3 ve VIP olmayan Görüşme'de task yok ve son etkinlik ${g} günden eski. Tıklayınca aşağıda listelenir.`
+    : "Task'ı olmayan ya da task tarihi geçmiş her açık data takipsiz (son etkinliğe bakılmıyor). İlgili ve VIP Görüşme'de task zorunlu. Tıklayınca aşağıda listelenir."),
   sonEtkinlik: "Takipsiz sayılması için son etkinliğin ne kadar eski olması gerektiği. Sadece Na1-Na3 ve VIP olmayan Görüşme için geçerli. Tümü: son etkinliğe bakılmaz.",
   sonAktivite: "Kylas'taki son etkinlik tarihi (Latest Activity On). Otomasyon güncellemeleriyle de değişir, not girilince değişmez.",
   taskZorunlu: "İlgili ya da VIP Görüşme datası: task zorunlu ama task yok.",
