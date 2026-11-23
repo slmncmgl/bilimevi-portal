@@ -1,3 +1,5 @@
+// v2.11: task kartı sade: Kylas'ın otomatik adı ("Task due at ... for ...") ve atanan danışman gizli, gün sayısı yok; tarih geçtiyse kırmızı,
+//       gelmediyse mavi; tür (Follow Up vb.) adın üstünde küçük; "Tamamla"; Task oluştur düğmesi tam genişlik
 // v2.10: "Campaign Name" alanı "Reklam Adı"
 // v2.9: numaranın yanında Kylas arama ikonu (mobil bildirim) ve WhatsApp butonu (wa.me: telefonda uygulama, bilgisayarda Web)
 // v2.8: arama sonucu, bildirimin gittiği Kylas hesabını ve Kylas yanıt kodunu gösterir; süre 6 sn -> 12 sn
@@ -47,6 +49,9 @@ const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const gunOnce = v => (v ? Math.floor((Date.now() - new Date(v).getTime()) / 86400000) : null);
 const ENAZ = 2; // not en az bu kadar karakter
+// Kylas'ın otomatik task adı ("Task due at Sep 22, 2026 for Nil Ozer") bilgi taşımaz, gösterilmez
+const gorunenAd = t => (/^task due at .* for /i.test(t.ad || "") ? "" : t.ad || "");
+
 // Ortak 4 sütun: ilk üçü esnek, sağdaki sütun Task oluştur düğmesi kadar. Üst şerit ve kartlar bu ızgarayla hizalanır.
 const SAG_SUTUN = 120;
 const SUTUNLAR = `repeat(3, minmax(0, 1fr)) ${SAG_SUTUN}px`;
@@ -402,7 +407,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
           <section className="elal-task-kart" style={{ ...s.taskKart, ...s.taskKartSabit }}>
             <div className="elal-izgara" style={s.taskBaslik}>
               <span style={{ ...s.bolumBaslik, marginBottom: 0 }}>Task'lar{acikTasklar.length ? ` · ${acikTasklar.length} açık` : ""}</span>
-              <button type="button" onClick={e => pencereAc(e.currentTarget)} style={s.taskEkleDugme} aria-haspopup="dialog">＋ Task oluştur</button>
+              <button type="button" onClick={e => pencereAc(e.currentTarget)} style={{ ...s.taskEkleDugme, width: "100%" }} aria-haspopup="dialog">＋ Task oluştur</button>
             </div>
             {tk?.yukleniyor && <div style={s.bilgiMetni}><span className="elal-spin" /> Task'lar alınıyor...</div>}
             {tk?.hata && <div style={{ ...s.bilgiMetni, color: "#991b1b" }}>{tk.hata} <button type="button" onClick={() => tasklariGetir(l, true)} style={s.metinDugme}>Tekrar dene</button></div>}
@@ -412,20 +417,20 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
               const kapali = t.durum !== "acik" && t.durum !== "surecte";
               return (
                 <div key={t.id} className={`elal-task${t.yeni ? " elal-yeni-not" : ""}`} style={{ ...s.taskSatir, ...(kapali ? s.taskKapali : t.gecikmis ? s.taskGecikmis : {}) }}>
-                  <span style={{ ...s.taskTur, ...(kapali ? { background: "#f1f5f9", color: "#94a3b8" } : {}) }}>{kapali ? "✓" : t.tur || "Task"}</span>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, color: kapali ? "#94a3b8" : "#0f172a", textDecoration: kapali ? "line-through" : "none", wordBreak: "break-word" }}>{t.ad || "İsimsiz task"}</div>
-                    <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>
-                      {[t.atanan ? kisiAdi(t.atanan) : null, t.portalYazan ? `${t.portalYazan} açtı (Portal)` : null, t.durum === "iptal" ? "İptal" : null].filter(Boolean).join(" · ")}
+                    {!kapali && t.tur && <div style={s.taskTur}>{t.tur}</div>}
+                    {gorunenAd(t) && <div style={{ fontWeight: 700, color: kapali ? "#94a3b8" : "#0f172a", textDecoration: kapali ? "line-through" : "none", wordBreak: "break-word" }}>{gorunenAd(t)}</div>}
+                    {(t.portalYazan || t.durum === "iptal") && <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>
+                      {[t.portalYazan ? `${t.portalYazan} açtı (Portal)` : null, t.durum === "iptal" ? "İptal" : null].filter(Boolean).join(" · ")}
+                    </div>}
+                    <div style={{ fontSize: "12px", fontWeight: 700, marginTop: "4px", color: kapali ? "#94a3b8" : t.gecikmis ? "#b91c1c" : "#1d4ed8" }}>
+                      {kapali ? "✓ " : ""}{t.tarih ? tarih(t.tarih, true) : "-"}
                     </div>
-                  </div>
-                  <div style={{ gridColumn: "1 / -1", fontSize: "12px", fontWeight: 700, color: kapali ? "#94a3b8" : t.gecikmis ? "#b91c1c" : "#166534" }}>
-                    {t.tarih ? tarih(t.tarih, true) : "-"}{!kapali && t.gecikmis ? ` · ${gunOnce(t.tarih)} gün gecikti` : ""}
                   </div>
                   <div className="elal-task-dugmeler" style={s.taskDugmeler}>
                     {!kapali && (
                       <>
-                        <button type="button" disabled={islem === "calisiyor"} onClick={() => tamamla(t)} style={s.taskTamam}>{islem === "calisiyor" ? "..." : "✓ Tamamlandı"}</button>
+                        <button type="button" disabled={islem === "calisiyor"} onClick={() => tamamla(t)} style={s.taskTamam}>{islem === "calisiyor" ? "..." : "✓ Tamamla"}</button>
                       </>
                     )}
                   </div>
@@ -672,14 +677,14 @@ const s = {
   // Task hücresi satır yüksekliğine katkı vermez; kart hücreyi doldurur, taşan task'lar kart içinde kayar
   taskHucre: { position: "relative", minWidth: 0 },
   taskKartSabit: { position: "absolute", inset: 0, overflowY: "auto", boxSizing: "border-box" },
-  taskBaslik: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "4px" },
+  taskBaslik: { display: "flex", flexDirection: "column", alignItems: "stretch", gap: "8px", marginBottom: "4px" },
   taskEkleDugme: { whiteSpace: "nowrap", padding: "6px 10px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#f0fdf4", color: "#166534", fontSize: "12px",
     fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
-  taskSatir: { display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)", gap: "6px 10px", alignItems: "center", padding: "10px 12px",
+  taskSatir: { display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: "6px 10px", alignItems: "center", padding: "10px 12px",
     borderRadius: "12px", background: "#f8fafc", border: "1px solid #f1f5f9", fontSize: "13px" },
   taskGecikmis: { background: "#fef2f2", border: "1px solid #fecaca" },
   taskKapali: { background: "#fff", border: "1px dashed #e2e8f0" },
-  taskTur: { minWidth: 0, textAlign: "center", boxSizing: "border-box", padding: "3px 8px", borderRadius: "8px", background: "#ecfeff", color: "#0e7490", fontSize: "11px", fontWeight: 700, whiteSpace: "nowrap" },
+  taskTur: { display: "inline-block", marginBottom: "3px", padding: "1px 7px", borderRadius: "999px", background: "#ecfeff", color: "#0e7490", fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap" },
   taskDugmeler: { gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", gap: "6px", justifyContent: "flex-start" },
   taskTamam: { padding: "6px 10px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#fff", color: "#166534", fontSize: "11.5px",
     fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", whiteSpace: "nowrap" },
