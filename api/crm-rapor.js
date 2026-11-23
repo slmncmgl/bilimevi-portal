@@ -1,3 +1,4 @@
+// v3.19: takip listesi (Açık Data) "Yeni" aşamasını da içerir; Yeni datalar takipsiz sayılmaz, task zorunlu değil
 // v3.18: toplu cümle "... datanızla en kısa sürede ilgilenebilir misiniz?"; hata metninde "Reklam Adı"
 // v3.17: islem "topluHatirlat": { ownerId, sessizGun, kaynaklar, kampanya, gorunum, asamalar, onizleme, onay?, not? } -> danışmana
 //       ekrandaki listenin sayısıyla tek WhatsApp ("Na1 aşamasındaki 12 takipsiz datanızla..."). Sayı takip ile aynı kuralla sunucuda
@@ -358,6 +359,8 @@ async function musaitlikGetir() {
 }
 
 const YENI = 217285;
+// Takip Tablosu Açık Data: Yeni + takip aşamaları (Yeni datalar takipsiz sayılmaz)
+const ACIK_ASAMALAR = [YENI, ...TAKIP_ASAMALARI];
 const YENI_KAYIT = 217286;
 const YENI_BEKLEME_MS = 24 * 60 * 60 * 1000;
 
@@ -455,7 +458,7 @@ async function takip(req, res, yetki) {
   if (kampanya.length > 100) return res.status(400).json({ error: "Reklam Adı araması en fazla 100 karakter olabilir." });
   if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor takip")) return;
 
-  const kurallar = [sahipKurali(ownerIds), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", TAKIP_ASAMALARI)];
+  const kurallar = [sahipKurali(ownerIds), kural("pipeline", "equal", PIPELINE_ID), kural("pipelineStage", "in", ACIK_ASAMALAR)];
   if (kaynaklar.length) kurallar.push(kural("source", "in", kaynaklar));
   if (kampanya) kurallar.push(kural("utmCampaign", "contains", kampanya, "string"));
   const leadler = await hepsiniCek(kurallar, [...LISTE_ALANLARI, "source", "utmCampaign", "phoneNumbers", "emails"]);
@@ -492,6 +495,7 @@ async function takip(req, res, yetki) {
     const say = alan => { ozet[alan]++; d[alan]++; };
     say("toplam");
     const t = takipDurumu(l, simdi, sinir, gercekTask(l.id));
+    if (l.pipelineStage === YENI) t.takipsiz = false;
     if (t.zorunlu) {
       say("taskBeklenen");
       if (t.taskTur === "ileri") say("ileriTask");
@@ -1052,7 +1056,7 @@ async function hatirlat(req, res, yetki) {
   const l = (d.content || [])[0];
   if (!l) return res.status(404).json({ error: "Data bulunamadı." });
   const ownerId = Number(l.ownerId);
-  if (!TAKIP_ASAMALARI.includes(l.pipelineStage)) return res.status(422).json({ error: "Data artık açık aşamada değil, listeyi yenileyin." });
+  if (!ACIK_ASAMALAR.includes(l.pipelineStage)) return res.status(422).json({ error: "Data artık açık aşamada değil, listeyi yenileyin." });
   if (!onizleme && Number(req.body?.onay) !== ownerId) return res.status(409).json({ error: "Datanın danışmanı değişmiş. Pencereyi kapatıp yeniden açın." });
   const danisman = [...(await dizinGetir()).kisiler.values()].find(k => k.kylasId === ownerId && satisBul(k.ad));
   if (!danisman) return res.status(422).json({ error: "Datanın sahibi satış ekibinde değil." });
@@ -1091,7 +1095,7 @@ const GORUNUM_SUZ = {
 const listeYaz = a => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} ve ${a.at(-1)}`);
 export function topluCumle(sayi, gorunum, asamaIdleri) {
   const adlar = ASAMALAR.filter(a => asamaIdleri.includes(a.id)).map(a => a.ad); // aşama sırasıyla
-  const asama = !adlar.length || adlar.length === TAKIP_ASAMALARI.length ? "" : `${listeYaz(adlar)} ${adlar.length > 1 ? "aşamalarındaki" : "aşamasındaki"} `;
+  const asama = !adlar.length || adlar.length === ACIK_ASAMALAR.length || (adlar.length === TAKIP_ASAMALARI.length && !asamaIdleri.includes(YENI)) ? "" : `${listeYaz(adlar)} ${adlar.length > 1 ? "aşamalarındaki" : "aşamasındaki"} `;
   return `${asama}${sayi} ${GORUNUM_SUZ[gorunum].kelime} datanızla en kısa sürede ilgilenebilir misiniz?`;
 }
 
@@ -1106,7 +1110,7 @@ async function topluHatirlat(req, res, yetki) {
   const asamalar = [...new Set(ham.map(Number))];
   if (!Number.isInteger(ownerId)) return res.status(400).json({ error: "Danışman seçilmedi." });
   if (!GORUNUM_SUZ[b.gorunum]) return res.status(400).json({ error: "Geçersiz liste." });
-  if (asamalar.length !== ham.length || asamalar.some(a => !TAKIP_ASAMALARI.includes(a))) return res.status(400).json({ error: "Geçersiz aşama." });
+  if (asamalar.length !== ham.length || asamalar.some(a => !ACIK_ASAMALAR.includes(a))) return res.status(400).json({ error: "Geçersiz aşama." });
   if (typeof notMetni !== "string" || notMetni.length > 300) return res.status(400).json({ error: "Not en fazla 300 karakter olabilir." });
   if (!process.env.N8N_PORTAL_TOKEN) return res.status(500).json({ error: "N8N_PORTAL_TOKEN tanımlı değil." });
   const danisman = [...(await dizinGetir()).kisiler.values()].find(k => k.kylasId === ownerId && satisBul(k.ad));

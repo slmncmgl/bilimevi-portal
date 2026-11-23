@@ -1,3 +1,4 @@
+// v6.31: Açık Data "Yeni" aşamasındaki dataları da içerir (aşama çipi Yeni eklendi; Yeni datalar takipsiz sayılmaz)
 // v6.30: Son aktivite yazısı güne göre renkli: yakın tarih turuncu, eskidikçe koyu kırmızı ve kalın (90 gün ve üstü ile "Hiç yok" en koyu)
 // v6.29: Reklam Adı sadece Instagram ve Facebook datalarında; listede hiç yoksa sütun gizli
 // v6.28: "Campaign Name" sütun ve filtre adı "Reklam Adı"; toplu mesaj "en kısa sürede ilgilenebilir misiniz?" (crm-rapor v3.18)
@@ -104,16 +105,16 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.30"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.31"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
-const ASAMA_ADLARI = { 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
+const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
-const ASAMA_SIRASI = [222366, 253357, 253358, 218701, 218702];
+const ASAMA_SIRASI = [217285, 222366, 253357, 253358, 218701, 218702];
 const SAYFA_BOYLARI = [10, 20, 30, 50];
 
 // Üzerine gelince görünen açıklamalar
 const ACIKLAMA = {
-  acik: "Na1, Na2, Na3, Görüşme ve İlgili aşamalarındaki tüm datalar. Tıklayınca aşağıda listelenir.",
+  acik: "Yeni, Na1, Na2, Na3, Görüşme ve İlgili aşamalarındaki tüm datalar (Yeni datalar takipsiz sayılmaz). Tıklayınca aşağıda listelenir.",
   taskBeklenen: "Task'ı zorunlu olan datalar: İlgili aşamasındaki tüm datalar ve VIP kaynaklı Görüşme datası. Tıklayınca aşağıda listelenir.",
   ileriTask: "Task zorunlu datalardan (İlgili + VIP Görüşme) ileri tarihli task'ı olanlar. Tıklayınca aşağıda listelenir.",
   gecikmisTask: "Task zorunlu datalardan (İlgili + VIP Görüşme) task tarihi geçmiş olanlar. Tıklayınca aşağıda listelenir.",
