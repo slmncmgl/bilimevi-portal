@@ -169,7 +169,7 @@ const MODULE_CONFIG = [
     key: "performansanalizi",
     title: "CRM",
     desc: "Danışman sınav sayılarını ve başarı ortalamalarını takip et",
-    path: "/performans-analizi",
+    path: "/crm",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
         <path d="M12 20V10M18 20V4M6 20v-4" strokeLinecap="round" strokeLinejoin="round"/>

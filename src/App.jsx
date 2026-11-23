@@ -60,7 +60,8 @@ export default function App() {
         <Route path="/fiyat-teklifi" element={<FiyatTeklifi />} />
         <Route path="/katalog-parse" element={<KatalogParse />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/performans-analizi" element={<PerformansAnalizi />} />
+        <Route path="/crm" element={<PerformansAnalizi />} />
+        <Route path="/performans-analizi" element={<Navigate to="/crm" replace />} />
         <Route path="/anket-raporu" element={<AnketRaporu />} />
         <Route path="/kayit-form-linkleri" element={<KayitFormLinkleri />} />
         <Route path="/kayit-takip" element={<KayitTakip />} />
