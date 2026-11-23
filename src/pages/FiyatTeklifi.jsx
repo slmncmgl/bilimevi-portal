@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v131-onemli-not-2026-11-23";
+const BFT_BUILD_VERSION = "v132-indirim-rozeti-2026-11-23";
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
 const MAX_OKUL_SEHIR = 3;
@@ -329,7 +329,8 @@ async function fetchNav(isStaff) {
   const countries = {};
   const citiesByLang = {};
   const brandsByCity = {};
-  const brandsByLangCity = {}; // v128: okul listesi dil+şehre göre (Berlin İngilizce'de Almanca okullar çıkmasın)
+  const brandsByLangCity = {};
+  const indirimler = {};   // v132: master_index "indirim" sütunu ("%30" / "kampanya"), anahtar brand__city // v128: okul listesi dil+şehre göre (Berlin İngilizce'de Almanca okullar çıkmasın)
   const schoolSheets = {};
   const portalIds = {};   // portal_id → { brand, city, country } (URL preselect için)
   rows.forEach(row => {
@@ -339,6 +340,8 @@ async function fetchNav(isStaff) {
     const countryTRName = countryTR[normCountry(row.country)] || countryTR[row.country] || row.country;
     // portal_id: URL ile doğrudan okul+şehir seçimi için (?id=3)
     const pid = (row.portal_id || "").toString().trim();
+    const _ind = (row.indirim || "").toString().trim();
+    if (_ind && brand && city) indirimler[`${brand}__${city}`] = _ind;
     if (pid && brand && city) portalIds[pid] = { brand, city, country: countryTRName };
     // Staff: sheetId'yi drive_link'ten çıkar (doğrudan gviz için).
     // Customer: sheetId React'e HİÇ gelmez; sadece brand ismi tutulur (proxy alias çözer).
@@ -373,6 +376,7 @@ async function fetchNav(isStaff) {
     countries: Object.fromEntries(Object.entries(countries).map(([k,v]) => [k,[...v]])),
     citiesByLang: Object.fromEntries(Object.entries(citiesByLang).map(([l,cm]) => [l, Object.fromEntries(Object.entries(cm).map(([c,s]) => [c,[...s].sort()]))])),
     brandsByCity: Object.fromEntries(Object.entries(brandsByCity).map(([c,s]) => [c,[...s]])),
+    indirimler,
     brandsByLangCity: Object.fromEntries(Object.entries(brandsByLangCity).map(([c,s]) => [c,[...s]])),
     schoolSheets,
     portalIds,
@@ -3066,7 +3070,7 @@ export default function FiyatTeklifi() {
                 return only30 ? cities.some(is30Plus) : cities.some(c => !is30Plus(c));
               }).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{COUNTRY_FLAG[c] ? <span style={{ marginRight:6, fontSize:16 }}>{COUNTRY_FLAG[c]}</span> : null}{c}</div>))}</div></>}
               {cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).filter(c => only30 ? is30Plus(c) : !is30Plus(c)).map(c => { const _dolu = cur.city!==c && destinations.filter(d => d.country===cur.country && d.city===c).length >= MAX_OKUL_SEHIR; return (<div key={c} title={_dolu ? `Bu şehirden en fazla ${MAX_OKUL_SEHIR} okul seçilebilir` : undefined} style={cur.city===c ? S.selActive : _dolu ? S.selDisabled : S.sel} onClick={() => { if (_dolu) return; setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}{_dolu && <div style={{ fontSize:10, marginTop:2 }}>{MAX_OKUL_SEHIR} okul seçildi</div>}</div>); })}</div></>}
-              {cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByLangCity?.[`${cur.lang}__${cur.city}`] || nav.brandsByCity[cur.city] || []).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
+              {cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByLangCity?.[`${cur.lang}__${cur.city}`] || nav.brandsByCity[cur.city] || []).map(b => { const _ind = nav.indirimler?.[`${b}__${cur.city}`]; return (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}{_ind && <div style={{ display:"inline-block", marginLeft:6, padding:"1px 7px", borderRadius:999, fontSize:10.5, fontWeight:700, background:"#dcfce7", color:"#15803d", border:"1px solid #86efac", verticalAlign:"middle" }}>{/^kampanya$/i.test(_ind) ? "Kampanya" : `${_ind} indirim`}</div>}</div>); })}</div></>}
               {isOnlineUlke(cur.country) && cur.brand && <div style={{ marginTop:10, padding:"8px 12px", background:"#f0fdff", border:`1px solid ${CYAN}`, borderRadius:8, fontSize:12, color:CYAN }}>✓ Online kurs seçildi — konaklama ve transfer adımları atlanacak</div>}
             </div>
           )}
