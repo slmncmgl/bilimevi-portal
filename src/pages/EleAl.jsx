@@ -331,11 +331,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
                   return (
                     <div key={t} style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <Ipucu metin="Tıklayınca arama bildirimi telefonundaki Kylas uygulamasına gider (Kylas'ta oturumun açık olmalı)." isaret={false}>
-                          <button type="button" onClick={() => aramaGonder(l.id, t)} disabled={a?.durum === "gidiyor"} style={s.aramaDugme}>
-                            <span style={s.ikonYesil}>☎</span>{t}
-                          </button>
-                        </Ipucu>
+                        <span style={{ fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>{t}</span>
                         <Ipucu metin="Telefondaki Kylas uygulamasında aramayı başlat" isaret={false}>
                           <button type="button" aria-label="Kylas ile ara" onClick={() => aramaGonder(l.id, t)} disabled={a?.durum === "gidiyor"} style={s.aramaIkon}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
