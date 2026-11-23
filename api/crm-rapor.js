@@ -1,3 +1,4 @@
+// v3.21: staff da Danışman Ata kullanır: sadece kendi datasını, tüm satış ekibinden birine
 // v3.20: tarihi geçmiş task'ı olan data da takipsiz (Yeni hariç)
 // v3.19: takip listesi (Açık Data) "Yeni" aşamasını da içerir; Yeni datalar takipsiz sayılmaz, task zorunlu değil
 // v3.18: toplu cümle "... datanızla en kısa sürede ilgilenebilir misiniz?"; hata metninde "Reklam Adı"
@@ -690,7 +691,7 @@ async function ata(req, res, yetki) {
   // Yazma işlemi: izleme modu yok
   if (yetki.tur === "anonim") return res.status(401).json({ error: "Oturum doğrulanamadı. Lütfen çıkış yapıp tekrar giriş yapın." });
   if (yetki.tur === "hata") return res.status(503).json({ error: "Yetki bilgisi okunamadı, biraz sonra tekrar deneyin." });
-  if (!["admin", "manager"].includes(yetki.tur)) return res.status(403).json({ error: "Danışman atama yetkiniz yok." });
+  if (!["admin", "manager", "staff"].includes(yetki.tur)) return res.status(403).json({ error: "Danışman atama yetkiniz yok." });
 
   const ham = Array.isArray(req.body?.leadIds) ? req.body.leadIds : [];
   const leadIds = [...new Set(ham.map(Number))].filter(n => Number.isInteger(n) && n > 0);
@@ -708,9 +709,9 @@ async function ata(req, res, yetki) {
   const d = await kylasAra([kural("id", "in", leadIds)], 0, ["id", "ownerId"]);
   const leadler = d.content || [];
   const sahipler = new Map(leadler.map(l => [l.id, Number(l.ownerId)]));
-  if (yetki.tur === "manager") {
+  if (yetki.tur !== "admin") {
     const disarida = leadler.filter(l => !yetki.idler.has(Number(l.ownerId)));
-    if (disarida.length) return res.status(403).json({ error: "Seçilen Datalardan bazıları şubenizdeki danışmanlara ait değil." });
+    if (disarida.length) return res.status(403).json({ error: yetki.tur === "staff" ? "Sadece kendi Datalarınızı aktarabilirsiniz." : "Seçilen Datalardan bazıları şubenizdeki danışmanlara ait değil." });
   }
 
   const sonuc = { aktarilan: [], zatenSahibi: [], bulunamayan: leadIds.filter(id => !sahipler.has(id)), hatali: [] };

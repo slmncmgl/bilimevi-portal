@@ -1,3 +1,4 @@
+// v6.33: staff da seçme kutuları ve Danışman Ata ile kendi datasını tüm satış ekibinden birine aktarır (crm-rapor v3.21)
 // v6.32: Takipsiz kartı tarihi geçmiş task'ı olan dataları da içerir (crm-rapor v3.20)
 // v6.31: Açık Data "Yeni" aşamasındaki dataları da içerir (aşama çipi Yeni eklendi; Yeni datalar takipsiz sayılmaz)
 // v6.30: Son aktivite yazısı güne göre renkli: yakın tarih turuncu, eskidikçe koyu kırmızı ve kalın (90 gün ve üstü ile "Hiç yok" en koyu)
@@ -106,7 +107,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.32"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.33"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -211,8 +212,9 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     if (!kisiler) return;
     setDanismanlar(s => s.filter(id => secilebilir.some(k => k.id === id)));
   }, [secilebilirAnahtar]);
-  const hedefler = isAdmin || isManager ? secilebilir.map(k => ({ ...k, id: Number(k.id) }))
-    .sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr")) : null;
+  // Staff kendi datasını tüm satış ekibinden birine aktarabilir (kendisi hariç)
+  const hedefler = (isAdmin || isManager ? secilebilir : satisci.filter(k => !secilebilir.some(b => b.id === k.id))).map(k => ({ ...k, id: Number(k.id) }))
+    .sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr"));
   const atanabilir = !!hedefler?.length;
   const subeyeGore = [...secilebilir].sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr"));
   const hepsiSecili = secilebilir.length > 0 && secilebilir.every(k => danismanlar.includes(k.id));

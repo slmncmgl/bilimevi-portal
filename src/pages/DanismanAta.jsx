@@ -2,7 +2,7 @@
 // v1.0: Danışman Ata çubuğu (Data Tablosu ve Takip Tablosu listeleri ortak kullanır)
 // Listede kutucukla seçilen Datalar (isaretli) seçilen satış danışmanına aktarılır: crm-rapor islem "ata", 25'erli parçalar.
 // Onay portal penceresinde (OnayPenceresi.jsx). Sonuç şeridi aktarım bitince görünür.
-// hedefler: [{ id (Kylas ID, sayı), ad, sube }]; admin tüm satış ekibi, manager kendi şubesi. Boşsa çubuk görünmez.
+// hedefler: [{ id (Kylas ID, sayı), ad, sube }]; admin ve staff tüm satış ekibi, manager kendi şubesi. Boşsa çubuk görünmez.
 // onMesgul(true/false): aktarım sürerken liste kutucukları kilitlensin diye. onAktarildi: en az bir Data aktarıldıysa (liste yenilensin).
 import { useState, useEffect } from "react";
 import { apiCagir, c } from "./CrmRaporu";
