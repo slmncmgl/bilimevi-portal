@@ -1,3 +1,4 @@
+// v1.1: metindeki satır sonları korunur (madde listesi için)
 // v1.0: üzerine gelince açılan açıklama balonu (Aktivite, Performans ve Data Tablosu ortak kullanır)
 // Açıklamalar sayfada yazı olarak durmaz; ilgili başlığın, kartın ya da etiketin üzerine gelince balonda görünür.
 // Balon document.body'ye çizilir (kartlardaki animasyon ve taşma kesmesi etkilemesin); ekranın altına yakınsa yukarı açılır.
@@ -25,7 +26,7 @@ export default function Ipucu({ metin, children, blok = false, isaret = true, st
       style={{ ...(blok ? {} : { display: "inline-flex", alignItems: "center" }), ...(isaret && !blok ? i.isaret : {}), ...style }}>
       {children}
       {konum && createPortal(
-        <span role="tooltip" style={{ ...i.balon, left: konum.sol, top: konum.ust, width: konum.genislik, transform: konum.asagi ? "none" : "translateY(-100%)" }}>
+        <span role="tooltip" style={{ ...i.balon, left: konum.sol, top: konum.ust, width: konum.genislik, transform: konum.asagi ? "none" : "translateY(-100%)", whiteSpace: "pre-line" }}>
           {metin}
         </span>,
         document.body,

@@ -1,3 +1,4 @@
+// v6.34: kart açıklamaları madde madde
 // v6.33: staff da seçme kutuları ve Danışman Ata ile kendi datasını tüm satış ekibinden birine aktarır (crm-rapor v3.21)
 // v6.32: Takipsiz kartı tarihi geçmiş task'ı olan dataları da içerir (crm-rapor v3.20)
 // v6.31: Açık Data "Yeni" aşamasındaki dataları da içerir (aşama çipi Yeni eklendi; Yeni datalar takipsiz sayılmaz)
@@ -107,7 +108,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.33"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.34"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -116,14 +117,14 @@ const SAYFA_BOYLARI = [10, 20, 30, 50];
 
 // Üzerine gelince görünen açıklamalar
 const ACIKLAMA = {
-  acik: "Yeni, Na1, Na2, Na3, Görüşme ve İlgili aşamalarındaki tüm datalar (Yeni datalar takipsiz sayılmaz). Tıklayınca aşağıda listelenir.",
-  taskBeklenen: "Task'ı zorunlu olan datalar: İlgili aşamasındaki tüm datalar ve VIP kaynaklı Görüşme datası. Tıklayınca aşağıda listelenir.",
-  ileriTask: "Task zorunlu datalardan (İlgili + VIP Görüşme) ileri tarihli task'ı olanlar. Tıklayınca aşağıda listelenir.",
-  gecikmisTask: "Task zorunlu datalardan (İlgili + VIP Görüşme) task tarihi geçmiş olanlar. Tıklayınca aşağıda listelenir.",
-  takipOrani: "İleri tarihli task'ı olan data / task beklenen data (İlgili + VIP Görüşme). Tıklayınca task beklenen datalar listelenir.",
+  acik: "• Yeni, Na1, Na2, Na3, Görüşme ve İlgili aşamalarındaki tüm datalar\n• Yeni datalar takipsiz sayılmaz\n• Tıklayınca aşağıda listelenir.",
+  taskBeklenen: "Task'ı zorunlu olan datalar:\n• İlgili aşamasındaki tüm datalar\n• VIP kaynaklı Görüşme datası\n• Tıklayınca aşağıda listelenir.",
+  ileriTask: "• Task zorunlu datalardan (İlgili + VIP Görüşme)\n• İleri tarihli task'ı olanlar\n• Tıklayınca aşağıda listelenir.",
+  gecikmisTask: "• Task zorunlu datalardan (İlgili + VIP Görüşme)\n• Task tarihi geçmiş olanlar\n• Tıklayınca aşağıda listelenir.",
+  takipOrani: "• İleri tarihli task'ı olan data / task beklenen data\n• Task beklenen: İlgili + VIP Görüşme\n• Tıklayınca task beklenen datalar listelenir.",
   takipsiz: g => (g
-    ? `Task tarihi geçmişse takipsiz. İlgili ve VIP Görüşme datasında task yoksa takipsiz. Na1-Na3 ve VIP olmayan Görüşme'de task yok ve son etkinlik ${g} günden eski. Tıklayınca aşağıda listelenir.`
-    : "Task'ı olmayan ya da task tarihi geçmiş her açık data takipsiz (son etkinliğe bakılmıyor). İlgili ve VIP Görüşme'de task zorunlu. Tıklayınca aşağıda listelenir."),
+    ? `Takipsiz sayılanlar:\n• Task tarihi geçmiş datalar\n• İlgili ve VIP Görüşme'de task'ı olmayanlar\n• Na1-Na3 ve VIP olmayan Görüşme'de task'ı olmayan ve son etkinliği ${g} günden eski olanlar\n• Yeni aşaması sayılmaz\n• Tıklayınca aşağıda listelenir.`
+    : "Takipsiz sayılanlar:\n• Task'ı olmayan her açık data (son etkinliğe bakılmaz)\n• Task tarihi geçmiş datalar\n• Yeni aşaması sayılmaz\n• Tıklayınca aşağıda listelenir."),
   sonEtkinlik: "Takipsiz sayılması için son etkinliğin ne kadar eski olması gerektiği. Sadece Na1-Na3 ve VIP olmayan Görüşme için geçerli. Tümü: son etkinliğe bakılmaz.",
   sonAktivite: "Kylas'taki son etkinlik tarihi (Latest Activity On). Otomasyon güncellemeleriyle de değişir, not girilince değişmez.",
   taskZorunlu: "İlgili ya da VIP Görüşme datası: task zorunlu ama task yok.",
@@ -341,7 +342,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   <thead>
                     <tr>
                       <th style={{ ...c.th, textAlign: "left" }}>Danışman</th>
-                      {[["Açık Data", ACIKLAMA.acik], ["Task beklenen", ACIKLAMA.taskBeklenen], ["İleri task", ACIKLAMA.ileriTask], ["Gecikmiş task", ACIKLAMA.gecikmisTask.split(" Tıklayınca")[0]], ["Takipsiz", ACIKLAMA.takipsiz(sessizGun).split(" Tıklayınca")[0]], ["Takip oranı", ACIKLAMA.takipOrani]].map(([b, a]) => <th key={b} style={c.th}><Ipucu metin={a.split(" Tıklayınca")[0]}>{b}</Ipucu></th>)}
+                      {[["Açık Data", ACIKLAMA.acik], ["Task beklenen", ACIKLAMA.taskBeklenen], ["İleri task", ACIKLAMA.ileriTask], ["Gecikmiş task", ACIKLAMA.gecikmisTask.split("\n• Tıklayınca")[0]], ["Takipsiz", ACIKLAMA.takipsiz(sessizGun).split("\n• Tıklayınca")[0]], ["Takip oranı", ACIKLAMA.takipOrani]].map(([b, a]) => <th key={b} style={c.th}><Ipucu metin={a.split("\n• Tıklayınca")[0]}>{b}</Ipucu></th>)}
                     </tr>
                   </thead>
                   <tbody>
