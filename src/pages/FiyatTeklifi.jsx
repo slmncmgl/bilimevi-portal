@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v128-okul-dil-filtresi-2026-11-23";
+const BFT_BUILD_VERSION = "v129-indirim-yaz-zammi-haric-2026-11-23";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -1513,13 +1513,15 @@ function getDestinationTotals(d, fees) {
       grandTotal: fixedPackage.package_price + yaz.amount + upgradesTotal + feesTotal + accForPackage + addonsCost + transferCost };
   }
   const _accT = d.acc && !d.isOnline && d.startDate ? konaklamaTarihleri(new Date(d.startDate), d) : null;  // v120
-  const targets = { tuition: courseTotal, accommodation: accTotal, fees: fees?.items || [],
+  // v129: kurs indirimi yaz zammı hariç kurs ücretinden (Positively faturası: zam satırında indirim 0)
+  const courseIndirimMatrahi = Math.max(0, courseTotal - (d.courseHsAmount || 0));
+  const targets = { tuition: courseIndirimMatrahi, accommodation: accTotal, fees: fees?.items || [],
     accPlace: d.acc?.name || "", accWeeks: d.acc ? konaklamaHafta(d) : 0,
     accStart: _accT ? _accT.giris : null, accEnd: _accT ? _accT.cikis : null };
   const appliedDiscounts = d.isOnline ? [] : computeDiscounts(d.cityData?.discounts, d.course, d.weeks, d.startDate, targets);
   // v122: elle indirim en sona eklenir; "total" tabanı sheet indirimleri düşülmüş toplamdır
   const _sheetIndirim = appliedDiscounts.reduce((s, x) => s + x.amount, 0);
-  const _elle = d.isOnline ? null : elleIndirimSatiri(d.elleIndirim, { tuition: courseTotal, accommodation: d.acc ? accTotal : 0,
+  const _elle = d.isOnline ? null : elleIndirimSatiri(d.elleIndirim, { tuition: courseIndirimMatrahi, accommodation: d.acc ? accTotal : 0,
     total: courseTotal + accTotal + feesTotal + addonsCost + transferCost - _sheetIndirim });
   if (_elle) appliedDiscounts.push(_elle);
   const discountsTotal = appliedDiscounts.reduce((s, x) => s + x.amount, 0);
