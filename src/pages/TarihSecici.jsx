@@ -1,3 +1,4 @@
+// v1.3: açılır liste oku tek parça SVG, seçiliyken arka plan rengi ayrı yazılır (garip üçgen görünümü düzeldi)
 // v1.2: bosMetin: listede seçim yokken görünen yazı (başlık kalktığı için "Son etkinlik" / "Data tarihi" yazar)
 // v1.1: tumu={false} ile "Tümü" düğmesi gizlenir, enFazla ile N kutusunun üst sınırı (Aktivite Tablosu özet kutusu: 90)
 // v1.0: tabloların tarih seçimi (Aktivite, Performans ve Data Tablosu ortak kullanır)
@@ -59,16 +60,16 @@ export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} g�
   );
 }
 
+// Açılır liste oku: tek parça SVG (iki gradyanlı eski ok bazı durumlarda kocaman üçgen gibi görünüyordu)
+const ok = renk => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='${renk}' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>`)}")`;
+
 const temel = { height: "34px", borderRadius: "999px", fontSize: "12px", fontWeight: 600, fontFamily: "'Sora', sans-serif", cursor: "pointer", transition: "all 0.15s" };
 const t = {
   dugme: { ...temel, padding: "0 14px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569" },
   aktif: { background: "#0891b2", color: "#fff", borderColor: "#0891b2" },
-  liste: { ...temel, padding: "0 30px 0 14px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", appearance: "none",
-    backgroundImage: "linear-gradient(45deg, transparent 50%, #64748b 50%), linear-gradient(135deg, #64748b 50%, transparent 50%)",
-    backgroundPosition: "calc(100% - 15px) 15px, calc(100% - 10px) 15px", backgroundSize: "5px 5px", backgroundRepeat: "no-repeat" },
-  listeAktif: { borderColor: "#0891b2", color: "#0f172a", background: "#ecfeff",
-    backgroundImage: "linear-gradient(45deg, transparent 50%, #0891b2 50%), linear-gradient(135deg, #0891b2 50%, transparent 50%)",
-    backgroundPosition: "calc(100% - 15px) 15px, calc(100% - 10px) 15px", backgroundSize: "5px 5px", backgroundRepeat: "no-repeat" },
+  liste: { ...temel, padding: "0 30px 0 14px", border: "1.5px solid #e2e8f0", backgroundColor: "#fff", color: "#475569", appearance: "none",
+    WebkitAppearance: "none", backgroundImage: ok("#64748b"), backgroundPosition: "right 11px center", backgroundSize: "10px 6px", backgroundRepeat: "no-repeat" },
+  listeAktif: { borderColor: "#0891b2", color: "#0f172a", backgroundColor: "#ecfeff", backgroundImage: ok("#0891b2") },
   kutu: { width: "64px", height: "34px", padding: "0 10px", borderRadius: "10px", border: "1.5px solid", fontSize: "13px", fontWeight: 700,
     fontFamily: "'Sora', sans-serif", color: "#0f172a", textAlign: "center", outline: "none", fontVariantNumeric: "tabular-nums" },
 };
