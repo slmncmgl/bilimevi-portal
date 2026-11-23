@@ -1,9 +1,12 @@
-// KayitGuncelle.jsx v1.84
+// KayitGuncelle.jsx v1.85
+// v1.85 (23.11.2026): Özet satırında "Bu Kaydı İptal Et" (kırmızı). Onay penceresinden sonra /api/sozlesme-gonder islem "iptal"
+//   -> n8n Kayıt İptal Talebi (VmicFOIO7KXCndnm) Selman'a WhatsApp atar; Selman "ok" yanıtlayınca Onay Durumu = İptal Etti.
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.84"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.85"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
+import OnayPenceresi from "./OnayPenceresi";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
@@ -691,6 +694,9 @@ export default function KayitGuncelle() {
   const [activeTab, setActiveTab] = useState("Özet");
   const [toast, setToast] = useState(null);
   const [successModal, setSuccessModal] = useState(false);
+  // Kayıt iptal talebi (v1.85): onay penceresi açık mı, istek sürüyor mu
+  const [iptalPenceresi, setIptalPenceresi] = useState(false);
+  const [iptalGonderiliyor, setIptalGonderiliyor] = useState(false);
   const [ogrencilerim, setOgrencilerim] = useState([]);
   const [ogrencilerLoading, setOgrencilerLoading] = useState(false);
   const [listeHata, setListeHata] = useState(false);   // ilk yükleme tüm denemelerde başarısız
@@ -1299,6 +1305,34 @@ export default function KayitGuncelle() {
       showToast("Bağlantı hatası, sözleşme gönderilemedi", "error");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // İptal talebi: kayıt hemen değişmez, Selman WhatsApp'tan "ok" yanıtlayınca n8n Onay Durumu'nu İptal Etti yapar
+  async function iptalTalebiGonder(kayit) {
+    setIptalGonderiliyor(true);
+    try {
+      const res = await fetch("/api/sozlesme-gonder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          islem: "iptal",
+          tally_submission_id: kayit["Tally Submission ID"] || "",
+          gonderen: user?.name || user?.email || "",
+        }),
+      });
+      const sonuc = await res.json().catch(() => ({ ok: false, hata: `Beklenmeyen yanıt (HTTP ${res.status})` }));
+      if (sonuc.ok) {
+        setIptalPenceresi(false);
+        showToast("İptal talebi gönderildi, onay bekleniyor");
+        islemKaydet(kayit, "İptal talebi gönderildi", "Selman'ın WhatsApp onayı bekleniyor");
+      } else {
+        showToast(sonuc.hata || "İptal talebi gönderilemedi", "error");
+      }
+    } catch {
+      showToast("Bağlantı hatası, iptal talebi gönderilemedi", "error");
+    } finally {
+      setIptalGonderiliyor(false);
     }
   }
 
@@ -2582,10 +2616,35 @@ export default function KayitGuncelle() {
 
         {data && (
           <>
-            <div style={{ ...s.infoCard, ...(saltOkunur ? { background: "#f8fafc", borderColor: "#e2e8f0" } : {}) }}>
-              <strong>{data["Öğrenci Adı Soyadı"]}</strong> {saltOkunur ? "kaydı görüntüleniyor (salt okunur)" : "kaydı düzenleniyor"}.
-              {data["Okul Adı"] && <span style={{ color: "#0e7490" }}> — {data["Okul Adı"]}</span>}
+            <div style={{ ...s.infoCard, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", ...(saltOkunur ? { background: "#f8fafc", borderColor: "#e2e8f0" } : {}) }}>
+              <div>
+                <strong>{data["Öğrenci Adı Soyadı"]}</strong> {saltOkunur ? "kaydı görüntüleniyor (salt okunur)" : "kaydı düzenleniyor"}.
+                {data["Okul Adı"] && <span style={{ color: "#0e7490" }}> — {data["Okul Adı"]}</span>}
+              </div>
+              {!saltOkunur && String(data["Tally Submission ID"] || "").trim()
+                && !sadelestir(data["Onay Durumu"]).includes("iptal") && (
+                <button type="button" onClick={() => setIptalPenceresi(true)} disabled={iptalGonderiliyor} style={s.iptalBtn}>
+                  Bu Kaydı İptal Et
+                </button>
+              )}
             </div>
+            {iptalPenceresi && (
+              <OnayPenceresi
+                ikon="!"
+                baslik="Bu kayıt iptal edilsin mi?"
+                onayMetni={iptalGonderiliyor ? "Gönderiliyor..." : "Evet, iptal talebi gönder"}
+                onayPasif={iptalGonderiliyor}
+                onOnay={() => iptalTalebiGonder(data)}
+                onVazgec={() => { if (!iptalGonderiliyor) setIptalPenceresi(false); }}
+              >
+                <p style={{ margin: 0 }}>
+                  <strong>{data["Öğrenci Adı Soyadı"]}</strong>{data["Okul Adı"] ? ` (${data["Okul Adı"]})` : ""} kaydı için iptal talebi gönderilecek.
+                </p>
+                <p style={{ margin: "8px 0 0", color: "#64748b" }}>
+                  Kayıt hemen değişmez. Selman WhatsApp'tan onaylayınca durumu "İptal Etti" olur.
+                </p>
+              </OnayPenceresi>
+            )}
             <div style={s.tabBar}>
               {TABS.map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
@@ -3186,6 +3245,7 @@ const s = {
   warnBtn: { padding: "5px 8px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "6px", cursor: "pointer", fontSize: "12px", lineHeight: 1 },
   viewBtn: { padding: "5px 12px", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", whiteSpace: "nowrap" },
   sendBtn: { padding: "5px 12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
+  iptalBtn: { background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", padding: "7px 14px", fontSize: "12.5px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
   infoCard: { background: "#ecfeff", border: "1px solid #a5f3fc", padding: "12px", borderRadius: "10px", marginBottom: "15px", fontSize: "13px" },
   tabBar: { display: "flex", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0", overflowX: "auto", WebkitOverflowScrolling: "touch" },
   tabBtn: { flex: "1 0 auto", padding: "12px 14px", border: "none", background: "none", cursor: "pointer", fontSize: "13px", whiteSpace: "nowrap" },
