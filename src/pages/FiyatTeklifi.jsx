@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v132-indirim-rozeti-2026-11-23";
+const BFT_BUILD_VERSION = "v133-tablo-kur-2026-11-23";
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
 const MAX_OKUL_SEHIR = 3;
@@ -2565,17 +2565,13 @@ export default function FiyatTeklifi() {
         doc.setTextColor(17);
 
         const n = destinations.length;
-        // v130: hafta ve para birimi hücrelerden çıktı; ortaksa en üstte tek satır
-        const _haftalar = [...new Set(destinations.map(d => d.weeks))];
-        const _pbler = [...new Set(destinations.map(d => d.course?.currency || "GBP"))];
-        const _ust = [];
-        if (_haftalar.length === 1) _ust.push(`${_haftalar[0]} hafta`);
-        if (_pbler.length === 1) _ust.push(`Tutarlar ${_pbler[0]}`);
-        if (_ust.length) {
-          doc.setFont(FONT, "bold"); doc.setFontSize(10); doc.setTextColor(120);
-          doc.text(_ust.join(" · "), MARGIN, cy);
-          cy += 8; doc.setTextColor(17);
-        }
+        // v133: üst satır kalktı (okullar farklı hafta/para biriminde olabiliyor). Hafta her sütunun altında,
+        // para birimi GENEL TOPLAM satırında. TL karşılığı TCMB döviz satış kuruyla (api/kur), alınamazsa satır çıkmaz.
+        let _kur = null;
+        try {
+          const _r = await fetch(isStaff ? "/api/kur" : "https://portal.bilimevi.com/api/kur");
+          if (_r.ok) _kur = await _r.json();
+        } catch (e) { console.warn("[BFT] TCMB kuru alınamadı, TL satırı yok", e); }
         const labelW = 42;                         // sol kalem sütunu
         const colW = (PAGE_W - MARGIN * 2 - labelW) / n;
         const colX = (i) => MARGIN + labelW + i * colW;
@@ -2592,8 +2588,8 @@ export default function FiyatTeklifi() {
 
         // Başlık satırı: okul adları (her kelime alt alta, büyük+turkuaz, dikey ortalı)
         doc.setFont(FONT, "bold");
-        doc.setFontSize(n > 3 ? 10 : 12); doc.setTextColor(...BASLIK_RGB);   // v130: 14 → 12 (4+ okulda 10)
-        const LH = n > 3 ? 4.8 : 5.6; // satır yüksekliği
+        doc.setFontSize(n > 3 ? 9 : 10.5); doc.setTextColor(...BASLIK_RGB);   // v133: 12 → 10,5 (4+ okulda 9)
+        const LH = n > 3 ? 4.2 : 4.9; // satır yüksekliği
         // Önce her okulun kelimelerini ve maxWords'ü hesapla
         const headWords = cols.map((c, i) => String(c.d.brand || c.d.city || `Okul ${i+1}`).split(/\s+/).filter(Boolean));
         const maxWords = Math.max(1, ...headWords.map(w => w.length));
@@ -2607,11 +2603,12 @@ export default function FiyatTeklifi() {
         doc.setTextColor(17);
         cy += maxWords * LH + 2;
         cols.forEach((c, i) => {
-          doc.setFont(FONT, "bold"); doc.setFontSize(10); doc.setTextColor(120);
-          const _alt = [c.d.city, _haftalar.length > 1 ? `${c.d.weeks} hafta` : "", _pbler.length > 1 ? c.cur : ""].filter(Boolean).join(" · ");
-          doc.text(_alt, colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
+          doc.setFont(FONT, "bold"); doc.setFontSize(n > 3 ? 7.5 : 8.5); doc.setTextColor(120);
+          doc.text(String(c.d.city || ""), colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
+          doc.setFont(FONT, "normal");
+          doc.text(`${c.d.weeks} hafta`, colX(i) + colW/2, cy + 4, { align:"center", maxWidth: colW - 2 });
         });
-        cy += 5;
+        cy += 8;
         // Okul başlıkları altı — kalın siyah çizgi (kalemler başlamadan)
         doc.setDrawColor(17); doc.setLineWidth(0.6);
         doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
@@ -2688,7 +2685,14 @@ export default function FiyatTeklifi() {
         doc.setDrawColor(17); doc.setLineWidth(0.6);
         doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
         cy += 6;
-        row("GENEL TOPLAM", c => `${money2(c.dt.grandTotal)}`, { bold: true, big: true, color: [17,17,17] });
+        row("GENEL TOPLAM", c => `${money2(c.dt.grandTotal)} ${c.cur}`, { bold: true, big: true, color: [17,17,17] });
+        const _tlVar = _kur?.kurlar && cols.some(c => c.cur === "TRY" || _kur.kurlar[c.cur]);
+        if (_tlVar) {
+          row("TL karşılığı", c => {
+            const k = c.cur === "TRY" ? 1 : _kur.kurlar[c.cur];
+            return k ? `≈ ${Math.round(c.dt.grandTotal * k).toLocaleString("tr-TR")} TL` : "";
+          }, { color: [100, 100, 100] });
+        }
 
         // Farklı para birimi uyarısı
         const currencies = [...new Set(cols.map(c => c.cur))];
@@ -2696,6 +2700,11 @@ export default function FiyatTeklifi() {
           cy += 4;
           doc.setFont(FONT, "normal"); doc.setFontSize(7); doc.setTextColor(120);
           doc.text("* Okullar farklı para birimlerinde fiyatlandırılmıştır; tutarlar doğrudan toplanamaz.", MARGIN, cy);
+        }
+        if (_tlVar) {
+          cy += 4;
+          doc.setFont(FONT, "normal"); doc.setFontSize(7); doc.setTextColor(120);
+          doc.text(`* TL karşılıkları T.C. Merkez Bankası ${_kur.tarih} tarihli döviz satış kuruyla hesaplanmıştır, bilgi amaçlıdır. Ödeme günündeki kur geçerlidir.`, MARGIN, cy, { maxWidth: PAGE_W - MARGIN * 2 });
         }
 
         // Footer
