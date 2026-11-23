@@ -237,6 +237,11 @@ function metneCevir(html) {
     .replace(/\n{3,}/g, "\n\n").trim();
 }
 
+// Kylas not içindeki etiketlemeler {{USER_<id>}} olarak saklanır; @Ad Soyad'a çevrilir
+function mentionCevir(metin, kullanicilar) {
+  return metin.replace(/\{\{USER_(\d+)\}\}/g, (t, id) => kullanicilar[id]?.ad ? `@${kullanicilar[id].ad}` : "@kullanıcı");
+}
+
 // Portaldan girilen notlar Kylas'ta API anahtarının sahibi (Selman) adına kayıtlı; asıl yazan etikette
 export const API_SAHIBI = 71430;
 const PORTAL_ETIKET = /^\[([^\]\n]{2,80}) · Portal\]\s*/;
@@ -301,10 +306,11 @@ async function notlar(req, res, yetki) {
   if (!r.ok) return res.status(502).json({ error: `Notlar alınamadı (HTTP ${r.status})` });
   const d = await r.json();
   const isimler = d.metaData?.idNameStore?.createdBy || {};
+  const kullanicilar = await musaitlikGetir().catch(() => ({}));
   const veri = {
     toplam: d.totalElements || 0,
     notlar: (d.content || []).map(n => {
-      const metin = metneCevir(n.description);
+      const metin = mentionCevir(metneCevir(n.description), kullanicilar);
       const etiket = Number(n.createdBy) === API_SAHIBI ? portalEtiketi(metin) : null;
       return { tarih: new Date(n.createdAt).toISOString(), yazan: etiket?.yazan || isimler[n.createdBy] || "", metin: etiket ? etiket.metin : metin, portal: !!etiket };
     }),
@@ -352,7 +358,7 @@ async function musaitlikGetir() {
   for (const u of (await r.json()).content || []) {
     const a = u.availabilityStatus?.recordAssignment;
     const izinli = !!(a && a.available === false && a.expirationDate && new Date(a.expirationDate).getTime() > Date.now());
-    veri[u.id] = { musait: !izinli, bitis: izinli ? a.expirationDate : null };
+    veri[u.id] = { musait: !izinli, bitis: izinli ? a.expirationDate : null, ad: [u.firstName, u.lastName].filter(Boolean).join(" ") };
   }
   musaitlikOnbellek = { zaman: Date.now(), veri };
   return veri;
