@@ -1,3 +1,4 @@
+// v2.12: sayaçtaki toplam (örn. / 181) tıklanınca 20'şerli isim listesi açılır, sayfalar arasında geçilir; isme tıklayınca o dataya gidilir
 // v2.11: task kartı sade: Kylas'ın otomatik adı ("Task due at ... for ...") ve atanan danışman gizli, gün sayısı yok; tarih geçtiyse kırmızı,
 //       gelmediyse mavi; tür (Follow Up vb.) adın üstünde küçük; "Tamamla"; Task oluştur düğmesi tam genişlik
 // v2.10: "Campaign Name" alanı "Reklam Adı"
@@ -52,6 +53,8 @@ const ENAZ = 2; // not en az bu kadar karakter
 // Kylas'ın otomatik task adı ("Task due at Sep 22, 2026 for Nil Ozer") bilgi taşımaz, gösterilmez
 const gorunenAd = t => (/^task due at .* for /i.test(t.ad || "") ? "" : t.ad || "");
 
+const LISTE_SAYFA = 20;
+
 // Ortak 4 sütun: ilk üçü esnek, sağdaki sütun Task oluştur düğmesi kadar. Üst şerit ve kartlar bu ızgarayla hizalanır.
 const SAG_SUTUN = 120;
 const SUTUNLAR = `repeat(3, minmax(0, 1fr)) ${SAG_SUTUN}px`;
@@ -81,6 +84,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
   const [tur, setTur] = useState(1);
   const [atlanan, setAtlanan] = useState({}); // id -> true (not girmeden geçilen)
   const [sira, setSira] = useState(0);
+  const [liste, setListe] = useState(null); // null kapalı, sayı = listede açık sayfa (0 tabanlı)
   const siraRef = useRef(0);
   siraRef.current = sira;
   const [notlar, setNotlar] = useState({}); // id -> { yukleniyor } | { notlar, toplam } | { hata }
@@ -161,7 +165,8 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
   }, []);
   const kapatIste = () => { if (kaydedilmemis && !bitti) setCikisSor(true); else onKapat(Object.keys(yazilan).map(Number), taskDegisti.current); };
   useEffect(() => {
-    const tus = e => { if (e.key === "Escape" && !cikisSor && !pencere) kapatIste(); };
+    const tus = e => { if (e.key === "Escape" && liste !== null) { setListe(null); return; }
+      if (e.key === "Escape" && !cikisSor && !pencere) kapatIste(); };
     document.addEventListener("keydown", tus);
     return () => document.removeEventListener("keydown", tus);
   });
@@ -294,7 +299,37 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
             aria-label="Önceki Data" title="Önceki Data">‹</button>
           <div style={s.sayac} aria-live="polite">
             <span style={{ fontSize: "26px", fontWeight: 800, color: "#0f172a" }}>{bitti ? toplam : sira + 1}</span>
-            <span style={{ fontSize: "16px", color: "#94a3b8", fontWeight: 700 }}> / {toplam}</span>
+            <button type="button" onClick={() => setListe(liste === null ? Math.floor(sira / LISTE_SAYFA) : null)} disabled={kaydediliyor}
+              style={s.toplamDugme} aria-haspopup="dialog" aria-expanded={liste !== null} title="Listeyi aç">/ {toplam}</button>
+            {liste !== null && (() => {
+              const sayfaSayisi = Math.ceil(toplam / LISTE_SAYFA);
+              const bas = liste * LISTE_SAYFA;
+              return (
+                <>
+                  <div onClick={() => setListe(null)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+                  <div role="dialog" aria-label="Data listesi" style={s.listePanel}>
+                    {leadler.slice(bas, bas + LISTE_SAYFA).map((x, i) => {
+                      const no = bas + i;
+                      return (
+                        <button key={x.id} type="button" onClick={() => { setSira(no); setBitti(false); setListe(null); }}
+                          style={{ ...s.listeSatir, ...(no === sira && !bitti ? s.listeSatirAktif : {}) }}>
+                          <span style={{ color: "#94a3b8", minWidth: "34px", textAlign: "right" }}>{no + 1}.</span>
+                          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{x.ad || "İsimsiz"}</span>
+                          {yazilan[x.id] ? <span style={{ color: "#16a34a" }}>✓</span> : atlanan[x.id] ? <span style={{ color: "#94a3b8", fontSize: "11px" }}>atlandı</span> : null}
+                        </button>
+                      );
+                    })}
+                    {sayfaSayisi > 1 && (
+                      <div style={s.listeAlt}>
+                        <button type="button" onClick={() => setListe(liste - 1)} disabled={liste === 0} style={{ ...s.ok, opacity: liste === 0 ? 0.35 : 1 }} aria-label="Önceki 20">‹</button>
+                        <span>{bas + 1}-{Math.min(bas + LISTE_SAYFA, toplam)} / {toplam}</span>
+                        <button type="button" onClick={() => setListe(liste + 1)} disabled={liste >= sayfaSayisi - 1} style={{ ...s.ok, opacity: liste >= sayfaSayisi - 1 ? 0.35 : 1 }} aria-label="Sonraki 20">›</button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
           </div>
           <button type="button" onClick={atla} disabled={bitti || kaydediliyor || basari} style={{ ...s.ok, ...s.okAtla, opacity: bitti ? 0.35 : 1 }}
             aria-label="Atla, sonra ele al" title="Not girmeden sonrakine geç (sonra ele almak için atlananlara eklenir)">›</button>
@@ -640,7 +675,16 @@ const s = {
   ok: { width: "34px", height: "34px", borderRadius: "11px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "20px",
     fontWeight: 700, lineHeight: 1, cursor: "pointer", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", paddingBottom: "2px" },
   okAtla: { borderColor: "#c4b5fd", background: "#f5f3ff", color: "#6d28d9" },
-  sayac: { fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
+  sayac: { fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", position: "relative" },
+  toplamDugme: { border: "none", background: "none", padding: "2px 4px", borderRadius: "6px", fontSize: "16px", color: "#64748b", fontWeight: 700,
+    cursor: "pointer", textDecoration: "underline dotted", textUnderlineOffset: "4px", fontFamily: "inherit", fontVariantNumeric: "tabular-nums" },
+  listePanel: { position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 41, width: "300px", maxWidth: "calc(100vw - 32px)", background: "#fff",
+    border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 12px 32px rgba(15,23,42,.18)", padding: "6px", whiteSpace: "normal" },
+  listeSatir: { display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "6px 8px", border: "none", background: "none", borderRadius: "8px",
+    fontSize: "13px", color: "#0f172a", cursor: "pointer", textAlign: "left", fontFamily: "'Sora', sans-serif" },
+  listeSatirAktif: { background: "#ecfdf5", fontWeight: 700 },
+  listeAlt: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 4px 2px", borderTop: "1px solid #f1f5f9", marginTop: "4px",
+    fontSize: "12px", color: "#64748b" },
   kapat: { width: "38px", height: "38px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569",
     fontSize: "15px", cursor: "pointer", flexShrink: 0 },
   cubukZemin: { position: "absolute", left: 0, right: 0, bottom: 0, height: "4px", background: "#e2e8f0" },
