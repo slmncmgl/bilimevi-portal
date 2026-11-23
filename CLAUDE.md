@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 16 Kasım 2026 (v126 okul dosyası şehre göre). Repo'daki BFT sürümü: `v126-sehir-dosyasi-2026-11-16`.
+Son güncelleme: 23 Kasım 2026 (v127 kurs yaz zammı çakışan haftalardan). Repo'daki BFT sürümü: `v127-yaz-zammi-kesisim-2026-11-23`.
 
 ## Kapsam
 
@@ -149,7 +149,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - `calculation_type = per_day` ve `percentage`: şu an ikisi de sabit tutar gibi ekleniyor. Engel: kalış başı tavan (Malta eco tax vb.), sheet'te tavan sütunu yok. Yöntem netleşmeden yazılmayacak. English Path Dubai'de "Accommodation 2027 Booking Surcharge" %10 `percentage` olarak duruyor (opsiyonel).
 - Paket + fazla haftalar (paket + kalan haftalar normal fiyat). Şimdilik hafta eşit değilse paket uygulanmıyor.
 - Liverpool çıkış günü: accommodation'a `checkout_day` benzeri sütun (Liverpool Pazar giriş / Cumartesi çıkış, portal Pazar gösteriyor, fiyat etkilenmiyor).
-- Yüksek sezon kısmi kesişim (kurs ve konaklama zammı başlangıç tarihine göre tüm haftalara uygulanıyor, paket zammı kesişimli). Bilinen sınırlama.
+- Yüksek sezon kısmi kesişim: KURS zammı v127'den beri kesişimli (okul faturasıyla aynı). Konaklama zammı hâlâ başlangıç tarihine göre tüm haftalara uygulanıyor.
 - Siteye özel buton stili: CSS değişkenleri (`--bft-btn-bg` vb.) `BFT_CONFIG` ya da shortcode üzerinden. JSX'e site kodu girmez.
 - `SUB_SOURCE` fallback'i JSX'te `"ingilteredil"`: shortcode'da eksikse lead yanlış kaynağa gider (almanyadil olayının JSX tarafı). Boş bırakıp uyarı vermek daha güvenli olabilir, karar kullanıcıda.
 - Otomatik supplement effect'i iki yerde (`accWeeks/tatilHafta` ve `holidayWeeks`) aynı state'i yazıyor. Çalışıyor ama sadeleştirme adayı.
@@ -163,6 +163,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
 ## Durum (30 Ekim 2026)
 
+- **v127 (23 Kasım):** kurs yaz zammı = haftalık zam × kursun sezonla çakışan hafta sayısı (`kesisenHafta`); kursun `max_weeks`'i tüm satırlardan (biri boşsa sınırsız, yoksa en büyüğü). Sebep: Positively Londra faturası (24 hafta, Ocak başlangıç, 5 hafta × £20) portalda 0 çıkıyordu.
 - **v126 (16 Kasım):** okul dosyası `brand__city` anahtarıyla seçilir, okul anahtarı (ilk satır) yedek. Sebep: Positively'nin 17 şehri 2026 kampanya dosyasına, 6 satırı eski dosyaya bağlı; eskiden ilk satır (Lyon, eski dosya) hepsine uygulanıyordu ve %30 düşmüyordu. Customer proxy'ye `city` de gidiyor; `data-proxy.php` v1.2 şehre göre seçer, eski proxy alanı yok sayar. Testler `tests/test_v126.mjs`.
 - **v125 (16 Kasım):** staff Öğrenci Bilgileri adımında Cmd+Option+T (Windows Ctrl+Alt+T) test verisi doldurur: Selman, 40, Erkek. Cmd+Shift+T tarayıcıya ait, sayfaya ulaşmaz.
 - **v124 (6 Kasım):** boş Ek Ücretler adımı otomatik atlanır (`tests/test_v124.mjs`). **v123:** staff sayfasının altında sürüm etiketi.

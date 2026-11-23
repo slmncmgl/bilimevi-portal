@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v126-sehir-dosyasi-2026-11-16";
+const BFT_BUILD_VERSION = "v127-yaz-zammi-kesisim-2026-11-23";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -410,12 +410,19 @@ async function fetchCityData(sheetId, city, isStaff, brand) {
           hs_start: r.high_season_start || "", hs_end: r.high_season_end || "",
           hs_cond: r.high_season_condition || "", max_weeks: r.max_weeks ? parseInt(r.max_weeks) : null,
           morning: !!(r.morning_supplement && parseFloat(r.morning_supplement) > 0),
-          notes: r.notes || "", tiers: [],
+          notes: r.notes || "", tiers: [], _maxList: [],
         };
       }
+      courseMap[r.course_name]._maxList.push(r.max_weeks ? parseInt(r.max_weeks) : null);   // v127
       const _tMin = ilkSayi(r.weeks_tier_min, r.min_weeks, r.tier_min_weeks, r.week_tier_min) || 1;
       const _tMaxRaw = ilkSayi(r.weeks_tier_max, r.max_weeks, r.tier_max_weeks, r.week_tier_max);
       courseMap[r.course_name].tiers.push({ min: _tMin, max: (_tMaxRaw && _tMaxRaw < ACC_UST_SINIRSIZ) ? _tMaxRaw : null, price: parseFloat(r.price_per_week) || 0 });
+    });
+    // v127: kursun azami haftası ilk kademe satırından değil tüm satırlardan: herhangi bir satırda boşsa sınırsız,
+    // değilse en büyüğü. (Positively'de max_weeks kademe sonu yazılmış, 24 haftalık kursta "Maks. 4" çıkıp yaz zammını kapatıyordu.)
+    Object.values(courseMap).forEach(c => {
+      const l = c._maxList; delete c._maxList;
+      c.max_weeks = (!l.length || l.some(x => !x)) ? null : Math.max(...l);
     });
     const acc = accRows.filter(r => r.city === city).map(r => ({
       name: r.place_name, type: r.accommodation_type || "Standart", room: r.room_type || "",
@@ -501,13 +508,16 @@ function hsKosulHafta(cond) {
 
 function getHighSeasonSupplement(course, weeks, startDate) {
   if (!course?.hs_supp || !course?.hs_start || !course?.hs_end) return { amount: 0, isActive: false };
-  const start = new Date(startDate), hsStart = new Date(course.hs_start), hsEnd = new Date(course.hs_end);
-  let isActive = start >= hsStart && start <= hsEnd;
+  // v127: zam sadece kursun sezonla çakışan haftalarına uygulanır (okul faturası böyle). Eskiden başlangıç sezondaysa
+  // tüm haftalara, değilse hiç uygulanmıyordu. Çakışma kesisenHafta ile (ücret tarih aralıklarıyla aynı hesap).
+  // SİL: let isActive = start >= hsStart && start <= hsEnd; ... amount: isActive ? course.hs_supp * weeks : 0
+  const start = new Date(startDate);
+  const hsHafta = Math.min(weeks, kesisenHafta(course.hs_start, course.hs_end, start, addWeeksToDate(start, weeks)));
+  let isActive = hsHafta > 0;
   const _kosulN = hsKosulHafta(course.hs_cond);          // v114: N genel (eskiden sadece 12)
   if (_kosulN && weeks >= _kosulN) isActive = false;
-  // SİL: if (course.hs_cond === "weeks_less_than_12" && weeks >= 12) isActive = false;
   if (course.max_weeks && weeks > course.max_weeks) isActive = false;
-  return { amount: isActive ? course.hs_supp * weeks : 0, isActive, supplementPerWeek: course.hs_supp, startDate: course.hs_start, endDate: course.hs_end };
+  return { amount: isActive ? course.hs_supp * hsHafta : 0, isActive, supplementPerWeek: course.hs_supp, weeks: isActive ? hsHafta : 0, startDate: course.hs_start, endDate: course.hs_end };
 }
 
 function getAccommodationHighSeasonSupplement(acc, weeks, startDate) {
