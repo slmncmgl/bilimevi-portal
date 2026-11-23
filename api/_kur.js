@@ -1,10 +1,11 @@
-// v1.0 (BFT v133): TCMB günlük döviz kurları (today.xml), teklif PDF'indeki "TL karşılığı" satırı için.
+// v1.1 (BFT v134): Vercel Hobby 12 fonksiyon sınırı yüzünden ayrı fonksiyon DEĞİL; api/sheet.js GET ?kaynak=kur ile çağırır
+// ("_" ile başlayan dosyalar fonksiyon sayılmaz). TCMB günlük döviz kurları (today.xml), teklif PDF'indeki "TL karşılığı" satırı için.
 // Tarayıcı TCMB'yi doğrudan okuyamaz (CORS), bu fonksiyon aracı olur. Herkese açık veri, oturum gerekmez.
 // Kur: Döviz Satış (ForexSelling) / Unit. TCMB listesinde olmayan birimler (ör. NZD) dönmez; portal o sütunda TL yazmaz.
 // Cevap: { tarih: "23.11.2026", bulten: "2026/220", kurlar: { USD: 50.6026, GBP: ..., ... } }
 // Önbellek: Vercel CDN 1 saat (TCMB günde bir kez, 15:30'da yayınlar).
 
-export default async function handler(req, res) {
+export async function kurHandler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");   // WordPress müşteri sayfaları da okur
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
   if (req.method === "OPTIONS") return res.status(204).end();

@@ -9,8 +9,10 @@
 // Sheet'ler "linke sahip herkes görüntüleyebilir" olmalı (gviz için de bu gerekiyordu).
 // Key yoksa 503 döner; portal bu durumda eski gviz yoluna düşer.
 import { oturumKontrol } from "./_oturum.js";
+import { kurHandler } from "./_kur.js";   // v134: TCMB kur, GET ?kaynak=kur (oturumsuz)
 
 export default async function handler(req, res) {
+  if (req.query?.kaynak === "kur") return kurHandler(req, res);
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

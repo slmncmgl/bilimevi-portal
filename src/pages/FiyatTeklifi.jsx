@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v133-tablo-kur-2026-11-23";
+const BFT_BUILD_VERSION = "v134-kur-tek-fonksiyon-2026-11-23";
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
 const MAX_OKUL_SEHIR = 3;
@@ -2569,7 +2569,7 @@ export default function FiyatTeklifi() {
         // para birimi GENEL TOPLAM satırında. TL karşılığı TCMB döviz satış kuruyla (api/kur), alınamazsa satır çıkmaz.
         let _kur = null;
         try {
-          const _r = await fetch(isStaff ? "/api/kur" : "https://portal.bilimevi.com/api/kur");
+          const _r = await fetch(isStaff ? "/api/sheet?kaynak=kur" : "https://portal.bilimevi.com/api/sheet?kaynak=kur");   // v134
           if (_r.ok) _kur = await _r.json();
         } catch (e) { console.warn("[BFT] TCMB kuru alınamadı, TL satırı yok", e); }
         const labelW = 42;                         // sol kalem sütunu
