@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 23 Kasım 2026 (v127 kurs yaz zammı çakışan haftalardan). Repo'daki BFT sürümü: `v127-yaz-zammi-kesisim-2026-11-23`.
+Son güncelleme: 23 Kasım 2026 (v128 okul listesi dil+şehre göre). Repo'daki BFT sürümü: `v128-okul-dil-filtresi-2026-11-23`.
 
 ## Kapsam
 
@@ -164,6 +164,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 ## Durum (30 Ekim 2026)
 
 - **v127 (23 Kasım):** kurs yaz zammı = haftalık zam × kursun sezonla çakışan hafta sayısı (`kesisenHafta`); kursun `max_weeks`'i tüm satırlardan (biri boşsa sınırsız, yoksa en büyüğü). Sebep: Positively Londra faturası (24 hafta, Ocak başlangıç, 5 hafta × £20) portalda 0 çıkıyordu.
+- **v128 (23 Kasım):** OKUL ADI listesi `brandsByLangCity["dil__şehir"]`'den (yoksa eski `brandsByCity`). Sebep: İngilizce > Almanya > Berlin seçilince Positively ve DiD (Almanca) da çıkıyordu; Berlin'e İngilizce'yi English Path satırı getiriyor, okul listesi sadece şehre bakıyordu.
 - **v126 (16 Kasım):** okul dosyası `brand__city` anahtarıyla seçilir, okul anahtarı (ilk satır) yedek. Sebep: Positively'nin 17 şehri 2026 kampanya dosyasına, 6 satırı eski dosyaya bağlı; eskiden ilk satır (Lyon, eski dosya) hepsine uygulanıyordu ve %30 düşmüyordu. Customer proxy'ye `city` de gidiyor; `data-proxy.php` v1.2 şehre göre seçer, eski proxy alanı yok sayar. Testler `tests/test_v126.mjs`.
 - **v125 (16 Kasım):** staff Öğrenci Bilgileri adımında Cmd+Option+T (Windows Ctrl+Alt+T) test verisi doldurur: Selman, 40, Erkek. Cmd+Shift+T tarayıcıya ait, sayfaya ulaşmaz.
 - **v124 (6 Kasım):** boş Ek Ücretler adımı otomatik atlanır (`tests/test_v124.mjs`). **v123:** staff sayfasının altında sürüm etiketi.

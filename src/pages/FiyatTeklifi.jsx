@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v127-yaz-zammi-kesisim-2026-11-23";
+const BFT_BUILD_VERSION = "v128-okul-dil-filtresi-2026-11-23";
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -326,6 +326,7 @@ async function fetchNav(isStaff) {
   const countries = {};
   const citiesByLang = {};
   const brandsByCity = {};
+  const brandsByLangCity = {}; // v128: okul listesi dil+şehre göre (Berlin İngilizce'de Almanca okullar çıkmasın)
   const schoolSheets = {};
   const portalIds = {};   // portal_id → { brand, city, country } (URL preselect için)
   rows.forEach(row => {
@@ -358,6 +359,9 @@ async function fetchNav(isStaff) {
       citiesByLang[l][countryTRName].add(city);
       if (!brandsByCity[city]) brandsByCity[city] = new Set();
       brandsByCity[city].add(brand);
+      const _lc = `${l}__${city}`;
+      if (!brandsByLangCity[_lc]) brandsByLangCity[_lc] = new Set();
+      brandsByLangCity[_lc].add(brand);
     });
   });
   const sortedLangs = [...languages].sort((a, b) => a === "İngilizce" ? -1 : b === "İngilizce" ? 1 : a.localeCompare(b));
@@ -366,6 +370,7 @@ async function fetchNav(isStaff) {
     countries: Object.fromEntries(Object.entries(countries).map(([k,v]) => [k,[...v]])),
     citiesByLang: Object.fromEntries(Object.entries(citiesByLang).map(([l,cm]) => [l, Object.fromEntries(Object.entries(cm).map(([c,s]) => [c,[...s].sort()]))])),
     brandsByCity: Object.fromEntries(Object.entries(brandsByCity).map(([c,s]) => [c,[...s]])),
+    brandsByLangCity: Object.fromEntries(Object.entries(brandsByLangCity).map(([c,s]) => [c,[...s]])),
     schoolSheets,
     portalIds,
     descriptions,
@@ -3042,7 +3047,7 @@ export default function FiyatTeklifi() {
                 return only30 ? cities.some(is30Plus) : cities.some(c => !is30Plus(c));
               }).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{COUNTRY_FLAG[c] ? <span style={{ marginRight:6, fontSize:16 }}>{COUNTRY_FLAG[c]}</span> : null}{c}</div>))}</div></>}
               {cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).filter(c => only30 ? is30Plus(c) : !is30Plus(c)).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
-              {cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByCity[cur.city]||[]).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
+              {cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByLangCity?.[`${cur.lang}__${cur.city}`] || nav.brandsByCity[cur.city] || []).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
               {isOnlineUlke(cur.country) && cur.brand && <div style={{ marginTop:10, padding:"8px 12px", background:"#f0fdff", border:`1px solid ${CYAN}`, borderRadius:8, fontSize:12, color:CYAN }}>✓ Online kurs seçildi — konaklama ve transfer adımları atlanacak</div>}
             </div>
           )}
