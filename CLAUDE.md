@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 23 Kasım 2026 (v130 6 okul + sade karşılaştırma tablosu). Repo'daki BFT sürümü: `v130-6-okul-tablo-sade-2026-11-23`.
+Son güncelleme: 23 Kasım 2026 (v131 PDF önemli not metni). Repo'daki BFT sürümü: `v131-onemli-not-2026-11-23`.
 
 ## Kapsam
 
@@ -167,6 +167,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - **v128 (23 Kasım):** OKUL ADI listesi `brandsByLangCity["dil__şehir"]`'den (yoksa eski `brandsByCity`). Sebep: İngilizce > Almanya > Berlin seçilince Positively ve DiD (Almanca) da çıkıyordu; Berlin'e İngilizce'yi English Path satırı getiriyor, okul listesi sadece şehre bakıyordu.
 - **v129 (23 Kasım):** kurs indirimi (sheet ve elle) matrahı = kurs toplamı − `courseHsAmount`. Sebep: Positively Londra faturasında %30 indirim sadece kurstan (7.440 → 2.232), yaz zammı satırında indirim 0.
 - **v130 (23 Kasım):** okul sınırı `MAX_OKUL_TOPLAM = 6`, şehir başına `MAX_OKUL_SEHIR = 3` (dolu şehir kutusu pasif; ülke sınırı toplamla aynı olduğu için yok). PDF karşılaştırma tablosu: etiketlerden "Ücreti" çıkar, hücrelerde para birimi yok, tam sayılarda ",00" yok, hafta ve para birimi ortaksa en üstte tek satır (farklıysa sütun altında), okul adı 12pt (4+ okulda 10pt).
+- **v131 (23 Kasım):** PDF alt bilgi notunun ikinci yarısı: "FİYAT FARKLILIKLARI OLMASI DURUMUNDA KAYIT OLDUĞUNUZ OKULUN FATURASI GEÇERLİDİR." (eski: danışmandan teyit).
 - **v126 (16 Kasım):** okul dosyası `brand__city` anahtarıyla seçilir, okul anahtarı (ilk satır) yedek. Sebep: Positively'nin 17 şehri 2026 kampanya dosyasına, 6 satırı eski dosyaya bağlı; eskiden ilk satır (Lyon, eski dosya) hepsine uygulanıyordu ve %30 düşmüyordu. Customer proxy'ye `city` de gidiyor; `data-proxy.php` v1.2 şehre göre seçer, eski proxy alanı yok sayar. Testler `tests/test_v126.mjs`.
 - **v125 (16 Kasım):** staff Öğrenci Bilgileri adımında Cmd+Option+T (Windows Ctrl+Alt+T) test verisi doldurur: Selman, 40, Erkek. Cmd+Shift+T tarayıcıya ait, sayfaya ulaşmaz.
 - **v124 (6 Kasım):** boş Ek Ücretler adımı otomatik atlanır (`tests/test_v124.mjs`). **v123:** staff sayfasının altında sürüm etiketi.

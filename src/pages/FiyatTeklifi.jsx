@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v130-6-okul-tablo-sade-2026-11-23";
+const BFT_BUILD_VERSION = "v131-onemli-not-2026-11-23";
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
 const MAX_OKUL_SEHIR = 3;
@@ -2206,7 +2206,7 @@ export default function FiyatTeklifi() {
       // Her sayfa altına: önemli not (bold, büyük harf) + site adresi
       const drawFooter = () => {
         doc.setFont(FONT, "bold"); doc.setFontSize(10.5); doc.setTextColor(220, 100, 100);
-        const noteTxt = "ÖNEMLİ NOT: ÖN BİLGİLENDİRME AMAÇLI BU TEKLİF, KAYIT OLACAĞINIZ TARİHTEKİ OKULLARIN DÖNEMSEL GÜNCELLEMELERİNE GÖRE DEĞİŞKENLİK GÖSTEREBİLİR; GÜNCEL TUTAR VE İNDİRİMLER İÇİN DANIŞMANINIZDAN TEYİT ALMANIZI RİCA EDERİZ.";
+        const noteTxt = "ÖNEMLİ NOT: ÖN BİLGİLENDİRME AMAÇLI BU TEKLİF, KAYIT OLACAĞINIZ TARİHTEKİ OKULLARIN DÖNEMSEL GÜNCELLEMELERİNE GÖRE DEĞİŞKENLİK GÖSTEREBİLİR; FİYAT FARKLILIKLARI OLMASI DURUMUNDA KAYIT OLDUĞUNUZ OKULUN FATURASI GEÇERLİDİR.";   // v131
         const noteLines = doc.splitTextToSize(noteTxt, CW);
         doc.text(noteLines, PAGE_W / 2, 270, { align: "center" });
         doc.setFont(FONT, "normal"); doc.setFontSize(8); doc.setTextColor(51);
