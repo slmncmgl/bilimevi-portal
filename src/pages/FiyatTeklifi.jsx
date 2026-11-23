@@ -17,7 +17,10 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v129-indirim-yaz-zammi-haric-2026-11-23";
+const BFT_BUILD_VERSION = "v130-6-okul-tablo-sade-2026-11-23";
+// v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
+const MAX_OKUL_TOPLAM = 6;
+const MAX_OKUL_SEHIR = 3;
 if (typeof window !== "undefined") {
   console.log("%c[BFT] Build: " + BFT_BUILD_VERSION, "background:#00C1DE;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;");
   window.__BFT_VERSION = BFT_BUILD_VERSION;
@@ -2031,7 +2034,7 @@ export default function FiyatTeklifi() {
     }, 100);
   };
 
-  const addNew = () => { if (destinations.length >= 3) return; setCur(emptyDest(cur.startDate, cur.weeks)); setStep(1); };
+  const addNew = () => { if (destinations.length >= MAX_OKUL_TOPLAM) return; setCur(emptyDest(cur.startDate, cur.weeks)); setStep(1); };
   // Özetteki bir destinasyonu düzenlemeye al: listeden çıkarılır, Kurs adımına dönülür.
   // "Özete Geç" denince eski sırasına geri konur (editIndex).
   const editDestination = (i) => {
@@ -2558,6 +2561,17 @@ export default function FiyatTeklifi() {
         doc.setTextColor(17);
 
         const n = destinations.length;
+        // v130: hafta ve para birimi hücrelerden çıktı; ortaksa en üstte tek satır
+        const _haftalar = [...new Set(destinations.map(d => d.weeks))];
+        const _pbler = [...new Set(destinations.map(d => d.course?.currency || "GBP"))];
+        const _ust = [];
+        if (_haftalar.length === 1) _ust.push(`${_haftalar[0]} hafta`);
+        if (_pbler.length === 1) _ust.push(`Tutarlar ${_pbler[0]}`);
+        if (_ust.length) {
+          doc.setFont(FONT, "bold"); doc.setFontSize(10); doc.setTextColor(120);
+          doc.text(_ust.join(" · "), MARGIN, cy);
+          cy += 8; doc.setTextColor(17);
+        }
         const labelW = 42;                         // sol kalem sütunu
         const colW = (PAGE_W - MARGIN * 2 - labelW) / n;
         const colX = (i) => MARGIN + labelW + i * colW;
@@ -2574,8 +2588,8 @@ export default function FiyatTeklifi() {
 
         // Başlık satırı: okul adları (her kelime alt alta, büyük+turkuaz, dikey ortalı)
         doc.setFont(FONT, "bold");
-        doc.setFontSize(14); doc.setTextColor(...BASLIK_RGB);
-        const LH = 6.5; // satır yüksekliği
+        doc.setFontSize(n > 3 ? 10 : 12); doc.setTextColor(...BASLIK_RGB);   // v130: 14 → 12 (4+ okulda 10)
+        const LH = n > 3 ? 4.8 : 5.6; // satır yüksekliği
         // Önce her okulun kelimelerini ve maxWords'ü hesapla
         const headWords = cols.map((c, i) => String(c.d.brand || c.d.city || `Okul ${i+1}`).split(/\s+/).filter(Boolean));
         const maxWords = Math.max(1, ...headWords.map(w => w.length));
@@ -2590,7 +2604,8 @@ export default function FiyatTeklifi() {
         cy += maxWords * LH + 2;
         cols.forEach((c, i) => {
           doc.setFont(FONT, "bold"); doc.setFontSize(10); doc.setTextColor(120);
-          doc.text(`${c.d.city} · ${c.d.weeks} hafta`, colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
+          const _alt = [c.d.city, _haftalar.length > 1 ? `${c.d.weeks} hafta` : "", _pbler.length > 1 ? c.cur : ""].filter(Boolean).join(" · ");
+          doc.text(_alt, colX(i) + colW/2, cy, { align:"center", maxWidth: colW - 2 });
         });
         cy += 5;
         // Okul başlıkları altı — kalın siyah çizgi (kalemler başlamadan)
@@ -2599,7 +2614,9 @@ export default function FiyatTeklifi() {
         cy += 6;
 
         // Satır çizici: sol etiket + her okul için değer
-        const money2 = (n) => roundHalf(n).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // v130: kuruş yoksa ",00" yazılmaz; para birimi hücrede yok
+        const money2 = (n) => { const r = roundHalf(n); return r.toLocaleString("tr-TR", Number.isInteger(r) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+        const etiket = (t) => String(t).replace(/\s*[üÜ]creti\b/g, "").replace(/\s{2,}/g, " ").trim() || String(t);
         const checkPageC = () => { if (cy > 270) { doc.addPage(); cy = 24; } };
         const row = (label, valueFn, opts = {}) => {
           checkPageC();
@@ -2608,7 +2625,7 @@ export default function FiyatTeklifi() {
           doc.setFont(FONT, "bold");
           doc.setFontSize(opts.big ? 11 : opts.bold ? 9 : 8.5);
           doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
-          doc.text(label, MARGIN, cy);
+          doc.text(etiket(label), MARGIN, cy);
           // Değerler — opts.bold ise bold, değilse normal
           doc.setFont(FONT, opts.bold ? "bold" : "normal");
           cols.forEach((c, i) => {
@@ -2625,40 +2642,40 @@ export default function FiyatTeklifi() {
 
         // Kurs
         row("Kurs", c => c.dt.isPackage
-          ? `${c.cur} ${money2(c.dt.packagePrice)}`   // v111: otomatik eslesen pakette selectedPackage null olabiliyor
-          : `${c.cur} ${money2(c.d.courseTotalPrice)}`);
+          ? `${money2(c.dt.packagePrice)}`   // v111: otomatik eslesen pakette selectedPackage null olabiliyor
+          : `${money2(c.d.courseTotalPrice)}`);
         // Konaklama
         row("Konaklama", c => {
           if (c.dt.isPackage && c.dt.packageType === "with_accommodation") return "Dahil";
           if (!c.d.acc) return "";
           const aw = c.d.accWeeks || c.d.weeks;
           const suffix = aw !== c.d.weeks ? ` (${aw} hf)` : "";
-          return `${c.cur} ${money2(c.d.accTotalPrice)}${suffix}`;
+          return `${money2(c.d.accTotalPrice)}${suffix}`;
         });
         // v116: paket yaz zammı ve oda yükseltmesi
         if (cols.some(c => c.dt.packageHs?.amount > 0)) {
-          row("Yaz zammı", c => c.dt.packageHs?.amount > 0 ? `${c.cur} ${money2(c.dt.packageHs.amount)}` : "");
+          row("Yaz zammı", c => c.dt.packageHs?.amount > 0 ? `${money2(c.dt.packageHs.amount)}` : "");
         }
         if (cols.some(c => c.dt.packageUpgradesTotal > 0)) {
-          row("Oda yükseltmesi", c => c.dt.packageUpgradesTotal > 0 ? `${c.cur} ${money2(c.dt.packageUpgradesTotal)}` : "");
+          row("Oda yükseltmesi", c => c.dt.packageUpgradesTotal > 0 ? `${money2(c.dt.packageUpgradesTotal)}` : "");
         }
         // Diğer ücretler (kalem kalem)
         const allFeeNames = [...new Set(cols.flatMap(c => (c.f.items||[]).map(it => it.name)))];
         allFeeNames.forEach(fn => {
           row(fn, c => {
             const it = (c.f.items||[]).find(x => x.name === fn);
-            return it ? `${c.f.currency||c.cur} ${money2(it.amount)}` : "";
+            return it ? money2(it.amount) : "";
           });
         });
         // Transfer
         if (cols.some(c => c.d.transfer)) {
-          row("Transfer", c => c.d.transfer ? `${c.d.transfer.currency} ${money2(transferPrice(c.d))}${c.d.transferRoundTrip ? " (çift yön)" : ""}` : "");
+          row("Transfer", c => c.d.transfer ? `${money2(transferPrice(c.d))}${c.d.transferRoundTrip ? " (çift yön)" : ""}` : "");
         }
         // İndirim
         if (cols.some(c => !c.dt.isPackage && c.dt.discountsTotal > 0)) {
           row("İndirim", c => {
             if (c.dt.isPackage || !c.dt.discountsTotal) return "";
-            return `- ${c.cur} ${money2(c.dt.discountsTotal)}`;
+            return `- ${money2(c.dt.discountsTotal)}`;
           }, { color: [22, 163, 74], bold: true });
         }
 
@@ -2667,7 +2684,7 @@ export default function FiyatTeklifi() {
         doc.setDrawColor(17); doc.setLineWidth(0.6);
         doc.line(MARGIN, cy, PAGE_W - MARGIN, cy);
         cy += 6;
-        row("GENEL TOPLAM", c => `${c.cur} ${money2(c.dt.grandTotal)}`, { bold: true, big: true, color: [17,17,17] });
+        row("GENEL TOPLAM", c => `${money2(c.dt.grandTotal)}`, { bold: true, big: true, color: [17,17,17] });
 
         // Farklı para birimi uyarısı
         const currencies = [...new Set(cols.map(c => c.cur))];
@@ -3048,7 +3065,7 @@ export default function FiyatTeklifi() {
                 const cities = nav.citiesByLang[cur.lang]?.[ctry] || [];
                 return only30 ? cities.some(is30Plus) : cities.some(c => !is30Plus(c));
               }).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{COUNTRY_FLAG[c] ? <span style={{ marginRight:6, fontSize:16 }}>{COUNTRY_FLAG[c]}</span> : null}{c}</div>))}</div></>}
-              {cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).filter(c => only30 ? is30Plus(c) : !is30Plus(c)).map(c => (<div key={c} style={cur.city===c ? S.selActive : S.sel} onClick={() => { setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}</div>))}</div></>}
+              {cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).filter(c => only30 ? is30Plus(c) : !is30Plus(c)).map(c => { const _dolu = cur.city!==c && destinations.filter(d => d.country===cur.country && d.city===c).length >= MAX_OKUL_SEHIR; return (<div key={c} title={_dolu ? `Bu şehirden en fazla ${MAX_OKUL_SEHIR} okul seçilebilir` : undefined} style={cur.city===c ? S.selActive : _dolu ? S.selDisabled : S.sel} onClick={() => { if (_dolu) return; setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}{_dolu && <div style={{ fontSize:10, marginTop:2 }}>{MAX_OKUL_SEHIR} okul seçildi</div>}</div>); })}</div></>}
               {cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByLangCity?.[`${cur.lang}__${cur.city}`] || nav.brandsByCity[cur.city] || []).map(b => (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}</div>))}</div></>}
               {isOnlineUlke(cur.country) && cur.brand && <div style={{ marginTop:10, padding:"8px 12px", background:"#f0fdff", border:`1px solid ${CYAN}`, borderRadius:8, fontSize:12, color:CYAN }}>✓ Online kurs seçildi — konaklama ve transfer adımları atlanacak</div>}
             </div>
@@ -3501,7 +3518,7 @@ export default function FiyatTeklifi() {
                   </div>
                 );
               })}
-              {destinations.length < 3
+              {destinations.length < MAX_OKUL_TOPLAM
                 ? <button onClick={addNew} style={S.addBtn}>+ Yeni Destinasyon Ekle</button>
                 : <button onClick={() => setConfirmModal({
                     title: "Yeni Teklif Oluştur",
