@@ -1,3 +1,4 @@
+// v1.5: ana sayfada kenar boşluğu %25
 // v1.4: Genişlik yüzdeyle: kartlarda kenarlardan %5, ana sayfada %15 içeride. Ana sayfa tespiti sondaki "/" ve büyük harfe dayanıklı;
 //   kart adı olmayan sayfada da Geri yerine Çıkış.
 // v1.3: v1.2'de yanlışlıkla silinen kartAdi geri kondu (beyaz ekran).
@@ -30,7 +31,7 @@ const ALT_METIN = {
 
 // Şeridin kenarlardan içeri boşluğu (Selman kararı 24.11.2026)
 const KENAR_KART = "5%";
-const KENAR_ANA_SAYFA = "15%";
+const KENAR_ANA_SAYFA = "25%";
 
 function kartAdi(yol, arama, isFortis) {
   if (yol === "/izin" && new URLSearchParams(arama).get("panel") === "admin") return isFortis ? "Admin Panel" : "Yönetici Paneli";
