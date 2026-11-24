@@ -1,3 +1,4 @@
+// v4.8: açıklama satırı ortak üst şeride (kart adının yanına) taşındı, sayfadaki başlık şeridi kaldırıldı
 // v4.7: Üst başlık ortak şeride uyarlandı (Geri, "CRM" başlığı ve kullanıcı kaldırıldı; açıklama kaldı, başlık şeridin altına yapışır)
 // v4.6: sayfa adı CRM (modül izni sheet'te hâlâ "Performans Analizi" sütunu)
 // v4.5: sekme çubuğu sayfa genişliğinde, sekmeler eşit bölümlerde ve yazılar bölümlerinin ortasında
@@ -45,7 +46,7 @@ import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerl
 import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 
-const PERFORMANS_SURUM = "v4.7"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v4.8"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
@@ -242,19 +243,6 @@ export default function PerformansAnalizi() {
       <div style={s.bgGrid} />
       <div style={s.bgGlow} />
 
-      <header style={s.header}>
-        <div style={s.headerInner}>
-          <div style={s.headerTitle}>
-            <div style={s.headerIcon}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="1.5" width="20" height="20">
-                <path d="M12 20V10M18 20V4M6 20v-4" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M3 20h18" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div style={s.headerSub}>Aktivite, performans ve data tabloları, sınav sonuçları</div>
-          </div>
-        </div>
-      </header>
 
       <main style={s.main}>
         <div style={s.sekmeler}>
@@ -370,12 +358,7 @@ const s = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
   bgGlow: { position: "fixed", top: "-10%", right: "-5%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, #cffafe44 0%, transparent 70%)", zIndex: 0 },
-  header: { position: "sticky", top: 65, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "1100px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", gap: "16px" },
   backBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#475569", fontFamily: "'Sora', sans-serif", transition: "border-color 0.2s", whiteSpace: "nowrap" },
-  headerTitle: { display: "flex", alignItems: "center", gap: "10px", flex: 1 },
-  headerIcon: { width: "36px", height: "36px", borderRadius: "10px", background: "#ecfeff", border: "1px solid #a5f3fc", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  headerSub: { fontSize: "12px", color: "#64748b" },
   main: { maxWidth: "1100px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
   loadingWrap: { display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", padding: "80px 0" },
   spinner: { display: "inline-block", width: "20px", height: "20px", border: "2px solid #e2e8f0", borderTopColor: "#0891b2", borderRadius: "50%", animation: "spin 0.8s linear infinite" },

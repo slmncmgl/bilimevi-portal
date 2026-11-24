@@ -1,3 +1,5 @@
+// v1.1: Şeridin içi sayfanın içerik sütunuyla hizalanır (hizaBul: ilk geniş, maxWidth'li kutu); kart adının yanında
+//   isteğe bağlı açıklama (ALT_METIN).
 // v1.0 (24.11.2026): Tüm sayfalarda ortak üst şerit (App.jsx). Eskiden sadece Dashboard'daydı (Dashboard v1.20'ye kadar).
 // Solda logo (tıklayınca ana sayfa) ve açık kartın adı; sağda çevrimiçi etiketi + el sallama, Yönetici Paneli (yönetici rolleri),
 // sayfaya özel ek alan (#ust-serit-ek: Dashboard sürükle-bırak ipucunu buraya basar), kullanıcı ve Çıkış.
@@ -16,6 +18,36 @@ const EK_ADLAR = {
   "/kylas-baglantilari": ["Kylas Bağlantıları", "Kylas Connections"],
 };
 const YONETICI = ["admin", "owner", "director", "manager"];
+// Kart adının yanında soluk açıklama (sayfada ayrıca başlık satırı açmamak için)
+const ALT_METIN = {
+  "/crm": ["Aktivite, performans ve data tabloları, sınav sonuçları", "Activity, performance and data tables, quiz results"],
+};
+
+// Sayfanın içerik sütununu bul: şerit dışında, maxWidth verilmiş, en az 600px genişliğinde ilk kutu (en fazla 7 kat derin).
+// Bulunamazsa null döner, şerit tam genişlikte kalır.
+function hizaBul() {
+  const kok = document.getElementById("root");
+  if (!kok) return null;
+  let katman = [...kok.children];
+  for (let derinlik = 0; derinlik < 7 && katman.length; derinlik++) {
+    const sonraki = [];
+    for (const el of katman) {
+      if (el.classList.contains("ust-serit")) continue;
+      const st = getComputedStyle(el);
+      if (st.display === "none" || st.position === "fixed" || st.position === "absolute") continue;
+      if (st.maxWidth !== "none" && parseFloat(st.maxWidth) >= 600) {
+        const k = el.getBoundingClientRect();
+        if (k.width >= 500) {
+          const pl = parseFloat(st.paddingLeft) || 0, pr = parseFloat(st.paddingRight) || 0;
+          return { sol: Math.round(k.left + pl), genislik: Math.round(k.width - pl - pr) };
+        }
+      }
+      sonraki.push(...el.children);
+    }
+    katman = sonraki;
+  }
+  return null;
+}
 
 function kartAdi(yol, arama, isFortis) {
   if (yol === "/izin" && new URLSearchParams(arama).get("panel") === "admin") return isFortis ? "Admin Panel" : "Yönetici Paneli";
@@ -28,12 +60,23 @@ function kartAdi(yol, arama, isFortis) {
 export default function UstSerit() {
   const konum = useLocation();
   const navigate = useNavigate();
+  const [hiza, setHiza] = useState(null);
+  // Sayfa veriyi geç yükleyebilir: açılışta birkaç kez ve pencere boyu değişince yeniden ölç
+  useEffect(() => {
+    const olc = () => setHiza(onceki => {
+      const yeni = hizaBul();
+      return onceki && yeni && onceki.sol === yeni.sol && onceki.genislik === yeni.genislik ? onceki : yeni;
+    });
+    const zamanlar = [0, 150, 500, 1200, 2500].map(ms => setTimeout(olc, ms));
+    window.addEventListener("resize", olc);
+    return () => { zamanlar.forEach(clearTimeout); window.removeEventListener("resize", olc); };
+  }, [konum.pathname, konum.search]);
   if (GIZLI_ADRESLER.includes(konum.pathname)) return null;
   const user = getSession();
   if (!user) return null;
   const isFortis = user.company === "Fortis";
   const ad = kartAdi(konum.pathname, konum.search, isFortis);
-  const anaSayfa = konum.pathname === "/dashboard";
+  const alt = ALT_METIN[konum.pathname]?.[isFortis ? 1 : 0];
 
   function cikis() {
     clearSession();
@@ -42,7 +85,7 @@ export default function UstSerit() {
 
   return (
     <header className="ust-serit" style={{ position: "sticky", top: 0, zIndex: 900, height: `${UST_SERIT_YUKSEKLIK}px`, boxSizing: "border-box", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
-      <div className="ust-serit-ic" style={{ maxWidth: anaSayfa ? "900px" : "1400px", height: "100%", margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+      <div className="ust-serit-ic" style={{ ...(hiza ? { width: `${hiza.genislik}px`, marginLeft: `${hiza.sol}px`, padding: 0 } : { margin: "0 auto", padding: "0 24px" }), height: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
           <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi"
             onClick={() => navigate("/dashboard")} title={isFortis ? "Home" : "Ana sayfa"}
@@ -51,6 +94,7 @@ export default function UstSerit() {
             <>
               <span style={{ width: "1px", height: "26px", background: "#e2e8f0", flexShrink: 0 }} />
               <span className="ust-serit-kart" style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ad}</span>
+              {alt && <span className="ust-serit-alt" style={{ fontSize: "12px", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{alt}</span>}
             </>
           )}
         </div>
@@ -96,6 +140,7 @@ export default function UstSerit() {
           .ust-serit-sag { gap: 8px !important; }
           .ust-serit-sag button { padding: 6px 10px !important; font-size: 11px !important; }
         }
+        @media (max-width: 1100px) { .ust-serit-alt { display: none !important; } }
         @media (max-width: 520px) { .ust-serit-kart { display: none !important; } }
       `}</style>
     </header>
