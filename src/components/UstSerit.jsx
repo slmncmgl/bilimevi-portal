@@ -1,3 +1,4 @@
+// v1.3: v1.2'de yanlışlıkla silinen kartAdi geri kondu (beyaz ekran).
 // v1.2: Genişlik her sayfada sabit, Doldurulan Kayıt Formları ile aynı (SERIT_GENISLIK); ölçme kaldırıldı.
 //   En sağdaki düğme: ana sayfada metin görünümlü Çıkış, kartlarda ← Geri (geçmiş varsa bir önceki sayfa, yoksa ana sayfa).
 // v1.1: Şeridin içi sayfanın içerik sütunuyla hizalanır (hizaBul: ilk geniş, maxWidth'li kutu); kart adının yanında
@@ -27,6 +28,14 @@ const ALT_METIN = {
 
 // KayitGuncelle.jsx'teki headerInner/main ile aynı genişlik ve iç boşluk
 const SERIT_GENISLIK = "max(min(92vw, 1100px), min(100vw, 768px))";
+
+function kartAdi(yol, arama, isFortis) {
+  if (yol === "/izin" && new URLSearchParams(arama).get("panel") === "admin") return isFortis ? "Admin Panel" : "Yönetici Paneli";
+  const m = MODULE_CONFIG.find(x => x.path === yol);
+  if (m) return isFortis ? (m.titleEn || m.title) : m.title;
+  const ek = EK_ADLAR[yol];
+  return ek ? ek[isFortis ? 1 : 0] : "";
+}
 
 export default function UstSerit() {
   const konum = useLocation();
