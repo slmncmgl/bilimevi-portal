@@ -1,3 +1,4 @@
+// v3.25: toplu hatırlatma cümlesinde son etkinlik filtresi de yazılır ("son etkinliği 7 günden eski olan ...")
 // v3.24: topluHatirlat n8n'e kart adını da gönderir (mesajda Portal > CRM > Takip Tablosu > X Kartı)
 // v3.23: takip: son etkinlik filtresi seçiliyse son etkinliği o günden yeni olan datalar hiç listelenmez (kartlar da)
 // v3.22: Na1-Na3'teki datalar sadece VIP kaynaklıysa takipsiz sayılır
@@ -1110,10 +1111,12 @@ const GORUNUM_SUZ = {
   takipsiz: { kart: "Takipsiz", kelime: "takipsiz", suz: l => l.takipsiz },
 };
 const listeYaz = a => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} ve ${a.at(-1)}`);
-export function topluCumle(sayi, gorunum, asamaIdleri) {
+export function topluCumle(sayi, gorunum, asamaIdleri, gun = 0) {
   const adlar = ASAMALAR.filter(a => asamaIdleri.includes(a.id)).map(a => a.ad); // aşama sırasıyla
   const asama = !adlar.length || adlar.length === ACIK_ASAMALAR.length || (adlar.length === TAKIP_ASAMALARI.length && !asamaIdleri.includes(YENI)) ? "" : `${listeYaz(adlar)} ${adlar.length > 1 ? "aşamalarındaki" : "aşamasındaki"} `;
-  return `${asama}${sayi} ${GORUNUM_SUZ[gorunum].kelime} datanızla en kısa sürede ilgilenebilir misiniz?`;
+  const sure = gun > 0 ? `son etkinliği ${gun} günden eski olan ` : "";
+  const bas = `${sure}${asama}`;
+  return `${bas ? bas[0].toUpperCase() + bas.slice(1) : ""}${sayi} ${GORUNUM_SUZ[gorunum].kelime} datanızla en kısa sürede ilgilenebilir misiniz?`;
 }
 
 async function topluHatirlat(req, res, yetki) {
@@ -1143,7 +1146,7 @@ async function topluHatirlat(req, res, yetki) {
 
   const anahtar = ["toplu", ownerId, b.gorunum, [...asamalar].sort().join("-"), (b.kaynaklar || []).join("-"), b.kampanya || "", b.sessizGun].join(":");
   return hatirlatGonder(res, yetki, { danisman: danisman.ad, onizleme, not: notMetni.trim(), onay: sayi, tur: "toplu", kayit: `toplu ${sayi} (${b.gorunum})`,
-    data: { id: anahtar, cumle: topluCumle(sayi, b.gorunum, asamalar), kart: GORUNUM_SUZ[b.gorunum].kart } });
+    data: { id: anahtar, cumle: topluCumle(sayi, b.gorunum, asamalar, Number(b.sessizGun) || 0), kart: GORUNUM_SUZ[b.gorunum].kart } });
 }
 
 export default async function handler(req, res) {
