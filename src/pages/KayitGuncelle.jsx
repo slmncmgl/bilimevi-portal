@@ -1,10 +1,11 @@
-// KayitGuncelle.jsx v1.86
+// KayitGuncelle.jsx v1.87
+// v1.87: Tüm Filtreleri Temizle düğmesinde ikon yok
 // v1.86 (24.11.2026): Üst başlık ortak şeride taşındı (Geri, kart adı ve kullanıcı satırı kaldırıldı; Listeye Dön ve sürüm kaldı, başlık şeridin altına yapışır).
 // v1.85 (23.11.2026): Özet satırında "Bu Kaydı İptal Et" (kırmızı). Onay penceresinden sonra /api/sozlesme-gonder islem "iptal"
 //   -> n8n Kayıt İptal Talebi (VmicFOIO7KXCndnm) Selman'a WhatsApp atar; Selman "ok" yanıtlayınca Onay Durumu = İptal Etti.
 import { useState, useEffect, useRef, useMemo } from "react";
 
-const SURUM = "v1.86"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.87"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 import OnayPenceresi from "./OnayPenceresi";
 
@@ -2011,7 +2012,6 @@ export default function KayitGuncelle() {
                   transition: "opacity 0.2s, box-shadow 0.2s",
                 }}
               >
-                <span style={{ fontSize: isMobile ? "14px" : "22px", lineHeight: 1 }} aria-hidden="true">🧹</span>
                 {isMobile
                   ? <span>Tüm Filtreleri Temizle</span>
                   : <span style={{ whiteSpace: "nowrap" }}>Tüm Filtreleri<br />Temizle</span>}

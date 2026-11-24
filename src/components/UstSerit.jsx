@@ -1,3 +1,4 @@
+// v1.6: genişlik her sayfada ana sayfayla aynı (900px); kart adı ve açıklaması yazılmaz; Geri düğmesi koyu ve belirgin
 // v1.5: ana sayfada kenar boşluğu %25
 // v1.4: Genişlik yüzdeyle: kartlarda kenarlardan %5, ana sayfada %15 içeride. Ana sayfa tespiti sondaki "/" ve büyük harfe dayanıklı;
 //   kart adı olmayan sayfada da Geri yerine Çıkış.
@@ -24,13 +25,7 @@ const EK_ADLAR = {
   "/kylas-baglantilari": ["Kylas Bağlantıları", "Kylas Connections"],
 };
 const YONETICI = ["admin", "owner", "director", "manager"];
-// Kart adının yanında soluk açıklama (sayfada ayrıca başlık satırı açmamak için)
-const ALT_METIN = {
-  "/crm": ["Aktivite, performans ve data tabloları, sınav sonuçları", "Activity, performance and data tables, quiz results"],
-};
 
-// Şeridin kenarlardan içeri boşluğu (Selman kararı 24.11.2026)
-const KENAR_KART = "5%";
 // Ana sayfada şerit kart ızgarasıyla aynı hizada: Dashboard main maxWidth 900 + 24px iç boşluk (v1.6)
 const ANA_SAYFA_GENISLIK = "900px";
 const ANA_SAYFA_KENAR = "24px";
@@ -51,7 +46,6 @@ export default function UstSerit() {
   if (!user) return null;
   const isFortis = user.company === "Fortis";
   const ad = kartAdi(konum.pathname, konum.search, isFortis);
-  const alt = ALT_METIN[konum.pathname]?.[isFortis ? 1 : 0];
 
   const anaSayfa = konum.pathname.replace(/\/+$/, "").toLowerCase() === "/dashboard";
   const cikisGoster = anaSayfa || !ad;
@@ -69,18 +63,11 @@ export default function UstSerit() {
 
   return (
     <header className="ust-serit" style={{ position: "sticky", top: 0, zIndex: 900, height: `${UST_SERIT_YUKSEKLIK}px`, boxSizing: "border-box", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
-      <div className="ust-serit-ic" style={{ padding: `0 ${anaSayfa ? ANA_SAYFA_KENAR : KENAR_KART}`, maxWidth: anaSayfa ? ANA_SAYFA_GENISLIK : "none", margin: "0 auto", height: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+      <div className="ust-serit-ic" style={{ padding: `0 ${ANA_SAYFA_KENAR}`, maxWidth: ANA_SAYFA_GENISLIK, margin: "0 auto", height: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
           <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi"
             onClick={() => navigate("/dashboard")} title={isFortis ? "Home" : "Ana sayfa"}
             style={{ height: "32px", objectFit: "contain", cursor: "pointer", flexShrink: 0 }} />
-          {ad && (
-            <>
-              <span style={{ width: "1px", height: "26px", background: "#e2e8f0", flexShrink: 0 }} />
-              <span className="ust-serit-kart" style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ad}</span>
-              {alt && <span className="ust-serit-alt" style={{ fontSize: "12px", color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{alt}</span>}
-            </>
-          )}
         </div>
         <div className="ust-serit-sag" style={{ display: "flex", alignItems: "center", gap: "20px", flexShrink: 0 }}>
           <CevrimiciEtiket isFortis={isFortis} />
@@ -118,10 +105,10 @@ export default function UstSerit() {
             </button>
           ) : (
             <button onClick={geri}
-              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", border: "1px solid #cbd5e1", borderRadius: "8px", background: "#fff", color: "#334155", fontSize: "12px", fontWeight: "600", cursor: "pointer", transition: "background 0.2s", fontFamily: "inherit", whiteSpace: "nowrap" }}
-              onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
-              onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", border: "none", borderRadius: "8px", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: "700", cursor: "pointer", transition: "background 0.2s", fontFamily: "inherit", whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(8,145,178,0.35)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "#0e7490"}
+              onMouseLeave={e => e.currentTarget.style.background = "#0891b2"}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
                 <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
               </svg>
               {isFortis ? "Back" : "Geri"}
