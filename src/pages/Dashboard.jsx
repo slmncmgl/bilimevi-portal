@@ -1,3 +1,4 @@
+// v1.18: Çevrimiçi listesi açılınca el sallayan 👋 başlık (denemelik).
 // v1.17: Çevrimiçi etiketine tıklayınca kimlerin çevrimiçi olduğu listelenir.
 // v1.16: Üst şeritte "N kişi çevrimiçi" etiketi (yeşil nokta), sayı n8n nabzından (src/lib/cevrimici.js).
 // v1.15: "Performans Analizi" kartının adı CRM
@@ -32,7 +33,7 @@ import { nabizGonder, cevrimiciDurum } from "../lib/cevrimici";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.17";
+const DASHBOARD_VERSION = "v1.18";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -719,6 +720,10 @@ function CevrimiciEtiket({ isFortis }) {
     </button>
     {acik && (
       <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, minWidth: "190px", maxHeight: "320px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.12)", padding: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "4px 8px 8px", marginBottom: "4px", borderBottom: "1px solid #f1f5f9", fontSize: "13px", fontWeight: "700", color: "#047857" }}>
+          <span className="cevrimici-el" style={{ display: "inline-block", fontSize: "20px", transformOrigin: "70% 70%", animation: "cevrimiciEl 1.8s ease-in-out" }}>👋</span>
+          {isFortis ? "Say hi!" : "Selam verin!"}
+        </div>
         {durum.liste.map((ad, i) => (
           <div key={`${ad}-${i}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", fontSize: "13px", color: "#0f172a", whiteSpace: "nowrap" }}>
             <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981", flexShrink: 0 }} />
@@ -728,7 +733,8 @@ function CevrimiciEtiket({ isFortis }) {
       </div>
     )}
       <style>{`@keyframes cevrimiciNabiz { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
-        @media (prefers-reduced-motion: reduce) { .cevrimici-nokta { animation: none !important; } }`}</style>
+        @keyframes cevrimiciEl { 0%, 60%, 100% { transform: rotate(0deg); } 10%, 30% { transform: rotate(14deg); } 20% { transform: rotate(-8deg); } 40% { transform: rotate(-4deg); } 50% { transform: rotate(10deg); } }
+        @media (prefers-reduced-motion: reduce) { .cevrimici-nokta, .cevrimici-el { animation: none !important; } }`}</style>
     </div>
   );
 }
