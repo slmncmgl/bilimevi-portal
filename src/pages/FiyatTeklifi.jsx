@@ -18,7 +18,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v142-hata-bildir-ust-serit-2026-11-24";
+const BFT_BUILD_VERSION = "v143-hata-bildir-ikon-font-2026-11-24";
 // v138: staff modunda üst başlık (← Dashboard + "Fiyat Teklifi") kaldırıldı, portalın ortak şeridi gösteriyor. Müşteri modu aynı.
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
@@ -1483,16 +1483,16 @@ function HataBildir({ baglam }) {
       const hedef = typeof document !== "undefined" ? document.getElementById("ust-serit-ek") : null;
       const btn = <button onClick={() => setAcik(true)} title="Hata bildir" aria-label="Hata bildir"
         style={hedef
-          ? { display:"inline-flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:999, border:"1px solid #fed7aa", background:"#fff7ed", color:"#c2410c", fontSize:13, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" }
+          ? { display:"inline-flex", alignItems:"center", justifyContent:"center", width:32, height:32, padding:0, borderRadius:"50%", border:"1px solid #fed7aa", background:"#fff7ed", color:"#c2410c", fontSize:15, cursor:"pointer", fontFamily:"inherit" }
           : { position:"fixed", right:20, bottom:20, zIndex:9000, width:44, height:44, borderRadius:"50%", border:"none", background:"#f97316", color:"#fff", fontSize:20, cursor:"pointer", boxShadow:"0 4px 14px rgba(249,115,22,.35)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-        {hedef ? <>⚠ Hata bildir</> : "⚠"}</button>;
+        ⚠</button>;
       return hedef ? createPortal(btn, hedef) : btn;
     })()}
     {acik && <div onClick={kapat} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(15,23,42,.45)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:440, background:"#fff", borderRadius:14, padding:20, boxShadow:"0 20px 50px rgba(0,0,0,.25)" }}>
+      <div className="bft-hata-popup" onClick={e => e.stopPropagation()} style={{ fontFamily:"'Sora',sans-serif", width:"100%", maxWidth:440, background:"#fff", borderRadius:14, padding:20, boxShadow:"0 20px 50px rgba(0,0,0,.25)" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
           <div style={{ fontSize:16, fontWeight:700, color:"#0f172a" }}>Hata bildir</div>
-          <button onClick={kapat} aria-label="Kapat" style={{ border:"none", background:"none", fontSize:20, color:"#64748b", cursor:"pointer", lineHeight:1 }}>×</button>
+          <button onClick={kapat} aria-label="Kapat" style={{ border:"none", background:"none", fontSize:20, color:"#64748b", cursor:"pointer", lineHeight:1, fontFamily:"inherit" }}>×</button>
         </div>
         <div style={{ fontSize:12, color:"#64748b", marginBottom:10 }}>Ne oldu, ne bekliyordunuz? Seçili okul, aşama ve sürüm otomatik eklenir.{baglam.asama ? ` (Aşama: ${baglam.asama})` : ""}</div>
         {durum === "tamam"
@@ -1502,9 +1502,9 @@ function HataBildir({ baglam }) {
               style={{ width:"100%", boxSizing:"border-box", border:"1px solid #cbd5e1", borderRadius:8, padding:10, fontSize:14, fontFamily:"inherit", resize:"vertical" }} />
             {durum && durum !== "gonderiliyor" && <div style={{ color:"#dc2626", fontSize:12, marginTop:6 }}>{durum}</div>}
             <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:12 }}>
-              <button onClick={kapat} style={{ padding:"8px 14px", borderRadius:8, border:"1px solid #cbd5e1", background:"#fff", cursor:"pointer", fontSize:13 }}>Vazgeç</button>
+              <button onClick={kapat} style={{ padding:"8px 14px", borderRadius:8, border:"1px solid #cbd5e1", background:"#fff", cursor:"pointer", fontSize:13, fontFamily:"inherit" }}>Vazgeç</button>
               <button onClick={gonder} disabled={!mesaj.trim() || durum === "gonderiliyor"}
-                style={{ padding:"8px 16px", borderRadius:8, border:"none", background: mesaj.trim() ? "#dc2626" : "#fca5a5", color:"#fff", fontWeight:600, cursor: mesaj.trim() ? "pointer" : "default", fontSize:13 }}>
+                style={{ padding:"8px 16px", borderRadius:8, border:"none", background: mesaj.trim() ? "#dc2626" : "#fca5a5", color:"#fff", fontWeight:600, cursor: mesaj.trim() ? "pointer" : "default", fontSize:13, fontFamily:"inherit" }}>
                 {durum === "gonderiliyor" ? "Gönderiliyor…" : "Gönder"}</button>
             </div>
           </>}
