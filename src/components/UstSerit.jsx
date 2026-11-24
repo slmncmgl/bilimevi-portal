@@ -1,3 +1,5 @@
+// v1.4: Genişlik yüzdeyle: kartlarda kenarlardan %5, ana sayfada %15 içeride. Ana sayfa tespiti sondaki "/" ve büyük harfe dayanıklı;
+//   kart adı olmayan sayfada da Geri yerine Çıkış.
 // v1.3: v1.2'de yanlışlıkla silinen kartAdi geri kondu (beyaz ekran).
 // v1.2: Genişlik her sayfada sabit, Doldurulan Kayıt Formları ile aynı (SERIT_GENISLIK); ölçme kaldırıldı.
 //   En sağdaki düğme: ana sayfada metin görünümlü Çıkış, kartlarda ← Geri (geçmiş varsa bir önceki sayfa, yoksa ana sayfa).
@@ -26,8 +28,9 @@ const ALT_METIN = {
   "/crm": ["Aktivite, performans ve data tabloları, sınav sonuçları", "Activity, performance and data tables, quiz results"],
 };
 
-// KayitGuncelle.jsx'teki headerInner/main ile aynı genişlik ve iç boşluk
-const SERIT_GENISLIK = "max(min(92vw, 1100px), min(100vw, 768px))";
+// Şeridin kenarlardan içeri boşluğu (Selman kararı 24.11.2026)
+const KENAR_KART = "5%";
+const KENAR_ANA_SAYFA = "15%";
 
 function kartAdi(yol, arama, isFortis) {
   if (yol === "/izin" && new URLSearchParams(arama).get("panel") === "admin") return isFortis ? "Admin Panel" : "Yönetici Paneli";
@@ -47,7 +50,8 @@ export default function UstSerit() {
   const ad = kartAdi(konum.pathname, konum.search, isFortis);
   const alt = ALT_METIN[konum.pathname]?.[isFortis ? 1 : 0];
 
-  const anaSayfa = konum.pathname === "/dashboard";
+  const anaSayfa = konum.pathname.replace(/\/+$/, "").toLowerCase() === "/dashboard";
+  const cikisGoster = anaSayfa || !ad;
 
   function cikis() {
     clearSession();
@@ -62,7 +66,7 @@ export default function UstSerit() {
 
   return (
     <header className="ust-serit" style={{ position: "sticky", top: 0, zIndex: 900, height: `${UST_SERIT_YUKSEKLIK}px`, boxSizing: "border-box", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
-      <div className="ust-serit-ic" style={{ maxWidth: SERIT_GENISLIK, margin: "0 auto", padding: "0 20px", height: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+      <div className="ust-serit-ic" style={{ padding: `0 ${anaSayfa ? KENAR_ANA_SAYFA : KENAR_KART}`, height: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
           <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi"
             onClick={() => navigate("/dashboard")} title={isFortis ? "Home" : "Ana sayfa"}
@@ -99,7 +103,7 @@ export default function UstSerit() {
               <div style={{ fontSize: "11px", color: "#94a3b8", whiteSpace: "nowrap" }}>{user.company} · {user.branch}</div>
             </div>
           </div>
-          {anaSayfa ? (
+          {cikisGoster ? (
             <button onClick={cikis} className="ust-serit-cikis"
               style={{ display: "flex", alignItems: "center", gap: "6px", padding: "4px 2px", border: "none", background: "transparent", color: "#dc2626", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
               onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
