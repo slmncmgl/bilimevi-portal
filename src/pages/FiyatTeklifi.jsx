@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v139-indirim-tarih-ipucu-2026-11-24";
+const BFT_BUILD_VERSION = "v140-tarih-ipucu-fareyi-izler-2026-11-24";
 // v138: staff modunda üst başlık (← Dashboard + "Fiyat Teklifi") kaldırıldı, portalın ortak şeridi gösteriyor. Müşteri modu aynı.
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
@@ -346,7 +346,7 @@ async function fetchNav(isStaff) {
     if (_ind && brand && city) indirimler[`${brand}__${city}`] = _ind;
     // v139: master_index "indirim_tarih" (okul dosyası discounts sekmesindeki son güncelleme = son parse)
     const _indT = (row.indirim_tarih || "").toString().trim();
-    if (_ind && _indT && brand && city) indirimTarihleri[`${brand}__${city}`] = _indT;
+    if (_indT && brand && city) indirimTarihleri[`${brand}__${city}`] = _indT;
     if (pid && brand && city) portalIds[pid] = { brand, city, country: countryTRName };
     // Staff: sheetId'yi drive_link'ten çıkar (doğrudan gviz için).
     // Customer: sheetId React'e HİÇ gelmez; sadece brand ismi tutulur (proxy alias çözer).
@@ -1433,22 +1433,27 @@ function computeDiscounts(discounts, course, weeks, startDate, targets) {
   return result;
 }
 // v114: Indirim satirinin parantez ici etiketi (ekran + PDF ortak)
-// v139: okul adı yanındaki indirim rozeti; okul kartının üstüne gelince son parse tarihi (master_index indirim_tarih).
-// 60 günden eski tarih turuncu görünür.
-function IndirimRozet({ ind, tarih }) {
+// v139/v140: son parse tarihi (master_index indirim_tarih). 60 günden eskiyse "eski".
+function tarihBilgi(tarih) {
   let gun = null, tarihTR = "";
   const m = (tarih || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) { tarihTR = `${m[3]}.${m[2]}.${m[1]}`; gun = Math.floor((Date.now() - new Date(+m[1], +m[2]-1, +m[3]).getTime()) / 86400000); }
   else if (tarih) tarihTR = tarih;
-  const eski = gun !== null && gun > 60;
+  return { tarihTR, gun, eski: gun !== null && gun > 60 };
+}
+// Okul adı yanındaki indirim rozeti (eski tarihte turuncu). İpucu v140'tan beri kartta, fareyi izler.
+function IndirimRozet({ ind, tarih }) {
+  const { eski } = tarihBilgi(tarih);
   const renk = eski ? { background:"#ffedd5", color:"#c2410c", border:"1px solid #fdba74" } : { background:"#dcfce7", color:"#15803d", border:"1px solid #86efac" };
+  return <div style={{ display:"inline-block", marginLeft:6, verticalAlign:"middle", padding:"1px 7px", borderRadius:999, fontSize:10.5, fontWeight:700, ...renk }}>{/^kampanya$/i.test(ind) ? "Kampanya" : `${ind} indirim`}</div>;
+}
+// v140: kartın üstündeyken farenin hemen altında duran "Son güncelleme" kutusu
+function FareIpucu({ ipucu }) {
+  if (!ipucu) return null;
+  const { tarihTR, gun, eski } = tarihBilgi(ipucu.tarih);
   return (
-    <div style={{ display:"inline-block", position:"relative", marginLeft:6, verticalAlign:"middle" }} >
-      <style>{`.bft-okul:hover .bft-ipucu{display:block !important}`}</style>
-      <div style={{ padding:"1px 7px", borderRadius:999, fontSize:10.5, fontWeight:700, ...renk }}>{/^kampanya$/i.test(ind) ? "Kampanya" : `${ind} indirim`}</div>
-      <div className="bft-ipucu" style={{ display:"none", position:"absolute", bottom:"calc(100% + 6px)", left:"50%", transform:"translateX(-50%)", whiteSpace:"nowrap", background:"#0f172a", color:"#fff", fontSize:11, fontWeight:500, padding:"5px 9px", borderRadius:6, zIndex:50, pointerEvents:"none", boxShadow:"0 4px 12px rgba(0,0,0,.18)" }}>
-        Son güncelleme: {tarihTR || "tarih yok"}{eski ? ` (${gun} gün önce)` : ""}
-      </div>
+    <div style={{ position:"fixed", left: ipucu.x, top: ipucu.y + 18, transform:"translateX(-50%)", whiteSpace:"nowrap", background:"#0f172a", color:"#fff", fontSize:11, fontWeight:500, padding:"5px 9px", borderRadius:6, zIndex:9999, pointerEvents:"none", boxShadow:"0 4px 12px rgba(0,0,0,.18)" }}>
+      Son güncelleme: {tarihTR || "tarih yok"}{eski ? ` (${gun} gün önce)` : ""}
     </div>
   );
 }
@@ -1637,6 +1642,7 @@ export default function FiyatTeklifi() {
   const elleIndirimYaz = (i, ei) => setDestinations(p => p.map((x, idx) => idx === i ? { ...x, elleIndirim: ei } : x));
   useEffect(() => { setElleForm(null); }, [destinations.length]);   // kart silinir/eklenirse açık form başka karta kaymasın
   const [cur, setCur] = useState(emptyDest());
+  const [fareIpucu, setFareIpucu] = useState(null);  // v140
   // Hafta alanının ham metni. null → cur.weeks gösterilir. Kullanıcı alanı tamamen
   // silebilsin diye ayrı tutulur (aksi halde boş değer anında 1'e sıçrıyordu).
   const [weeksInput, setWeeksInput] = useState(null);
@@ -3132,7 +3138,7 @@ export default function FiyatTeklifi() {
                 return only30 ? cities.some(is30Plus) : cities.some(c => !is30Plus(c));
               }).map(c => (<div key={c} style={cur.country===c ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, country:c, city:"", brand:"", course:null, acc:null, cityData:null}))}>{COUNTRY_FLAG[c] ? <span style={{ marginRight:6, fontSize:16 }}>{COUNTRY_FLAG[c]}</span> : null}{c}</div>))}</div></>}
               {cur.country && <><p style={S.slbl}>ŞEHİR</p><div style={S.g3}>{(nav.citiesByLang[cur.lang]?.[cur.country]||[]).filter(c => only30 ? is30Plus(c) : !is30Plus(c)).map(c => { const _dolu = cur.city!==c && destinations.filter(d => d.country===cur.country && d.city===c).length >= MAX_OKUL_SEHIR; return (<div key={c} title={_dolu ? `Bu şehirden en fazla ${MAX_OKUL_SEHIR} okul seçilebilir` : undefined} style={cur.city===c ? S.selActive : _dolu ? S.selDisabled : S.sel} onClick={() => { if (_dolu) return; setCur(p => ({...p, city:c, brand:"", course:null, acc:null, cityData:null})); if (window.innerWidth <= 768) { setTimeout(() => { const el = document.getElementById("bft-marka-baslik"); if (el) el.scrollIntoView({ behavior:"smooth", block:"start" }); }, 150); } }}>{c}{_dolu && <div style={{ fontSize:10, marginTop:2 }}>{MAX_OKUL_SEHIR} okul seçildi</div>}</div>); })}</div></>}
-              {cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByLangCity?.[`${cur.lang}__${cur.city}`] || nav.brandsByCity[cur.city] || []).map(b => { const _ind = nav.indirimler?.[`${b}__${cur.city}`]; return (<div key={b} className="bft-okul" style={cur.brand===b ? S.selActive : S.sel} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}{_ind && <IndirimRozet ind={_ind} tarih={nav.indirimTarihleri?.[`${b}__${cur.city}`]} />}</div>); })}</div></>}
+              {cur.city && <><p style={S.slbl} id="bft-marka-baslik">OKUL ADI</p><div style={S.g3}>{(nav.brandsByLangCity?.[`${cur.lang}__${cur.city}`] || nav.brandsByCity[cur.city] || []).map(b => { const _ind = nav.indirimler?.[`${b}__${cur.city}`]; return (<div key={b} style={cur.brand===b ? S.selActive : S.sel} onMouseMove={e => setFareIpucu({ x:e.clientX, y:e.clientY, tarih: nav.indirimTarihleri?.[`${b}__${cur.city}`] })} onMouseLeave={() => setFareIpucu(null)} onClick={() => setCur(p => ({...p, brand:b, course:null, acc:null, cityData:null}))}>{b}{_ind && <IndirimRozet ind={_ind} tarih={nav.indirimTarihleri?.[`${b}__${cur.city}`]} />}</div>); })}</div><FareIpucu ipucu={fareIpucu} /></>}
               {isOnlineUlke(cur.country) && cur.brand && <div style={{ marginTop:10, padding:"8px 12px", background:"#f0fdff", border:`1px solid ${CYAN}`, borderRadius:8, fontSize:12, color:CYAN }}>✓ Online kurs seçildi — konaklama ve transfer adımları atlanacak</div>}
             </div>
           )}
