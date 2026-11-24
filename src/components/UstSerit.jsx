@@ -1,3 +1,5 @@
+// v1.2: Genişlik her sayfada sabit, Doldurulan Kayıt Formları ile aynı (SERIT_GENISLIK); ölçme kaldırıldı.
+//   En sağdaki düğme: ana sayfada metin görünümlü Çıkış, kartlarda ← Geri (geçmiş varsa bir önceki sayfa, yoksa ana sayfa).
 // v1.1: Şeridin içi sayfanın içerik sütunuyla hizalanır (hizaBul: ilk geniş, maxWidth'li kutu); kart adının yanında
 //   isteğe bağlı açıklama (ALT_METIN).
 // v1.0 (24.11.2026): Tüm sayfalarda ortak üst şerit (App.jsx). Eskiden sadece Dashboard'daydı (Dashboard v1.20'ye kadar).
@@ -23,54 +25,12 @@ const ALT_METIN = {
   "/crm": ["Aktivite, performans ve data tabloları, sınav sonuçları", "Activity, performance and data tables, quiz results"],
 };
 
-// Sayfanın içerik sütununu bul: şerit dışında, maxWidth verilmiş, en az 600px genişliğinde ilk kutu (en fazla 7 kat derin).
-// Bulunamazsa null döner, şerit tam genişlikte kalır.
-function hizaBul() {
-  const kok = document.getElementById("root");
-  if (!kok) return null;
-  let katman = [...kok.children];
-  for (let derinlik = 0; derinlik < 7 && katman.length; derinlik++) {
-    const sonraki = [];
-    for (const el of katman) {
-      if (el.classList.contains("ust-serit")) continue;
-      const st = getComputedStyle(el);
-      if (st.display === "none" || st.position === "fixed" || st.position === "absolute") continue;
-      if (st.maxWidth !== "none" && parseFloat(st.maxWidth) >= 600) {
-        const k = el.getBoundingClientRect();
-        if (k.width >= 500) {
-          const pl = parseFloat(st.paddingLeft) || 0, pr = parseFloat(st.paddingRight) || 0;
-          return { sol: Math.round(k.left + pl), genislik: Math.round(k.width - pl - pr) };
-        }
-      }
-      sonraki.push(...el.children);
-    }
-    katman = sonraki;
-  }
-  return null;
-}
-
-function kartAdi(yol, arama, isFortis) {
-  if (yol === "/izin" && new URLSearchParams(arama).get("panel") === "admin") return isFortis ? "Admin Panel" : "Yönetici Paneli";
-  const m = MODULE_CONFIG.find(x => x.path === yol);
-  if (m) return isFortis ? (m.titleEn || m.title) : m.title;
-  const ek = EK_ADLAR[yol];
-  return ek ? ek[isFortis ? 1 : 0] : "";
-}
+// KayitGuncelle.jsx'teki headerInner/main ile aynı genişlik ve iç boşluk
+const SERIT_GENISLIK = "max(min(92vw, 1100px), min(100vw, 768px))";
 
 export default function UstSerit() {
   const konum = useLocation();
   const navigate = useNavigate();
-  const [hiza, setHiza] = useState(null);
-  // Sayfa veriyi geç yükleyebilir: açılışta birkaç kez ve pencere boyu değişince yeniden ölç
-  useEffect(() => {
-    const olc = () => setHiza(onceki => {
-      const yeni = hizaBul();
-      return onceki && yeni && onceki.sol === yeni.sol && onceki.genislik === yeni.genislik ? onceki : yeni;
-    });
-    const zamanlar = [0, 150, 500, 1200, 2500].map(ms => setTimeout(olc, ms));
-    window.addEventListener("resize", olc);
-    return () => { zamanlar.forEach(clearTimeout); window.removeEventListener("resize", olc); };
-  }, [konum.pathname, konum.search]);
   if (GIZLI_ADRESLER.includes(konum.pathname)) return null;
   const user = getSession();
   if (!user) return null;
@@ -78,14 +38,22 @@ export default function UstSerit() {
   const ad = kartAdi(konum.pathname, konum.search, isFortis);
   const alt = ALT_METIN[konum.pathname]?.[isFortis ? 1 : 0];
 
+  const anaSayfa = konum.pathname === "/dashboard";
+
   function cikis() {
     clearSession();
     navigate("/");
   }
 
+  // Uygulama içinden gelindiyse bir önceki sayfa, doğrudan açıldıysa ana sayfa
+  function geri() {
+    if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
+    else navigate("/dashboard");
+  }
+
   return (
     <header className="ust-serit" style={{ position: "sticky", top: 0, zIndex: 900, height: `${UST_SERIT_YUKSEKLIK}px`, boxSizing: "border-box", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
-      <div className="ust-serit-ic" style={{ ...(hiza ? { width: `${hiza.genislik}px`, marginLeft: `${hiza.sol}px`, padding: 0 } : { margin: "0 auto", padding: "0 24px" }), height: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+      <div className="ust-serit-ic" style={{ maxWidth: SERIT_GENISLIK, margin: "0 auto", padding: "0 20px", height: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
           <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi"
             onClick={() => navigate("/dashboard")} title={isFortis ? "Home" : "Ana sayfa"}
@@ -122,15 +90,27 @@ export default function UstSerit() {
               <div style={{ fontSize: "11px", color: "#94a3b8", whiteSpace: "nowrap" }}>{user.company} · {user.branch}</div>
             </div>
           </div>
-          <button onClick={cikis}
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", border: "1px solid #fecaca", borderRadius: "8px", background: "transparent", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", transition: "background 0.2s", fontFamily: "inherit", whiteSpace: "nowrap" }}
-            onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-            {isFortis ? "Logout" : "Çıkış"}
-          </button>
+          {anaSayfa ? (
+            <button onClick={cikis} className="ust-serit-cikis"
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "4px 2px", border: "none", background: "transparent", color: "#dc2626", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+              onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
+              onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              {isFortis ? "Logout" : "Çıkış"}
+            </button>
+          ) : (
+            <button onClick={geri}
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", border: "1px solid #cbd5e1", borderRadius: "8px", background: "#fff", color: "#334155", fontSize: "12px", fontWeight: "600", cursor: "pointer", transition: "background 0.2s", fontFamily: "inherit", whiteSpace: "nowrap" }}
+              onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
+              onMouseLeave={e => e.currentTarget.style.background = "#fff"}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+              </svg>
+              {isFortis ? "Back" : "Geri"}
+            </button>
+          )}
         </div>
       </div>
       <style>{`
