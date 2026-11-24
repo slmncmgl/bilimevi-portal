@@ -1,4 +1,4 @@
-// v1.16: Üst şeritte "N kişi çevrimiçi" etiketi (yeşil nokta), sayı /api/cevrimici nabzından (src/lib/cevrimici.js).
+// v1.16: Üst şeritte "N kişi çevrimiçi" etiketi (yeşil nokta), sayı n8n nabzından (src/lib/cevrimici.js).
 // v1.15: "Performans Analizi" kartının adı CRM
 // v1.14: Sürükle-bırak "i" ikonu sadece admin, owner, director ve manager rollerinde görünür.
 // v1.13: Sürükle-bırak "i" ikonu sayfanın ortasından üst şeride, ismin soluna alındı.
