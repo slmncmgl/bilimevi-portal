@@ -1,3 +1,4 @@
+// v3.26: topluHatirlat çoklu danışman (ownerIds): danışman başına ayrı mesaj, n8n kuyruğu (data-hatirlat-kuyruk) sırayla gönderir
 // v3.25: toplu hatırlatma cümlesinde son etkinlik filtresi de yazılır ("son etkinliği 7 günden eski olan ...")
 // v3.24: topluHatirlat n8n'e kart adını da gönderir (mesajda Portal > CRM > Takip Tablosu > X Kartı)
 // v3.23: takip: son etkinlik filtresi seçiliyse son etkinliği o günden yeni olan datalar hiç listelenmez (kartlar da)
@@ -1123,6 +1124,7 @@ async function topluHatirlat(req, res, yetki) {
   if (!yazmaYetkisi(yetki, res)) return;
   if (yetki.tur !== "admin") return res.status(403).json({ error: "Hatırlatmayı sadece yöneticiler gönderebilir." });
   const b = req.body || {};
+  if (Array.isArray(b.ownerIds) && b.ownerIds.length > 1) return topluCoklu(req, res, yetki);
   const ownerId = Number(b.ownerId);
   const onizleme = b.onizleme !== false;
   const notMetni = b.not ?? "";
@@ -1147,6 +1149,75 @@ async function topluHatirlat(req, res, yetki) {
   const anahtar = ["toplu", ownerId, b.gorunum, [...asamalar].sort().join("-"), (b.kaynaklar || []).join("-"), b.kampanya || "", b.sessizGun].join(":");
   return hatirlatGonder(res, yetki, { danisman: danisman.ad, onizleme, not: notMetni.trim(), onay: sayi, tur: "toplu", kayit: `toplu ${sayi} (${b.gorunum})`,
     data: { id: anahtar, cumle: topluCumle(sayi, b.gorunum, asamalar, Number(b.sessizGun) || 0), kart: GORUNUM_SUZ[b.gorunum].kart } });
+}
+
+// Çoklu danışman toplu hatırlatma: önizlemede danışman başına sayı + örnek mesaj; gönderimde liste n8n kuyruğuna verilir
+async function topluCoklu(req, res, yetki) {
+  const b = req.body || {};
+  const ownerIds = [...new Set(b.ownerIds.map(Number).filter(Number.isInteger))];
+  const onizleme = b.onizleme !== false;
+  const notMetni = b.not ?? "";
+  const ham = Array.isArray(b.asamalar) ? b.asamalar : [];
+  const asamalar = [...new Set(ham.map(Number))];
+  if (ownerIds.length < 2 || ownerIds.length > 60) return res.status(400).json({ error: "Danışman seçimi geçersiz." });
+  if (!GORUNUM_SUZ[b.gorunum]) return res.status(400).json({ error: "Geçersiz liste." });
+  if (asamalar.length !== ham.length || asamalar.some(a => !ACIK_ASAMALAR.includes(a))) return res.status(400).json({ error: "Geçersiz aşama." });
+  if (typeof notMetni !== "string" || notMetni.length > 300) return res.status(400).json({ error: "Not en fazla 300 karakter olabilir." });
+  if (!process.env.N8N_PORTAL_TOKEN) return res.status(500).json({ error: "N8N_PORTAL_TOKEN tanımlı değil." });
+
+  const yakala = { kod: 200, veri: null, status(k) { this.kod = k; return this; }, json(v) { this.veri = v; return this; } };
+  await takip({ body: { ownerIds, sessizGun: b.sessizGun, kaynaklar: b.kaynaklar || [], kampanya: b.kampanya || "" } }, yakala, yetki);
+  if (yakala.kod !== 200) return res.status(yakala.kod).json(yakala.veri);
+  const sayilar = new Map();
+  for (const l of yakala.veri.acik) {
+    if (GORUNUM_SUZ[b.gorunum].suz(l) && (!asamalar.length || asamalar.includes(l.asama))) sayilar.set(l.ownerId, (sayilar.get(l.ownerId) || 0) + 1);
+  }
+  const kisiler = [...(await dizinGetir()).kisiler.values()];
+  const gun = Number(b.sessizGun) || 0;
+  const liste = [];
+  for (const id of ownerIds) {
+    const sayi = sayilar.get(id) || 0;
+    const k = kisiler.find(x => x.kylasId === id && satisBul(x.ad));
+    if (!sayi || !k) continue;
+    const anahtar = ["toplu", id, b.gorunum, [...asamalar].sort().join("-"), (b.kaynaklar || []).join("-"), b.kampanya || "", b.sessizGun].join(":");
+    liste.push({ danisman: k.ad, sayi, data: { id: anahtar, cumle: topluCumle(sayi, b.gorunum, asamalar, gun), kart: GORUNUM_SUZ[b.gorunum].kart } });
+  }
+  liste.sort((x, y) => y.sayi - x.sayi);
+  const toplam = liste.reduce((t, x) => t + x.sayi, 0);
+  if (!liste.length) return res.status(422).json({ error: "Bu seçimde data yok." });
+  const ozet = liste.map(x => ({ danisman: x.danisman, sayi: x.sayi }));
+  const onay = `${liste.length}:${toplam}`;
+
+  if (onizleme) {
+    // Örnek mesaj: ilk danışman için gerçek önizleme (hat, hitap, metin n8n'den)
+    let ornek = null;
+    try {
+      const r = await fetch(`${N8N_WEBHOOK}/data-hatirlat`, {
+        method: "POST", signal: AbortSignal.timeout(30000),
+        headers: { "Content-Type": "application/json", "X-Portal-Token": process.env.N8N_PORTAL_TOKEN },
+        body: JSON.stringify({ gonderen: yetki.ad, danisman: liste[0].danisman, onizleme: true, not: "", tur: "toplu", data: liste[0].data }),
+      });
+      const y = await r.json().catch(() => ({}));
+      if (r.ok && y.metin) ornek = y;
+    } catch { /* örnek olmadan da önizleme gösterilir */ }
+    return res.status(200).json({ coklu: true, liste: ozet, toplam, onay, ornek });
+  }
+  if (String(b.onay) !== onay) return res.status(409).json({ error: `Liste değişmiş (şimdi ${liste.length} danışman, ${toplam} data). Pencereyi kapatıp yeniden açın.` });
+  const not = notMetni.trim();
+  let r;
+  try {
+    r = await fetch(`${N8N_WEBHOOK}/data-hatirlat-kuyruk`, {
+      method: "POST", signal: AbortSignal.timeout(20000),
+      headers: { "Content-Type": "application/json", "X-Portal-Token": process.env.N8N_PORTAL_TOKEN },
+      body: JSON.stringify({ gonderen: yetki.ad, kart: GORUNUM_SUZ[b.gorunum].kart,
+        mesajlar: liste.map(x => ({ gonderen: yetki.ad, danisman: x.danisman, onizleme: false, not, tur: "toplu", onay: x.sayi, data: x.data })) }),
+    });
+  } catch {
+    return res.status(502).json({ error: "Kuyruk servisine ulaşılamadı. Tekrar göndermeden önce WhatsApp'ı kontrol edin." });
+  }
+  console.log(`[hatirlat] ${yetki.ad} -> ${liste.length} danışman kuyruğa, toplam ${toplam} (${b.gorunum}): HTTP ${r.status}`);
+  if (!r.ok) return res.status(502).json({ error: "Kuyruk servisi yanıt vermedi." });
+  return res.status(200).json({ coklu: true, sirada: liste.length, toplam });
 }
 
 export default async function handler(req, res) {

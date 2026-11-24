@@ -1,3 +1,4 @@
+// v6.37: admin danışman listesinde "Tüm danışmanlar"; çoklu seçimde Toplu Hatırlat danışman başına ayrı mesaj (n8n kuyruğu)
 // v6.36: son etkinlik filtresi tüm kartları ve listeyi süzer
 // v6.35: takipsiz açıklaması: Na1-Na3'te sadece VIP kaynaklılar
 // v6.34: kart açıklamaları madde madde
@@ -110,7 +111,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.36"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.37"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -162,6 +163,8 @@ const GORUNUMLER = {
   gecikmis: { ad: "Gecikmiş task'lı Datalar", suz: l => l.zorunlu && l.taskTur === "gecikmis", sirala: taskSirasi },
   takipsiz: { ad: "Takipsiz Datalar", suz: l => l.takipsiz, sirala: sonEtkinlikSirasi },
 };
+
+const TUM_DANISMANLAR = "tumu"; // sadece admin: danışman listesinde herkesi seçer
 
 export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null);
@@ -278,9 +281,9 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const asamaDegistir = id => setAsamaSecim(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
 
   // Toplu hatırlatma: ekrandaki liste (kart + aşama) tek mesajda. Arama sunucuda tekrarlanamadığı için arama doluyken pasif.
-  const topluPasif = yukleniyor || arkaYukleniyor || aktarim || !!dataAra || !liste.length || danismanlar.length !== 1;
-  const topluAc = () => setHatirlat({ anahtar: `t${Date.now()}`, baslik: "Danışmana Toplu Hatırlat", govde: {
-    islem: "topluHatirlat", ownerId: Number(danismanlar[0]), sessizGun, kaynaklar: kaynakFiltresi(kaynaklar), kampanya, gorunum, asamalar: asamaSecim } });
+  const topluPasif = yukleniyor || arkaYukleniyor || aktarim || !!dataAra || !liste.length || !danismanlar.length;
+  const topluAc = () => setHatirlat({ anahtar: `t${Date.now()}`, baslik: coklu ? "Danışmanlara Toplu Hatırlat" : "Danışmana Toplu Hatırlat", govde: {
+    islem: "topluHatirlat", ownerId: Number(danismanlar[0]), ...(coklu ? { ownerIds: danismanlar.map(Number) } : {}), sessizGun, kaynaklar: kaynakFiltresi(kaynaklar), kampanya, gorunum, asamalar: asamaSecim } });
 
   // Sayfalama: filtre, sayfa boyu ya da rapor değişince ilk sayfaya dön
   useEffect(() => { setSayfa(1); }, [asamaSecim, sayfaBoyu, rapor, gorunum, listeSahip, dataAra]);
@@ -306,7 +309,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   return (
     <>
       <FiltreCubugu
-        danisman={isAdmin || isManager ? { liste: subeyeGore, secili: danismanlar, onChange: setDanismanlar, tekli: true, yukleniyor: !kisiler && !kisiHata } : null}
+        danisman={isAdmin || isManager ? {
+          liste: isAdmin ? [{ id: TUM_DANISMANLAR, ad: "Tüm danışmanlar", sube: "Tümü" }, ...subeyeGore] : subeyeGore,
+          secili: isAdmin && coklu ? [TUM_DANISMANLAR] : danismanlar,
+          onChange: ids => setDanismanlar(ids[0] === TUM_DANISMANLAR ? secilebilir.map(k => k.id) : ids),
+          tekli: true, yukleniyor: !kisiler && !kisiHata } : null}
         kaynak={{ secili: kaynaklar, onChange: setKaynaklar }}
         tarih={{ deger: sessizGun || null, onChange: v => setSessizGun(v === null ? 0 : v), metin: g => `${g} günden eski`, nMetni: "N günden eski",
           bosMetin: "Son Etkinlik", ipucu: `Son Etkinlik Tarihi: ${ACIKLAMA.sonEtkinlik}` }} />
