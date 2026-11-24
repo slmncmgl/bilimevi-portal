@@ -1,3 +1,4 @@
+// v3.24: topluHatirlat n8n'e kart adını da gönderir (mesajda Portal > CRM > Takip Tablosu > X Kartı)
 // v3.23: takip: son etkinlik filtresi seçiliyse son etkinliği o günden yeni olan datalar hiç listelenmez (kartlar da)
 // v3.22: Na1-Na3'teki datalar sadece VIP kaynaklıysa takipsiz sayılır
 // v3.21: staff da Danışman Ata kullanır: sadece kendi datasını, tüm satış ekibinden birine
@@ -1102,11 +1103,11 @@ async function hatirlatGonder(res, yetki, { danisman, onizleme, not, onay, kayit
 
 // Toplu hatırlatma: ekrandaki kart + aşama seçimiyle aynı liste sunucuda yeniden hesaplanır
 const GORUNUM_SUZ = {
-  acik: { kelime: "açık", suz: () => true },
-  taskBeklenen: { kelime: "task bekleyen", suz: l => l.zorunlu },
-  ileri: { kelime: "ileri tarihli task'lı", suz: l => l.zorunlu && l.taskTur === "ileri" },
-  gecikmis: { kelime: "gecikmiş task'lı", suz: l => l.zorunlu && l.taskTur === "gecikmis" },
-  takipsiz: { kelime: "takipsiz", suz: l => l.takipsiz },
+  acik: { kart: "Açık Data", kelime: "açık", suz: () => true },
+  taskBeklenen: { kart: "Task beklenen", kelime: "task bekleyen", suz: l => l.zorunlu },
+  ileri: { kart: "İleri tarihli task", kelime: "ileri tarihli task'lı", suz: l => l.zorunlu && l.taskTur === "ileri" },
+  gecikmis: { kart: "Gecikmiş task", kelime: "gecikmiş task'lı", suz: l => l.zorunlu && l.taskTur === "gecikmis" },
+  takipsiz: { kart: "Takipsiz", kelime: "takipsiz", suz: l => l.takipsiz },
 };
 const listeYaz = a => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} ve ${a.at(-1)}`);
 export function topluCumle(sayi, gorunum, asamaIdleri) {
@@ -1142,7 +1143,7 @@ async function topluHatirlat(req, res, yetki) {
 
   const anahtar = ["toplu", ownerId, b.gorunum, [...asamalar].sort().join("-"), (b.kaynaklar || []).join("-"), b.kampanya || "", b.sessizGun].join(":");
   return hatirlatGonder(res, yetki, { danisman: danisman.ad, onizleme, not: notMetni.trim(), onay: sayi, tur: "toplu", kayit: `toplu ${sayi} (${b.gorunum})`,
-    data: { id: anahtar, cumle: topluCumle(sayi, b.gorunum, asamalar) } });
+    data: { id: anahtar, cumle: topluCumle(sayi, b.gorunum, asamalar), kart: GORUNUM_SUZ[b.gorunum].kart } });
 }
 
 export default async function handler(req, res) {
