@@ -1,3 +1,4 @@
+// v1.7: sayfadaki ikinci Yönetici Paneli butonu kaldırıldı (ortak şeritte var); alt satır sadece panelde "Kendi İznim" için
 // v1.6: Ortak şeritteki Yönetici Paneli butonu /izin içindeyken de paneli açar (?panel=admin değişimi dinlenir)
 // v1.5: Üst başlık ortak şeride taşındı (Dashboard, başlık, kullanıcı ve Çıkış kaldırıldı)
 // v1.4: Test Login butonu küçültüldü
@@ -714,20 +715,10 @@ function tarihToDate(str) {
         </div>
       )}
       
-      {["admin","owner","director","manager"].includes(rol) && (
+      {adminView && (
       <header style={styles.header}>
         <div style={styles.headerInner} className="izin-header-inner">
           <div style={styles.headerRight} className="izin-header-right">
-            {["admin","owner","director","manager"].includes(rol) && !adminView && (
-              <button onClick={() => { setAdminView(true); loadAdminList(getSession()); }}
-                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600", fontFamily: "Calibri, sans-serif" }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                  <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-                </svg>
-                Yönetici Paneli
-              </button>
-            )}
             {adminView && (
               <button onClick={() => setAdminView(false)} style={styles.adminBtn}>← Kendi İznim</button>
             )}
