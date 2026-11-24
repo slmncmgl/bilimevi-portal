@@ -1,3 +1,4 @@
+// v3.22: Na1-Na3'teki datalar sadece VIP kaynaklıysa takipsiz sayılır
 // v3.21: staff da Danışman Ata kullanır: sadece kendi datasını, tüm satış ekibinden birine
 // v3.20: tarihi geçmiş task'ı olan data da takipsiz (Yeni hariç)
 // v3.19: takip listesi (Açık Data) "Yeni" aşamasını da içerir; Yeni datalar takipsiz sayılmaz, task zorunlu değil
@@ -327,6 +328,7 @@ const TAKIP_ASAMALARI = [222366, 253357, 253358, 218701, 218702];
 // Task zorunlu: İlgili aşamasındaki her data + VIP kaynaklı Görüşme datası (Na1-Na3'te hiç beklenmez)
 const ILGILI = 218702;
 const GORUSME = 218701;
+const NA_ASAMALARI = [222366, 253357, 253358];
 const taskZorunlu = l => l.pipelineStage === ILGILI || (l.pipelineStage === GORUSME && VIP_KAYNAKLAR.includes(l.source));
 
 const zaman = v => (v ? new Date(v).getTime() : null);
@@ -341,7 +343,9 @@ function takipDurumu(l, simdi, sinir, gercek = null) {
     zorunlu,
     taskTur,
     // Tarihi geçmiş task'ı olan her data takipsiz; zorunlu kümede task yoksa da; diğerlerinde task yok + sessizlik
-    takipsiz: taskTur === "gecikmis" || (!task && (zorunlu || !akt || akt < sinir)),
+    // Na1-Na3'te VIP olmayan kaynaklar hiç takipsiz sayılmaz (v3.22)
+    takipsiz: (!NA_ASAMALARI.includes(l.pipelineStage) || VIP_KAYNAKLAR.includes(l.source)) &&
+      (taskTur === "gecikmis" || (!task && (zorunlu || !akt || akt < sinir))),
   };
 }
 
