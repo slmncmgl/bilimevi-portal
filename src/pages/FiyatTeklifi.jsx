@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v135-sayfa-tl-karsiligi-2026-11-24";
+const BFT_BUILD_VERSION = "v136-pdf-kurus-2026-11-24";
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
 const MAX_OKUL_SEHIR = 3;
@@ -2237,7 +2237,8 @@ export default function FiyatTeklifi() {
         const accStartD = _accT.giris, accEndD = _accT.cikis;
 
         let y = 20;
-        const money = (n) => roundHalf(n).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        // v136: kuruş yoksa ",00" yazılmaz (973), varsa iki hane (2.850,50)
+        const money = (n) => { const r = roundHalf(n); return r.toLocaleString("tr-TR", Number.isInteger(r) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
 
         // Header
         doc.setFont(FONT, "normal");
