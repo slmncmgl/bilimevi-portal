@@ -68,7 +68,7 @@ export default function UstSerit() {
         <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
           <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi"
             onClick={() => navigate("/dashboard")} title={isFortis ? "Home" : "Ana sayfa"}
-            style={{ height: "32px", objectFit: "contain", cursor: "pointer", flexShrink: 0 }} />
+            style={{ height: "34px", objectFit: "contain", cursor: "pointer", flexShrink: 0 }} />
         </div>
         <div className="ust-serit-sag" style={{ display: "flex", alignItems: "center", gap: "20px", flexShrink: 0 }}>
           <CevrimiciEtiket isFortis={isFortis} />
