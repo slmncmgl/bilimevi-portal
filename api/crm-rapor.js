@@ -1,3 +1,4 @@
+// v3.27: takip: "kapsam" (takip edilmesi gereken: Yeni ve VIP olmayan Na1-Na3 dışı) sayısı ve satır işareti; takip oranı bundan hesaplanır
 // v3.26: topluHatirlat çoklu danışman (ownerIds): danışman başına ayrı mesaj, n8n kuyruğu (data-hatirlat-kuyruk) sırayla gönderir
 // v3.25: toplu hatırlatma cümlesinde son etkinlik filtresi de yazılır ("son etkinliği 7 günden eski olan ...")
 // v3.24: topluHatirlat n8n'e kart adını da gönderir (mesajda Portal > CRM > Takip Tablosu > X Kartı)
@@ -497,7 +498,7 @@ async function takip(req, res, yetki) {
     }
   } catch (e) { console.warn(`[takip] task listesi alınamadı, taskDueOn kullanılıyor: ${e.message}`); leadTask = null; }
   const gercekTask = id => (leadTask ? leadTask.get(id) || { tur: "yok", tarih: null } : null);
-  const bosOzet = () => ({ toplam: 0, taskBeklenen: 0, ileriTask: 0, gecikmisTask: 0, taskYok: 0, takipsiz: 0 });
+  const bosOzet = () => ({ toplam: 0, kapsam: 0, taskBeklenen: 0, ileriTask: 0, gecikmisTask: 0, taskYok: 0, takipsiz: 0 });
   const ozet = bosOzet();
   const danismanlar = Object.fromEntries(ownerIds.map(id => [id, bosOzet()]));
   const acik = [];
@@ -522,7 +523,10 @@ async function takip(req, res, yetki) {
       else say("taskYok");
     }
     if (t.takipsiz) say("takipsiz");
-    acik.push({ ...satir(l), zorunlu: t.zorunlu, taskTur: t.taskTur, takipsiz: t.takipsiz });
+    // Takip edilmesi gereken: takipsiz kuralının baktığı küme (Yeni ve VIP olmayan Na1-Na3 hariç)
+    const kapsam = l.pipelineStage !== YENI && (!NA_ASAMALARI.includes(l.pipelineStage) || VIP_KAYNAKLAR.includes(l.source));
+    if (kapsam) say("kapsam");
+    acik.push({ ...satir(l), zorunlu: t.zorunlu, taskTur: t.taskTur, takipsiz: t.takipsiz, kapsam });
   }
   // Varsayılan sıra: son etkinliği en eski olan önce (hiç olmayan en başta)
   acik.sort((a, b) => (zaman(a.sonAktivite) || 0) - (zaman(b.sonAktivite) || 0));
@@ -1110,6 +1114,7 @@ const GORUNUM_SUZ = {
   ileri: { kart: "İleri tarihli task", kelime: "ileri tarihli task'lı", suz: l => l.zorunlu && l.taskTur === "ileri" },
   gecikmis: { kart: "Gecikmiş task", kelime: "gecikmiş task'lı", suz: l => l.zorunlu && l.taskTur === "gecikmis" },
   takipsiz: { kart: "Takipsiz", kelime: "takipsiz", suz: l => l.takipsiz },
+  kapsam: { kart: "Takip oranı", kelime: "takip edilmesi gereken", suz: l => l.kapsam },
 };
 const listeYaz = a => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} ve ${a.at(-1)}`);
 export function topluCumle(sayi, gorunum, asamaIdleri, gun = 0) {

@@ -1,3 +1,4 @@
+// v6.38: takip oranı = (takip edilmesi gereken - takipsiz) / takip edilmesi gereken; küme boşsa "-"; kart tıklanınca o küme listelenir
 // v6.37: admin danışman listesinde "Tüm danışmanlar"; çoklu seçimde Toplu Hatırlat danışman başına ayrı mesaj (n8n kuyruğu)
 // v6.36: son etkinlik filtresi tüm kartları ve listeyi süzer
 // v6.35: takipsiz açıklaması: Na1-Na3'te sadece VIP kaynaklılar
@@ -111,7 +112,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.37"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.38"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -124,7 +125,7 @@ const ACIKLAMA = {
   taskBeklenen: "Task'ı zorunlu olan datalar:\n• İlgili aşamasındaki tüm datalar\n• VIP kaynaklı Görüşme datası\n• Tıklayınca aşağıda listelenir.",
   ileriTask: "• Task zorunlu datalardan (İlgili + VIP Görüşme)\n• İleri tarihli task'ı olanlar\n• Tıklayınca aşağıda listelenir.",
   gecikmisTask: "• Task zorunlu datalardan (İlgili + VIP Görüşme)\n• Task tarihi geçmiş olanlar\n• Tıklayınca aşağıda listelenir.",
-  takipOrani: "• İleri tarihli task'ı olan data / task beklenen data\n• Task beklenen: İlgili + VIP Görüşme\n• Tıklayınca task beklenen datalar listelenir.",
+  takipOrani: "• Takip edilmesi gereken datalardan takipsiz olmayanların payı\n• Takip edilmesi gereken: Yeni ve VIP olmayan Na1-Na3 dışındaki açık datalar\n• Son etkinlik filtresi seçiliyse süzülmüş datadan hesaplanır\n• Tıklayınca takip edilmesi gereken datalar listelenir.",
   takipsiz: g => (g
     ? `Takipsiz sayılanlar:\n• Task tarihi geçmiş datalar\n• İlgili ve VIP Görüşme'de task'ı olmayanlar\n• VIP Na1-Na3 ve VIP olmayan Görüşme'de task'ı olmayan ve son etkinliği ${g} günden eski olanlar\n• Na1-Na3'te VIP olmayan kaynaklar ve Yeni aşaması sayılmaz\n• Tıklayınca aşağıda listelenir.`
     : "Takipsiz sayılanlar:\n• Task'ı olmayan her açık data (son etkinliğe bakılmaz)\n• Task tarihi geçmiş datalar\n• Na1-Na3'te VIP olmayan kaynaklar ve Yeni aşaması sayılmaz\n• Tıklayınca aşağıda listelenir."),
@@ -162,7 +163,10 @@ const GORUNUMLER = {
   ileri: { ad: "İleri tarihli task'lı Datalar", suz: l => l.zorunlu && l.taskTur === "ileri", sirala: taskSirasi },
   gecikmis: { ad: "Gecikmiş task'lı Datalar", suz: l => l.zorunlu && l.taskTur === "gecikmis", sirala: taskSirasi },
   takipsiz: { ad: "Takipsiz Datalar", suz: l => l.takipsiz, sirala: sonEtkinlikSirasi },
+  kapsam: { ad: "Takip edilmesi gereken Datalar", suz: l => l.kapsam, sirala: sonEtkinlikSirasi },
 };
+// Takip oranı: takip edilmesi gereken datalardan takipsiz olmayanların payı; küme boşsa null ("-")
+const oranHesap = d => (d.kapsam ? Math.round(((d.kapsam - d.takipsiz) / d.kapsam) * 100) : null);
 
 const TUM_DANISMANLAR = "tumu"; // sadece admin: danışman listesinde herkesi seçer
 
@@ -268,7 +272,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     : hepsiSecili && danismanlar.length === secilebilir.length ? `Tüm danışmanlar (${danismanlar.length})` : `${danismanlar.length} danışman`;
   // Karşılaştırma tablosu: danışman başına özet, en çok takipsizi olan üstte
   const karsilastirma = rapor?.danismanlar
-    ? Object.entries(rapor.danismanlar).map(([id, d]) => ({ id, ad: kisiAdi(id), ...d, oran: d.taskBeklenen ? Math.round((d.ileriTask / d.taskBeklenen) * 100) : 0 }))
+    ? Object.entries(rapor.danismanlar).map(([id, d]) => ({ id, ad: kisiAdi(id), ...d, oran: oranHesap(d) }))
         .sort((a, b) => b.takipsiz - a.takipsiz || b.toplam - a.toplam)
     : [];
   // Liste filtresi: aşama (çoklu). Kaynak sunucuda süzülür.
@@ -304,7 +308,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
   const o = rapor?.ozet;
   // Takip oranı: task zorunlu datalardan (İlgili + VIP Görüşme) ileri tarihli task'ı olanların payı
-  const takipOrani = o && o.taskBeklenen ? Math.round((o.ileriTask / o.taskBeklenen) * 100) : 0;
+  const takipOrani = o ? oranHesap(o) : null;
 
   return (
     <>
@@ -338,7 +342,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               secili={gorunum === "gecikmis"} onClick={() => setGorunum("gecikmis")} />
             <Kart sayi={yukleniyor ? DONEN : o.takipsiz} etiket="Takipsiz" ipucu={ACIKLAMA.takipsiz(sessizGun)} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
               secili={gorunum === "takipsiz"} onClick={() => setGorunum("takipsiz")} />
-            <Kart sayi={yukleniyor ? DONEN : `%${takipOrani}`} etiket="Takip oranı" ipucu={ACIKLAMA.takipOrani} onClick={() => setGorunum("taskBeklenen")} />
+            <Kart sayi={yukleniyor ? DONEN : takipOrani === null ? "-" : `%${takipOrani}`} etiket="Takip oranı" ipucu={ACIKLAMA.takipOrani} onClick={() => setGorunum("kapsam")} />
           </div>
 
           {!yukleniyor && coklu && karsilastirma.length > 0 && (
@@ -366,7 +370,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           <td style={{ ...c.td, color: "#166534" }}>{d.ileriTask}</td>
                           <td style={{ ...c.td, color: d.gecikmisTask ? "#92400e" : undefined }}>{d.gecikmisTask}</td>
                           <td style={{ ...c.td, color: d.takipsiz ? "#991b1b" : undefined, fontWeight: 700 }}>{d.takipsiz}</td>
-                          <td style={{ ...c.td, fontWeight: 600 }}>%{d.oran}</td>
+                          <td style={{ ...c.td, fontWeight: 600 }}>{d.oran === null ? "-" : `%${d.oran}`}</td>
                         </tr>
                       );
                     })}
