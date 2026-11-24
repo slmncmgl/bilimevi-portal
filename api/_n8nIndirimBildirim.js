@@ -1,3 +1,4 @@
+// (24.11.2026) Ayrı fonksiyon değil: api/n8n.js ?hedef=indirim-bildirim ile çağırır, /api/indirim-bildirim adresi vercel.json'da oraya yönlenir (Hobby 12 fonksiyon sınırı).
 // v1.0 (BFT v122): Fiyat teklifinde danışmanın elle girdiği indirim -> n8n "BFT Elle İndirim Bildirimi" -> it@bilimevi.com
 // PDF indirildiğinde portal çağırır (sadece staff). Token tarayıcıya gitmez; isteği bu sunucu fonksiyonu atar.
 // n8n webhook'u "Portal → Sözleşme Gönder" header kimliğiyle korunur (aynı N8N_PORTAL_TOKEN).

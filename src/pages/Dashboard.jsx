@@ -1,3 +1,4 @@
+// v1.17: Çevrimiçi etiketine tıklayınca kimlerin çevrimiçi olduğu listelenir.
 // v1.16: Üst şeritte "N kişi çevrimiçi" etiketi (yeşil nokta), sayı n8n nabzından (src/lib/cevrimici.js).
 // v1.15: "Performans Analizi" kartının adı CRM
 // v1.14: Sürükle-bırak "i" ikonu sadece admin, owner, director ve manager rollerinde görünür.
@@ -15,7 +16,7 @@
 // v1.2: Tema seçici eklendi (Klasik varsayılan, Bilet ve Menülü temaları src/pages/dashboard/ altında). Klasik görünüm değişmedi.
 // v1.1 — MODULE_CONFIG'e "kayittakip" (Kayıt Takip) kartı eklendi
 // v1.0 — SCRIPT_URL merkezi config.js'e taşındı (eski deployment ID yerine güncel olan kullanılıyor)
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 import { IZIN_YONETIM_SCRIPT_URL } from "../config";
@@ -27,11 +28,11 @@ import KimlikTema from "./dashboard/KimlikTema";
 import { useKartSirasi } from "./dashboard/kartSirasi";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
-import { nabizGonder, cevrimiciSayi } from "../lib/cevrimici";
+import { nabizGonder, cevrimiciDurum } from "../lib/cevrimici";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.16";
+const DASHBOARD_VERSION = "v1.17";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -690,20 +691,42 @@ const styles = {
 };
 
 // Üst şeritteki "N kişi çevrimiçi" etiketi. Açılışta hemen bir nabız gönderir, sonra main.jsx'teki 5 dk'lık nabzı dinler.
+// Tıklayınca altında isim listesi açılır; dışarı tıklayınca kapanır.
 function CevrimiciEtiket({ isFortis }) {
-  const [sayi, setSayi] = useState(cevrimiciSayi());
+  const [durum, setDurum] = useState(cevrimiciDurum());
+  const [acik, setAcik] = useState(false);
+  const kutuRef = useRef(null);
   useEffect(() => {
-    const dinle = e => setSayi(e.detail);
+    const dinle = e => setDurum(e.detail);
     window.addEventListener("bilimevi-cevrimici", dinle);
     nabizGonder();
     return () => window.removeEventListener("bilimevi-cevrimici", dinle);
   }, []);
+  useEffect(() => {
+    if (!acik) return;
+    const disari = e => { if (kutuRef.current && !kutuRef.current.contains(e.target)) setAcik(false); };
+    document.addEventListener("pointerdown", disari);
+    return () => document.removeEventListener("pointerdown", disari);
+  }, [acik]);
+  const sayi = durum?.sayi;
   if (!sayi) return null;
   return (
-    <div title={isFortis ? "Active in the last 5 minutes" : "Son 5 dakikada portalda olanlar"}
-      style={{ display: "flex", alignItems: "center", gap: "7px", padding: "5px 11px", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "100px", fontSize: "12px", fontWeight: "600", color: "#047857", whiteSpace: "nowrap" }}>
+    <div ref={kutuRef} style={{ position: "relative" }}>
+    <button type="button" onClick={() => setAcik(a => !a)} title={isFortis ? "Active in the last 5 minutes" : "Son 5 dakikada portalda olanlar"}
+      style={{ display: "flex", alignItems: "center", gap: "7px", padding: "5px 11px", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "100px", fontSize: "12px", fontWeight: "600", color: "#047857", whiteSpace: "nowrap", cursor: "pointer", fontFamily: "inherit" }}>
       <span className="cevrimici-nokta" style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 0 0 rgba(16,185,129,0.5)", animation: "cevrimiciNabiz 2s ease-out infinite" }} />
       {isFortis ? `${sayi} online` : `${sayi} kişi çevrimiçi`}
+    </button>
+    {acik && (
+      <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, minWidth: "190px", maxHeight: "320px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.12)", padding: "8px" }}>
+        {durum.liste.map((ad, i) => (
+          <div key={`${ad}-${i}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", fontSize: "13px", color: "#0f172a", whiteSpace: "nowrap" }}>
+            <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981", flexShrink: 0 }} />
+            {ad}
+          </div>
+        ))}
+      </div>
+    )}
       <style>{`@keyframes cevrimiciNabiz { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
         @media (prefers-reduced-motion: reduce) { .cevrimici-nokta { animation: none !important; } }`}</style>
     </div>

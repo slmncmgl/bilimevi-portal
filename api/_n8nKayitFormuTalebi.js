@@ -1,3 +1,4 @@
+// (24.11.2026) Ayrı fonksiyon değil: api/n8n.js ?hedef=kayit-formu-talebi ile çağırır, /api/kayit-formu-talebi adresi vercel.json'da oraya yönlenir (Hobby 12 fonksiyon sınırı).
 // v1.0 (Kayıt Form Linkleri v2.3): "Yeni Kayıt Formu Talebi" → n8n "Portal → Yeni Kayıt Formu Talebi" (BskFPXRVaeqZBnKG)
 // n8n talebi Grup Yaz Okulları dosyasının "Form Talepleri" sekmesine yazar, Selman-Personel-ToDo hattına WhatsApp atar.
 // Token tarayıcıya gitmez; isteği bu sunucu fonksiyonu atar. Webhook "Portal → Sözleşme Gönder" header kimliğiyle korunur (N8N_PORTAL_TOKEN).

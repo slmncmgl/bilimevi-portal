@@ -1,3 +1,4 @@
+// (24.11.2026) Ayrı fonksiyon değil: api/n8n.js ?hedef=sozlesme-gonder ile çağırır, /api/sozlesme-gonder adresi vercel.json'da oraya yönlenir (Hobby 12 fonksiyon sınırı).
 // Portal "Sözleşmeyi Gönder" butonu -> n8n "Sözleşme Gönder (Portal)" workflow'u
 // Token tarayıcıya hiç gitmez; isteği bu sunucu fonksiyonu atar.
 // v1.1 (Güvenlik Faz 1): oturum kontrolü eklendi. Origin kontrolü curl ile atlatılabildiği için tek başına yetmiyor.

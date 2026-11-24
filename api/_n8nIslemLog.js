@@ -1,3 +1,4 @@
+// (24.11.2026) Ayrı fonksiyon değil: api/n8n.js ?hedef=islem-log ile çağırır, /api/islem-log adresi vercel.json'da oraya yönlenir (Hobby 12 fonksiyon sınırı).
 // v1.0: Kayıt Güncelle işlem geçmişi (kim, hangi kayıtta, ne yaptı)
 // POST: bir işlemi kaydeder. GET ?tally=<Tally Submission ID>: o kaydın işlemlerini döndürür (yeniden eskiye).
 // Kayıtlar All_Submissions > "İşlem Geçmişi" sekmesinde durur; yazma/okuma n8n "Portal İşlem Geçmişi" workflow'u

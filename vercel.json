@@ -1,6 +1,22 @@
 {
   "rewrites": [
     {
+      "source": "/api/sozlesme-gonder",
+      "destination": "/api/n8n?hedef=sozlesme-gonder"
+    },
+    {
+      "source": "/api/islem-log",
+      "destination": "/api/n8n?hedef=islem-log"
+    },
+    {
+      "source": "/api/kayit-formu-talebi",
+      "destination": "/api/n8n?hedef=kayit-formu-talebi"
+    },
+    {
+      "source": "/api/indirim-bildirim",
+      "destination": "/api/n8n?hedef=indirim-bildirim"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
