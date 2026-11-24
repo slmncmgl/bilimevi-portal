@@ -1,3 +1,4 @@
+// v1.20: Gelen el sallama çevrimiçi etiketinin altında balon olarak çıkar; listede yazısız, yer kaplayan (satır yüksekliğini değiştirmeyen) 👋.
 // v1.19: Dürtme: listede isme gelince 👋 balonu, tıklayınca o kişiye el sallanır; gelen dürtme sağ üstte bildirim olur. Başlıktaki el kalktı.
 // v1.18: Çevrimiçi listesi açılınca el sallayan 👋 başlık (denemelik).
 // v1.17: Çevrimiçi etiketine tıklayınca kimlerin çevrimiçi olduğu listelenir.
@@ -34,7 +35,7 @@ import { nabizGonder, cevrimiciDurum, durt, durtmeDinle } from "../lib/cevrimici
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.19";
+const DASHBOARD_VERSION = "v1.20";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -345,7 +346,6 @@ export default function Dashboard() {
           />
           <div style={styles.headerRight} className="dash-header-right">
             <CevrimiciEtiket isFortis={isFortis} />
-            <DurtmeBildirim isFortis={isFortis} />
             {["admin", "owner", "director", "manager"].includes(user.rol) && (
               <button onClick={() => navigate("/izin?panel=admin")}
                 style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
@@ -731,6 +731,7 @@ function CevrimiciEtiket({ isFortis }) {
       <span className="cevrimici-nokta" style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 0 0 rgba(16,185,129,0.5)", animation: "cevrimiciNabiz 2s ease-out infinite" }} />
       {isFortis ? `${sayi} online` : `${sayi} kişi çevrimiçi`}
     </button>
+    <DurtmeBildirim isFortis={isFortis} />
     {acik && (
       <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, minWidth: "230px", maxHeight: "340px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.12)", padding: "8px" }}>
         {liste.map((k, i) => {
@@ -744,10 +745,11 @@ function CevrimiciEtiket({ isFortis }) {
               style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", fontSize: "13px", color: "#0f172a", whiteSpace: "nowrap", borderRadius: "8px", cursor: salla ? "pointer" : "default", background: salla && uzerinde === k.id ? "#f0fdf4" : "transparent" }}>
               <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981", flexShrink: 0 }} />
               <span style={{ flex: 1 }}>{k.ad}{ben && <span style={{ color: "#94a3b8" }}> {isFortis ? "(you)" : "(sen)"}</span>}</span>
-              {salla && (hal || uzerinde === k.id) && (
-                <span style={{ display: "flex", alignItems: "center", gap: "4px", padding: "2px 8px", background: hal === "tamam" ? "#047857" : "#fef3c7", color: hal === "tamam" ? "#fff" : "#92400e", border: hal === "tamam" ? "none" : "1px solid #fde68a", borderRadius: "100px", fontSize: "11px", fontWeight: "700" }}>
-                  <span className="cevrimici-el" style={{ display: "inline-block", fontSize: "14px", transformOrigin: "70% 70%", animation: "cevrimiciEl 1.2s ease-in-out infinite" }}>👋</span>
-                  {hal === "tamam" ? (isFortis ? "Sent!" : "Gitti!") : hal ? "..." : (isFortis ? "Wave" : "El salla")}
+              {salla && (
+                <span title={hal === "tamam" ? (isFortis ? "Sent!" : "Gitti!") : (isFortis ? "Wave" : "El salla")}
+                  className={hal || uzerinde === k.id ? "cevrimici-el" : undefined}
+                  style={{ display: "inline-block", width: "16px", height: "16px", lineHeight: "16px", fontSize: "14px", textAlign: "center", transformOrigin: "70% 70%", visibility: hal || uzerinde === k.id ? "visible" : "hidden", opacity: hal === "tamam" ? 0.45 : 1, animation: hal === "tamam" ? "none" : "cevrimiciEl 1.2s ease-in-out infinite" }}>
+                  {hal === "tamam" ? "✓" : "👋"}
                 </span>
               )}
             </div>
@@ -763,7 +765,7 @@ function CevrimiciEtiket({ isFortis }) {
   );
 }
 
-// Gelen dürtmeler: sağ üstte "👋 X sana el salladı", 7 sn sonra kaybolur
+// Gelen dürtmeler: çevrimiçi etiketinin altında balon "👋 X sana el salladı", 7 sn sonra kaybolur
 function DurtmeBildirim({ isFortis }) {
   const [bildirimler, setBildirimler] = useState([]);
   useEffect(() => {
@@ -777,7 +779,7 @@ function DurtmeBildirim({ isFortis }) {
   }, []);
   if (!bildirimler.length) return null;
   return (
-    <div style={{ position: "fixed", top: "76px", right: "20px", zIndex: 1000, display: "flex", flexDirection: "column", gap: "8px", maxWidth: "calc(100vw - 40px)" }}>
+    <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 60, display: "flex", flexDirection: "column", gap: "8px", width: "max-content", maxWidth: "calc(100vw - 32px)" }}>
       {bildirimler.map(b => (
         <div key={b.id} onClick={() => setBildirimler(x => x.filter(y => y.id !== b.id))}
           style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", background: "#fff", border: "1px solid #fde68a", borderRadius: "14px", boxShadow: "0 10px 30px rgba(15,23,42,0.15)", fontSize: "14px", color: "#0f172a", cursor: "pointer", animation: "durtmeGel 0.3s ease-out" }}>
