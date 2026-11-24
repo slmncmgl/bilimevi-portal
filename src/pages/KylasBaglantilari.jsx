@@ -97,7 +97,7 @@ export default function KylasBaglantilari() {
 
 const s = {
   sayfa: { minHeight: "100vh", background: "#f1f5f9", padding: "32px 16px", fontFamily: "'Sora', sans-serif" },
-  kart: { maxWidth: "720px", margin: "0 auto", background: "#fff", borderRadius: "20px", border: "1.5px solid #e2e8f0", padding: "28px", boxShadow: "0 8px 24px rgba(15,23,42,0.06)" },
+  kart: { maxWidth: "1100px", margin: "0 auto", background: "#fff", borderRadius: "20px", border: "1.5px solid #e2e8f0", padding: "28px", boxShadow: "0 8px 24px rgba(15,23,42,0.06)" },
   aciklama: { fontSize: "13px", color: "#475569", lineHeight: 1.6, margin: "0 0 16px" },
   alan: { width: "100%", minHeight: "160px", resize: "vertical", padding: "14px", borderRadius: "14px", border: "1.5px solid #e2e8f0", fontSize: "13px",
     fontFamily: "ui-monospace, monospace", lineHeight: 1.6, color: "#0f172a", outline: "none", boxSizing: "border-box" },

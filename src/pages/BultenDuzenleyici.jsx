@@ -759,7 +759,7 @@ const s = {
 
   versionTag: { fontSize: "10px", fontWeight: "700", color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "20px", padding: "2px 8px", letterSpacing: "0.3px" },
 
-  main: { maxWidth: "960px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
+  main: { maxWidth: "1100px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
   grid: { display: "flex", flexDirection: "column", gap: "20px" },
   leftCol: { display: "flex", flexDirection: "column", gap: "16px" },
   rightCol: { display: "flex", flexDirection: "column", gap: "16px" },

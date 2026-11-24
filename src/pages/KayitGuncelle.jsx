@@ -3114,7 +3114,7 @@ const s = {
   header: { position: "sticky", top: 65, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 100 },
   headerInner: { maxWidth: "max(min(92vw, 1100px), min(100vw, 768px))", margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px" },
   backBtn: { padding: "8px 15px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" },
-  main: { maxWidth: "max(min(92vw, 1100px), min(100vw, 768px))", margin: "0 auto", padding: "20px", position: "relative", zIndex: 10 },
+  main: { maxWidth: "1100px", margin: "0 auto", padding: "20px", position: "relative", zIndex: 10 },
   searchCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
   // Ana başlıklar: koyu pastel lacivert
   searchLabel: { fontSize: "13px", fontWeight: "700", marginBottom: "10px", color: "#3d5a8a", letterSpacing: "0.2px" },

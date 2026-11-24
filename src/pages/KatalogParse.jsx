@@ -1381,7 +1381,7 @@ KURALLAR:
     <div style={S.root}>
       <div style={S.bgGrid}/>
       <Header title="Devam Eden Kampanyalar" user={user} onBack={() => setStep(STEPS.MODE_SELECT)}/>
-      <main style={{...S.main, maxWidth:800}}>
+      <main style={{...S.main}}>
         <div style={S.sectionCard}>
           <h3 style={S.sectionTitle}>📅 Tüm Aktif Kampanyalar {activeCampaigns.length > 0 ? `(${activeCampaigns.length})` : ""}</h3>
           {activeCampaigns.length === 0 ? (
@@ -1534,7 +1534,7 @@ KURALLAR:
       <div style={S.root}>
         <div style={S.bgGrid}/>
         <Header title={`${selectedBrand} — Parse Sonucu`} user={user} onBack={() => setStep(STEPS.SCHOOL_CONFIRM)}/>
-        <main style={{...S.main, maxWidth:700}}>
+        <main style={{...S.main}}>
 
           {/* Diff özeti */}
           <div style={S.sectionCard}>
@@ -1626,7 +1626,7 @@ KURALLAR:
       <div style={S.root}>
         <div style={S.bgGrid}/>
         <Header title="Drive'da Kontrol" user={user}/>
-        <main style={{...S.main, maxWidth:700}}>
+        <main style={{...S.main}}>
 
           <div style={S.sectionCard}>
             <div style={{fontSize:48,marginBottom:12}}>🔍</div>
@@ -1844,7 +1844,7 @@ KURALLAR:
     <div style={S.root}>
       <div style={S.bgGrid}/>
       <Header title="Promosyon Önizleme" user={user} onBack={() => setStep(STEPS.PROMO_CONFIRM)}/>
-      <main style={{...S.main, maxWidth:700}}>
+      <main style={{...S.main}}>
         <div style={S.sectionCard}>
           <h3 style={S.sectionTitle}>🎁 Parse Edilen Kampanyalar — {promoBrand}</h3>
           <p style={{fontSize:13,color:"#64748b",marginBottom:16}}>
@@ -2048,7 +2048,7 @@ KURALLAR:
     <div style={S.root}>
       <div style={S.bgGrid}/>
       <Header title="Hesaplanan İndirimler" user={user} onBack={() => setStep(STEPS.SPECIAL_CONFIRM)}/>
-      <main style={{...S.main, maxWidth:760}}>
+      <main style={{...S.main}}>
         <div style={S.sectionCard}>
           <h3 style={S.sectionTitle}>💱 {specialMeta.campaign_name || "Özel Fiyat Listesi"} — {specialBrand}</h3>
           <p style={{fontSize:13,color:"#64748b",marginBottom:8}}>
@@ -2210,10 +2210,10 @@ const S = {
   root:        { minHeight:"100vh", background:"#f8fafc", fontFamily:"'Sora',sans-serif", position:"relative" },
   bgGrid:      { position:"fixed", inset:0, backgroundImage:"linear-gradient(#e2e8f018 1px,transparent 1px),linear-gradient(90deg,#e2e8f018 1px,transparent 1px)", backgroundSize:"40px 40px", zIndex:0 },
   header:      { position:"sticky", top:65, background:"rgba(255,255,255,0.9)", backdropFilter:"blur(12px)", borderBottom:"1px solid #e2e8f0", zIndex:10 },
-  headerInner: { maxWidth:800, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" },
+  headerInner: { maxWidth:1100, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" },
   backBtn:     { background:"none", border:"none", color:"#2563eb", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"'Sora',sans-serif" },
   headerTitle: { fontSize:16, fontWeight:700, color:"#0f172a" },
-  main:        { maxWidth:560, margin:"0 auto", padding:"48px 24px 64px", position:"relative", zIndex:1 },
+  main:        { maxWidth:1100, margin:"0 auto", padding:"48px 24px 64px", position:"relative", zIndex:1 },
   card:        { background:"#fff", border:"1.5px solid #e2e8f0", borderRadius:24, padding:"40px 32px", textAlign:"center", animation:"fadeUp 0.4s ease-out" },
   sectionCard: { background:"#fff", border:"1.5px solid #e2e8f0", borderRadius:20, padding:"24px", marginBottom:16, animation:"fadeUp 0.4s ease-out" },
   sectionTitle:{ fontSize:15, fontWeight:700, color:"#0f172a", marginBottom:16 },

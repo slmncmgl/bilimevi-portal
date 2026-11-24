@@ -492,7 +492,7 @@ const styles = {
     zIndex: 0,
   },
   main: {
-    maxWidth: "900px",
+    maxWidth: "1100px",
     margin: "0 auto",
     padding: "40px 24px 64px",
     position: "relative",

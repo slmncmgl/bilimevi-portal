@@ -1,3 +1,4 @@
+// v1.7: standart sayfa genişliği 1100px (tüm sayfalar aynı)
 // v1.6: genişlik her sayfada ana sayfayla aynı (900px); kart adı ve açıklaması yazılmaz; Geri düğmesi koyu ve belirgin
 // v1.5: ana sayfada kenar boşluğu %25
 // v1.4: Genişlik yüzdeyle: kartlarda kenarlardan %5, ana sayfada %15 içeride. Ana sayfa tespiti sondaki "/" ve büyük harfe dayanıklı;
@@ -27,7 +28,7 @@ const EK_ADLAR = {
 const YONETICI = ["admin", "owner", "director", "manager"];
 
 // Ana sayfada şerit kart ızgarasıyla aynı hizada: Dashboard main maxWidth 900 + 24px iç boşluk (v1.6)
-const ANA_SAYFA_GENISLIK = "900px";
+const ANA_SAYFA_GENISLIK = "1100px";
 const ANA_SAYFA_KENAR = "24px";
 
 function kartAdi(yol, arama, isFortis) {

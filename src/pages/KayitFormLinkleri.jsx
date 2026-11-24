@@ -632,10 +632,10 @@ export default function KayitFormLinkleri() {
 const styles = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" },
   header: { position: "sticky", top: 65, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "820px", margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", gap: "16px" },
+  headerInner: { maxWidth: "1100px", margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", gap: "16px" },
   headerTitleWrap: { display: "flex", alignItems: "center", gap: "8px" },
   versionTag: { fontSize: "11px", fontWeight: "600", color: "#0d9488", background: "#f0fdfa", padding: "2px 8px", borderRadius: "6px" },
-  main: { maxWidth: "820px", margin: "0 auto", padding: "32px 24px 64px" },
+  main: { maxWidth: "1100px", margin: "0 auto", padding: "32px 24px 64px" },
   stateBox: { padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: "14px" },
   errorBox: { padding: "24px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "12px", color: "#991b1b", fontSize: "13px", lineHeight: 1.6 },
   // 16px font: iOS'ta odaklanınca sayfa zoom yapmasın
