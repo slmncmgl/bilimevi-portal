@@ -1,3 +1,4 @@
+// v1.16: Üst şeritte "N kişi çevrimiçi" etiketi (yeşil nokta), sayı /api/cevrimici nabzından (src/lib/cevrimici.js).
 // v1.15: "Performans Analizi" kartının adı CRM
 // v1.14: Sürükle-bırak "i" ikonu sadece admin, owner, director ve manager rollerinde görünür.
 // v1.13: Sürükle-bırak "i" ikonu sayfanın ortasından üst şeride, ismin soluna alındı.
@@ -26,10 +27,11 @@ import KimlikTema from "./dashboard/KimlikTema";
 import { useKartSirasi } from "./dashboard/kartSirasi";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
+import { nabizGonder, cevrimiciSayi } from "../lib/cevrimici";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.15";
+const DASHBOARD_VERSION = "v1.16";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -339,6 +341,7 @@ export default function Dashboard() {
             style={styles.headerLogo}
           />
           <div style={styles.headerRight} className="dash-header-right">
+            <CevrimiciEtiket isFortis={isFortis} />
             {["admin", "owner", "director", "manager"].includes(user.rol) && (
               <button onClick={() => navigate("/izin?panel=admin")}
                 style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
@@ -685,3 +688,24 @@ const styles = {
     fontSize: "16px",
   },
 };
+
+// Üst şeritteki "N kişi çevrimiçi" etiketi. Açılışta hemen bir nabız gönderir, sonra main.jsx'teki 5 dk'lık nabzı dinler.
+function CevrimiciEtiket({ isFortis }) {
+  const [sayi, setSayi] = useState(cevrimiciSayi());
+  useEffect(() => {
+    const dinle = e => setSayi(e.detail);
+    window.addEventListener("bilimevi-cevrimici", dinle);
+    nabizGonder();
+    return () => window.removeEventListener("bilimevi-cevrimici", dinle);
+  }, []);
+  if (!sayi) return null;
+  return (
+    <div title={isFortis ? "Active in the last 5 minutes" : "Son 5 dakikada portalda olanlar"}
+      style={{ display: "flex", alignItems: "center", gap: "7px", padding: "5px 11px", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "100px", fontSize: "12px", fontWeight: "600", color: "#047857", whiteSpace: "nowrap" }}>
+      <span className="cevrimici-nokta" style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 0 0 rgba(16,185,129,0.5)", animation: "cevrimiciNabiz 2s ease-out infinite" }} />
+      {isFortis ? `${sayi} online` : `${sayi} kişi çevrimiçi`}
+      <style>{`@keyframes cevrimiciNabiz { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
+        @media (prefers-reduced-motion: reduce) { .cevrimici-nokta { animation: none !important; } }`}</style>
+    </div>
+  );
+}
