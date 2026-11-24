@@ -38,6 +38,7 @@ Son güncelleme: 23 Kasım 2026 (v134 kur servisi sheet.js içinde). Repo'daki B
 - PHP plugin değişikliklerinde plugin sürüm numarası yükselir.
 
 ## Repo dışındaki parçalar
+- **v141 (24 Kasım):** staff sayfasında her aşamada sağ altta kırmızı "⚠ Hata bildir" ikonu (`HataBildir`). Popup mesajı + aşama/okul/şehir/kurs/hafta/sürüm/sayfa → `/api/hata-bildirimi` (api/n8n.js ?hedef=hata-bildirimi, `_n8nHataBildirim.js`, yeni fonksiyon değil) → n8n "BFT Hata Bildirimi" `9oYA6OIyjdmJprkc` (webhook bft-hata-bildirimi, X-Portal-Token) → it@bilimevi.com mail.
 - **v140 (24 Kasım):** "Son güncelleme" kutusu artık her okul kartında (indirimsizlerde de), farenin hemen altında ve fareyi izleyerek çıkıyor (`FareIpucu`, position fixed).
 - **v139 (24 Kasım):** okul kartının üstüne gelince indirim rozetinin üstünde "Son güncelleme: GG.AA.YYYY" kutusu (`IndirimRozet`). Kaynak master_index O sütunu `indirim_tarih` (YYYY-MM-DD; okul dosyasının discounts sekmesindeki son güncelleme = son parse). 60 günden eskiyse rozet turuncu. Parse sonrası bu sütun da güncellenmeli.
 

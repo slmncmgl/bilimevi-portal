@@ -17,6 +17,10 @@
       "destination": "/api/n8n?hedef=indirim-bildirim"
     },
     {
+      "source": "/api/hata-bildirimi",
+      "destination": "/api/n8n?hedef=hata-bildirimi"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },

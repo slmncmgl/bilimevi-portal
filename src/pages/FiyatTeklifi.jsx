@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v140-tarih-ipucu-fareyi-izler-2026-11-24";
+const BFT_BUILD_VERSION = "v141-hata-bildir-2026-11-24";
 // v138: staff modunda üst başlık (← Dashboard + "Fiyat Teklifi") kaldırıldı, portalın ortak şeridi gösteriyor. Müşteri modu aynı.
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
@@ -1456,6 +1456,52 @@ function FareIpucu({ ipucu }) {
       Son güncelleme: {tarihTR || "tarih yok"}{eski ? ` (${gun} gün önce)` : ""}
     </div>
   );
+}
+
+// v141: her aşamada sağ altta "Hata bildir" ikonu -> popup -> /api/hata-bildirimi -> n8n -> it@bilimevi.com
+function HataBildir({ baglam }) {
+  const [acik, setAcik] = useState(false);
+  const [mesaj, setMesaj] = useState("");
+  const [durum, setDurum] = useState("");  // "" | "gonderiliyor" | "tamam" | hata metni
+  const kapat = () => { setAcik(false); setDurum(""); };
+  const gonder = async () => {
+    if (!mesaj.trim() || durum === "gonderiliyor") return;
+    setDurum("gonderiliyor");
+    try {
+      const r = await fetch("/api/hata-bildirimi", { method:"POST", headers:{ "Content-Type":"application/json" }, credentials:"include",
+        body: JSON.stringify({ ...baglam, mesaj, surum: BFT_BUILD_VERSION, sayfa: window.location.href }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) throw new Error(j.hata || `HTTP ${r.status}`);
+      setDurum("tamam"); setMesaj("");
+      setTimeout(kapat, 1800);
+    } catch (e) { setDurum(`Gönderilemedi: ${e.message}`); }
+  };
+  return (<>
+    <button onClick={() => setAcik(true)} title="Hata bildir" aria-label="Hata bildir"
+      style={{ position:"fixed", right:20, bottom:20, zIndex:9000, width:44, height:44, borderRadius:"50%", border:"none", background:"#dc2626", color:"#fff", fontSize:20, cursor:"pointer", boxShadow:"0 4px 14px rgba(220,38,38,.35)", display:"flex", alignItems:"center", justifyContent:"center" }}>⚠</button>
+    {acik && <div onClick={kapat} style={{ position:"fixed", inset:0, zIndex:9500, background:"rgba(15,23,42,.45)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:440, background:"#fff", borderRadius:14, padding:20, boxShadow:"0 20px 50px rgba(0,0,0,.25)" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+          <div style={{ fontSize:16, fontWeight:700, color:"#0f172a" }}>Hata bildir</div>
+          <button onClick={kapat} aria-label="Kapat" style={{ border:"none", background:"none", fontSize:20, color:"#64748b", cursor:"pointer", lineHeight:1 }}>×</button>
+        </div>
+        <div style={{ fontSize:12, color:"#64748b", marginBottom:10 }}>Ne oldu, ne bekliyordunuz? Seçili okul, aşama ve sürüm otomatik eklenir.{baglam.asama ? ` (Aşama: ${baglam.asama})` : ""}</div>
+        {durum === "tamam"
+          ? <div style={{ padding:"18px 0", textAlign:"center", color:"#15803d", fontWeight:600 }}>Bildiriminiz alındı, teşekkürler.</div>
+          : <>
+            <textarea autoFocus value={mesaj} onChange={e => setMesaj(e.target.value)} rows={5} placeholder="Hatayı buraya yazın…"
+              style={{ width:"100%", boxSizing:"border-box", border:"1px solid #cbd5e1", borderRadius:8, padding:10, fontSize:14, fontFamily:"inherit", resize:"vertical" }} />
+            {durum && durum !== "gonderiliyor" && <div style={{ color:"#dc2626", fontSize:12, marginTop:6 }}>{durum}</div>}
+            <div style={{ display:"flex", justifyContent:"flex-end", gap:8, marginTop:12 }}>
+              <button onClick={kapat} style={{ padding:"8px 14px", borderRadius:8, border:"1px solid #cbd5e1", background:"#fff", cursor:"pointer", fontSize:13 }}>Vazgeç</button>
+              <button onClick={gonder} disabled={!mesaj.trim() || durum === "gonderiliyor"}
+                style={{ padding:"8px 16px", borderRadius:8, border:"none", background: mesaj.trim() ? "#dc2626" : "#fca5a5", color:"#fff", fontWeight:600, cursor: mesaj.trim() ? "pointer" : "default", fontSize:13 }}>
+                {durum === "gonderiliyor" ? "Gönderiliyor…" : "Gönder"}</button>
+            </div>
+          </>}
+      </div>
+    </div>}
+  </>);
 }
 
 function indirimEtiket(disc) {
@@ -3653,6 +3699,7 @@ export default function FiyatTeklifi() {
       </div>
       {isStaff && <div style={{ textAlign:"center", fontSize:11, color:"#94a3b8", padding:"16px 0 8px" }}>{BFT_SURUM_METNI}</div>}
     </div>
+    {isStaff && <HataBildir baglam={{ danisman: user?.name || "", danismanMail: user?.email || "", asama: STEPS?.[step] || "", okul: cur.brand || "", sehir: cur.city || "", kurs: cur.course?.name || "", hafta: String(cur.weeks || "") }} />}
 
     <PdfTemplate destinations={destinations} student={student} user={user} logoSrc={logoSrc} />
     </>
