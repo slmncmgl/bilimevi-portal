@@ -31,7 +31,9 @@ const ALT_METIN = {
 
 // Şeridin kenarlardan içeri boşluğu (Selman kararı 24.11.2026)
 const KENAR_KART = "5%";
-const KENAR_ANA_SAYFA = "25%";
+// Ana sayfada şerit kart ızgarasıyla aynı hizada: Dashboard main maxWidth 900 + 24px iç boşluk (v1.6)
+const ANA_SAYFA_GENISLIK = "900px";
+const ANA_SAYFA_KENAR = "24px";
 
 function kartAdi(yol, arama, isFortis) {
   if (yol === "/izin" && new URLSearchParams(arama).get("panel") === "admin") return isFortis ? "Admin Panel" : "Yönetici Paneli";
@@ -67,7 +69,7 @@ export default function UstSerit() {
 
   return (
     <header className="ust-serit" style={{ position: "sticky", top: 0, zIndex: 900, height: `${UST_SERIT_YUKSEKLIK}px`, boxSizing: "border-box", background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
-      <div className="ust-serit-ic" style={{ padding: `0 ${anaSayfa ? KENAR_ANA_SAYFA : KENAR_KART}`, height: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+      <div className="ust-serit-ic" style={{ padding: `0 ${anaSayfa ? ANA_SAYFA_KENAR : KENAR_KART}`, maxWidth: anaSayfa ? ANA_SAYFA_GENISLIK : "none", margin: "0 auto", height: "100%", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
           <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi"
             onClick={() => navigate("/dashboard")} title={isFortis ? "Home" : "Ana sayfa"}
