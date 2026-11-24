@@ -1,3 +1,4 @@
+// v1.19: Dürtme: listede isme gelince 👋 balonu, tıklayınca o kişiye el sallanır; gelen dürtme sağ üstte bildirim olur. Başlıktaki el kalktı.
 // v1.18: Çevrimiçi listesi açılınca el sallayan 👋 başlık (denemelik).
 // v1.17: Çevrimiçi etiketine tıklayınca kimlerin çevrimiçi olduğu listelenir.
 // v1.16: Üst şeritte "N kişi çevrimiçi" etiketi (yeşil nokta), sayı n8n nabzından (src/lib/cevrimici.js).
@@ -29,11 +30,11 @@ import KimlikTema from "./dashboard/KimlikTema";
 import { useKartSirasi } from "./dashboard/kartSirasi";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
-import { nabizGonder, cevrimiciDurum } from "../lib/cevrimici";
+import { nabizGonder, cevrimiciDurum, durt, durtmeDinle } from "../lib/cevrimici";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.18";
+const DASHBOARD_VERSION = "v1.19";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -344,6 +345,7 @@ export default function Dashboard() {
           />
           <div style={styles.headerRight} className="dash-header-right">
             <CevrimiciEtiket isFortis={isFortis} />
+            <DurtmeBildirim isFortis={isFortis} />
             {["admin", "owner", "director", "manager"].includes(user.rol) && (
               <button onClick={() => navigate("/izin?panel=admin")}
                 style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
@@ -691,17 +693,20 @@ const styles = {
   },
 };
 
-// Üst şeritteki "N kişi çevrimiçi" etiketi. Açılışta hemen bir nabız gönderir, sonra main.jsx'teki 5 dk'lık nabzı dinler.
-// Tıklayınca altında isim listesi açılır; dışarı tıklayınca kapanır.
+// Üst şeritteki "N kişi çevrimiçi" etiketi. Açılışta hemen bir nabız gönderir, sonra main.jsx'teki 1 dk'lık nabzı dinler.
+// Tıklayınca altında isim listesi açılır; isme gelince 👋 balonu çıkar, tıklayınca o kişiye el sallanır (dürtme).
 function CevrimiciEtiket({ isFortis }) {
   const [durum, setDurum] = useState(cevrimiciDurum());
   const [acik, setAcik] = useState(false);
+  const [uzerinde, setUzerinde] = useState(null);
+  const [gonderilen, setGonderilen] = useState({}); // id -> "gidiyor" | "tamam"
   const kutuRef = useRef(null);
   useEffect(() => {
     const dinle = e => setDurum(e.detail);
     window.addEventListener("bilimevi-cevrimici", dinle);
+    durtmeDinle(true);
     nabizGonder();
-    return () => window.removeEventListener("bilimevi-cevrimici", dinle);
+    return () => { window.removeEventListener("bilimevi-cevrimici", dinle); durtmeDinle(false); };
   }, []);
   useEffect(() => {
     if (!acik) return;
@@ -709,32 +714,77 @@ function CevrimiciEtiket({ isFortis }) {
     document.addEventListener("pointerdown", disari);
     return () => document.removeEventListener("pointerdown", disari);
   }, [acik]);
+  async function elSalla(id) {
+    if (gonderilen[id]) return;
+    setGonderilen(g => ({ ...g, [id]: "gidiyor" }));
+    await durt(id);
+    setGonderilen(g => ({ ...g, [id]: "tamam" }));
+    setTimeout(() => setGonderilen(g => { const y = { ...g }; delete y[id]; return y; }), 2500);
+  }
   const sayi = durum?.sayi;
   if (!sayi) return null;
+  const liste = (durum.liste || []).map(x => (typeof x === "string" ? { id: null, ad: x } : x));
   return (
     <div ref={kutuRef} style={{ position: "relative" }}>
-    <button type="button" onClick={() => setAcik(a => !a)} title={isFortis ? "Active in the last 5 minutes" : "Son 5 dakikada portalda olanlar"}
+    <button type="button" onClick={() => setAcik(a => !a)} title={isFortis ? "Active in the last few minutes" : "Son birkaç dakikada portalda olanlar"}
       style={{ display: "flex", alignItems: "center", gap: "7px", padding: "5px 11px", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "100px", fontSize: "12px", fontWeight: "600", color: "#047857", whiteSpace: "nowrap", cursor: "pointer", fontFamily: "inherit" }}>
       <span className="cevrimici-nokta" style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 0 0 rgba(16,185,129,0.5)", animation: "cevrimiciNabiz 2s ease-out infinite" }} />
       {isFortis ? `${sayi} online` : `${sayi} kişi çevrimiçi`}
     </button>
     {acik && (
-      <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, minWidth: "190px", maxHeight: "320px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.12)", padding: "8px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "4px 8px 8px", marginBottom: "4px", borderBottom: "1px solid #f1f5f9", fontSize: "13px", fontWeight: "700", color: "#047857" }}>
-          <span className="cevrimici-el" style={{ display: "inline-block", fontSize: "20px", transformOrigin: "70% 70%", animation: "cevrimiciEl 1.8s ease-in-out" }}>👋</span>
-          {isFortis ? "Say hi!" : "Selam verin!"}
-        </div>
-        {durum.liste.map((ad, i) => (
-          <div key={`${ad}-${i}`} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", fontSize: "13px", color: "#0f172a", whiteSpace: "nowrap" }}>
-            <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981", flexShrink: 0 }} />
-            {ad}
-          </div>
-        ))}
+      <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, minWidth: "230px", maxHeight: "340px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.12)", padding: "8px" }}>
+        {liste.map((k, i) => {
+          const ben = k.id && k.id === durum.ben;
+          const salla = k.id && !ben;
+          const hal = gonderilen[k.id];
+          return (
+            <div key={`${k.id || k.ad}-${i}`}
+              onMouseEnter={() => setUzerinde(k.id)} onMouseLeave={() => setUzerinde(null)}
+              onClick={() => salla && elSalla(k.id)}
+              style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", fontSize: "13px", color: "#0f172a", whiteSpace: "nowrap", borderRadius: "8px", cursor: salla ? "pointer" : "default", background: salla && uzerinde === k.id ? "#f0fdf4" : "transparent" }}>
+              <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981", flexShrink: 0 }} />
+              <span style={{ flex: 1 }}>{k.ad}{ben && <span style={{ color: "#94a3b8" }}> {isFortis ? "(you)" : "(sen)"}</span>}</span>
+              {salla && (hal || uzerinde === k.id) && (
+                <span style={{ display: "flex", alignItems: "center", gap: "4px", padding: "2px 8px", background: hal === "tamam" ? "#047857" : "#fef3c7", color: hal === "tamam" ? "#fff" : "#92400e", border: hal === "tamam" ? "none" : "1px solid #fde68a", borderRadius: "100px", fontSize: "11px", fontWeight: "700" }}>
+                  <span className="cevrimici-el" style={{ display: "inline-block", fontSize: "14px", transformOrigin: "70% 70%", animation: "cevrimiciEl 1.2s ease-in-out infinite" }}>👋</span>
+                  {hal === "tamam" ? (isFortis ? "Sent!" : "Gitti!") : hal ? "..." : (isFortis ? "Wave" : "El salla")}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     )}
       <style>{`@keyframes cevrimiciNabiz { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
         @keyframes cevrimiciEl { 0%, 60%, 100% { transform: rotate(0deg); } 10%, 30% { transform: rotate(14deg); } 20% { transform: rotate(-8deg); } 40% { transform: rotate(-4deg); } 50% { transform: rotate(10deg); } }
+        @keyframes durtmeGel { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         @media (prefers-reduced-motion: reduce) { .cevrimici-nokta, .cevrimici-el { animation: none !important; } }`}</style>
+    </div>
+  );
+}
+
+// Gelen dürtmeler: sağ üstte "👋 X sana el salladı", 7 sn sonra kaybolur
+function DurtmeBildirim({ isFortis }) {
+  const [bildirimler, setBildirimler] = useState([]);
+  useEffect(() => {
+    const dinle = e => {
+      const yeni = e.detail.map(kimden => ({ id: Math.random().toString(36).slice(2), kimden }));
+      setBildirimler(b => [...b, ...yeni]);
+      yeni.forEach(y => setTimeout(() => setBildirimler(b => b.filter(x => x.id !== y.id)), 7000));
+    };
+    window.addEventListener("bilimevi-durtme", dinle);
+    return () => window.removeEventListener("bilimevi-durtme", dinle);
+  }, []);
+  if (!bildirimler.length) return null;
+  return (
+    <div style={{ position: "fixed", top: "76px", right: "20px", zIndex: 1000, display: "flex", flexDirection: "column", gap: "8px", maxWidth: "calc(100vw - 40px)" }}>
+      {bildirimler.map(b => (
+        <div key={b.id} onClick={() => setBildirimler(x => x.filter(y => y.id !== b.id))}
+          style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", background: "#fff", border: "1px solid #fde68a", borderRadius: "14px", boxShadow: "0 10px 30px rgba(15,23,42,0.15)", fontSize: "14px", color: "#0f172a", cursor: "pointer", animation: "durtmeGel 0.3s ease-out" }}>
+          <span className="cevrimici-el" style={{ display: "inline-block", fontSize: "26px", transformOrigin: "70% 70%", animation: "cevrimiciEl 1.2s ease-in-out 3" }}>👋</span>
+          <span><b>{b.kimden}</b> {isFortis ? "waved at you!" : "sana el salladı!"}</span>
+        </div>
+      ))}
     </div>
   );
 }
