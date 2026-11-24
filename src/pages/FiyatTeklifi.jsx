@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v134-kur-tek-fonksiyon-2026-11-23";
+const BFT_BUILD_VERSION = "v135-sayfa-tl-karsiligi-2026-11-24";
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
 const MAX_OKUL_SEHIR = 3;
@@ -2217,6 +2217,13 @@ export default function FiyatTeklifi() {
         doc.text("www.bilimevi.com", PAGE_W - MARGIN, 289, { align: "right" });
       };
 
+      // v135: TCMB kuru PDF başında bir kez alınır; her okul sayfasında toplamın altına ve tabloda kullanılır
+      let _kur = null;
+      try {
+        const _r = await fetch(isStaff ? "/api/sheet?kaynak=kur" : "https://portal.bilimevi.com/api/sheet?kaynak=kur");
+        if (_r.ok) _kur = await _r.json();
+      } catch (e) { console.warn("[BFT] TCMB kuru alınamadı, TL satırı yok", e); }
+
       destinations.forEach((d, idx) => {
         if (idx > 0) doc.addPage();
         const f = d.isOnline
@@ -2497,13 +2504,26 @@ export default function FiyatTeklifi() {
         const grandTotal = _dt.grandTotal;
         // Toplam tutar — siyah
         doc.setTextColor(17, 17, 17);
-        const labelTxt = `TOPLAM TUTAR ${cur}`;
+        const labelTxt = "TOPLAM TUTAR";   // v135: para birimi sadece tutarın solunda
         const amountTxt = `${curSym} ${money(grandTotal)}`;
         doc.setFontSize(12);
         doc.text(labelTxt, MARGIN, y);
         doc.setFontSize(16);
         doc.text(amountTxt, PAGE_W - MARGIN, y, { align:"right" });
-        y += 12;
+        // v135: tutarın altında TL karşılığı (TCMB döviz satış kuru, tarihli)
+        const _tlKur = cur === "TRY" ? null : _kur?.kurlar?.[cur];
+        if (_tlKur) {
+          y += 6;
+          doc.setFont(FONT, "normal"); doc.setFontSize(9); doc.setTextColor(100);
+          doc.text(`≈ ${Math.round(grandTotal * _tlKur).toLocaleString("tr-TR")} TL`, PAGE_W - MARGIN, y, { align:"right" });
+          y += 4;
+          doc.setFontSize(7); doc.setTextColor(140);
+          doc.text(`T.C. Merkez Bankası ${_kur.tarih} döviz satış kuru (1 ${cur} = ${_tlKur.toLocaleString("tr-TR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })} TL), bilgi amaçlıdır. Ödeme günündeki kur geçerlidir.`, PAGE_W - MARGIN, y, { align:"right" });
+          doc.setFont(FONT, "bold"); doc.setTextColor(17);
+          y += 8;
+        } else {
+          y += 12;
+        }
 
         // CTA — sadece staff modda
         if (isStaff) {
@@ -2567,11 +2587,6 @@ export default function FiyatTeklifi() {
         const n = destinations.length;
         // v133: üst satır kalktı (okullar farklı hafta/para biriminde olabiliyor). Hafta her sütunun altında,
         // para birimi GENEL TOPLAM satırında. TL karşılığı TCMB döviz satış kuruyla (api/kur), alınamazsa satır çıkmaz.
-        let _kur = null;
-        try {
-          const _r = await fetch(isStaff ? "/api/sheet?kaynak=kur" : "https://portal.bilimevi.com/api/sheet?kaynak=kur");   // v134
-          if (_r.ok) _kur = await _r.json();
-        } catch (e) { console.warn("[BFT] TCMB kuru alınamadı, TL satırı yok", e); }
         const labelW = 42;                         // sol kalem sütunu
         const colW = (PAGE_W - MARGIN * 2 - labelW) / n;
         const colX = (i) => MARGIN + labelW + i * colW;

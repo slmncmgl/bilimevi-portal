@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 23 Kasım 2026 (v134 kur servisi sheet.js içinde). Repo'daki BFT sürümü: `v134-kur-tek-fonksiyon-2026-11-23`.
+Son güncelleme: 23 Kasım 2026 (v134 kur servisi sheet.js içinde). Repo'daki BFT sürümü: `v135-sayfa-tl-karsiligi-2026-11-24`.
 
 ## Kapsam
 
@@ -173,6 +173,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - **v132 (23 Kasım):** Destinasyon > OKUL ADI kutusunda yeşil indirim rozeti. Kaynak master_index N sütunu `indirim` ("%30" veya "kampanya"), ELLE güncellenir; ilk doldurma 23.11.2026'da okul dosyalarının discounts sekmesinden (bugün geçerli en yüksek tuition yüzdesi; sadece per_week_price promo varsa "kampanya"). Kampanya değişince sütun da güncellenmeli.
 - **v133 (23 Kasım):** karşılaştırma tablosunda üstteki hafta/para birimi satırı kalktı; her sütunda şehir + altında hafta, para birimi GENEL TOPLAM hücresinde ("5.448 GBP"). Okul adı 10,5pt (4+ okulda 9), şehir 8,5/7,5pt. Yeni satır "TL karşılığı" (≈ yuvarlanmış TL) + dipnot: TCMB tarihli döviz satış kuru. Kur `api/kur.js` (TCMB today.xml, ForexSelling/Unit, CDN 1 saat, CORS açık; müşteri modu https://portal.bilimevi.com/api/kur). TCMB'de NZD yok, o sütunda TL boş. Kur alınamazsa satır ve dipnot çıkmaz.
 - **v134 (23 Kasım):** v133 Vercel'de "12 fonksiyon" sınırına takıldı; `api/kur.js` → `api/_kur.js`, `api/sheet.js` GET `?kaynak=kur` ile çağırıyor.
+- **v135 (24 Kasım):** okul sayfasında "TOPLAM TUTAR EUR   EUR 973" çift para birimi → etiket sadece "TOPLAM TUTAR", para birimi tutarın solunda. Tutarın altında "≈ … TL" + TCMB tarih/kur dipnotu. Kur PDF başında bir kez alınır (`_kur`), tablo da aynısını kullanır.
 - **v126 (16 Kasım):** okul dosyası `brand__city` anahtarıyla seçilir, okul anahtarı (ilk satır) yedek. Sebep: Positively'nin 17 şehri 2026 kampanya dosyasına, 6 satırı eski dosyaya bağlı; eskiden ilk satır (Lyon, eski dosya) hepsine uygulanıyordu ve %30 düşmüyordu. Customer proxy'ye `city` de gidiyor; `data-proxy.php` v1.2 şehre göre seçer, eski proxy alanı yok sayar. Testler `tests/test_v126.mjs`.
 - **v125 (16 Kasım):** staff Öğrenci Bilgileri adımında Cmd+Option+T (Windows Ctrl+Alt+T) test verisi doldurur: Selman, 40, Erkek. Cmd+Shift+T tarayıcıya ait, sayfaya ulaşmaz.
 - **v124 (6 Kasım):** boş Ek Ücretler adımı otomatik atlanır (`tests/test_v124.mjs`). **v123:** staff sayfasının altında sürüm etiketi.
