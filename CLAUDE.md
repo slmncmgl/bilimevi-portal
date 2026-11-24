@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 23 Kasım 2026 (v134 kur servisi sheet.js içinde). Repo'daki BFT sürümü: `v136-pdf-kurus-2026-11-24`.
+Son güncelleme: 23 Kasım 2026 (v134 kur servisi sheet.js içinde). Repo'daki BFT sürümü: `v137-kur-notu-3-satir-2026-11-24`.
 
 ## Kapsam
 
@@ -175,6 +175,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - **v134 (23 Kasım):** v133 Vercel'de "12 fonksiyon" sınırına takıldı; `api/kur.js` → `api/_kur.js`, `api/sheet.js` GET `?kaynak=kur` ile çağırıyor.
 - **v135 (24 Kasım):** okul sayfasında "TOPLAM TUTAR EUR   EUR 973" çift para birimi → etiket sadece "TOPLAM TUTAR", para birimi tutarın solunda. Tutarın altında "≈ … TL" + TCMB tarih/kur dipnotu. Kur PDF başında bir kez alınır (`_kur`), tablo da aynısını kullanır.
 - **v136 (24 Kasım):** PDF okul sayfalarındaki tüm tutarlar (`money`) tam sayıda ",00" olmadan (973), kuruşluysa 2.850,50.
+- **v137 (24 Kasım):** okul sayfası TCMB kur notu üç satır, sağa dayalı; "Ödeme günündeki kur geçerlidir." altı çizili.
 - **v126 (16 Kasım):** okul dosyası `brand__city` anahtarıyla seçilir, okul anahtarı (ilk satır) yedek. Sebep: Positively'nin 17 şehri 2026 kampanya dosyasına, 6 satırı eski dosyaya bağlı; eskiden ilk satır (Lyon, eski dosya) hepsine uygulanıyordu ve %30 düşmüyordu. Customer proxy'ye `city` de gidiyor; `data-proxy.php` v1.2 şehre göre seçer, eski proxy alanı yok sayar. Testler `tests/test_v126.mjs`.
 - **v125 (16 Kasım):** staff Öğrenci Bilgileri adımında Cmd+Option+T (Windows Ctrl+Alt+T) test verisi doldurur: Selman, 40, Erkek. Cmd+Shift+T tarayıcıya ait, sayfaya ulaşmaz.
 - **v124 (6 Kasım):** boş Ek Ücretler adımı otomatik atlanır (`tests/test_v124.mjs`). **v123:** staff sayfasının altında sürüm etiketi.

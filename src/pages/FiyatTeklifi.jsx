@@ -17,7 +17,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v136-pdf-kurus-2026-11-24";
+const BFT_BUILD_VERSION = "v137-kur-notu-3-satir-2026-11-24";
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
 const MAX_OKUL_SEHIR = 3;
@@ -2519,9 +2519,17 @@ export default function FiyatTeklifi() {
           doc.text(`≈ ${Math.round(grandTotal * _tlKur).toLocaleString("tr-TR")} TL`, PAGE_W - MARGIN, y, { align:"right" });
           y += 4;
           doc.setFontSize(7); doc.setTextColor(140);
-          doc.text(`T.C. Merkez Bankası ${_kur.tarih} döviz satış kuru (1 ${cur} = ${_tlKur.toLocaleString("tr-TR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })} TL), bilgi amaçlıdır. Ödeme günündeki kur geçerlidir.`, PAGE_W - MARGIN, y, { align:"right" });
+          // v137: üç satır, sağa dayalı; son satır altı çizili
+          const _kurTxt = _tlKur.toLocaleString("tr-TR", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+          const _sag = PAGE_W - MARGIN;
+          doc.text("T.C. Merkez Bankası", _sag, y, { align:"right" });
+          doc.text(`${_kur.tarih} döviz satış kuru (1 ${cur} = ${_kurTxt} TL), bilgi amaçlıdır.`, _sag, y + 3.4, { align:"right" });
+          const _son = "Ödeme günündeki kur geçerlidir.";
+          doc.text(_son, _sag, y + 6.8, { align:"right" });
+          doc.setDrawColor(140); doc.setLineWidth(0.2);
+          doc.line(_sag - doc.getTextWidth(_son), y + 7.5, _sag, y + 7.5);
           doc.setFont(FONT, "bold"); doc.setTextColor(17);
-          y += 8;
+          y += 15;
         } else {
           y += 12;
         }
