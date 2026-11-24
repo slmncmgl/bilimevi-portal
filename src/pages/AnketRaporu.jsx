@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import groupMatchMap from "../data/groupMatchMap.json";
 import { getSession } from "../utils/sheets";
 
-const VERSION = "v1.30";
+// v1.31: Üst başlık ortak şeride uyarlandı (Dashboard butonu kaldırıldı, başlık şeridin altına yapışır)
+const VERSION = "v1.31";
 const SHEET_ID = "1NLK17BNqWpVncUfWG1BxD1khE-14F-N7h1JJ-yBeaio";
 const API_KEY = "AIzaSyAPQlnQGlYmpJU4TajkGvrHHzRv7I5rPxE";
 
@@ -421,7 +421,6 @@ const ROSTER_SHEET_ID = "1Qr2OLtRhIzXtXq1FmQvYiO1QnO8pjRxCx6Rzotrhsv0";
 const ROSTER_NAME_HEADER = "Başvuru Sahibi Öğrencinin Adı Soyadı";
 
 export default function AnketRaporu() {
-  const navigate = useNavigate();
   const [tabs, setTabs] = useState([]);
   const [groupCounts, setGroupCounts] = useState({});
   const [groupHasNegative, setGroupHasNegative] = useState({});
@@ -888,13 +887,6 @@ export default function AnketRaporu() {
       <header style={styles.header}>
         <div style={styles.headerInner} className="ar-header-inner">
           <div style={styles.headerLeftGroup}>
-            <button onClick={() => navigate("/dashboard")} style={styles.backBtn}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-                <line x1="19" y1="12" x2="5" y2="12"/>
-                <polyline points="12 19 5 12 12 5"/>
-              </svg>
-              Dashboard
-            </button>
             <div style={styles.headerTitleWrap}>
               <h1 style={styles.headerTitle}>Yaz Okulu Memnuniyet Anketi Raporu</h1>
               <span style={styles.versionTag}>{VERSION}</span>
@@ -1274,11 +1266,10 @@ export default function AnketRaporu() {
 
 const styles = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" },
-  header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
+  header: { position: "sticky", top: 65, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
   headerInner: { maxWidth: "1100px", margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" },
   headerLeftGroup: { display: "flex", alignItems: "center", gap: "16px" },
   generalReportBtn: { flexShrink: 0, display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#4338ca", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "700", fontFamily: "inherit", whiteSpace: "nowrap" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#475569", fontFamily: "inherit" },
   headerTitleWrap: { display: "flex", alignItems: "center", gap: "8px" },
   headerTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a" },
   versionTag: { fontSize: "11px", fontWeight: "600", color: "#4338ca", background: "#eef2ff", padding: "2px 8px", borderRadius: "6px" },

@@ -1,3 +1,4 @@
+// v1.9: Üst başlık ortak şeride taşındı (Dashboard, başlık, kullanıcı ve Çıkış kaldırıldı; sürüm etiketi sağ üstte)
 // v1.8 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -5,7 +6,7 @@ import { getSession } from "../utils/sheets";
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwf-GAPBHK0mKd7_hOLuxuBhYhS3XctxjjHicfs3iLyBErm5m1cXECyBnb7EeRUn529aA/exec";
 
-const APP_VERSION = "v1.8";
+const APP_VERSION = "v1.9";
 
 // Gemini çağrısı artık Vercel /api/gemini üzerinden (API key server-side, tarayıcıya gönderilmez)
 const GEMINI_ENDPOINT = "/api/gemini";
@@ -361,26 +362,9 @@ export default function BultenDuzenleyici() {
     <div style={s.root}>
       <div style={s.bgGrid} />
 
-      {/* Header */}
-      <header style={s.header}>
-        <div style={s.headerInner} className="bulten-header-inner">
-          <div style={s.headerLeft}>
-            <button onClick={() => navigate("/dashboard")} style={s.backBtn}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <polyline points="15 18 9 12 15 6"/>
-              </svg>
-              Dashboard
-            </button>
-            <span style={s.headerSep}>·</span>
-            <span style={s.headerTitle}>Bülten Düzenleyici</span>
-            <span style={s.versionTag}>{APP_VERSION}</span>
-          </div>
-          <div style={s.headerRight} className="bulten-header-right">
-            <div style={s.userChip}><div style={s.userDot} />{user?.name}</div>
-            <button onClick={() => navigate("/")} style={s.logoutBtn}>Çıkış</button>
-          </div>
-        </div>
-      </header>
+      <div style={{ maxWidth: s.main.maxWidth, margin: "0 auto", padding: "12px 24px 0", display: "flex", justifyContent: "flex-end", position: "relative", zIndex: 1 }}>
+        <span style={s.versionTag}>{APP_VERSION}</span>
+      </div>
 
       <main style={s.main} className="bulten-main">
         <div style={s.grid} className="bulten-grid">
@@ -759,8 +743,6 @@ export default function BultenDuzenleyici() {
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         textarea:focus, input:focus { outline: none; border-color: #2563eb !important; }
         @media (max-width: 640px) {
-          .bulten-header-inner { padding: 10px 14px !important; flex-wrap: wrap; gap: 6px; }
-          .bulten-header-right { gap: 6px !important; flex-wrap: wrap; }
           .bulten-main { padding: 16px 12px 48px !important; max-width: 100% !important; }
           .bulten-grid { grid-template-columns: 1fr !important; display: flex !important; flex-direction: column !important; }
           .bulten-channel-grid { grid-template-columns: repeat(4, 1fr) !important; }
@@ -775,17 +757,7 @@ const s = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
 
-  header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "960px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
-  headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
-  headerRight: { display: "flex", alignItems: "center", gap: "10px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
-  headerSep: { color: "#cbd5e1", fontSize: "14px" },
-  headerTitle: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
   versionTag: { fontSize: "10px", fontWeight: "700", color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "20px", padding: "2px 8px", letterSpacing: "0.3px" },
-  userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
-  userDot: { width: "7px", height: "7px", borderRadius: "50%", background: "#22c55e" },
-  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" },
 
   main: { maxWidth: "960px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
   grid: { display: "flex", flexDirection: "column", gap: "20px" },

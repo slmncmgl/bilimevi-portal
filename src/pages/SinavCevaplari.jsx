@@ -1,3 +1,4 @@
+// v1.9 — Üst başlık ortak şeride taşındı (Dashboard, başlık, kullanıcı ve Çıkış kaldırıldı)
 // v1.8 — Toplam Soru tekrar düzenlenebilir (varsayılan 15)
 // v1.7 — Quiz Başlığı son eğitimin kurum adıyla otomatik doluyor, AI başlığı ezmiyor; Toplam Soru 15 sabit
 // v1.6 — Sınavı Çöz butonu (pastel şeftali), link yoksa pasif; sekme adı "Sınav Cevaplarını Gir"
@@ -213,27 +214,6 @@ export default function SinavCevaplari() {
     <div style={s.root} onPaste={handlePaste}>
       <div style={s.bgGrid} />
 
-      <header style={s.header}>
-        <div style={s.headerInner}>
-          <div style={s.headerLeft}>
-            <button onClick={() => navigate("/dashboard")} style={s.backBtn}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <polyline points="15 18 9 12 15 6"/>
-              </svg>
-              Dashboard
-            </button>
-            <span style={s.headerSep}>·</span>
-            <span style={s.headerTitle}>Eğitim Videoları ve Sınav Cevapları</span>
-          </div>
-          <div style={s.headerRight}>
-            <div style={s.userChip}>
-              <div style={s.userDot} />
-              {user?.name}
-            </div>
-            <button onClick={() => { navigate("/"); }} style={s.logoutBtn}>Çıkış</button>
-          </div>
-        </div>
-      </header>
 
       <main style={s.main}>
         {/* v1.1 — Sekme barı */}
@@ -563,16 +543,6 @@ export default function SinavCevaplari() {
 const s = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
-  header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "680px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
-  headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
-  headerRight: { display: "flex", alignItems: "center", gap: "10px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  headerSep: { color: "#cbd5e1", fontSize: "14px" },
-  headerTitle: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
-  userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
-  userDot: { width: "7px", height: "7px", borderRadius: "50%", background: "#22c55e" },
-  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "'Inter', sans-serif" },
   main: { maxWidth: "680px", margin: "0 auto", padding: "40px 24px 64px", position: "relative", zIndex: 1 },
   card: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "36px", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column", gap: "28px", animation: "fadeUp 0.4s ease-out" },
   section: { display: "flex", flexDirection: "column", gap: "10px" },

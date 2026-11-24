@@ -17,7 +17,8 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v137-kur-notu-3-satir-2026-11-24";
+const BFT_BUILD_VERSION = "v138-ortak-ust-serit-2026-11-24";
+// v138: staff modunda üst başlık (← Dashboard + "Fiyat Teklifi") kaldırıldı, portalın ortak şeridi gösteriyor. Müşteri modu aynı.
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
 const MAX_OKUL_SEHIR = 3;
@@ -3011,13 +3012,16 @@ export default function FiyatTeklifi() {
         }
       `}</style>
 
+      {/* v138: portalda (staff) üst başlık ortak şeritte; burada sadece müşteri modunda */}
+      {!isStaff && (
       <header style={S.hdr}>
         <div style={S.cnt} className="bft-hdr-cnt">
-          {isStaff ? <button onClick={() => navigate("/dashboard")} style={S.backBtn}>← Dashboard</button> : <span />}
+          <span />
           <span style={S.htitle}>Fiyat Teklifi</span>
           <div style={{ width:100 }} />
         </div>
       </header>
+      )}
 
       <div style={{ background:"#fff", borderBottom:"1px solid #e2e8f0" }}>
         {/* Masaüstü adım göstergesi */}
@@ -3766,7 +3770,6 @@ const S = {
   hdr: { background:"#fff", borderBottom:"1px solid #e2e8f0", position:"sticky", top:0, zIndex:10 },
   cnt: { maxWidth:1100, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" },
   htitle: { fontSize:15, fontWeight:600, color:"#0f172a" },
-  backBtn: { background:"none", border:"1px solid #e2e8f0", padding:"8px 16px", borderRadius:10, cursor:"pointer", fontSize:13 },
   body: { maxWidth:1100, margin:"20px auto", padding:"0 20px", display:"grid", gridTemplateColumns:"1fr 280px", gap:20 },
   main: { background:"#fff", borderRadius:20, border:"1.5px solid #e2e8f0", padding:"28px 32px" },
   ttl: { fontSize:17, fontWeight:700, marginBottom:20, color:"#0f172a" },

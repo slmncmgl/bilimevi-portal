@@ -1,28 +1,24 @@
+// v1.1: Ortak üst şeride uyarlandı: raydaki logo ve kullanıcı/Çıkış kutusu, Yönetici Paneli düğmesi kaldırıldı (ortak şeritte var); İçindekiler rayı şeridin altına yapışır, mobilde ray gizli. Tema seçici ve sürüm kaldı.
 import { useEffect, useState } from "react";
 import { departmanlaraAyir } from "./tema";
 
 // Kurumsal Kimlik Kılavuzu teması: solda lacivert "İçindekiler" rayı, numaralı bölümler, 01.1 gibi kodlu kartlar.
 // Bütün stiller .kk altında, klasik görünümü etkilemez.
 
-const ROL = {
-  tr: { admin: "Yönetici", owner: "Yönetici", director: "Direktör", manager: "Yönetici", staff: "Personel" },
-  en: { admin: "Admin", owner: "Owner", director: "Director", manager: "Manager", staff: "Staff" },
-};
-
 const METIN = {
   tr: {
-    icindekiler: "İçindekiler", cikis: "Çıkış", panel: "Yönetici Paneli", adet: n => `${n} modül`, atla: "İçeriğe geç",
+    icindekiler: "İçindekiler", adet: n => `${n} modül`, atla: "İçeriğe geç",
     bosBaslik: "Henüz erişim izniniz bulunmuyor.", bosMetin: "Yöneticinizle iletişime geçin.",
   },
   en: {
-    icindekiler: "Contents", cikis: "Logout", panel: "Admin Panel", adet: n => `${n} modules`, atla: "Skip to content",
+    icindekiler: "Contents", adet: n => `${n} modules`, atla: "Skip to content",
     bosBaslik: "You don't have access to any modules yet.", bosMetin: "Please contact your manager.",
   },
 };
 
 const iki = n => String(n).padStart(2, "0");
 
-export default function KimlikTema({ user, moduller, isFortis, isAdmin, greeting, time, git, cikis, secici, surum }) {
+export default function KimlikTema({ user, moduller, isFortis, greeting, time, git, secici, surum }) {
   const L = isFortis ? "en" : "tr";
   const t = METIN[L];
   const ad = user.name || "";
@@ -60,7 +56,6 @@ export default function KimlikTema({ user, moduller, isFortis, isAdmin, greeting
     <div className="kk" lang={L}>
       <a className="kk-skip" href="#kk-main">{t.atla}</a>
       <aside className="kk-rail">
-        <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi" width={120} height={38} />
         {gruplar.length > 0 && (
           <nav aria-label={t.icindekiler}>
             <div className="kk-cap">{t.icindekiler}</div>
@@ -76,11 +71,6 @@ export default function KimlikTema({ user, moduller, isFortis, isAdmin, greeting
             </ol>
           </nav>
         )}
-        <div className="kk-user">
-          <strong>{ad}</strong>
-          <span>{[user.company, user.branch, ROL[L][user.rol]].filter(Boolean).join(" · ")}</span>
-          <button type="button" onClick={cikis}>{t.cikis}</button>
-        </div>
       </aside>
 
       <main className="kk-main" id="kk-main" tabIndex={-1}>
@@ -89,7 +79,6 @@ export default function KimlikTema({ user, moduller, isFortis, isAdmin, greeting
             <div className="kk-date">{tarih}</div>
             <h1>{greeting}, {ad.split(" ")[0]}</h1>
           </div>
-          {isAdmin && <a className="kk-btn" {...link("/izin?panel=admin")}>{t.panel} <i aria-hidden="true">→</i></a>}
         </div>
 
         {gruplar.length === 0 ? (
@@ -135,9 +124,8 @@ body { margin: 0; background: #fff; }
 .kk-skip:focus { top:12px; }
 .kk-main:focus { outline:0; }
 
-.kk-rail { width:280px; flex:none; position:sticky; top:0; height:100vh; overflow-y:auto; background:var(--navy); color:#fff; padding:44px 32px 36px; display:flex; flex-direction:column; }
-.kk-rail img { width:120px; height:auto; display:block; filter:brightness(0) invert(1); }
-.kk-cap { margin-top:56px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.6); padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,.28); }
+.kk-rail { width:280px; flex:none; position:sticky; top:65px; height:calc(100vh - 65px); overflow-y:auto; background:var(--navy); color:#fff; padding:44px 32px 36px; display:flex; flex-direction:column; }
+.kk-cap { margin-top:0; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.6); padding-bottom:14px; border-bottom:1px solid rgba(255,255,255,.28); }
 .kk-rail ol { list-style:none; }
 .kk-rail li a { display:flex; align-items:baseline; gap:16px; padding:16px 0; border-bottom:1px solid rgba(255,255,255,.18); font-size:19px; font-weight:500; letter-spacing:-.005em; transition:background .15s, color .15s; }
 .kk-rail li a b { font-size:15px; font-weight:600; width:24px; flex:none; color:rgba(255,255,255,.55); font-variant-numeric:tabular-nums; }
@@ -145,22 +133,11 @@ body { margin: 0; background: #fff; }
 .kk-rail li a.on { background:#fff; color:var(--navy); margin:0 -32px; padding:16px 32px; }
 .kk-rail li a.on b { color:var(--red); }
 .kk-rail li a:focus-visible { outline-color:#fff; outline-offset:-4px; }
-.kk-user { margin-top:auto; border-top:1px solid rgba(255,255,255,.28); padding-top:20px; min-width:0; }
-.kk-user strong { display:block; font-size:19px; font-weight:600; overflow-wrap:anywhere; }
-.kk-user span { display:block; margin-top:6px; font-size:14px; color:rgba(255,255,255,.68); }
-.kk-user button { margin-top:18px; background:none; border:0; border-bottom:1px solid rgba(255,255,255,.6); padding:0 0 3px; color:#fff; cursor:pointer;
-  font:600 14px/1.2 "Archivo",sans-serif; letter-spacing:.08em; text-transform:uppercase; }
-.kk-user button:hover { border-color:var(--red); }
-.kk-user button:focus-visible { outline-color:#fff; }
 
 .kk-main { flex:1; min-width:0; padding:44px 48px 96px; max-width:1240px; }
 .kk-top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding-bottom:28px; }
 .kk-date { font-size:14px; letter-spacing:.14em; text-transform:uppercase; color:var(--grey); font-weight:500; margin-bottom:12px; }
 .kk h1 { font-size:clamp(36px,4.2vw,56px); line-height:1; font-weight:600; letter-spacing:-.025em; text-wrap:balance; }
-.kk-btn { display:inline-flex; align-items:center; gap:14px; flex:none; background:var(--navy); color:#fff !important; height:52px; padding:0 24px; font-size:16px; font-weight:600; border-radius:2px; transition:background .15s; }
-.kk-btn:hover { background:#00114D; }
-.kk-btn i { font-style:normal; font-weight:400; transition:transform .15s; }
-.kk-btn:hover i { transform:translateX(3px); }
 
 .kk-sec { margin-top:30px; scroll-margin-top:24px; }
 .kk-sh { display:grid; grid-template-columns:72px 1fr auto; align-items:baseline; gap:16px; padding-bottom:12px; border-bottom:1px solid var(--navy); }
@@ -182,15 +159,9 @@ body { margin: 0; background: #fff; }
 @media (max-width:1200px) { .kk-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:900px) {
   .kk { flex-direction:column; }
-  .kk-rail { width:auto; height:auto; position:static; flex-direction:row; align-items:center; padding:14px 16px; gap:16px; }
-  .kk-rail img { width:84px; }
-  .kk-rail nav { display:none; }
-  .kk-user { margin:0 0 0 auto; border:0; padding:0; display:flex; align-items:center; gap:14px; }
-  .kk-user strong, .kk-user span { display:none; }
-  .kk-user button { margin:0; }
+  .kk-rail { display:none; }
   .kk-main { padding:24px 16px 80px; }
   .kk-top { flex-direction:column; align-items:flex-start; gap:18px; padding-bottom:12px; }
-  .kk-btn { height:46px; padding:0 18px; }
   .kk-sh { grid-template-columns:44px 1fr auto; gap:10px; }
   .kk-sh .n { font-size:24px; }
   .kk-sh h2 { font-size:17px; letter-spacing:.08em; }

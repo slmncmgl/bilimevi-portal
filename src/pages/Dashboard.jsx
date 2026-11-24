@@ -1,3 +1,6 @@
+// v1.22: Kullanılmayan eski başlık stilleri (styles.header, avatar, logoutBtn vb., .dash-header-*/.dash-user-* kuralları) ve temalara giden cikis prop'u kaldırıldı.
+// v1.21: Üst şerit tüm sayfalarda ortak: src/components/UstSerit.jsx (App.jsx). Buradaki header, çevrimiçi etiketi ve el sallama oraya taşındı;
+//   sürükle-bırak ipucu portal ile şeritteki "ust-serit-ek" alanına basılır. MODULE_CONFIG kart adları için export edildi.
 // v1.20: Gelen el sallama çevrimiçi etiketinin altında balon olarak çıkar; listede yazısız, yer kaplayan (satır yüksekliğini değiştirmeyen) 👋.
 // v1.19: Dürtme: listede isme gelince 👋 balonu, tıklayınca o kişiye el sallanır; gelen dürtme sağ üstte bildirim olur. Başlıktaki el kalktı.
 // v1.18: Çevrimiçi listesi açılınca el sallayan 👋 başlık (denemelik).
@@ -21,7 +24,8 @@
 // v1.0 — SCRIPT_URL merkezi config.js'e taşındı (eski deployment ID yerine güncel olan kullanılıyor)
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSession, clearSession } from "../utils/sheets";
+import { createPortal } from "react-dom";
+import { getSession } from "../utils/sheets";
 import { IZIN_YONETIM_SCRIPT_URL } from "../config";
 import { temaOku, temaKaydet, YONETICI_ROLLERI } from "./dashboard/tema";
 import TemaSecici from "./dashboard/TemaSecici";
@@ -31,18 +35,17 @@ import KimlikTema from "./dashboard/KimlikTema";
 import { useKartSirasi } from "./dashboard/kartSirasi";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
-import { nabizGonder, cevrimiciDurum, durt, durtmeDinle } from "../lib/cevrimici";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.20";
+const DASHBOARD_VERSION = "v1.22";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
 if (typeof window !== "undefined") window.__DASHBOARD_VERSION = SURUM_METNI;
 // SİL: yerel const SCRIPT_URL tanımı kaldırıldı (eski/ölü deployment ID kullanıyordu) 
 
-const MODULE_CONFIG = [
+export const MODULE_CONFIG = [
   {
     key: "izin",
     title: "İzin Yönetimi",
@@ -248,6 +251,9 @@ export default function Dashboard() {
   const [sozlesmeLoading, setSozlesmeLoading] = useState(false);
   const [sozlesmeHata, setSozlesmeHata] = useState(null);
   const [tema, setTema] = useState(temaOku);
+  // Ortak üst şeritteki ek alan (UstSerit.jsx); ilk çizimde DOM'da olmayabilir, efektte bulunur
+  const [serit, setSerit] = useState(null);
+  useEffect(() => { setSerit(document.getElementById("ust-serit-ek")); }, [user]);
 
   useEffect(() => {
     const session = getSession();
@@ -289,11 +295,6 @@ export default function Dashboard() {
     setSozlesmeLoading(false);
   }
 
-  function logout() {
-    clearSession();
-    navigate("/");
-  }
-
   const allowedModules = MODULE_CONFIG.filter(m => user?.modules?.[m.key]);
   const kullaniciAnahtari = user ? `${user.company}|${user.name}` : "";
   const kart = useKartSirasi(allowedModules, kullaniciAnahtari);
@@ -324,7 +325,6 @@ export default function Dashboard() {
         greeting={greeting}
         time={time}
         git={navigate}
-        cikis={logout}
         secici={secici}
         surum={surum}
       />
@@ -336,54 +336,11 @@ export default function Dashboard() {
       <div style={styles.bgGrid} />
       <div style={styles.bgGlow} />
 
-      {/* Header */}
-      <header style={styles.header}>
-        <div style={styles.headerInner} className="dash-header-inner">
-          <img
-            src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg"
-            alt="Bilimevi"
-            style={styles.headerLogo}
-          />
-          <div style={styles.headerRight} className="dash-header-right">
-            <CevrimiciEtiket isFortis={isFortis} />
-            {["admin", "owner", "director", "manager"].includes(user.rol) && (
-              <button onClick={() => navigate("/izin?panel=admin")}
-                style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
-                onMouseEnter={e => e.currentTarget.style.background = "#2563eb"}
-                onMouseLeave={e => e.currentTarget.style.background = "#1e3a5f"}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15">
-                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                  <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-                </svg>
-                {isFortis ? "Admin Panel" : "Yönetici Paneli"}
-              </button>
-            )}
-            {/* Sürükle-bırak ipucu: ismin solunda kırmızı "i". Sadece yönetici rollerinde (staff'ta kart az) */}
-            {["admin", "owner", "director", "manager"].includes(user.rol) && (
-              <SuruklemeIpucu kullanici={kullaniciAnahtari} isFortis={isFortis} suruklendi={kart.animasyonKapali} kartSayisi={allowedModules.length} />
-            )}
-            <div style={styles.userInfo}>
-              <div style={styles.avatar}>
-                {user.name?.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <div style={styles.userName} className="dash-user-name">{user.name}</div>
-                <div style={styles.userMeta} className="dash-user-meta">{user.company} · {user.branch}</div>
-              </div>
-            </div>
-            <button onClick={logout} style={styles.logoutBtn}
-              onMouseEnter={e => e.currentTarget.style.background = "#fee2e2"}
-              onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
-              {isFortis ? "Logout" : "Çıkış"}
-            </button>
-          </div>
-        </div>
-      </header>
+      {/* Üst şerit artık ortak (src/components/UstSerit.jsx). Sürükle-bırak ipucu şeritteki ek alana basılır. */}
+      {["admin", "owner", "director", "manager"].includes(user.rol) && serit && createPortal(
+        <SuruklemeIpucu kullanici={kullaniciAnahtari} isFortis={isFortis} suruklendi={kart.animasyonKapali} kartSayisi={allowedModules.length} />,
+        serit
+      )}
 
       {/* Main */}
       <main style={styles.main} className="dash-main">
@@ -492,9 +449,6 @@ export default function Dashboard() {
           to { opacity: 1; transform: translateY(0); }
         }
         @media (max-width: 640px) {
-          .dash-header-inner { padding: 12px 16px !important; flex-wrap: wrap; gap: 8px; }
-          .dash-user-name { display: none !important; }
-          .dash-user-meta { display: none !important; }
           .dash-greeting-title { font-size: 22px !important; }
           .dash-main { padding: 20px 12px 48px !important; }
           .dash-grid { grid-template-columns: 1fr !important; }
@@ -502,8 +456,6 @@ export default function Dashboard() {
           .dash-module-card { padding: 16px !important; gap: 12px !important; }
           .dash-module-icon { width: 44px !important; height: 44px !important; border-radius: 10px !important; }
           .dash-module-icon svg { width: 22px !important; height: 22px !important; }
-          .dash-header-right { gap: 6px !important; flex-wrap: wrap; }
-          .dash-header-right button { padding: 6px 10px !important; font-size: 11px !important; }
         }
       `}</style>
     </div>
@@ -534,73 +486,6 @@ const styles = {
     borderRadius: "50%",
     background: "radial-gradient(circle, #dbeafe44 0%, transparent 70%)",
     zIndex: 0,
-  },
-  header: {
-    position: "sticky",
-    top: 0,
-    background: "rgba(255,255,255,0.85)",
-    backdropFilter: "blur(12px)",
-    borderBottom: "1px solid #e2e8f0",
-    zIndex: 10,
-  },
-  headerInner: {
-    maxWidth: "900px",
-    margin: "0 auto",
-    padding: "16px 24px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerLogo: {
-    height: "32px",
-    objectFit: "contain",
-  },
-  headerRight: {
-    display: "flex",
-    alignItems: "center",
-    gap: "20px",
-  },
-  userInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
-  avatar: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #1d4ed8, #7c3aed)",
-    color: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "14px",
-    fontWeight: "700",
-    flexShrink: 0,
-  },
-  userName: {
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#0f172a",
-  },
-  userMeta: {
-    fontSize: "11px",
-    color: "#94a3b8",
-  },
-  logoutBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "8px 14px",
-    border: "1px solid #fecaca",
-    borderRadius: "8px",
-    background: "transparent",
-    color: "#dc2626",
-    fontSize: "12px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "background 0.2s",
-    fontFamily: "'Inter', sans-serif",
   },
   main: {
     maxWidth: "900px",
@@ -692,101 +577,3 @@ const styles = {
     fontSize: "16px",
   },
 };
-
-// Üst şeritteki "N kişi çevrimiçi" etiketi. Açılışta hemen bir nabız gönderir, sonra main.jsx'teki 1 dk'lık nabzı dinler.
-// Tıklayınca altında isim listesi açılır; isme gelince 👋 balonu çıkar, tıklayınca o kişiye el sallanır (dürtme).
-function CevrimiciEtiket({ isFortis }) {
-  const [durum, setDurum] = useState(cevrimiciDurum());
-  const [acik, setAcik] = useState(false);
-  const [uzerinde, setUzerinde] = useState(null);
-  const [gonderilen, setGonderilen] = useState({}); // id -> "gidiyor" | "tamam"
-  const kutuRef = useRef(null);
-  useEffect(() => {
-    const dinle = e => setDurum(e.detail);
-    window.addEventListener("bilimevi-cevrimici", dinle);
-    durtmeDinle(true);
-    nabizGonder();
-    return () => { window.removeEventListener("bilimevi-cevrimici", dinle); durtmeDinle(false); };
-  }, []);
-  useEffect(() => {
-    if (!acik) return;
-    const disari = e => { if (kutuRef.current && !kutuRef.current.contains(e.target)) setAcik(false); };
-    document.addEventListener("pointerdown", disari);
-    return () => document.removeEventListener("pointerdown", disari);
-  }, [acik]);
-  async function elSalla(id) {
-    if (gonderilen[id]) return;
-    setGonderilen(g => ({ ...g, [id]: "gidiyor" }));
-    await durt(id);
-    setGonderilen(g => ({ ...g, [id]: "tamam" }));
-    setTimeout(() => setGonderilen(g => { const y = { ...g }; delete y[id]; return y; }), 2500);
-  }
-  const sayi = durum?.sayi;
-  if (!sayi) return null;
-  const liste = (durum.liste || []).map(x => (typeof x === "string" ? { id: null, ad: x } : x));
-  return (
-    <div ref={kutuRef} style={{ position: "relative" }}>
-    <button type="button" onClick={() => setAcik(a => !a)} title={isFortis ? "Active in the last few minutes" : "Son birkaç dakikada portalda olanlar"}
-      style={{ display: "flex", alignItems: "center", gap: "7px", padding: "5px 11px", background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "100px", fontSize: "12px", fontWeight: "600", color: "#047857", whiteSpace: "nowrap", cursor: "pointer", fontFamily: "inherit" }}>
-      <span className="cevrimici-nokta" style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 0 0 rgba(16,185,129,0.5)", animation: "cevrimiciNabiz 2s ease-out infinite" }} />
-      {isFortis ? `${sayi} online` : `${sayi} kişi çevrimiçi`}
-    </button>
-    <DurtmeBildirim isFortis={isFortis} />
-    {acik && (
-      <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, minWidth: "230px", maxHeight: "340px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.12)", padding: "8px" }}>
-        {liste.map((k, i) => {
-          const ben = k.id && k.id === durum.ben;
-          const salla = k.id && !ben;
-          const hal = gonderilen[k.id];
-          return (
-            <div key={`${k.id || k.ad}-${i}`}
-              onMouseEnter={() => setUzerinde(k.id)} onMouseLeave={() => setUzerinde(null)}
-              onClick={() => salla && elSalla(k.id)}
-              style={{ display: "flex", alignItems: "center", gap: "8px", padding: "6px 8px", fontSize: "13px", color: "#0f172a", whiteSpace: "nowrap", borderRadius: "8px", cursor: salla ? "pointer" : "default", background: salla && uzerinde === k.id ? "#f0fdf4" : "transparent" }}>
-              <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981", flexShrink: 0 }} />
-              <span style={{ flex: 1 }}>{k.ad}{ben && <span style={{ color: "#94a3b8" }}> {isFortis ? "(you)" : "(sen)"}</span>}</span>
-              {salla && (
-                <span title={hal === "tamam" ? (isFortis ? "Sent!" : "Gitti!") : (isFortis ? "Wave" : "El salla")}
-                  className={hal || uzerinde === k.id ? "cevrimici-el" : undefined}
-                  style={{ display: "inline-block", width: "16px", height: "16px", lineHeight: "16px", fontSize: "14px", textAlign: "center", transformOrigin: "70% 70%", visibility: hal || uzerinde === k.id ? "visible" : "hidden", opacity: hal === "tamam" ? 0.45 : 1, animation: hal === "tamam" ? "none" : "cevrimiciEl 1.2s ease-in-out infinite" }}>
-                  {hal === "tamam" ? "✓" : "👋"}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    )}
-      <style>{`@keyframes cevrimiciNabiz { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
-        @keyframes cevrimiciEl { 0%, 60%, 100% { transform: rotate(0deg); } 10%, 30% { transform: rotate(14deg); } 20% { transform: rotate(-8deg); } 40% { transform: rotate(-4deg); } 50% { transform: rotate(10deg); } }
-        @keyframes durtmeGel { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-        @media (prefers-reduced-motion: reduce) { .cevrimici-nokta, .cevrimici-el { animation: none !important; } }`}</style>
-    </div>
-  );
-}
-
-// Gelen dürtmeler: çevrimiçi etiketinin altında balon "👋 X sana el salladı", 7 sn sonra kaybolur
-function DurtmeBildirim({ isFortis }) {
-  const [bildirimler, setBildirimler] = useState([]);
-  useEffect(() => {
-    const dinle = e => {
-      const yeni = e.detail.map(kimden => ({ id: Math.random().toString(36).slice(2), kimden }));
-      setBildirimler(b => [...b, ...yeni]);
-      yeni.forEach(y => setTimeout(() => setBildirimler(b => b.filter(x => x.id !== y.id)), 7000));
-    };
-    window.addEventListener("bilimevi-durtme", dinle);
-    return () => window.removeEventListener("bilimevi-durtme", dinle);
-  }, []);
-  if (!bildirimler.length) return null;
-  return (
-    <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 60, display: "flex", flexDirection: "column", gap: "8px", width: "max-content", maxWidth: "calc(100vw - 32px)" }}>
-      {bildirimler.map(b => (
-        <div key={b.id} onClick={() => setBildirimler(x => x.filter(y => y.id !== b.id))}
-          style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", background: "#fff", border: "1px solid #fde68a", borderRadius: "14px", boxShadow: "0 10px 30px rgba(15,23,42,0.15)", fontSize: "14px", color: "#0f172a", cursor: "pointer", animation: "durtmeGel 0.3s ease-out" }}>
-          <span className="cevrimici-el" style={{ display: "inline-block", fontSize: "26px", transformOrigin: "70% 70%", animation: "cevrimiciEl 1.2s ease-in-out 3" }}>👋</span>
-          <span><b>{b.kimden}</b> {isFortis ? "waved at you!" : "sana el salladı!"}</span>
-        </div>
-      ))}
-    </div>
-  );
-}

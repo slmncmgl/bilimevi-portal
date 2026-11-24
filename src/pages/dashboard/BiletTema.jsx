@@ -1,3 +1,4 @@
+// v1.1: Ortak üst şeride uyarlandı: logo, Portal yazısı, kullanıcı, Çıkış ve Yönetici Paneli bağlantısı kaldırıldı (ortak şeritte var); bekleyen onaylar, tema seçici ve sürüm kaldı.
 import { departmanlaraAyir } from "./tema";
 
 // Bilet Cüzdanı teması: üstte ince biniş kartı şeridi, modüller departmanlara göre bilet kuponları.
@@ -16,18 +17,18 @@ const OK = (
 
 const METIN = {
   tr: {
-    cikis: "Çıkış", panel: "Yönetici Paneli", bekleyen: "Bekleyen onaylar", adet: n => `${n} modül`, hepsi: "Modüllerin",
+    panel: "Yönetici Paneli", bekleyen: "Bekleyen onaylar", adet: n => `${n} modül`, hepsi: "Modüllerin",
     atla: "İçeriğe geç",
     bosBaslik: "Henüz erişim izniniz yok", bosMetin: "Yöneticinizle iletişime geçin, modüller açıldığında burada görünecek.", bosDamga: "Erişim yok",
   },
   en: {
-    cikis: "Logout", panel: "Admin Panel", bekleyen: "Pending approvals", adet: n => `${n} modules`, hepsi: "Your modules",
+    panel: "Admin Panel", bekleyen: "Pending approvals", adet: n => `${n} modules`, hepsi: "Your modules",
     atla: "Skip to content",
     bosBaslik: "You don't have access to any modules yet", bosMetin: "Please contact your manager. Modules will appear here once they are enabled.", bosDamga: "No access",
   },
 };
 
-export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting, time, git, cikis, secici, surum }) {
+export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting, time, git, secici, surum }) {
   const L = isFortis ? "en" : "tr";
   const t = METIN[L];
   const loc = isFortis ? "en-GB" : "tr-TR";
@@ -57,21 +58,6 @@ export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting,
   return (
     <div className="tb" lang={L}>
       <a className="tb-skip" href="#tb-main">{t.atla}</a>
-      <header className="tb-bar">
-        <div className="tb-bar-in">
-          <img src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg" alt="Bilimevi" width={83} height={26} />
-          <span className="tb-portal">Portal</span>
-          <span className="tb-sp" />
-          <div className="tb-who">
-            <div><b>{ad}</b><span>{user.company} · {user.branch}</span></div>
-            <span className="tb-avatar" aria-hidden="true">{ad.charAt(0).toUpperCase()}</span>
-          </div>
-          <button type="button" className="tb-out" onClick={cikis}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
-            <span>{t.cikis}</span>
-          </button>
-        </div>
-      </header>
 
       <main className="tb-main" id="tb-main" tabIndex={-1}>
         <section className="tb-pass" aria-labelledby="tb-hello">
@@ -82,7 +68,6 @@ export default function BiletTema({ user, moduller, isFortis, isAdmin, greeting,
           {isAdmin && (
             <nav className="tb-acts" aria-label={t.panel}>
               <a className="tb-go" {...link("/izin?tab=bekleyen")}><span>{t.bekleyen}</span>{OK}</a>
-              <a className="tb-ghost" {...link("/izin?panel=admin")}>{t.panel}</a>
             </nav>
           )}
           <div className="tb-stub">
@@ -152,22 +137,9 @@ body { margin: 0; background: #EBEEF4; }
 .tb svg { display:block; }
 .tb-cap { font-family:var(--cond); font-weight:700; text-transform:uppercase; letter-spacing:.12em; }
 
-.tb-bar { position:sticky; top:0; z-index:20; background:var(--navy); color:#fff; }
-.tb-bar-in { max-width:1320px; margin:0 auto; height:64px; padding:0 var(--gutter); display:flex; align-items:center; gap:24px; }
-.tb-bar img { height:26px; filter:brightness(0) invert(1); }
-.tb-portal { font:700 18px/1 var(--cond); letter-spacing:.18em; text-transform:uppercase; padding-left:20px; border-left:1px solid rgba(255,255,255,.3); color:#E6E9F5; }
-.tb-sp { flex:1; }
-.tb-who { display:flex; align-items:center; gap:12px; text-align:right; min-width:0; }
-.tb-who div { min-width:0; max-width:280px; }
-.tb-who b, .tb-who div span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.tb-who b { display:block; font-weight:600; font-size:15px; line-height:1.2; }
 .tb-skip { position:absolute; left:16px; top:-60px; z-index:50; background:var(--red); color:#fff !important; padding:10px 16px; font:700 15px/1 var(--cond); letter-spacing:.12em; text-transform:uppercase; }
 .tb-skip:focus { top:12px; }
 .tb-main:focus { outline:0; }
-.tb-who div span { display:block; font-size:13px; color:#B8C1E0; }
-.tb-avatar { width:36px; height:36px; border-radius:50%; background:#fff; color:var(--navy); display:grid; place-items:center; font:800 17px/1 var(--cond); }
-.tb-out { display:inline-flex; align-items:center; gap:8px; height:36px; padding:0 14px; background:none; color:#fff; cursor:pointer; border:1px solid rgba(255,255,255,.45); font:700 14px/1 var(--cond); letter-spacing:.14em; text-transform:uppercase; transition:background .16s var(--ease),border-color .16s var(--ease); }
-.tb-out:hover { background:var(--red); border-color:var(--red); }
 
 .tb-main { max-width:1320px; margin:0 auto; padding:32px var(--gutter) 96px; }
 
@@ -181,8 +153,6 @@ body { margin: 0; background: #EBEEF4; }
 .tb-go:hover { background:var(--red-deep); }
 .tb-go svg { transition:transform .16s var(--ease); }
 .tb-go:hover svg { transform:translateX(4px); }
-.tb-ghost { display:inline-flex; align-items:center; height:44px; padding:0 16px; border:1.5px solid var(--navy); color:var(--navy); font:700 16px/1 var(--cond); letter-spacing:.12em; text-transform:uppercase; white-space:nowrap; transition:background .16s var(--ease),color .16s var(--ease); }
-.tb-ghost:hover { background:var(--navy); color:#fff; }
 .tb-stub { background:var(--lilac); border-left:2px dashed var(--lilac-rule); padding:16px 20px; display:flex; flex-direction:column; justify-content:center; gap:6px; color:var(--carbon); position:relative; }
 .tb-stub::before, .tb-stub::after { content:""; position:absolute; left:-13px; width:24px; height:24px; border-radius:50%; background:var(--ground); border:1.5px solid var(--navy); }
 .tb-stub::before { top:-13px; clip-path:inset(50% 0 0 0); }
@@ -231,13 +201,10 @@ body { margin: 0; background: #EBEEF4; }
 }
 @media (max-width:700px) {
   .tb-main { padding-top:20px; padding-bottom:72px; }
-  .tb-bar-in { gap:12px; }
-  .tb-portal, .tb-who div { display:none; }
-  .tb-out { padding:0 10px; }
   .tb-pass { grid-template-columns:1fr; }
   .tb-pass-main { padding:18px 20px; }
   .tb-acts { grid-row:auto; padding:0 20px 18px; flex-wrap:wrap; }
-  .tb-go, .tb-ghost { height:42px; font-size:15px; }
+  .tb-go { height:42px; font-size:15px; }
   .tb-stub { border-left:0; border-top:2px dashed var(--lilac-rule); flex-direction:row; align-items:baseline; gap:12px; padding:12px 20px; }
   .tb-stub::before, .tb-stub::after { display:none; }
   .tb-stub .time { font-size:28px; }

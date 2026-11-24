@@ -1,11 +1,13 @@
+// v1.6: Ortak şeritteki Yönetici Paneli butonu /izin içindeyken de paneli açar (?panel=admin değişimi dinlenir)
+// v1.5: Üst başlık ortak şeride taşındı (Dashboard, başlık, kullanıcı ve Çıkış kaldırıldı)
 // v1.4: Test Login butonu küçültüldü
 // v1.3: Kullanıcı Yönetimi ikonu başlıkla aynı satırda
 // v1.2: Kullanıcı Yönetimi kartı tam genişlik, Test Login büyük buton olarak sağda
 // v1.1: Yönetici Paneli'nde Şube Yönetimi kartı gizlendi (şube ekleme manuel yapılıyor)
 // v1.0 — SCRIPT_URL merkezi config.js'e taşındı
 import { useState, useEffect, useRef, memo } from "react";
-import { useNavigate } from "react-router-dom";
-import { getSession, clearSession } from "../utils/sheets";
+import { useNavigate, useLocation } from "react-router-dom";
+import { getSession } from "../utils/sheets";
 import { IZIN_YONETIM_SCRIPT_URL } from "../config";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -303,6 +305,12 @@ export default function Izin() {
       if (params.get("tab") === "bekleyen") { setAdminView(true); setAdminTab("bekleyen"); }
     }
   }, []);
+
+  // Sayfa açıkken ?panel=admin gelirse (ortak üst şeritteki Yönetici Paneli butonu) paneli aç
+  const konum = useLocation();
+  useEffect(() => {
+    if (new URLSearchParams(konum.search).get("panel") === "admin" && ["admin", "owner", "director", "manager"].includes(rol)) setAdminView(true);
+  }, [konum.search, rol]);
 
   async function loadData(name) {
     setDataLoading(true);
@@ -690,7 +698,6 @@ function tarihToDate(str) {
     }
   }
 
-  function logout() { clearSession(); navigate("/"); }
   if (!user) return null;
 
   const submitDisabled = loading || (bitis && baslangic && bitis < baslangic) || isGunu <= 0 || !aciklama.trim();
@@ -707,18 +714,9 @@ function tarihToDate(str) {
         </div>
       )}
       
+      {["admin","owner","director","manager"].includes(rol) && (
       <header style={styles.header}>
         <div style={styles.headerInner} className="izin-header-inner">
-          <div style={styles.headerLeft}>
-            <button onClick={() => navigate("/dashboard")} style={styles.backBtn}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-                <polyline points="15 18 9 12 15 6"/>
-              </svg>
-              Dashboard
-            </button>
-            <span style={styles.headerSep}>·</span>
-            <span style={styles.headerTitle}>{t("İK İzin Yönetimi", "HR Leave Management")}</span>
-          </div>
           <div style={styles.headerRight} className="izin-header-right">
             {["admin","owner","director","manager"].includes(rol) && !adminView && (
               <button onClick={() => { setAdminView(true); loadAdminList(getSession()); }}
@@ -733,16 +731,10 @@ function tarihToDate(str) {
             {adminView && (
               <button onClick={() => setAdminView(false)} style={styles.adminBtn}>← Kendi İznim</button>
             )}
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #1d4ed8, #7c3aed)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "700", flexShrink: 0 }}>
-                {user.name?.charAt(0).toUpperCase()}
-              </div>
-              <span style={{ fontSize: "13px", fontWeight: "500", color: "#374151" }}>{user.name}</span>
-            </div>
-            <button onClick={logout} style={styles.logoutBtn}>Çıkış</button>
           </div>
         </div>
       </header>
+      )}
 
       <main style={styles.main} className="izin-main">
         {adminView ? (
@@ -2716,17 +2708,12 @@ const styles = {
   loadingText: { fontSize: "15px", fontWeight: "600", color: "#0f172a" },
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "Calibri, 'Sora', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: 0 },
-  header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
-  headerInner: { maxWidth: "960px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
-  headerLeft: { display: "flex", alignItems: "center", gap: "10px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#2563eb", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
-  headerSep: { color: "#cbd5e1", fontSize: "16px" },
-  headerTitle: { fontSize: "14px", fontWeight: "600", color: "#0f172a" },
+  header: { position: "sticky", top: 65, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
+  headerInner: { maxWidth: "960px", margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "flex-end" },
   headerRight: { display: "flex", alignItems: "center", gap: "12px" },
   adminBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", color: "#1d4ed8", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   userChip: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "500", color: "#374151" },
   userDot: { width: "8px", height: "8px", borderRadius: "50%", background: "#22c55e" },
-  logoutBtn: { padding: "7px 14px", background: "none", border: "1px solid #fecaca", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "Calibri, 'Sora', sans-serif" },
   main: { maxWidth: "960px", margin: "0 auto", padding: "40px 24px 64px", position: "relative", zIndex: 1 },
   pageLayout: { display: "flex", flexDirection: "column", gap: "24px" },
   formLayout: { display: "flex", flexDirection: "column", gap: "24px", animation: "fadeUp 0.4s ease-out" },

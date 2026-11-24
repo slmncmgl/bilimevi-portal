@@ -1,4 +1,5 @@
-// KayitTakip.jsx — v1.1
+// KayitTakip.jsx — v1.2
+// v1.2 — Üst başlık ortak şeride taşındı (Panel butonu, logo ve "Kayıt Takip" başlığı kaldırıldı; alt açıklama kaldı)
 // v1.1 — Danışman listesi sadece Bilimevi personeli; Kayıt Referansı yarım boy
 // v1.0 — İlk sürüm.
 //
@@ -249,27 +250,9 @@ export default function KayitTakip() {
     <div style={styles.root}>
       <div style={styles.bgGrid} />
 
-      <header style={styles.header}>
-        <div style={styles.headerInner} className="kt-header-inner">
-          <button onClick={() => navigate("/dashboard")} style={styles.backBtn}
-            onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"}
-            onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            Panel
-          </button>
-          <img
-            src="https://www.bilimevi.com/assets/images/bilimevi_logo_761.svg"
-            alt="Bilimevi"
-            style={styles.headerLogo}
-          />
-        </div>
-      </header>
 
       <main style={styles.main} className="kt-main">
         <div style={styles.titleBlock}>
-          <h1 style={styles.title} className="kt-title">Kayıt Takip</h1>
           <p style={styles.subtitle}>Yeni öğrenci kaydını takip listesine ekle</p>
         </div>
 
@@ -473,9 +456,7 @@ export default function KayitTakip() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         @media (max-width: 640px) {
-          .kt-header-inner { padding: 12px 16px !important; }
           .kt-main { padding: 20px 12px 96px !important; }
-          .kt-title { font-size: 22px !important; }
           .kt-card { padding: 16px !important; border-radius: 16px !important; }
           .kt-grid { grid-template-columns: 1fr !important; gap: 14px !important; }
           .kt-full { grid-column: auto !important; }
@@ -510,38 +491,6 @@ const styles = {
     backgroundSize: "40px 40px",
     zIndex: 0,
   },
-  header: {
-    position: "sticky",
-    top: 0,
-    background: "rgba(255,255,255,0.85)",
-    backdropFilter: "blur(12px)",
-    borderBottom: "1px solid #e2e8f0",
-    zIndex: 10,
-  },
-  headerInner: {
-    maxWidth: "900px",
-    margin: "0 auto",
-    padding: "16px 24px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerLogo: { height: "28px", objectFit: "contain" },
-  backBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "8px 14px",
-    border: "1px solid #e2e8f0",
-    borderRadius: "8px",
-    background: "transparent",
-    color: "#475569",
-    fontSize: "12px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "background 0.2s",
-    fontFamily: "'Inter', sans-serif",
-  },
   main: {
     maxWidth: "900px",
     margin: "0 auto",
@@ -550,13 +499,6 @@ const styles = {
     zIndex: 1,
   },
   titleBlock: { marginBottom: "24px" },
-  title: {
-    fontSize: "28px",
-    fontWeight: "700",
-    color: "#0f172a",
-    letterSpacing: "-0.6px",
-    marginBottom: "6px",
-  },
   subtitle: { fontSize: "14px", color: "#94a3b8", fontWeight: "400" },
   card: {
     background: "#fff",

@@ -1,10 +1,10 @@
-// KayitGuncelle.jsx v1.85
+// KayitGuncelle.jsx v1.86
+// v1.86 (24.11.2026): Üst başlık ortak şeride taşındı (Geri, kart adı ve kullanıcı satırı kaldırıldı; Listeye Dön ve sürüm kaldı, başlık şeridin altına yapışır).
 // v1.85 (23.11.2026): Özet satırında "Bu Kaydı İptal Et" (kırmızı). Onay penceresinden sonra /api/sozlesme-gonder islem "iptal"
 //   -> n8n Kayıt İptal Talebi (VmicFOIO7KXCndnm) Selman'a WhatsApp atar; Selman "ok" yanıtlayınca Onay Durumu = İptal Etti.
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 
-const SURUM = "v1.85"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.86"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 import OnayPenceresi from "./OnayPenceresi";
 
@@ -678,7 +678,6 @@ function OzetPaneli({ data }) {
 }
 
 export default function KayitGuncelle() {
-  const navigate = useNavigate();
   const user = getSession();
   // Liste filtreleri sekme kapanana kadar hatırlanır (sessionStorage, kullanıcıya özel)
   const FILTRE_ANAHTARI = `kayitGuncelleFiltre:${user?.name || ""}`;
@@ -1841,13 +1840,10 @@ export default function KayitGuncelle() {
 
       <header style={s.header}>
         <div style={s.headerInner}>
-          <button onClick={() => data ? listeyeDon() : navigate("/dashboard")} style={s.backBtn}>
-            {data ? "← Listeye Dön" : "Geri"}
-          </button>
-          <div style={s.headerTitle}>
-            <div style={s.headerTitleText}>Doldurulan Kayıt Formları</div>
-            <div style={s.headerSub}>{user?.name} | Bilimevi</div>
-          </div>
+          {data && (
+            <button onClick={listeyeDon} style={s.backBtn}>← Listeye Dön</button>
+          )}
+          <div style={{ flex: 1 }} />
           <div style={{ color: "#94a3b8", fontSize: "11px", whiteSpace: "nowrap" }}>{SURUM}</div>
         </div>
       </header>
@@ -3115,12 +3111,9 @@ const s = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Sora', sans-serif", position: "relative" },
   bgGrid: { position: "fixed", inset: 0, backgroundImage: "linear-gradient(#e2e8f018 1px, transparent 1px), linear-gradient(90deg, #e2e8f018 1px, transparent 1px)", backgroundSize: "40px 40px", zIndex: -1, pointerEvents: "none" },
   bgGlow: { position: "fixed", top: "-10%", right: "-5%", width: "500px", height: "500px", background: "radial-gradient(circle, #cffafe44 0%, transparent 70%)", zIndex: -1, pointerEvents: "none" },
-  header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 100 },
+  header: { position: "sticky", top: 65, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 100 },
   headerInner: { maxWidth: "max(min(92vw, 1100px), min(100vw, 768px))", margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: "15px" },
   backBtn: { padding: "8px 15px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer" },
-  headerTitle: { flex: 1 },
-  headerTitleText: { fontWeight: "700", fontSize: "14px" },
-  headerSub: { fontSize: "11px", color: "#94a3b8" },
   main: { maxWidth: "max(min(92vw, 1100px), min(100vw, 768px))", margin: "0 auto", padding: "20px", position: "relative", zIndex: 10 },
   searchCard: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: "15px", padding: "20px", marginBottom: "20px" },
   // Ana başlıklar: koyu pastel lacivert

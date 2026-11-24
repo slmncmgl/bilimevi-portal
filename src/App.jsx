@@ -1,3 +1,4 @@
+// v1.2 — Ortak üst şerit (src/components/UstSerit.jsx) tüm sayfaların üstünde
 // v1.1 — Test Login: /test-login ve /test-giris route'ları, test sekmesinde turuncu uyarı şeridi
 // v1.0 — /kayit-takip route'u ve KayitTakip import'u eklendi
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -20,6 +21,7 @@ import KayitTakip from './pages/KayitTakip';
 import TestLogin from './pages/TestLogin';
 import TestGiris, { TEST_GIRIS_ANAHTARI } from './pages/TestGiris';
 import KylasBaglantilari from './pages/KylasBaglantilari';
+import UstSerit from './components/UstSerit';
 
 // Test Login ile açılan sekmede her sayfanın üstünde: kimin hesabında olunduğunu unutturmamak için
 function TestGirisSeridi() {
@@ -48,6 +50,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <TestGirisSeridi />
+      <UstSerit />
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />

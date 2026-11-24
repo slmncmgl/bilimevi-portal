@@ -1,3 +1,4 @@
+// v1.1: Üst başlık ortak şeride uyarlandı (Dashboard linki kaldırıldı, sticky başlık şeridin altına, yerleşim yüksekliği 65px kısaldı)
 import { useState, useEffect, useMemo, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
@@ -183,21 +184,13 @@ const styles = `
 
   /* HEADER */
   .stm-header {
-    position: sticky; top: 0; z-index: 10;
+    position: sticky; top: 65px; z-index: 10;
     background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
     padding: 16px 24px;
     display: flex; align-items: center; justify-content: space-between;
   }
   .stm-header-left { display: flex; align-items: center; gap: 12px; }
-  .stm-header-back {
-    display: flex; align-items: center; gap: 6px;
-    padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
-    background: transparent; color: var(--muted); font-size: 12px; font-weight: 500;
-    cursor: pointer; font-family: var(--font-body); transition: all 0.15s;
-    text-decoration: none;
-  }
-  .stm-header-back:hover { border-color: var(--accent); color: var(--accent); }
   .stm-header-title h1 { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.4px; }
   .stm-header-title p { font-size: 11px; color: var(--muted); margin-top: 1px; }
   .stm-badge {
@@ -224,7 +217,7 @@ const styles = `
   /* LAYOUT */
   .stm-layout {
     display: grid; grid-template-columns: 360px 1fr;
-    height: calc(100vh - 57px - 53px - 47px); position: relative; z-index: 1; overflow: hidden;
+    height: calc(100vh - 65px - 57px - 53px - 47px); position: relative; z-index: 1; overflow: hidden;
   }
 
   /* LEFT PANEL */
@@ -751,12 +744,6 @@ export default function STMAwards() {
       {/* HEADER */}
       <div className="stm-header">
         <div className="stm-header-left">
-          <a href="/dashboard" className="stm-header-back">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-            Dashboard
-          </a>
           <div className="stm-header-title">
             <h1>STM Star Awards 2026</h1>
             <p>Toplu E-posta Gönderim · Gönderen: Memet Can Kılıç</p>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 
+// v1.5 — Üst başlık ortak şeride uyarlandı (ilk ekrandaki Dashboard dönüşü ve kart adı başlığı, adım başlıklarındaki kullanıcı adı kaldırıldı; adım başlığı şeridin altına yapışır)
 // v1.4 — Promosyon: token limiti 32768, hata mesajları görünür, konaklama+ülke bazlı oran kuralları
 // v1.3 — Özel fiyat: 3 aşamalı gruplama (şehir → kurs → bitişik hafta kademesi)
 // v1.2 — Özel fiyat: şehir gruplama + esnek eşleştirme + teşhis logları
@@ -1319,7 +1320,6 @@ KURALLAR:
   if (step === STEPS.MODE_SELECT) return (
     <div style={S.root}>
       <div style={S.bgGrid}/>
-      <Header title="Katalog Parse" user={user} onBack={() => navigate("/dashboard")}/>
       <main style={S.main}>
         <div style={{textAlign:"center", marginBottom:32, animation:"fadeUp 0.4s ease-out"}}>
           <div style={{fontSize:48, marginBottom:12}}>📚</div>
@@ -2188,7 +2188,7 @@ function Header({ title, user, onBack }) {
           : <div/>
         }
         <span style={S.headerTitle}>{title}</span>
-        <div style={S.userChip}>{user?.name}</div>
+        <div/>
       </div>
     </header>
   );
@@ -2209,11 +2209,10 @@ function Style() {
 const S = {
   root:        { minHeight:"100vh", background:"#f8fafc", fontFamily:"'Sora',sans-serif", position:"relative" },
   bgGrid:      { position:"fixed", inset:0, backgroundImage:"linear-gradient(#e2e8f018 1px,transparent 1px),linear-gradient(90deg,#e2e8f018 1px,transparent 1px)", backgroundSize:"40px 40px", zIndex:0 },
-  header:      { position:"sticky", top:0, background:"rgba(255,255,255,0.9)", backdropFilter:"blur(12px)", borderBottom:"1px solid #e2e8f0", zIndex:10 },
+  header:      { position:"sticky", top:65, background:"rgba(255,255,255,0.9)", backdropFilter:"blur(12px)", borderBottom:"1px solid #e2e8f0", zIndex:10 },
   headerInner: { maxWidth:800, margin:"0 auto", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" },
   backBtn:     { background:"none", border:"none", color:"#2563eb", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"'Sora',sans-serif" },
   headerTitle: { fontSize:16, fontWeight:700, color:"#0f172a" },
-  userChip:    { fontSize:13, fontWeight:500, color:"#374151", background:"#f1f5f9", padding:"6px 12px", borderRadius:20 },
   main:        { maxWidth:560, margin:"0 auto", padding:"48px 24px 64px", position:"relative", zIndex:1 },
   card:        { background:"#fff", border:"1.5px solid #e2e8f0", borderRadius:24, padding:"40px 32px", textAlign:"center", animation:"fadeUp 0.4s ease-out" },
   sectionCard: { background:"#fff", border:"1.5px solid #e2e8f0", borderRadius:20, padding:"24px", marginBottom:16, animation:"fadeUp 0.4s ease-out" },

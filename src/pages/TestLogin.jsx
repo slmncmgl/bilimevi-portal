@@ -1,3 +1,4 @@
+// v1.1: "Test Login" başlığı kaldırıldı (ortak şeritte görünüyor); Yönetici Paneli'ne dönüş ve açıklama kaldı
 // TestLogin.jsx v1.0: Yönetici Paneli > Kullanıcı Yönetimi > Test Login
 // Admin/owner, Personel listesindeki bir kişiye tıklayınca YAN SEKMEDE o kişinin hesabıyla giriş yapılır;
 // bu sekme kendi hesabında kalır (oturum her sekmenin kendi sessionStorage'ında).
@@ -122,8 +123,7 @@ export default function TestLogin() {
           style={{ padding: "6px 12px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "8px", cursor: "pointer", fontSize: "13px", color: "#334155" }}>
           ← Yönetici Paneli
         </button>
-        <h2 style={{ margin: "16px 0 4px", fontSize: "20px", color: "#0f172a" }}>Test Login</h2>
-        <p style={{ margin: "0 0 16px", fontSize: "13px", color: "#64748b", lineHeight: 1.5 }}>
+        <p style={{ margin: "16px 0", fontSize: "13px", color: "#64748b", lineHeight: 1.5 }}>
           Bir kişiye tıklayınca yan sekmede onun hesabıyla giriş yapılır, bu sekmede kendi hesabında kalırsın.
           Yan sekmede yaptığın her işlem gerçekten o kişi adına yapılır.
         </p>

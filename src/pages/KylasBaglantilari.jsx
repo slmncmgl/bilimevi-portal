@@ -1,3 +1,4 @@
+// v1.1: Ortak üst şeride uyarlandı (‹ Panel / Panele dön butonları ve "Kylas Bağlantıları" başlığı kaldırıldı)
 // v1.0: Admin-only "Kylas Bağlantıları". Danışmanların Kylas e-posta+şifresi buradan girilir; sunucu Kylas'ta doğrulayıp
 // şifreyi şifreli saklar (api/kylas-baglanti). Şifreler yalnızca bu ekrandan sunucuya gider, geri dönmez, tarayıcıda tutulmaz.
 // Her satır: "e-posta <tab/virgül/boşluk> şifre". Kaydet'e basınca Kylas'ta denenir; doğruysa o danışman bağlanır.
@@ -51,7 +52,7 @@ export default function KylasBaglantilari() {
 
   if (!user) return null;
   if (!YONETICI.includes(user.rol)) {
-    return <div style={s.sayfa}><div style={s.kart}><h2 style={s.h2}>Kylas Bağlantıları</h2><p style={{ color: "#991b1b" }}>Bu ekran sadece yöneticilere açık.</p><button style={s.geri} onClick={() => navigate("/dashboard")}>Panele dön</button></div></div>;
+    return <div style={s.sayfa}><div style={s.kart}><p style={{ color: "#991b1b", margin: 0 }}>Bu ekran sadece yöneticilere açık.</p></div></div>;
   }
   const basarili = (sonuc || []).filter(x => x.ok).length;
   const ornek = "ad.soyad@bilimevi.com   (tab)   (sifre)";
@@ -59,8 +60,6 @@ export default function KylasBaglantilari() {
   return (
     <div style={s.sayfa}>
       <div style={s.kart}>
-        <button style={s.geri} onClick={() => navigate("/dashboard")}>‹ Panel</button>
-        <h2 style={s.h2}>Kylas Bağlantıları</h2>
         <p style={s.aciklama}>
           Danışmanların Kylas e-posta ve şifresini gir; portaldaki not/task'lar Kylas'ta <b>o danışmanın</b> adına yazılsın.
           Şifreler sunucuda şifreli saklanır, buraya geri gelmez. Her satıra bir kişi: <code>e-posta ⇥ şifre</code> (arada Tab, virgül ya da boşluk).
@@ -99,9 +98,7 @@ export default function KylasBaglantilari() {
 const s = {
   sayfa: { minHeight: "100vh", background: "#f1f5f9", padding: "32px 16px", fontFamily: "'Sora', sans-serif" },
   kart: { maxWidth: "720px", margin: "0 auto", background: "#fff", borderRadius: "20px", border: "1.5px solid #e2e8f0", padding: "28px", boxShadow: "0 8px 24px rgba(15,23,42,0.06)" },
-  geri: { border: "none", background: "none", color: "#64748b", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif", padding: 0, marginBottom: "10px" },
-  h2: { margin: "0 0 8px", fontSize: "22px", color: "#0f172a" },
-  aciklama: { fontSize: "13px", color: "#475569", lineHeight: 1.6, marginBottom: "16px" },
+  aciklama: { fontSize: "13px", color: "#475569", lineHeight: 1.6, margin: "0 0 16px" },
   alan: { width: "100%", minHeight: "160px", resize: "vertical", padding: "14px", borderRadius: "14px", border: "1.5px solid #e2e8f0", fontSize: "13px",
     fontFamily: "ui-monospace, monospace", lineHeight: 1.6, color: "#0f172a", outline: "none", boxSizing: "border-box" },
   alt: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginTop: "12px" },

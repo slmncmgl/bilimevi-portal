@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 import YeniFormTalebi, { TALEP_ALANLARI } from "./YeniFormTalebi";
 
-const VERSION = "v2.10";
+// v2.11: Üst başlık ortak şeride taşındı (Dashboard butonu ve kart adı başlığı kaldırıldı; sürüm ve bilgi düğmesi kaldı, başlık şeridin altına yapışır)
+const VERSION = "v2.11";
 // Danışman formu + 3 öğrenci formu bu kaynaktan gelir
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const SHEET_NAME = "Aktif Linkler";
@@ -404,15 +405,7 @@ export default function KayitFormLinkleri() {
     <div style={styles.root}>
       <header style={styles.header}>
         <div style={styles.headerInner} className="kfl-header-inner">
-          <button onClick={() => navigate("/dashboard")} style={styles.backBtn}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-              <line x1="19" y1="12" x2="5" y2="12"/>
-              <polyline points="12 19 5 12 12 5"/>
-            </svg>
-            Dashboard
-          </button>
           <div style={styles.headerTitleWrap}>
-            <h1 style={styles.headerTitle}>Kayıt Form Linkleri</h1>
             <span style={styles.versionTag}>{VERSION}</span>
           </div>
           <div style={styles.infoWrap}>
@@ -638,11 +631,9 @@ export default function KayitFormLinkleri() {
 
 const styles = {
   root: { minHeight: "100vh", background: "#f8fafc", fontFamily: "'Inter', sans-serif" },
-  header: { position: "sticky", top: 0, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
+  header: { position: "sticky", top: 65, background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)", borderBottom: "1px solid #e2e8f0", zIndex: 10 },
   headerInner: { maxWidth: "820px", margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", gap: "16px" },
-  backBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 12px", background: "#f1f5f9", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#475569", fontFamily: "inherit" },
   headerTitleWrap: { display: "flex", alignItems: "center", gap: "8px" },
-  headerTitle: { fontSize: "16px", fontWeight: "700", color: "#0f172a" },
   versionTag: { fontSize: "11px", fontWeight: "600", color: "#0d9488", background: "#f0fdfa", padding: "2px 8px", borderRadius: "6px" },
   main: { maxWidth: "820px", margin: "0 auto", padding: "32px 24px 64px" },
   stateBox: { padding: "40px", textAlign: "center", color: "#94a3b8", fontSize: "14px" },
