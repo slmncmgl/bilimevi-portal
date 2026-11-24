@@ -38,6 +38,7 @@ Son güncelleme: 23 Kasım 2026 (v134 kur servisi sheet.js içinde). Repo'daki B
 - PHP plugin değişikliklerinde plugin sürüm numarası yükselir.
 
 ## Repo dışındaki parçalar
+- **v139 (24 Kasım):** okul kartının üstüne gelince indirim rozetinin üstünde "Son güncelleme: GG.AA.YYYY" kutusu (`IndirimRozet`). Kaynak master_index O sütunu `indirim_tarih` (YYYY-MM-DD; okul dosyasının discounts sekmesindeki son güncelleme = son parse). 60 günden eskiyse rozet turuncu. Parse sonrası bu sütun da güncellenmeli.
 
 Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 
