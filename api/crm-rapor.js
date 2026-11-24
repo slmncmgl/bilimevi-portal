@@ -1,3 +1,4 @@
+// v3.23: takip: son etkinlik filtresi seçiliyse son etkinliği o günden yeni olan datalar hiç listelenmez (kartlar da)
 // v3.22: Na1-Na3'teki datalar sadece VIP kaynaklıysa takipsiz sayılır
 // v3.21: staff da Danışman Ata kullanır: sadece kendi datasını, tüm satış ekibinden birine
 // v3.20: tarihi geçmiş task'ı olan data da takipsiz (Yeni hariç)
@@ -504,6 +505,8 @@ async function takip(req, res, yetki) {
     eposta: (l.emails || []).map(e => String(e?.value || "").trim().toLowerCase()).filter(Boolean), // sadece listede arama için
   });
   for (const l of leadler) {
+    // Son etkinlik filtresi: seçilen günden yeni etkinliği olan data hiç sayılmaz (etkinliği olmayan kalır)
+    if (sessizGun && zaman(l.latestActivityCreatedAt) >= sinir) continue;
     const d = danismanlar[l.ownerId] || (danismanlar[l.ownerId] = bosOzet());
     const say = alan => { ozet[alan]++; d[alan]++; };
     say("toplam");
