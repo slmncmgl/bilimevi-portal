@@ -1,3 +1,4 @@
+// v1.23: Selamlama satırındaki 👋 kaldırıldı.
 // v1.22: Kullanılmayan eski başlık stilleri (styles.header, avatar, logoutBtn vb., .dash-header-*/.dash-user-* kuralları) ve temalara giden cikis prop'u kaldırıldı.
 // v1.21: Üst şerit tüm sayfalarda ortak: src/components/UstSerit.jsx (App.jsx). Buradaki header, çevrimiçi etiketi ve el sallama oraya taşındı;
 //   sürükle-bırak ipucu portal ile şeritteki "ust-serit-ek" alanına basılır. MODULE_CONFIG kart adları için export edildi.
@@ -38,7 +39,7 @@ import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.22";
+const DASHBOARD_VERSION = "v1.23";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -346,7 +347,7 @@ export default function Dashboard() {
       <main style={styles.main} className="dash-main">
         <div style={styles.greeting}>
           <h1 style={styles.greetingTitle} className="dash-greeting-title">
-            {greeting}, <span style={styles.greetingName}>{user.name?.split(" ")[0]}</span> 👋
+            {greeting}, <span style={styles.greetingName}>{user.name?.split(" ")[0]}</span>
           </h1>
           <p style={styles.greetingDate}>
             {time.toLocaleDateString(isFortis ? "en-GB" : "tr-TR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
