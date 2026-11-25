@@ -1,3 +1,4 @@
+// v2.1: "bilimevi-durtme" detail'i hâlâ ad dizisi; her elemanın yanında window olayında detail.idler (aynı sırada gönderen id'leri) var.
 // v2.0: n8n yoklaması yerine gerçek zamanlı WebSocket (Coolify "bilimevi-cevrimici", kodu servis/cevrimici/).
 //   Bağlantı sekme gizlenince de açık kalır; koparsa artan beklemeyle (1 sn → 30 sn) yeniden bağlanır.
 //   Kimlik: portal oturum token'ı ilk mesajda gönderilir (URL'de değil). Token yoksa servis izleme modunda ad/mail ile kabul eder.
@@ -66,7 +67,9 @@ function baglan() {
       sonDurum = { sayi: m.sayi, liste: Array.isArray(m.liste) ? m.liste : [], ben: m.ben || null };
       yay("bilimevi-cevrimici", sonDurum);
     } else if (m.t === "durtme" && Array.isArray(m.kimden) && m.kimden.length) {
-      yay("bilimevi-durtme", m.kimden);
+      const d = [...m.kimden];
+      d.idler = Array.isArray(m.kimdenId) ? m.kimdenId : [];
+      yay("bilimevi-durtme", d);
     } else if (m.t === "durtuldu") {
       const r = bekleyenDurt.get(m.ref);
       if (r) { bekleyenDurt.delete(m.ref); r(!!m.ok); }

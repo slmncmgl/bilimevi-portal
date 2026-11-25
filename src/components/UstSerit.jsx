@@ -208,13 +208,22 @@ function DurtmeBildirim({ isFortis }) {
   const [bildirimler, setBildirimler] = useState([]);
   useEffect(() => {
     const dinle = e => {
-      const yeni = e.detail.map(kimden => ({ id: Math.random().toString(36).slice(2), kimden }));
+      const idler = e.detail.idler || [];
+      const yeni = e.detail.map((kimden, i) => ({ id: Math.random().toString(36).slice(2), kimden, kimdenId: idler[i] || null, durum: null }));
       setBildirimler(b => [...b, ...yeni]);
-      yeni.forEach(y => setTimeout(() => setBildirimler(b => b.filter(x => x.id !== y.id)), 7000));
+      yeni.forEach(y => setTimeout(() => setBildirimler(b => b.filter(x => x.id !== y.id)), 10000));
     };
     window.addEventListener("bilimevi-durtme", dinle);
     return () => window.removeEventListener("bilimevi-durtme", dinle);
   }, []);
+  async function karsilik(b, e) {
+    e.stopPropagation();
+    if (!b.kimdenId || b.durum) return;
+    setBildirimler(x => x.map(y => (y.id === b.id ? { ...y, durum: "gidiyor" } : y)));
+    const ok = await durt(b.kimdenId);
+    setBildirimler(x => x.map(y => (y.id === b.id ? { ...y, durum: ok ? "tamam" : "olmadi" } : y)));
+    setTimeout(() => setBildirimler(x => x.filter(y => y.id !== b.id)), 1800);
+  }
   if (!bildirimler.length) return null;
   return (
     <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 60, display: "flex", flexDirection: "column", gap: "8px", width: "max-content", maxWidth: "calc(100vw - 32px)" }}>
@@ -223,6 +232,15 @@ function DurtmeBildirim({ isFortis }) {
           style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", background: "#fff", border: "1px solid #fde68a", borderRadius: "14px", boxShadow: "0 10px 30px rgba(15,23,42,0.15)", fontSize: "14px", color: "#0f172a", cursor: "pointer", animation: "durtmeGel 0.3s ease-out" }}>
           <span className="cevrimici-el" style={{ display: "inline-block", fontSize: "26px", transformOrigin: "70% 70%", animation: "cevrimiciEl 1.2s ease-in-out 3" }}>👋</span>
           <span><b>{b.kimden}</b> {isFortis ? "waved at you!" : "sana el salladı!"}</span>
+          {b.kimdenId && (
+            <button type="button" onClick={e => karsilik(b, e)} disabled={!!b.durum}
+              style={{ marginLeft: "4px", padding: "6px 12px", background: b.durum === "tamam" ? "#ecfdf5" : "#fef3c7", border: `1px solid ${b.durum === "tamam" ? "#a7f3d0" : "#fcd34d"}`, borderRadius: "100px", fontSize: "13px", fontWeight: "600", color: b.durum === "tamam" ? "#047857" : "#92400e", cursor: b.durum ? "default" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+              {b.durum === "tamam" ? (isFortis ? "Waved ✓" : "Salladın ✓")
+                : b.durum === "olmadi" ? (isFortis ? "Offline" : "Çevrimdışı")
+                : b.durum === "gidiyor" ? "…"
+                : (isFortis ? "👋 Wave back" : "👋 Sen de el salla")}
+            </button>
+          )}
         </div>
       ))}
     </div>
