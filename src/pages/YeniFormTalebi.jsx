@@ -1,5 +1,5 @@
 // Kayıt Form Linkleri > "Yeni Kayıt Formu Talebi" penceresi
-// 1) Klonlanacak örnek okul var mı? (aramayla seçilir)  2) 13 alan doldurulur  3) api/kayit-formu-talebi → n8n → "Form Talepleri" sekmesi
+// 1) Örnek okul aramayla seçilir; aranan okul yoksa "Sıfırdan form kur"  2) 13 alan doldurulur  3) api/kayit-formu-talebi → n8n → "Form Talepleri" sekmesi
 import { useEffect, useRef, useState } from "react";
 
 // Sheet başlıklarıyla birebir aynı ad; çok satırlılar textarea
@@ -53,8 +53,8 @@ function norm(s) {
 }
 
 export default function YeniFormTalebi({ schools, renderTags, talepEden, onClose }) {
-  // adim: "soru" | "sec" | "form" | "tamam"
-  const [adim, setAdim] = useState("soru");
+  // adim: "sec" | "form" | "tamam"
+  const [adim, setAdim] = useState("sec");
   const [ornek, setOrnek] = useState(null);
   const [arama, setArama] = useState("");
   const [alanlar, setAlanlar] = useState(bosForm);
@@ -169,26 +169,8 @@ export default function YeniFormTalebi({ schools, renderTags, talepEden, onClose
           <button onClick={onClose} disabled={gonderiliyor} style={s.closeX} aria-label="Kapat">×</button>
         </div>
 
-        {adim === "soru" && (
-          <div style={s.body}>
-            <p style={s.question}>Klonlamak istediğiniz bir form var mı?</p>
-            <p style={s.help}>Örnek bir okul seçerseniz bilgileri forma dolu gelir, sadece değişenleri düzeltirsiniz.</p>
-            <div style={s.choiceGrid} className="yft-choice-grid">
-              <button onClick={() => setAdim("sec")} style={{ ...s.choice, ...s.choicePrimary }}>
-                <strong>Evet, örnek okul seç</strong>
-                <span style={s.choiceSub}>Mevcut bir formun bilgileriyle başla</span>
-              </button>
-              <button onClick={bosBasla} style={s.choice}>
-                <strong>Hayır, boş başla</strong>
-                <span style={s.choiceSub}>Tüm alanları kendim dolduracağım</span>
-              </button>
-            </div>
-          </div>
-        )}
-
         {adim === "sec" && (
           <div style={s.body}>
-            <button onClick={() => setAdim("soru")} style={s.back}>← Geri</button>
             <p style={s.question}>Örnek okulu seçin</p>
             <input
               ref={aramaRef}
@@ -201,7 +183,14 @@ export default function YeniFormTalebi({ schools, renderTags, talepEden, onClose
             />
             <div style={s.pickList}>
               {sonuclar.length === 0 ? (
-                <div style={s.empty}>Eşleşen program bulunamadı.</div>
+                <div style={s.empty}>
+                  Eşleşen program bulunamadı.
+                  <div style={{ marginTop: 12 }}>
+                    <button onClick={bosBasla} style={{ ...s.choice, ...s.choicePrimary, display: "inline-flex", width: "auto" }}>
+                      <strong>Sıfırdan form kur</strong>
+                    </button>
+                  </div>
+                </div>
               ) : sonuclar.map(sc => (
                 <button key={sc.id} onClick={() => ornekSec(sc)} style={s.pickItem} className="yft-pick">
                   {renderTags(sc)}
@@ -218,7 +207,7 @@ export default function YeniFormTalebi({ schools, renderTags, talepEden, onClose
               <span style={s.ornekText}>
                 {ornek ? <>Örnek: <strong>{ornek.name}</strong>{ornek.meta && <span style={s.ornekMeta}> · {ornek.meta}</span>}</> : "Boş form"}
               </span>
-              <button onClick={() => setAdim(ornek ? "sec" : "soru")} style={s.linkBtn}>Değiştir</button>
+              <button onClick={() => setAdim("sec")} style={s.linkBtn}>Değiştir</button>
             </div>
 
             <div style={s.grid} className="yft-grid">
