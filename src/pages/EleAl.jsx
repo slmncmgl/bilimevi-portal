@@ -1,3 +1,4 @@
+// v2.13: üst şeritte basit pomodoro (5-25 dk, tek tur); bitince şerit 3 sn yeşil yanar
 // v2.12: sayaçtaki toplam (örn. / 181) tıklanınca 20'şerli isim listesi açılır, sayfalar arasında geçilir; isme tıklayınca o dataya gidilir
 // v2.11: task kartı sade: Kylas'ın otomatik adı ("Task due at ... for ...") ve atanan danışman gizli, gün sayısı yok; tarih geçtiyse kırmızı,
 //       gelmediyse mavi; tür (Follow Up vb.) adın üstünde küçük; "Tamamla"; Task oluştur düğmesi tam genişlik
@@ -45,6 +46,7 @@ import { apiCagir, tarih, KYLAS_LEAD_URL, KAYNAKLAR } from "./CrmRaporu";
 import { VIP_KAYNAKLAR } from "./KaynakSecici";
 import OnayPenceresi from "./OnayPenceresi";
 import Ipucu from "./Ipucu";
+import Pomodoro from "./Pomodoro";
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
@@ -80,6 +82,8 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
 }
 
 export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat }) {
+  const [pomYesil, setPomYesil] = useState(false);
+  useEffect(() => { if (!pomYesil) return; const id = setTimeout(() => setPomYesil(false), 3000); return () => clearTimeout(id); }, [pomYesil]);
   const [leadler, setLeadler] = useState(ilkListe); // bu turda ele alınan datalar (atlananlar turunda sadece onlar)
   const [tur, setTur] = useState(1);
   const [atlanan, setAtlanan] = useState({}); // id -> true (not girmeden geçilen)
@@ -282,7 +286,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
   return createPortal(
     <div style={s.zemin} role="dialog" aria-modal="true" aria-label="Toplu Data Follow Up">
       <style>{EKRAN_CSS}</style>
-      <header className="elal-ust" style={s.ust}>
+      <header className={`elal-ust${pomYesil ? " elal-pom-bitti" : ""}`} style={s.ust}>
         <div style={{ gridColumn: "1 / 3", display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
           <span style={s.logo}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
@@ -293,6 +297,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
             <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a" }}>Toplu Data Follow Up</div>
             <div style={{ fontSize: "12px", color: "#64748b" }}>{listeAdi} · {girilen} Data'ya not girildi{atlananSayi ? ` · ${atlananSayi} atlandı` : ""}{tur > 1 ? ` · Atlananlar, ${tur}. tur` : ""}</div>
           </div>
+          <Pomodoro onBitti={() => setPomYesil(true)} />
         </div>
         <div className="elal-sag" style={s.sagBlok}>
           <button type="button" onClick={geri} disabled={(sira === 0 && !bitti) || kaydediliyor} style={{ ...s.ok, opacity: sira === 0 && !bitti ? 0.35 : 1 }}
@@ -763,6 +768,16 @@ const s = {
 };
 
 const EKRAN_CSS = `
+        @keyframes elalPomYesil {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 100% 50%; }
+        }
+        .elal-pom-bitti {
+          background: linear-gradient(100deg, #bbf7d0, #4ade80, #22c55e, #86efac, #bbf7d0) !important;
+          background-size: 300% 100% !important;
+          animation: elalPomYesil 1.5s ease-in-out infinite alternate;
+          transition: background 0.4s;
+        }
 @keyframes elalGir { from { opacity: 0; transform: scale(0.985); } to { opacity: 1; transform: none; } }
 @keyframes elalKart { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
 @keyframes elalAkis { to { background-position: 200% 0; } }
