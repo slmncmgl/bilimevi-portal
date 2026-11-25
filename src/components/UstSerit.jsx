@@ -1,3 +1,4 @@
+// v1.9: "Giriş saatleri" ortada açılan pencerede: saatlik ortalama çubuk grafiği + ısı haritası + yorum
 // v1.8: yöneticiler çevrimiçi listesinin altında "Giriş saatleri" ısı haritası açabilir (son 14 gün × 24 saat + kısa yorum)
 // v1.7: standart sayfa genişliği 1100px (tüm sayfalar aynı)
 // v1.6: genişlik her sayfada ana sayfayla aynı (900px); kart adı ve açıklaması yazılmaz; Geri düğmesi koyu ve belirgin
@@ -15,6 +16,7 @@
 // Giriş ekranında, Google dönüşünde, Test Giriş sekmesinde ve oturum yokken görünmez.
 // Sayfalar kendi üst şeritlerinde logo / "Ana Sayfa" / kart adı tekrarı yapmaz; sticky başlıkları UST_SERIT_YUKSEKLIK altına yapışır.
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
 import { nabizGonder, cevrimiciDurum, durt, durtmeDinle, isiIste } from "../lib/cevrimici";
@@ -172,8 +174,9 @@ function CevrimiciEtiket({ isFortis, yonetici }) {
       {isFortis ? `${sayi} online` : `${sayi} kişi çevrimiçi`}
     </button>
     <DurtmeBildirim isFortis={isFortis} />
+    {isiAcik && <IsiPenceresi isFortis={isFortis} onKapat={() => setIsiAcik(false)} />}
     {acik && (
-      <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, minWidth: "230px", width: isiAcik ? "min(560px, calc(100vw - 24px))" : undefined, maxHeight: isiAcik ? "80vh" : "340px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.12)", padding: "8px" }}>
+      <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, minWidth: "230px", maxHeight: "340px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.12)", padding: "8px" }}>
         {liste.map((k, i) => {
           const ben = k.id && k.id === durum.ben;
           const salla = k.id && !ben;
@@ -197,17 +200,16 @@ function CevrimiciEtiket({ isFortis, yonetici }) {
         })}
         {yonetici && (
           <div style={{ borderTop: "1px solid #f1f5f9", marginTop: "6px", paddingTop: "6px" }}>
-            <button type="button" onClick={() => setIsiAcik(v => !v)}
-              style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "6px 8px", border: "none", borderRadius: "8px", background: isiAcik ? "#f0fdf4" : "transparent", color: "#047857", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+            <button type="button" onClick={() => { setIsiAcik(true); setAcik(false); }}
+              style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "6px 8px", border: "none", borderRadius: "8px", background: "transparent", color: "#047857", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
                 <rect x="3" y="3" width="5" height="5" rx="1" opacity=".35"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="17" y="3" width="4" height="5" rx="1" opacity=".6"/>
                 <rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1" opacity=".6"/><rect x="17" y="10" width="4" height="5" rx="1" opacity=".35"/>
                 <rect x="3" y="17" width="5" height="4" rx="1" opacity=".6"/><rect x="10" y="17" width="5" height="4" rx="1" opacity=".35"/><rect x="17" y="17" width="4" height="4" rx="1"/>
               </svg>
               <span style={{ flex: 1 }}>{isFortis ? "Login hours" : "Giriş saatleri"}</span>
-              <span style={{ color: "#94a3b8" }}>{isiAcik ? "▴" : "▾"}</span>
+              <span style={{ color: "#94a3b8" }}>›</span>
             </button>
-            {isiAcik && <IsiHaritasi isFortis={isFortis} />}
           </div>
         )}
       </div>
@@ -298,39 +300,108 @@ function DurtmeBildirim({ isFortis }) {
   );
 }
 
-// Yöneticiler için: son 14 günde her saatte portalda bulunan farklı kişi sayısı (İstanbul saati) + kısa yorum
+// Yöneticiler için: son 14 günde her saatte portalda bulunan farklı kişi sayısı (İstanbul saati).
+// Ortada açılan pencere: üstte yorum, saatlik ortalama çubuk grafiği, altta gün × saat ısı haritası.
 function ikiH(n) { return String(n).padStart(2, "0"); }
-function IsiHaritasi({ isFortis }) {
+function IsiPenceresi({ isFortis, onKapat }) {
   const [gunler, setGunler] = useState(undefined); // undefined: yükleniyor, null: alınamadı
+  const [secili, setSecili] = useState(null); // çubuk üstündeki saat
   useEffect(() => { let iptal = false; isiIste(14).then(g => { if (!iptal) setGunler(g); }); return () => { iptal = true; }; }, []);
-  if (gunler === undefined) return <div style={{ padding: "12px 8px", fontSize: "12px", color: "#94a3b8" }}>{isFortis ? "Loading…" : "Yükleniyor…"}</div>;
-  if (!gunler || !gunler.length) return <div style={{ padding: "12px 8px", fontSize: "12px", color: "#94a3b8" }}>{isFortis ? "No data yet." : "Henüz veri yok. Kayıt 25.11.2026'da başladı."}</div>;
-  const enFazla = Math.max(1, ...gunler.flatMap(g => g.saatler));
-  const ort = Array.from({ length: 24 }, (_, s) => gunler.reduce((t, g) => t + (g.saatler[s] || 0), 0) / gunler.length);
-  const zirve = ort.indexOf(Math.max(...ort));
-  let ikili = 0; for (let s = 1; s < 24; s++) if (ort[s - 1] + ort[s] > ort[ikili] + ort[ikili + 1]) ikili = s - 1;
-  const esik = Math.max(...ort) * 0.25;
-  const aktif = ort.map((v, s) => (v >= esik && v > 0 ? s : -1)).filter(s => s >= 0);
-  const gunAdi = g => new Date(g + "T12:00:00").toLocaleDateString(isFortis ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit", weekday: "short" });
-  const renk = v => (v ? `rgba(16, 185, 129, ${0.15 + 0.85 * (v / enFazla)})` : "#f1f5f9");
-  const yorum = Math.max(...ort) === 0 ? (isFortis ? "No activity yet." : "Henüz hareket yok.") : isFortis
-    ? `Busiest: ${ikiH(ikili)}:00–${ikiH(ikili + 2)}:00 (peak ${ikiH(zirve)}:00, avg ${ort[zirve].toFixed(1)} people). Active hours usually ${ikiH(aktif[0])}:00–${ikiH(aktif[aktif.length - 1] + 1)}:00.`
-    : `En yoğun aralık ${ikiH(ikili)}:00–${ikiH(ikili + 2)}:00; zirve ${ikiH(zirve)}:00 (ortalama ${ort[zirve].toFixed(1).replace(".", ",")} kişi). Portal genelde ${ikiH(aktif[0])}:00–${ikiH(aktif[aktif.length - 1] + 1)}:00 arası kullanılıyor.`;
-  const hucre = { width: "100%", aspectRatio: "1", borderRadius: "3px" };
-  return (
-    <div style={{ padding: "8px 6px 4px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "62px repeat(24, minmax(0, 1fr))", gap: "2px", alignItems: "center", fontSize: "10px", color: "#64748b" }}>
-        <span />
-        {Array.from({ length: 24 }, (_, s) => <span key={s} style={{ textAlign: "center" }}>{s % 3 === 0 ? ikiH(s) : ""}</span>)}
-        {gunler.map(g => (
-          <div key={g.gun} style={{ display: "contents" }}>
-            <span style={{ whiteSpace: "nowrap" }}>{gunAdi(g.gun)}</span>
-            {g.saatler.map((v, s) => <span key={s} title={`${gunAdi(g.gun)} ${ikiH(s)}:00 · ${v} ${isFortis ? "people" : "kişi"}`} style={{ ...hucre, background: renk(v) }} />)}
+  useEffect(() => {
+    const tus = e => { if (e.key === "Escape") onKapat(); };
+    document.addEventListener("keydown", tus);
+    const eski = document.body.style.overflow; document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", tus); document.body.style.overflow = eski; };
+  }, []);
+  const T = (tr, en) => (isFortis ? en : tr);
+  let icerik;
+  if (gunler === undefined) icerik = <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>{T("Yükleniyor…", "Loading…")}</div>;
+  else if (!gunler || !gunler.length) icerik = <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>{T("Henüz veri yok. Kayıt 25.11.2026'da başladı.", "No data yet.")}</div>;
+  else {
+    const enFazla = Math.max(1, ...gunler.flatMap(g => g.saatler));
+    const ort = Array.from({ length: 24 }, (_, s) => gunler.reduce((t, g) => t + (g.saatler[s] || 0), 0) / gunler.length);
+    const ortMax = Math.max(...ort);
+    const zirve = ort.indexOf(ortMax);
+    let ikili = 0; for (let s = 1; s < 23; s++) if (ort[s] + ort[s + 1] > ort[ikili] + ort[ikili + 1]) ikili = s;
+    const aktif = ort.map((v, s) => (v > 0 && v >= ortMax * 0.25 ? s : -1)).filter(s => s >= 0);
+    const gunToplam = gunler.map(g => ({ gun: g.gun, toplam: g.saatler.reduce((a, b) => a + b, 0) }));
+    const enYogunGun = gunToplam.reduce((a, b) => (b.toplam > a.toplam ? b : a));
+    const gunAdi = (g, uzun) => new Date(g + "T12:00:00").toLocaleDateString(isFortis ? "en-GB" : "tr-TR", uzun ? { day: "numeric", month: "long", weekday: "long" } : { day: "2-digit", month: "2-digit", weekday: "short" });
+    const virgul = v => v.toFixed(1).replace(".", isFortis ? "." : ",");
+    const renk = v => (v ? `rgba(16, 185, 129, ${0.15 + 0.85 * (v / enFazla)})` : "#f1f5f9");
+    const yorumlar = ortMax === 0 ? [T("Henüz hareket yok.", "No activity yet.")] : [
+      T(`En yoğun aralık ${ikiH(ikili)}:00–${ikiH(ikili + 2)}:00.`, `Busiest window ${ikiH(ikili)}:00–${ikiH(ikili + 2)}:00.`),
+      T(`Zirve saat ${ikiH(zirve)}:00, ortalama ${virgul(ortMax)} kişi.`, `Peak hour ${ikiH(zirve)}:00, avg ${virgul(ortMax)} people.`),
+      T(`Portal genelde ${ikiH(aktif[0])}:00–${ikiH(aktif[aktif.length - 1] + 1)}:00 arası kullanılıyor.`, `Usually used ${ikiH(aktif[0])}:00–${ikiH(aktif[aktif.length - 1] + 1)}:00.`),
+      gunler.length > 1 && T(`En hareketli gün ${gunAdi(enYogunGun.gun, true)}.`, `Busiest day ${gunAdi(enYogunGun.gun, true)}.`),
+    ].filter(Boolean);
+    const GRAFIK_Y = 160;
+    icerik = (
+      <>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "18px" }}>
+          {yorumlar.map((y, i) => (
+            <span key={i} style={{ padding: "6px 12px", background: i === 0 ? "#047857" : "#ecfdf5", color: i === 0 ? "#fff" : "#065f46", border: i === 0 ? "none" : "1px solid #a7f3d0", borderRadius: "100px", fontSize: "13px", fontWeight: 600 }}>{y}</span>
+          ))}
+        </div>
+        <div style={{ fontSize: "12px", fontWeight: 700, color: "#334155", marginBottom: "8px" }}>{T("Saatlik ortalama (kişi)", "Hourly average (people)")}</div>
+        <div style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gap: "4px", alignItems: "end", height: `${GRAFIK_Y}px`, padding: "0 2px", borderBottom: "1px solid #e2e8f0" }}
+          onMouseLeave={() => setSecili(null)}>
+          {ort.map((v, s) => {
+            const h = ortMax ? Math.max(v ? 4 : 0, (v / ortMax) * (GRAFIK_Y - 22)) : 0;
+            const vurgu = s >= ikili && s <= ikili + 1;
+            return (
+              <div key={s} onMouseEnter={() => setSecili(s)} style={{ position: "relative", height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", cursor: "default" }}>
+                {(secili === s || s === zirve) && v > 0 && (
+                  <span style={{ position: "absolute", bottom: `${h + 4}px`, left: "50%", transform: "translateX(-50%)", fontSize: "11px", fontWeight: 700, color: "#065f46", whiteSpace: "nowrap" }}>{virgul(v)}</span>
+                )}
+                <div style={{ height: `${h}px`, borderRadius: "5px 5px 2px 2px", background: vurgu ? "linear-gradient(180deg, #10b981, #047857)" : secili === s ? "#34d399" : "#a7f3d0", transition: "height .5s ease, background .15s" }} />
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gap: "4px", padding: "4px 2px 0", fontSize: "10px", color: "#94a3b8", textAlign: "center" }}>
+          {ort.map((_, s) => <span key={s}>{s % 2 === 0 ? ikiH(s) : ""}</span>)}
+        </div>
+
+        <div style={{ fontSize: "12px", fontWeight: 700, color: "#334155", margin: "22px 0 8px" }}>{T("Gün × saat", "Day × hour")}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "78px repeat(24, minmax(0, 1fr))", gap: "3px", alignItems: "center", fontSize: "11px", color: "#64748b" }}>
+          <span />
+          {Array.from({ length: 24 }, (_, s) => <span key={s} style={{ textAlign: "center", fontSize: "10px" }}>{s % 3 === 0 ? ikiH(s) : ""}</span>)}
+          {gunler.map(g => (
+            <div key={g.gun} style={{ display: "contents" }}>
+              <span style={{ whiteSpace: "nowrap" }}>{gunAdi(g.gun)}</span>
+              {g.saatler.map((v, s) => <span key={s} title={`${gunAdi(g.gun)} ${ikiH(s)}:00 · ${v} ${T("kişi", "people")}`} style={{ height: "18px", borderRadius: "4px", background: renk(v), outline: secili === s ? "1.5px solid #047857" : "none" }} />)}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "12px", fontSize: "11px", color: "#94a3b8" }}>
+          <span>{T("Az", "Less")}</span>
+          {[0, 0.25, 0.5, 0.75, 1].map(x => <span key={x} style={{ width: "14px", height: "14px", borderRadius: "3px", background: x ? `rgba(16,185,129,${0.15 + 0.85 * x})` : "#f1f5f9" }} />)}
+          <span>{T("Çok", "More")}</span>
+          <span style={{ marginLeft: "auto" }}>{T("Son 14 gün · İstanbul saati · o saatte portalda bulunan farklı kişi", "Last 14 days · Istanbul time · distinct people online")}</span>
+        </div>
+      </>
+    );
+  }
+  return createPortal(
+    <div onClick={onKapat} style={{ position: "fixed", inset: 0, zIndex: 9700, background: "rgba(15,23,42,0.35)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", fontFamily: "'Inter', 'Segoe UI', sans-serif", animation: "isiGel .2s ease-out" }}>
+      <div role="dialog" aria-modal="true" aria-label={T("Giriş saatleri", "Login hours")} onClick={e => e.stopPropagation()}
+        style={{ width: "min(860px, 100%)", maxHeight: "calc(100vh - 32px)", overflowY: "auto", background: "#fff", borderRadius: "20px", border: "1px solid #d1fae5", boxShadow: "0 24px 60px rgba(15,23,42,0.25)", padding: "22px 26px 20px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+          <span style={{ width: "38px", height: "38px", borderRadius: "12px", background: "linear-gradient(135deg, #10b981, #047857)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2" /></svg>
+          </span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: "17px", fontWeight: 800, color: "#0f172a" }}>{T("Giriş saatleri", "Login hours")}</div>
+            <div style={{ fontSize: "12px", color: "#64748b" }}>{T("Portal gün içinde hangi saatlerde kullanılıyor", "When the portal is used during the day")}</div>
           </div>
-        ))}
+          <button type="button" onClick={onKapat} aria-label={T("Kapat", "Close")}
+            style={{ width: "34px", height: "34px", borderRadius: "10px", border: "1px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "18px", lineHeight: 1, cursor: "pointer" }}>×</button>
+        </div>
+        {icerik}
       </div>
-      <div style={{ marginTop: "10px", padding: "8px 10px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "10px", fontSize: "12px", lineHeight: 1.5, color: "#065f46", whiteSpace: "normal" }}>{yorum}</div>
-      <div style={{ marginTop: "6px", fontSize: "10px", color: "#94a3b8", whiteSpace: "normal" }}>{isFortis ? "Distinct people online in each hour, last 14 days (Istanbul time)." : "Her hücre: o saatte portalda bulunan farklı kişi sayısı, son 14 gün (İstanbul saati)."}</div>
-    </div>
+      <style>{`@keyframes isiGel { from { opacity: 0; } to { opacity: 1; } }`}</style>
+    </div>,
+    document.body
   );
 }
