@@ -28,6 +28,11 @@ function tokenOku() {
   }
 }
 
+// Çevrimiçi WebSocket servisine kimlik için (src/lib/cevrimici.js)
+export function tokenAl() {
+  return tokenOku();
+}
+
 // Şifreli girişten sonra arka planda çağrılır. Hata olursa sessizce geçer, giriş etkilenmez.
 export function tokenIste(username, password) {
   fetch("/api/login", {

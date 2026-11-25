@@ -131,7 +131,7 @@ export default function UstSerit() {
   );
 }
 
-// Üst şeritteki "N kişi çevrimiçi" etiketi. Açılışta hemen bir nabız gönderir, sonra main.jsx'teki 1 dk'lık nabzı dinler.
+// Üst şeritteki "N kişi çevrimiçi" etiketi. Durum main.jsx'te açılan WebSocket bağlantısından anında gelir.
 // Tıklayınca altında isim listesi açılır; isme gelince 👋 balonu çıkar, tıklayınca o kişiye el sallanır (dürtme).
 function CevrimiciEtiket({ isFortis }) {
   const [durum, setDurum] = useState(cevrimiciDurum());
