@@ -1,4 +1,5 @@
-// KayitGuncelle.jsx v1.88
+// KayitGuncelle.jsx v1.89
+// v1.89 (25.11.2026): Onay Durumu "İptal Etti" olan kayıtlar listede gösterilmiyor.
 // v1.88 (25.11.2026): TR Okul Adı sütunu TR_Okul_Default boşsa form adını göstermiyor, "-" yazıyor.
 // v1.87: Tüm Filtreleri Temizle düğmesinde ikon yok
 // v1.86 (24.11.2026): Üst başlık ortak şeride taşındı (Geri, kart adı ve kullanıcı satırı kaldırıldı; Listeye Dön ve sürüm kaldı, başlık şeridin altına yapışır).
@@ -1000,7 +1001,7 @@ export default function KayitGuncelle() {
     try {
       // Elle yenilemede tek deneme (liste zaten ekranda); ilk yüklemede 3 deneme
       const denemeSayisi = elle ? 1 : LISTE_ARA_MS.length + 1;
-      const [liste] = await Promise.all([
+      let [liste] = await Promise.all([
         (async () => {
           for (let i = 0; i < denemeSayisi; i++) {
             if (i) {
@@ -1015,6 +1016,7 @@ export default function KayitGuncelle() {
         // Elle yenilemede neon çizgi en az bir tur dönsün
         new Promise(r => setTimeout(r, elle ? 1000 : 0)),
       ]);
+      if (liste) liste = liste.filter(o => !sadelestir(o["Onay Durumu"]).includes("iptal"));
       if (liste) {
         if (elle) {
           const eskiler = new Set(ogrencilerim.map(satirAnahtari));
