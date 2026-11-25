@@ -1,3 +1,5 @@
+// v1.9: danışman seçimi çoklu (admin/manager). Tek kişi: eski özet. 2+ kişi: "Aktivite sayıları" çubuk grafiği
+//       (son aktivitesi aralıkta olan data, son güncelleyene göre; Bugün / Dün / Son 7 gün / Son N gün). crm-rapor aktiviteSayilari.
 // v1.8: VIP Datalar varsayılanda ON, "Tüm Kaynaklar" (FiltreCubugu v1.6)
 // v1.7: VIP Datalar OFF VIP kaynakları seçimden çıkarır (FiltreCubugu v1.5)
 // v1.6: açılışta tüm veri kaynakları seçili
@@ -24,7 +26,7 @@ const ASAMALAR = [
 const ASAMA_ADI = Object.fromEntries(ASAMALAR);
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const SAYFA = 20;
-export const OZET_SURUM = "v1.8"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const OZET_SURUM = "v1.9"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ACIKLAMA = {
   baslik: "Seçili danışmanın bu dönemdeki işleri ve bu dönemde aldığı yeni datalar. Kaynak seçiliyse sadece o kaynaklardaki datalar sayılır. Tümü: tüm zamanlar.",
@@ -42,7 +44,9 @@ const ACIKLAMA = {
 export default function DanismanOzeti({ user, isAdmin, isManager }) {
   const [kisiler, setKisiler] = useState(null);
   const [kisiHata, setKisiHata] = useState(null);
-  const [kisiId, setKisiId] = useState(null); // açılışta boş: danışman seçilmeden istek gitmez
+  const [kisiIdler, setKisiIdler] = useState([]); // açılışta boş: danışman seçilmeden istek gitmez
+  const kisiId = kisiIdler.length === 1 ? kisiIdler[0] : null;
+  const coklu = kisiIdler.length > 1;
   const [gun, setGun] = useState(7); // null = Tümü
   const [kaynaklar, setKaynaklar] = useState(TUM_KAYNAKLAR); // açılışta tüm kaynaklar; boşsa da tüm kaynaklar
   const [veri, setVeri] = useState(null);
@@ -66,7 +70,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
     .sort((a, b) => (a.sube || "").localeCompare(b.sube || "", "tr") || a.ad.localeCompare(b.ad, "tr"));
   // Staff sadece kendini görür: açılışta doğrudan kendisi seçili gelir. Admin ve manager seçmeden istek gitmez.
   useEffect(() => {
-    if (kisiler && !kisiId && !isAdmin && !isManager && secilebilir.length === 1) setKisiId(secilebilir[0].id);
+    if (kisiler && !kisiId && !isAdmin && !isManager && secilebilir.length === 1) setKisiIdler([secilebilir[0].id]);
   }, [kisiler]);
 
   useEffect(() => {
@@ -98,13 +102,14 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
   return (
     <>
     <FiltreCubugu
-      danisman={isAdmin || isManager ? { liste: secilebilir, secili: kisiId ? [kisiId] : [], onChange: ids => setKisiId(ids[0] || null), tekli: true,
+      danisman={isAdmin || isManager ? { liste: secilebilir, secili: kisiIdler, onChange: ids => setKisiIdler(ids), tekli: false,
         bosMetin: "Danışman seçin", yukleniyor: !kisiler && !kisiHata } : null}
       kaynak={{ secili: kaynaklar, onChange: setKaynaklar }}
-      tarih={{ deger: gun, onChange: setGun, bosMetin: "Süre seçin", ipucu: ACIKLAMA.baslik }} />
+      tarih={coklu ? null : { deger: gun, onChange: setGun, bosMetin: "Süre seçin", ipucu: ACIKLAMA.baslik }} />
     <div style={{ ...c.tablo, marginBottom: "20px" }}>
       {kisiHata && <div style={{ ...c.hata, margin: "16px 24px" }}>{kisiHata}</div>}
-      {!kisiId && !kisiHata && <div style={{ ...c.bos, padding: "40px 0" }}>Özeti görmek için yukarıdan bir danışman seçin.</div>}
+      {!kisiIdler.length && !kisiHata && <div style={{ ...c.bos, padding: "40px 0" }}>Özeti görmek için yukarıdan bir danışman seçin. Birden fazla seçerseniz aktivite sayıları grafiği açılır.</div>}
+      {coklu && <AktiviteGrafigi kisiler={secilebilir.filter(k => kisiIdler.includes(k.id))} />}
       {kisiId && yukleniyor && veri && <div style={{ height: "3px", background: "linear-gradient(90deg, #0891b2, #7c3aed)", animation: "fadeUp 0.6s ease-in-out infinite alternate" }} />}
       {kisiId && yukleniyor && !veri && <div style={{ ...c.bos, padding: "28px 0" }}><span style={c.spinner} /> CRM'den Alınıyor...</div>}
       {kisiId && !yukleniyor && hata && <div style={{ ...c.hata, margin: "16px 24px" }}>{hata}</div>}
@@ -208,6 +213,75 @@ function Kucuk({ sayi, etiket, ipucu, renk = "#0f172a", zemin = "#fff", cerceve 
         <div style={{ fontSize: "11px", fontWeight: 600, color: "#64748b", marginTop: "2px" }}>{etiket}</div>
       </div>
     </Ipucu>
+  );
+}
+
+// 2+ danışman seçiliyken: son aktivitesi seçilen aralıkta olan datalar, son güncelleyen kişiye göre (Kylas aktivite raporu gibi)
+const ARALIKLAR = [["bugun", "Bugün"], ["dun", "Dün"], [7, "Son 7 gün"]];
+const CUBUK_RENK = ["#7c5cfa", "#f07f5e", "#94e0d8", "#f0bf55", "#a85d6c", "#84b9ee", "#f4b27e", "#6ec28d", "#c084fc", "#60a5fa"];
+function AktiviteGrafigi({ kisiler }) {
+  const [aralik, setAralik] = useState("dun");
+  const [nYazi, setNYazi] = useState("");
+  const [veri, setVeri] = useState(null);
+  const [yukleniyor, setYukleniyor] = useState(false);
+  const [hata, setHata] = useState(null);
+  const idler = kisiler.map(k => Number(k.kylasId ?? k.id)).filter(Number.isInteger);
+  const anahtar = idler.slice().sort((a, b) => a - b).join(",");
+  useEffect(() => {
+    if (!idler.length) return;
+    let iptal = false;
+    setYukleniyor(true); setHata(null);
+    const z = setTimeout(() => {
+      apiCagir({ islem: "aktiviteSayilari", ownerIds: idler, aralik })
+        .then(d => { if (!iptal) setVeri(d); })
+        .catch(e => { if (!iptal) { setVeri(null); setHata(e.message); } })
+        .finally(() => { if (!iptal) setYukleniyor(false); });
+    }, 400);
+    return () => { iptal = true; clearTimeout(z); };
+  }, [anahtar, aralik]);
+  const satirlar = veri ? kisiler.map(k => ({ ad: k.ad, sayi: veri.sayilar?.[Number(k.kylasId ?? k.id)] || 0 })).sort((a, b) => b.sayi - a.sayi || a.ad.localeCompare(b.ad, "tr")) : [];
+  const toplam = satirlar.reduce((t, s) => t + s.sayi, 0);
+  const enFazla = Math.max(1, ...satirlar.map(s => s.sayi));
+  const nSecili = typeof aralik === "number" && aralik !== 7;
+  const fmt = iso => new Date(iso).toLocaleString("tr-TR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
+  const secimStil = aktif => ({ ...(aktif ? c.chipAktif : c.chip) });
+  return (
+    <div style={{ padding: "18px 24px 22px" }}>
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "14px" }}>
+        <div style={{ ...c.etiket, margin: 0, marginRight: "6px" }}><Ipucu metin="Son aktivitesi seçilen aralıkta olan datalar, en son kim güncellediyse ona sayılır (Kylas'taki Yesterday's Activities raporuyla aynı mantık). Bir data aralık içinde birden fazla kez güncellense de bir kez sayılır.">Aktivite sayıları</Ipucu></div>
+        {ARALIKLAR.map(([d, ad]) => <button key={d} type="button" onClick={() => { setAralik(d); setNYazi(""); }} style={secimStil(aralik === d)}>{ad}</button>)}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <button type="button" onClick={() => { const n = Number(nYazi) || 30; setNYazi(String(n)); setAralik(n === 7 ? 7 : n); }} style={secimStil(nSecili)}>Son N gün</button>
+          {(nSecili || nYazi) && (
+            <input type="number" min="1" max="365" value={nYazi} placeholder="N"
+              onChange={e => { setNYazi(e.target.value); const n = Number(e.target.value); if (Number.isInteger(n) && n >= 1 && n <= 365) setAralik(n); }}
+              style={{ width: "64px", height: "30px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #c4b5fd", fontSize: "13px", fontFamily: "inherit" }} />
+          )}
+        </span>
+      </div>
+      {veri && <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px" }}>Son aktivite: {fmt(veri.bas)} – {fmt(veri.bit)}</div>}
+      {hata && <div style={{ ...c.hata, margin: "0 0 12px" }}>{hata}</div>}
+      {yukleniyor && !veri && <div style={{ ...c.bos, padding: "28px 0" }}><span style={c.spinner} /> CRM'den Alınıyor...</div>}
+      {veri && (
+        <div style={{ border: "1px solid #eef2f6", borderRadius: "14px", overflow: "hidden", opacity: yukleniyor ? 0.45 : 1, transition: "opacity 0.2s" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #eef2f6", fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>
+            <span>Güncelleyen</span><span>Data sayısı ({toplam.toLocaleString("tr-TR")})</span>
+          </div>
+          <div style={{ padding: "10px 16px 14px" }}>
+            {satirlar.map((s, i) => (
+              <div key={s.ad} style={{ display: "grid", gridTemplateColumns: "180px 1fr", alignItems: "center", gap: "0", padding: "5px 0" }}>
+                <span title={s.ad} style={{ fontSize: "14px", color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", paddingRight: "12px" }}>{s.ad}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", borderLeft: "1px solid #e2e8f0", paddingLeft: "0", minHeight: "26px" }}>
+                  <div style={{ width: `${(s.sayi / enFazla) * 88}%`, minWidth: s.sayi ? "6px" : 0, height: "22px", borderRadius: "0 7px 7px 0", background: CUBUK_RENK[i % CUBUK_RENK.length], transition: "width .5s ease" }} />
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: s.sayi ? "#334155" : "#cbd5e1", fontVariantNumeric: "tabular-nums" }}>{s.sayi}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {veri.kesildi && <div style={{ padding: "8px 16px", fontSize: "12px", color: "#92400e", background: "#fffbeb" }}>Aralıkta 10.000'den fazla data var, sayılar eksik olabilir. Daha kısa bir aralık seçin.</div>}
+        </div>
+      )}
+    </div>
   );
 }
 

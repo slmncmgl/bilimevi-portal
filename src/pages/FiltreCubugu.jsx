@@ -1,3 +1,4 @@
+// v1.8: tarih verilmezse (null) süre kutusu gizlenir (Danışman Özeti çoklu seçimde kendi aralık seçicisini kullanır)
 // v1.7: "Campaign Name" yazıları "Reklam Adı" oldu
 // v1.6: VIP Datalar, VIP kaynakların hepsi seçimdeyse ON (renkli) görünür; varsayılanda tüm kaynaklar seçili olduğu için ON.
 //       ON iken tıklayınca VIP kaynaklar çıkar (diğerleri kalır), OFF iken tıklayınca sadece VIP seçilir. "Tüm Kaynaklar" büyük harf.
@@ -29,7 +30,7 @@ export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
     const kalan = kaynak.secili.filter(id => !VIP_KAYNAKLAR.includes(id));
     kaynak.onChange(kalan.length ? kalan : TUM_KAYNAKLAR.filter(id => !VIP_KAYNAKLAR.includes(id)));
   };
-  const { ipucu, ...tarihOzellik } = tarih;
+  const { ipucu, ...tarihOzellik } = tarih || {};
   return (
     <div style={c.panel}>
       <style>{VIP_CSS}</style>
@@ -49,9 +50,11 @@ export default function FiltreCubugu({ danisman, kaynak, tarih, kampanya }) {
             </button>
           </Ipucu>
         </Cerceve>
+        {tarih && (
         <Cerceve tur="tarih" metin={ipucu}>
           <TarihSecici {...tarihOzellik} />
         </Cerceve>
+        )}
         {kampanya && <KampanyaAra deger={kampanya.deger} onChange={kampanya.onChange} />}
       </div>
     </div>

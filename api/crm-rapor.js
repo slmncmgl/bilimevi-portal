@@ -1,3 +1,6 @@
+// v3.28: islem "aktiviteSayilari": { ownerIds, aralik: "bugun" | "dun" | gün sayısı } -> son aktivitesi (latestActivityCreatedAt)
+//       o aralıkta olan dataları "son güncelleyen" (updatedBy) kişiye göre sayar (Kylas "Yesterday's Activities" raporu gibi).
+//       İstanbul günü (UTC+3). Sadece istenen danışmanlar döner; 10.000 üstü kesilir. 3 dk önbellek.
 // v3.27: takip: "kapsam" (takip edilmesi gereken: Yeni ve VIP olmayan Na1-Na3 dışı) sayısı ve satır işareti; takip oranı bundan hesaplanır
 // v3.26: topluHatirlat çoklu danışman (ownerIds): danışman başına ayrı mesaj, n8n kuyruğu (data-hatirlat-kuyruk) sırayla gönderir
 // v3.25: toplu hatırlatma cümlesinde son etkinlik filtresi de yazılır ("son etkinliği 7 günden eski olan ...")
@@ -628,6 +631,46 @@ async function kaynaktakiler(idler, kaynaklar) {
   return sonuc;
 }
 
+const IST_MS = 3 * 60 * 60 * 1000; // İstanbul UTC+3 (yaz saati yok)
+function istGunBasi(gunOnce) {
+  const yerel = new Date(Date.now() + IST_MS);
+  yerel.setUTCHours(0, 0, 0, 0);
+  return new Date(yerel.getTime() - IST_MS - gunOnce * GUN_MS);
+}
+async function aktiviteSayilari(req, res, yetki) {
+  const ham = Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : [];
+  const ownerIds = [...new Set(ham.map(Number))].filter(Number.isInteger).sort((a, b) => a - b);
+  if (!ownerIds.length || ownerIds.length > 100) return res.status(400).json({ error: "Danışman seçilmedi." });
+  const aralik = req.body?.aralik;
+  let bas, bit = new Date();
+  if (aralik === "bugun") bas = istGunBasi(0);
+  else if (aralik === "dun") { bas = istGunBasi(1); bit = new Date(istGunBasi(0).getTime() - 1); }
+  else if (gecerliGun(Number(aralik)) && Number(aralik) <= 365) bas = istGunBasi(Number(aralik) - 1);
+  else return res.status(400).json({ error: "Geçersiz aralık." });
+  if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor aktiviteSayilari")) return;
+
+  const anahtar = `aktivite:${ownerIds.join(",")}:${aralik}:${bas.toISOString().slice(0, 13)}`;
+  const eski = onbellek.get(anahtar);
+  if (eski && Date.now() - eski.zaman < 3 * 60 * 1000) return res.status(200).json(eski.veri);
+
+  const kurallar = [kural("latestActivityCreatedAt", "between", [bas.toISOString(), bit.toISOString()], "date")];
+  const ilk = await kylasAra(kurallar, 0, ["id", "updatedBy"]);
+  const toplam = ilk.totalElements || 0;
+  const satirlar = [...(ilk.content || [])];
+  const sayfaSayisi = Math.ceil(Math.min(toplam, KYLAS_LIMIT) / SAYFA);
+  for (let p = 1; p < sayfaSayisi; p += 4) {
+    const grup = [];
+    for (let q = p; q < Math.min(p + 4, sayfaSayisi); q++) grup.push(kylasAra(kurallar, q, ["id", "updatedBy"]));
+    (await Promise.all(grup)).forEach(d => satirlar.push(...(d.content || [])));
+  }
+  const istenen = new Set(ownerIds);
+  const sayilar = {};
+  for (const l of satirlar) if (istenen.has(l.updatedBy)) sayilar[l.updatedBy] = (sayilar[l.updatedBy] || 0) + 1;
+  const veri = { bas: bas.toISOString(), bit: bit.toISOString(), sayilar, kesildi: toplam > KYLAS_LIMIT };
+  onbellek.set(anahtar, { zaman: Date.now(), veri });
+  return res.status(200).json(veri);
+}
+
 async function ozet(req, res, yetki) {
   const ownerId = Number(req.body?.ownerId);
   const gun = req.body?.gun === null || req.body?.gun === undefined ? null : Number(req.body.gun);
@@ -1245,7 +1288,7 @@ export default async function handler(req, res) {
   if (req.body?.islem === "ozet") {
     try { return await ozet(req, res, yetki); } catch (err) { return hataYaz(res, err); }
   }
-  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat], ["hatirlat", hatirlat], ["topluHatirlat", topluHatirlat]]) {
+  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat], ["hatirlat", hatirlat], ["topluHatirlat", topluHatirlat], ["aktiviteSayilari", aktiviteSayilari]]) {
     if (req.body?.islem === ad) {
       try { return await fn(req, res, yetki); } catch (err) { return hataYaz(res, err); }
     }
