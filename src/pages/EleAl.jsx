@@ -1,3 +1,4 @@
+// v2.14: pomodoro şeridin ortasında, büyük ikon + altında "Pomodoro"
 // v2.13: üst şeritte basit pomodoro (5-25 dk, tek tur); bitince şerit 3 sn yeşil yanar
 // v2.12: sayaçtaki toplam (örn. / 181) tıklanınca 20'şerli isim listesi açılır, sayfalar arasında geçilir; isme tıklayınca o dataya gidilir
 // v2.11: task kartı sade: Kylas'ın otomatik adı ("Task due at ... for ...") ve atanan danışman gizli, gün sayısı yok; tarih geçtiyse kırmızı,
@@ -297,6 +298,8 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
             <div style={{ fontSize: "15px", fontWeight: 800, color: "#0f172a" }}>Toplu Data Follow Up</div>
             <div style={{ fontSize: "12px", color: "#64748b" }}>{listeAdi} · {girilen} Data'ya not girildi{atlananSayi ? ` · ${atlananSayi} atlandı` : ""}{tur > 1 ? ` · Atlananlar, ${tur}. tur` : ""}</div>
           </div>
+        </div>
+        <div className="elal-pom" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 4 }}>
           <Pomodoro onBitti={() => setPomYesil(true)} />
         </div>
         <div className="elal-sag" style={s.sagBlok}>
@@ -797,7 +800,7 @@ const EKRAN_CSS = `
 .elal-iskelet { display: inline-block; width: 70%; height: 14px; border-radius: 6px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%; animation: elalIskelet 1.2s linear infinite; }
 @media (max-width: 820px) { .elal-ikili { grid-template-columns: 1fr !important; } .elal-task-kart { position: static !important; overflow: visible !important; } .elal-alanlar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } .elal-govde { padding: 16px !important; } .elal-ust { padding-left: 41.5px !important; padding-right: 41.5px !important; display: flex !important; gap: 12px; }
-  .elal-sag { margin-left: auto; } .elal-izgara { display: flex !important; flex-wrap: wrap; gap: 10px; } .elal-izgara > :last-child { margin-left: auto; width: auto !important; } }
+  .elal-sag { margin-left: auto; } .elal-pom { position: static !important; transform: none !important; } .elal-izgara { display: flex !important; flex-wrap: wrap; gap: 10px; } .elal-izgara > :last-child { margin-left: auto; width: auto !important; } }
 @media (max-width: 480px) { .elal-alanlar { grid-template-columns: 1fr !important; } }
 @media (max-width: 640px) { .elal-task { grid-template-columns: auto minmax(0, 1fr) !important; } .elal-task > :nth-child(3) { grid-column: 1 / -1; } .elal-task-dugmeler { grid-column: 1 / -1; justify-content: flex-start !important; }
 }
