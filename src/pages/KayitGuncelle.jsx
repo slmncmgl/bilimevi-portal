@@ -1,11 +1,12 @@
-// KayitGuncelle.jsx v1.87
+// KayitGuncelle.jsx v1.88
+// v1.88 (25.11.2026): TR Okul Adı sütunu TR_Okul_Default boşsa form adını göstermiyor, "-" yazıyor.
 // v1.87: Tüm Filtreleri Temizle düğmesinde ikon yok
 // v1.86 (24.11.2026): Üst başlık ortak şeride taşındı (Geri, kart adı ve kullanıcı satırı kaldırıldı; Listeye Dön ve sürüm kaldı, başlık şeridin altına yapışır).
 // v1.85 (23.11.2026): Özet satırında "Bu Kaydı İptal Et" (kırmızı). Onay penceresinden sonra /api/sozlesme-gonder islem "iptal"
 //   -> n8n Kayıt İptal Talebi (VmicFOIO7KXCndnm) Selman'a WhatsApp atar; Selman "ok" yanıtlayınca Onay Durumu = İptal Etti.
 import { useState, useEffect, useRef, useMemo } from "react";
 
-const SURUM = "v1.87"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.88"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 import OnayPenceresi from "./OnayPenceresi";
 
@@ -2375,9 +2376,9 @@ export default function KayitGuncelle() {
                     <td style={{ ...s.td, color: "#475569", fontSize: "13px", lineHeight: "1.4", whiteSpace: "nowrap" }}>
                       {(() => {
                         const tam = String(ogr["Kaynak Form Adı"] || "").trim();
-                        // Hücrede TR_Okul_Default, boşsa form adından kısa ad; tam form adı balonu masaüstünde Yaz Okulu sütununda, mobilde burada
+                        // Hücrede yalnızca TR_Okul_Default; boş ya da "-" ise "-" (form adına düşme kuralı v1.88'de kaldırıldı); tam form adı balonu masaüstünde Yaz Okulu sütununda, mobilde burada
                         const okul = String(ogr["TR_Okul_Default"] || "").trim();
-                        const ad = okul && okul !== "-" ? okul : programAdi(tam);
+                        const ad = okul && okul !== "-" ? okul : "";
                         if (!ad) return <span style={{ color: "#cbd5e1" }}>-</span>;
                         const anahtar = satirAnahtari(ogr);
                         const acik = programHover === anahtar;
