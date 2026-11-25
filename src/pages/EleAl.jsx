@@ -1,3 +1,4 @@
+// v2.15: pomodoro bitince şerit "Mola ver"e tıklanana kadar yeşil yanar
 // v2.14: pomodoro şeridin ortasında, büyük ikon + altında "Pomodoro"
 // v2.13: üst şeritte basit pomodoro (5-25 dk, tek tur); bitince şerit 3 sn yeşil yanar
 // v2.12: sayaçtaki toplam (örn. / 181) tıklanınca 20'şerli isim listesi açılır, sayfalar arasında geçilir; isme tıklayınca o dataya gidilir
@@ -84,7 +85,6 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
 
 export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat }) {
   const [pomYesil, setPomYesil] = useState(false);
-  useEffect(() => { if (!pomYesil) return; const id = setTimeout(() => setPomYesil(false), 3000); return () => clearTimeout(id); }, [pomYesil]);
   const [leadler, setLeadler] = useState(ilkListe); // bu turda ele alınan datalar (atlananlar turunda sadece onlar)
   const [tur, setTur] = useState(1);
   const [atlanan, setAtlanan] = useState({}); // id -> true (not girmeden geçilen)
@@ -300,7 +300,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
           </div>
         </div>
         <div className="elal-pom" style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%, -50%)", zIndex: 4 }}>
-          <Pomodoro onBitti={() => setPomYesil(true)} />
+          <Pomodoro onBitti={() => setPomYesil(true)} onMolaBitti={() => setPomYesil(false)} />
         </div>
         <div className="elal-sag" style={s.sagBlok}>
           <button type="button" onClick={geri} disabled={(sira === 0 && !bitti) || kaydediliyor} style={{ ...s.ok, opacity: sira === 0 && !bitti ? 0.35 : 1 }}

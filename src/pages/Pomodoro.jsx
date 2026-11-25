@@ -1,3 +1,4 @@
+// v1.3: bitince "Mola ver" tıklanana kadar kalır (şerit yeşil yanmaya devam eder); onMolaBitti ile söner
 // v1.2: Duraklat / Devam et / Baştan başlat; sayaç başlayınca "Pomodoro" yazısı gizlenir
 // v1.1: ikon 26px (sayaç puntosu), altında "Pomodoro" yazısı; süre ikonun yanında
 // v1.0: Ele Al üst şeridinde basit pomodoro. Saat ikonu; tıklayınca 5-10-15-20-25 dk seçilir, tek tur.
@@ -5,13 +6,12 @@
 import { useState, useEffect, useRef } from "react";
 
 const SURELER = [5, 10, 15, 20, 25];
-const MOLA_MS = 3000;
 
 const dugme = { padding: "6px 12px", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" };
 
 function ikiHane(n) { return String(n).padStart(2, "0"); }
 
-export default function Pomodoro({ onBitti }) {
+export default function Pomodoro({ onBitti, onMolaBitti }) {
   const [acik, setAcik] = useState(false);
   const [bitis, setBitis] = useState(null); // bitiş zamanı (ms) ya da null
   const [kalan, setKalan] = useState(0);
@@ -36,11 +36,6 @@ export default function Pomodoro({ onBitti }) {
     return () => clearInterval(id);
   }, [bitis]);
 
-  useEffect(() => {
-    if (!mola) return;
-    const id = setTimeout(() => setMola(false), MOLA_MS);
-    return () => clearTimeout(id);
-  }, [mola]);
 
   useEffect(() => {
     if (!acik) return;
@@ -81,7 +76,7 @@ export default function Pomodoro({ onBitti }) {
 
   return (
     <div ref={kutu} style={{ position: "relative", flexShrink: 0 }}>
-      <button type="button" onClick={() => setAcik(!acik)} title={calisiyor ? "Pomodoro" : "Pomodoro başlat"} aria-label="Pomodoro"
+      <button type="button" onClick={() => { if (mola) { setMola(false); setKalan(0); onMolaBitti && onMolaBitti(); return; } setAcik(!acik); }} title={mola ? "Kapat" : calisiyor ? "Pomodoro" : "Pomodoro başlat"} aria-label="Pomodoro"
         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px", padding: "2px 6px", border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit",
           color: mola ? "#15803d" : calisiyor ? "#4338ca" : durdu ? "#b45309" : "#475569" }}>
         <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
