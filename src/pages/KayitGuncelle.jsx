@@ -1,4 +1,5 @@
-// KayitGuncelle.jsx v1.90
+// KayitGuncelle.jsx v1.91
+// v1.91 (25.11.2026): TR Okul Adı boşsa listede "Okul Seç" butonu; pencerede öğrencinin yazdığı okul, MEB listesinden adaylar, arama ve elle yazma (OkulSecPenceresi.jsx). Kayıt n8n okul-guncelle (i98pkeF6f1e7gCwg) ile TR_Okul_Default'a.
 // v1.90 (25.11.2026): Listeden açılan kayıt Tally ID ile seçilir (aynı TC'li birden fazla satırda hep ilki açılıyordu); n8n ogrenci-getir &tally= destekliyor.
 // v1.89 (25.11.2026): Onay Durumu "İptal Etti" olan kayıtlar listede gösterilmiyor.
 // v1.88 (25.11.2026): TR Okul Adı sütunu TR_Okul_Default boşsa form adını göstermiyor, "-" yazıyor.
@@ -8,9 +9,10 @@
 //   -> n8n Kayıt İptal Talebi (VmicFOIO7KXCndnm) Selman'a WhatsApp atar; Selman "ok" yanıtlayınca Onay Durumu = İptal Etti.
 import { useState, useEffect, useRef, useMemo } from "react";
 
-const SURUM = "v1.88"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.91"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 import OnayPenceresi from "./OnayPenceresi";
+import OkulSecPenceresi from "./OkulSecPenceresi";
 
 const FETCH_URL = "https://n8n.bilimevi.cloud/webhook/ogrenci-getir";
 const SUBMIT_URL = "https://n8n.bilimevi.cloud/webhook/birlesmis-form";
@@ -42,6 +44,7 @@ const gonderimAdresi = (...kaynaklar) => {
 };
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
 const NOT_URL = "https://n8n.bilimevi.cloud/webhook/not-guncelle";
+const OKUL_URL = "https://n8n.bilimevi.cloud/webhook/okul-guncelle";
 const OPERASYON_URL = "https://n8n.bilimevi.cloud/webhook/operasyon-bildir";
 // Bu süre içinde eklenen kayıtlar listede YENİ olarak işaretlenir
 const YENI_SURE_SAAT = 48;
@@ -809,6 +812,29 @@ export default function KayitGuncelle() {
   const [kopyaModal, setKopyaModal] = useState(null);
   const [notModal, setNotModal] = useState(null); // { ogr, mevcut, yeni }
   const [notKaydediliyor, setNotKaydediliyor] = useState(false);
+  const [okulSecModal, setOkulSecModal] = useState(null); // TR Okul Adı boş kaydın satırı
+
+  // Okul Seç penceresinden gelen adı yalnızca bu satırın TR_Okul_Default hücresine yazar (Tally Submission ID ile)
+  async function okulKaydet(ogr, okul, detay) {
+    const tallySubmissionId = String(ogr["Tally Submission ID"] || "").trim();
+    if (!tallySubmissionId) { showToast("Bu kaydın Tally ID'si yok, okul kaydedilemedi", "error"); return; }
+    try {
+      const res = await fetch(OKUL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tallySubmissionId, okul }),
+      });
+      if (!res.ok) throw new Error("Hata");
+      const ayni = o => String(o["Tally Submission ID"] || "").trim() === tallySubmissionId;
+      setOgrencilerim(prev => prev.map(o => ayni(o) ? { ...o, TR_Okul_Default: okul } : o));
+      setData(prev => prev && ayni(prev) ? { ...prev, TR_Okul_Default: okul } : prev);
+      setOkulSecModal(null);
+      showToast("Okul kaydedildi");
+      islemKaydet(ogr, "Sunum Yapılan Okul seçildi", `${okul} (${detay})`);
+    } catch {
+      showToast("Okul kaydedilemedi", "error");
+    }
+  }
   const [notHover, setNotHover] = useState(null); // hover edilen satırın anahtarı
   // Düzenleme ekranındaki not kutusu (Özet ve Ebeveyn sekmeleri): { satirlar, yeni }
   const [kartNot, setKartNot] = useState({ satirlar: [], yeni: "" });
@@ -2382,7 +2408,9 @@ export default function KayitGuncelle() {
                         // Hücrede yalnızca TR_Okul_Default; boş ya da "-" ise "-" (form adına düşme kuralı v1.88'de kaldırıldı); tam form adı balonu masaüstünde Yaz Okulu sütununda, mobilde burada
                         const okul = String(ogr["TR_Okul_Default"] || "").trim();
                         const ad = okul && okul !== "-" ? okul : "";
-                        if (!ad) return <span style={{ color: "#cbd5e1" }}>-</span>;
+                        if (!ad) return (
+                          <button type="button" onClick={e => { e.stopPropagation(); setOkulSecModal(ogr); }} style={s.okulSecBtn}>Okul Seç</button>
+                        );
                         const anahtar = satirAnahtari(ogr);
                         const acik = programHover === anahtar;
                         return (
@@ -2797,6 +2825,14 @@ export default function KayitGuncelle() {
 
       <Toast toast={toast} />
 
+      {okulSecModal && (
+        <OkulSecPenceresi
+          ogr={okulSecModal}
+          onKapat={() => setOkulSecModal(null)}
+          onKaydet={(okul, detay) => okulKaydet(okulSecModal, okul, detay)}
+        />
+      )}
+
       {notModal && (() => {
         const bugun = new Date().toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
         const orijinal = notSatirlari(notModal.ogr["Notlar"]).join("\n");
@@ -3171,6 +3207,7 @@ const s = {
   td: { padding: "8px 10px", fontSize: "13px", color: "#0f172a", verticalAlign: "middle" },
   // Sabit genişlikli hücrede taşan metni "…" ile keser (balonlar dış span'de olduğu için kırpılmaz)
   hucreKes: { display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  okulSecBtn: { padding: "3px 10px", borderRadius: "999px", border: "1.5px dashed #0891b2", background: "#ecfeff", color: "#0e7490", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
   pagination: { display: "flex", gap: "6px", justifyContent: "center", alignItems: "center", marginTop: "18px", flexWrap: "wrap" },
   pageBtn: { minWidth: "34px", height: "34px", padding: "0 8px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontFamily: "'Sora', sans-serif", background: "transparent" },
   pageNav: { height: "34px", padding: "0 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", color: "#1e3a5f", fontSize: "13px", fontWeight: "600", fontFamily: "'Sora', sans-serif" },
