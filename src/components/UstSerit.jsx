@@ -203,16 +203,46 @@ function CevrimiciEtiket({ isFortis }) {
   );
 }
 
-// Gelen dürtmeler: çevrimiçi etiketinin altında balon "👋 X sana el salladı", 7 sn sonra kaybolur
+// Gelen dürtmeler: çevrimiçi etiketinin altında balon "👋🏻 X sana el salladı"; kişi ekrana dönüp hareket edince 8 sn sonra kaybolur
+// Balon kişi ekrana dönene kadar kalır: sayfa görünürken fare/klavye/dokunma hareketi gelince 8 sn sayaç başlar.
+// Fare balonun üstündeyken sayaç durur, ayrılınca yeniden başlar. Tıklayınca hemen kapanır.
+const DURTME_KALMA_MS = 8000;
 function DurtmeBildirim({ isFortis }) {
   const [bildirimler, setBildirimler] = useState([]);
+  const sayaclar = useRef({}); // id -> timeout
+  const gorulen = useRef(new Set()); // kullanıcı hareketi sonrası sayacı başlamış olanlar
+  const ustunde = useRef(null);
+  const kaldir = id => {
+    clearTimeout(sayaclar.current[id]);
+    delete sayaclar.current[id];
+    gorulen.current.delete(id);
+    setBildirimler(b => b.filter(x => x.id !== id));
+  };
+  const sayacBaslat = id => {
+    clearTimeout(sayaclar.current[id]);
+    sayaclar.current[id] = setTimeout(() => kaldir(id), DURTME_KALMA_MS);
+  };
+  useEffect(() => {
+    if (!bildirimler.length) return;
+    const hareket = () => {
+      if (document.hidden) return;
+      for (const b of bildirimler) {
+        if (gorulen.current.has(b.id)) continue;
+        gorulen.current.add(b.id);
+        if (ustunde.current !== b.id) sayacBaslat(b.id);
+      }
+    };
+    const olaylar = ["mousemove", "keydown", "touchstart", "wheel"];
+    olaylar.forEach(o => window.addEventListener(o, hareket, { passive: true }));
+    return () => olaylar.forEach(o => window.removeEventListener(o, hareket));
+  }, [bildirimler]);
+  useEffect(() => () => Object.values(sayaclar.current).forEach(clearTimeout), []);
   useEffect(() => {
     const dinle = e => {
       const idler = e.detail.idler || [];
       const karsiliklar = e.detail.karsiliklar || [];
       const yeni = e.detail.map((kimden, i) => ({ id: Math.random().toString(36).slice(2), kimden, kimdenId: idler[i] || null, karsilik: !!karsiliklar[i], durum: null }));
       setBildirimler(b => [...b, ...yeni]);
-      yeni.forEach(y => setTimeout(() => setBildirimler(b => b.filter(x => x.id !== y.id)), 10000));
     };
     window.addEventListener("bilimevi-durtme", dinle);
     return () => window.removeEventListener("bilimevi-durtme", dinle);
@@ -223,13 +253,16 @@ function DurtmeBildirim({ isFortis }) {
     setBildirimler(x => x.map(y => (y.id === b.id ? { ...y, durum: "gidiyor" } : y)));
     const ok = await durt(b.kimdenId, true);
     setBildirimler(x => x.map(y => (y.id === b.id ? { ...y, durum: ok ? "tamam" : "olmadi" } : y)));
-    setTimeout(() => setBildirimler(x => x.filter(y => y.id !== b.id)), 1800);
+    clearTimeout(sayaclar.current[b.id]);
+    sayaclar.current[b.id] = setTimeout(() => kaldir(b.id), 1800);
   }
   if (!bildirimler.length) return null;
   return (
     <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 60, display: "flex", flexDirection: "column", gap: "8px", width: "max-content", maxWidth: "calc(100vw - 32px)" }}>
       {bildirimler.map(b => (
-        <div key={b.id} onClick={() => setBildirimler(x => x.filter(y => y.id !== b.id))}
+        <div key={b.id} onClick={() => kaldir(b.id)}
+          onMouseEnter={() => { ustunde.current = b.id; gorulen.current.add(b.id); clearTimeout(sayaclar.current[b.id]); }}
+          onMouseLeave={() => { ustunde.current = null; if (!b.durum || b.durum === "olmadi") sayacBaslat(b.id); }}
           style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", background: "#fff", border: "1px solid #fde68a", borderRadius: "14px", boxShadow: "0 10px 30px rgba(15,23,42,0.15)", fontSize: "14px", color: "#0f172a", cursor: "pointer", animation: "durtmeGel 0.3s ease-out" }}>
           <span className="cevrimici-el" style={{ display: "inline-block", fontSize: "26px", transformOrigin: "70% 70%", animation: "cevrimiciEl 1.2s ease-in-out 3" }}>👋🏻</span>
           <span><b>{b.kimden}</b> {b.karsilik ? (isFortis ? "waved back!" : "sana geri el salladı!") : (isFortis ? "waved at you!" : "sana el salladı!")}</span>
