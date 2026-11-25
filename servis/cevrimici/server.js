@@ -1,3 +1,4 @@
+// v1.2: durt mesajındaki karsilik:true (geri el sallama) hedefe iletilir; alan tarafta tekrar "Sen de el salla" çıkmaz.
 // v1.1: dürtme mesajı gönderenin id'sini de taşır (kimdenId) → alan kişi "Sen de el salla" ile karşılık verebilir.
 // bilimevi-cevrimici v1.0: portal çevrimiçi listesi + el sallama (👋) WebSocket servisi (Coolify, wss://ws.bilimevi.cloud)
 // Kimlik: portal oturum token'ı (bilimevi-portal api/_oturum.js ile aynı biçim, aynı SESSION_SECRET). İlk mesaj {t:"giris", token}.
@@ -92,7 +93,7 @@ wss.on("connection", ws => {
       if (hedef && hedefId !== ws.kimlik && ws.durtmeler.length < 10) {
         ws.durtmeler.push(simdi);
         const ad = kisiler.get(ws.kimlik)?.ad || ws.kimlik;
-        for (const s of hedef.sekmeler) gonder(s, { t: "durtme", kimden: [ad], kimdenId: [ws.kimlik] });
+        for (const s of hedef.sekmeler) gonder(s, { t: "durtme", kimden: [ad], kimdenId: [ws.kimlik], karsilik: [!!m.karsilik] });
         ok = true;
       }
       gonder(ws, { t: "durtuldu", ref: m.ref, ok });

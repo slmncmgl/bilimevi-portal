@@ -187,7 +187,7 @@ function CevrimiciEtiket({ isFortis }) {
                 <span title={hal === "tamam" ? (isFortis ? "Sent!" : "Gitti!") : (isFortis ? "Wave" : "El salla")}
                   className={hal || uzerinde === k.id ? "cevrimici-el" : undefined}
                   style={{ display: "inline-block", width: "16px", height: "16px", lineHeight: "16px", fontSize: "14px", textAlign: "center", transformOrigin: "70% 70%", visibility: hal || uzerinde === k.id ? "visible" : "hidden", opacity: hal === "tamam" ? 0.45 : 1, animation: hal === "tamam" ? "none" : "cevrimiciEl 1.2s ease-in-out infinite" }}>
-                  {hal === "tamam" ? "✓" : "👋"}
+                  {hal === "tamam" ? "✓" : "👋🏻"}
                 </span>
               )}
             </div>
@@ -209,7 +209,8 @@ function DurtmeBildirim({ isFortis }) {
   useEffect(() => {
     const dinle = e => {
       const idler = e.detail.idler || [];
-      const yeni = e.detail.map((kimden, i) => ({ id: Math.random().toString(36).slice(2), kimden, kimdenId: idler[i] || null, durum: null }));
+      const karsiliklar = e.detail.karsiliklar || [];
+      const yeni = e.detail.map((kimden, i) => ({ id: Math.random().toString(36).slice(2), kimden, kimdenId: idler[i] || null, karsilik: !!karsiliklar[i], durum: null }));
       setBildirimler(b => [...b, ...yeni]);
       yeni.forEach(y => setTimeout(() => setBildirimler(b => b.filter(x => x.id !== y.id)), 10000));
     };
@@ -220,7 +221,7 @@ function DurtmeBildirim({ isFortis }) {
     e.stopPropagation();
     if (!b.kimdenId || b.durum) return;
     setBildirimler(x => x.map(y => (y.id === b.id ? { ...y, durum: "gidiyor" } : y)));
-    const ok = await durt(b.kimdenId);
+    const ok = await durt(b.kimdenId, true);
     setBildirimler(x => x.map(y => (y.id === b.id ? { ...y, durum: ok ? "tamam" : "olmadi" } : y)));
     setTimeout(() => setBildirimler(x => x.filter(y => y.id !== b.id)), 1800);
   }
@@ -230,15 +231,15 @@ function DurtmeBildirim({ isFortis }) {
       {bildirimler.map(b => (
         <div key={b.id} onClick={() => setBildirimler(x => x.filter(y => y.id !== b.id))}
           style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 16px", background: "#fff", border: "1px solid #fde68a", borderRadius: "14px", boxShadow: "0 10px 30px rgba(15,23,42,0.15)", fontSize: "14px", color: "#0f172a", cursor: "pointer", animation: "durtmeGel 0.3s ease-out" }}>
-          <span className="cevrimici-el" style={{ display: "inline-block", fontSize: "26px", transformOrigin: "70% 70%", animation: "cevrimiciEl 1.2s ease-in-out 3" }}>👋</span>
-          <span><b>{b.kimden}</b> {isFortis ? "waved at you!" : "sana el salladı!"}</span>
-          {b.kimdenId && (
+          <span className="cevrimici-el" style={{ display: "inline-block", fontSize: "26px", transformOrigin: "70% 70%", animation: "cevrimiciEl 1.2s ease-in-out 3" }}>👋🏻</span>
+          <span><b>{b.kimden}</b> {b.karsilik ? (isFortis ? "waved back!" : "sana geri el salladı!") : (isFortis ? "waved at you!" : "sana el salladı!")}</span>
+          {b.kimdenId && !b.karsilik && (
             <button type="button" onClick={e => karsilik(b, e)} disabled={!!b.durum}
               style={{ marginLeft: "4px", padding: "6px 12px", background: b.durum === "tamam" ? "#ecfdf5" : "#fef3c7", border: `1px solid ${b.durum === "tamam" ? "#a7f3d0" : "#fcd34d"}`, borderRadius: "100px", fontSize: "13px", fontWeight: "600", color: b.durum === "tamam" ? "#047857" : "#92400e", cursor: b.durum ? "default" : "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
               {b.durum === "tamam" ? (isFortis ? "Waved ✓" : "Salladın ✓")
                 : b.durum === "olmadi" ? (isFortis ? "Offline" : "Çevrimdışı")
                 : b.durum === "gidiyor" ? "…"
-                : (isFortis ? "👋 Wave back" : "👋 Sen de el salla")}
+                : (isFortis ? "👋🏻 Wave back" : "👋🏻 Sen de el salla")}
             </button>
           )}
         </div>

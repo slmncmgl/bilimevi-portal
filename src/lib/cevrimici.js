@@ -1,3 +1,4 @@
+// v2.2: durt(id, karsilik) — geri el sallama işaretlenir, detail.karsiliklar ile iletilir.
 // v2.1: "bilimevi-durtme" detail'i hâlâ ad dizisi; her elemanın yanında window olayında detail.idler (aynı sırada gönderen id'leri) var.
 // v2.0: n8n yoklaması yerine gerçek zamanlı WebSocket (Coolify "bilimevi-cevrimici", kodu servis/cevrimici/).
 //   Bağlantı sekme gizlenince de açık kalır; koparsa artan beklemeyle (1 sn → 30 sn) yeniden bağlanır.
@@ -69,6 +70,7 @@ function baglan() {
     } else if (m.t === "durtme" && Array.isArray(m.kimden) && m.kimden.length) {
       const d = [...m.kimden];
       d.idler = Array.isArray(m.kimdenId) ? m.kimdenId : [];
+      d.karsiliklar = Array.isArray(m.karsilik) ? m.karsilik : [];
       yay("bilimevi-durtme", d);
     } else if (m.t === "durtuldu") {
       const r = bekleyenDurt.get(m.ref);
@@ -91,12 +93,12 @@ export async function nabizGonder() {
   return sonDurum;
 }
 
-export function durt(id) {
+export function durt(id, karsilik = false) {
   if (!ws || ws.readyState !== 1) return Promise.resolve(false);
   const ref = ++refSayac;
   return new Promise(resolve => {
     bekleyenDurt.set(ref, resolve);
-    ws.send(JSON.stringify({ t: "durt", id, ref }));
+    ws.send(JSON.stringify({ t: "durt", id, ref, karsilik: !!karsilik }));
     setTimeout(() => { if (bekleyenDurt.delete(ref)) resolve(false); }, 5000);
   });
 }
