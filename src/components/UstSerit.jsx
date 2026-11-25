@@ -1,3 +1,4 @@
+// v1.8: yöneticiler çevrimiçi listesinin altında "Giriş saatleri" ısı haritası açabilir (son 14 gün × 24 saat + kısa yorum)
 // v1.7: standart sayfa genişliği 1100px (tüm sayfalar aynı)
 // v1.6: genişlik her sayfada ana sayfayla aynı (900px); kart adı ve açıklaması yazılmaz; Geri düğmesi koyu ve belirgin
 // v1.5: ana sayfada kenar boşluğu %25
@@ -16,7 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getSession, clearSession } from "../utils/sheets";
-import { nabizGonder, cevrimiciDurum, durt, durtmeDinle } from "../lib/cevrimici";
+import { nabizGonder, cevrimiciDurum, durt, durtmeDinle, isiIste } from "../lib/cevrimici";
 import { MODULE_CONFIG } from "../pages/Dashboard";
 
 export const UST_SERIT_YUKSEKLIK = 65;
@@ -71,7 +72,7 @@ export default function UstSerit() {
             style={{ height: "34px", objectFit: "contain", cursor: "pointer", flexShrink: 0 }} />
         </div>
         <div className="ust-serit-sag" style={{ display: "flex", alignItems: "center", gap: "20px", flexShrink: 0 }}>
-          <CevrimiciEtiket isFortis={isFortis} />
+          <CevrimiciEtiket isFortis={isFortis} yonetici={YONETICI.includes(user.rol)} />
           {YONETICI.includes(user.rol) && !(konum.pathname === "/izin" && konum.search.includes("panel=admin")) && (
             <button onClick={() => navigate("/izin?panel=admin")}
               style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#1e3a5f", color: "#fff", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", fontFamily: "inherit", whiteSpace: "nowrap" }}
@@ -133,7 +134,8 @@ export default function UstSerit() {
 
 // Üst şeritteki "N kişi çevrimiçi" etiketi. Durum main.jsx'te açılan WebSocket bağlantısından anında gelir.
 // Tıklayınca altında isim listesi açılır; isme gelince 👋 balonu çıkar, tıklayınca o kişiye el sallanır (dürtme).
-function CevrimiciEtiket({ isFortis }) {
+function CevrimiciEtiket({ isFortis, yonetici }) {
+  const [isiAcik, setIsiAcik] = useState(false);
   const [durum, setDurum] = useState(cevrimiciDurum());
   const [acik, setAcik] = useState(false);
   const [uzerinde, setUzerinde] = useState(null);
@@ -171,7 +173,7 @@ function CevrimiciEtiket({ isFortis }) {
     </button>
     <DurtmeBildirim isFortis={isFortis} />
     {acik && (
-      <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, minWidth: "230px", maxHeight: "340px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.12)", padding: "8px" }}>
+      <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 50, minWidth: "230px", width: isiAcik ? "min(560px, calc(100vw - 24px))" : undefined, maxHeight: isiAcik ? "80vh" : "340px", overflowY: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 10px 30px rgba(15,23,42,0.12)", padding: "8px" }}>
         {liste.map((k, i) => {
           const ben = k.id && k.id === durum.ben;
           const salla = k.id && !ben;
@@ -193,6 +195,21 @@ function CevrimiciEtiket({ isFortis }) {
             </div>
           );
         })}
+        {yonetici && (
+          <div style={{ borderTop: "1px solid #f1f5f9", marginTop: "6px", paddingTop: "6px" }}>
+            <button type="button" onClick={() => setIsiAcik(v => !v)}
+              style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "6px 8px", border: "none", borderRadius: "8px", background: isiAcik ? "#f0fdf4" : "transparent", color: "#047857", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+                <rect x="3" y="3" width="5" height="5" rx="1" opacity=".35"/><rect x="10" y="3" width="5" height="5" rx="1"/><rect x="17" y="3" width="4" height="5" rx="1" opacity=".6"/>
+                <rect x="3" y="10" width="5" height="5" rx="1"/><rect x="10" y="10" width="5" height="5" rx="1" opacity=".6"/><rect x="17" y="10" width="4" height="5" rx="1" opacity=".35"/>
+                <rect x="3" y="17" width="5" height="4" rx="1" opacity=".6"/><rect x="10" y="17" width="5" height="4" rx="1" opacity=".35"/><rect x="17" y="17" width="4" height="4" rx="1"/>
+              </svg>
+              <span style={{ flex: 1 }}>{isFortis ? "Login hours" : "Giriş saatleri"}</span>
+              <span style={{ color: "#94a3b8" }}>{isiAcik ? "▴" : "▾"}</span>
+            </button>
+            {isiAcik && <IsiHaritasi isFortis={isFortis} />}
+          </div>
+        )}
       </div>
     )}
       <style>{`@keyframes cevrimiciNabiz { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); } 70% { box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
@@ -277,6 +294,43 @@ function DurtmeBildirim({ isFortis }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+// Yöneticiler için: son 14 günde her saatte portalda bulunan farklı kişi sayısı (İstanbul saati) + kısa yorum
+function ikiH(n) { return String(n).padStart(2, "0"); }
+function IsiHaritasi({ isFortis }) {
+  const [gunler, setGunler] = useState(undefined); // undefined: yükleniyor, null: alınamadı
+  useEffect(() => { let iptal = false; isiIste(14).then(g => { if (!iptal) setGunler(g); }); return () => { iptal = true; }; }, []);
+  if (gunler === undefined) return <div style={{ padding: "12px 8px", fontSize: "12px", color: "#94a3b8" }}>{isFortis ? "Loading…" : "Yükleniyor…"}</div>;
+  if (!gunler || !gunler.length) return <div style={{ padding: "12px 8px", fontSize: "12px", color: "#94a3b8" }}>{isFortis ? "No data yet." : "Henüz veri yok. Kayıt 25.11.2026'da başladı."}</div>;
+  const enFazla = Math.max(1, ...gunler.flatMap(g => g.saatler));
+  const ort = Array.from({ length: 24 }, (_, s) => gunler.reduce((t, g) => t + (g.saatler[s] || 0), 0) / gunler.length);
+  const zirve = ort.indexOf(Math.max(...ort));
+  let ikili = 0; for (let s = 1; s < 24; s++) if (ort[s - 1] + ort[s] > ort[ikili] + ort[ikili + 1]) ikili = s - 1;
+  const esik = Math.max(...ort) * 0.25;
+  const aktif = ort.map((v, s) => (v >= esik && v > 0 ? s : -1)).filter(s => s >= 0);
+  const gunAdi = g => new Date(g + "T12:00:00").toLocaleDateString(isFortis ? "en-GB" : "tr-TR", { day: "2-digit", month: "2-digit", weekday: "short" });
+  const renk = v => (v ? `rgba(16, 185, 129, ${0.15 + 0.85 * (v / enFazla)})` : "#f1f5f9");
+  const yorum = Math.max(...ort) === 0 ? (isFortis ? "No activity yet." : "Henüz hareket yok.") : isFortis
+    ? `Busiest: ${ikiH(ikili)}:00–${ikiH(ikili + 2)}:00 (peak ${ikiH(zirve)}:00, avg ${ort[zirve].toFixed(1)} people). Active hours usually ${ikiH(aktif[0])}:00–${ikiH(aktif[aktif.length - 1] + 1)}:00.`
+    : `En yoğun aralık ${ikiH(ikili)}:00–${ikiH(ikili + 2)}:00; zirve ${ikiH(zirve)}:00 (ortalama ${ort[zirve].toFixed(1).replace(".", ",")} kişi). Portal genelde ${ikiH(aktif[0])}:00–${ikiH(aktif[aktif.length - 1] + 1)}:00 arası kullanılıyor.`;
+  const hucre = { width: "100%", aspectRatio: "1", borderRadius: "3px" };
+  return (
+    <div style={{ padding: "8px 6px 4px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "62px repeat(24, minmax(0, 1fr))", gap: "2px", alignItems: "center", fontSize: "10px", color: "#64748b" }}>
+        <span />
+        {Array.from({ length: 24 }, (_, s) => <span key={s} style={{ textAlign: "center" }}>{s % 3 === 0 ? ikiH(s) : ""}</span>)}
+        {gunler.map(g => (
+          <div key={g.gun} style={{ display: "contents" }}>
+            <span style={{ whiteSpace: "nowrap" }}>{gunAdi(g.gun)}</span>
+            {g.saatler.map((v, s) => <span key={s} title={`${gunAdi(g.gun)} ${ikiH(s)}:00 · ${v} ${isFortis ? "people" : "kişi"}`} style={{ ...hucre, background: renk(v) }} />)}
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: "10px", padding: "8px 10px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "10px", fontSize: "12px", lineHeight: 1.5, color: "#065f46", whiteSpace: "normal" }}>{yorum}</div>
+      <div style={{ marginTop: "6px", fontSize: "10px", color: "#94a3b8", whiteSpace: "normal" }}>{isFortis ? "Distinct people online in each hour, last 14 days (Istanbul time)." : "Her hücre: o saatte portalda bulunan farklı kişi sayısı, son 14 gün (İstanbul saati)."}</div>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+// v2.3: isiIste(gun) — servisten saatlik aktiflik (ısı haritası) verisini ister.
 // v2.2: durt(id, karsilik) — geri el sallama işaretlenir, detail.karsiliklar ile iletilir.
 // v2.1: "bilimevi-durtme" detail'i hâlâ ad dizisi; her elemanın yanında window olayında detail.idler (aynı sırada gönderen id'leri) var.
 // v2.0: n8n yoklaması yerine gerçek zamanlı WebSocket (Coolify "bilimevi-cevrimici", kodu servis/cevrimici/).
@@ -18,6 +19,7 @@ let yenidenZaman = null;
 let bagliKullanici = null;
 let refSayac = 0;
 const bekleyenDurt = new Map(); // ref -> resolve
+let bekleyenIsi = [];
 
 export function cevrimiciDurum() {
   return sonDurum;
@@ -72,6 +74,9 @@ function baglan() {
       d.idler = Array.isArray(m.kimdenId) ? m.kimdenId : [];
       d.karsiliklar = Array.isArray(m.karsilik) ? m.karsilik : [];
       yay("bilimevi-durtme", d);
+    } else if (m.t === "isi") {
+      const b = bekleyenIsi; bekleyenIsi = [];
+      b.forEach(r => r(Array.isArray(m.gunler) ? m.gunler : null));
     } else if (m.t === "durtuldu") {
       const r = bekleyenDurt.get(m.ref);
       if (r) { bekleyenDurt.delete(m.ref); r(!!m.ok); }
@@ -100,6 +105,15 @@ export function durt(id, karsilik = false) {
     bekleyenDurt.set(ref, resolve);
     ws.send(JSON.stringify({ t: "durt", id, ref, karsilik: !!karsilik }));
     setTimeout(() => { if (bekleyenDurt.delete(ref)) resolve(false); }, 5000);
+  });
+}
+
+export function isiIste(gun = 14) {
+  if (!ws || ws.readyState !== 1) return Promise.resolve(null);
+  return new Promise(resolve => {
+    bekleyenIsi.push(resolve);
+    ws.send(JSON.stringify({ t: "isi", gun }));
+    setTimeout(() => { const i = bekleyenIsi.indexOf(resolve); if (i >= 0) { bekleyenIsi.splice(i, 1); resolve(null); } }, 6000);
   });
 }
 
