@@ -1,3 +1,4 @@
+// v1.11: "/ N tüm hareket" kaldırıldı; sadece danışmanın kendi dokunduğu datalar görünür.
 // v1.10: aktivite grafiği danışmanın kendi işlemine göre (Lead Owner Last Activity); tek danışman seçiliyken de özetin üstünde görünür.
 //        Çubuğun yanında soluk "/ N tüm hareket" (otomasyonlar dahil, Kylas Data Owner raporu).
 // v1.9: danışman seçimi çoklu (admin/manager). Tek kişi: eski özet. 2+ kişi: "Aktivite sayıları" çubuk grafiği
@@ -28,7 +29,7 @@ const ASAMALAR = [
 const ASAMA_ADI = Object.fromEntries(ASAMALAR);
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const SAYFA = 20;
-export const OZET_SURUM = "v1.10"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const OZET_SURUM = "v1.11"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ACIKLAMA = {
   baslik: "Seçili danışmanın bu dönemdeki işleri ve bu dönemde aldığı yeni datalar. Kaynak seçiliyse sadece o kaynaklardaki datalar sayılır. Tümü: tüm zamanlar.",
@@ -251,7 +252,7 @@ function AktiviteGrafigi({ kisiler }) {
   return (
     <div style={{ padding: "18px 24px 22px" }}>
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "14px" }}>
-        <div style={{ ...c.etiket, margin: 0, marginRight: "6px" }}><Ipucu metin="Danışmanın bu aralıkta kendisinin işlem yaptığı (not, task, güncelleme) kendi data sayısı. Lead Owner Last Activity alanından okunur; otomasyonlar ve Selman hesabından gelen yazmalar sayılmaz. Bir data aralıkta birden fazla kez işlense de bir kez sayılır. Soluk sayı: aynı dönemde herhangi bir hareketi olan tüm datalar (Kylas'taki Data Owner raporu).">Aktivite sayıları</Ipucu></div>
+        <div style={{ ...c.etiket, margin: 0, marginRight: "6px" }}><Ipucu metin="Danışmanın bu aralıkta kendisinin işlem yaptığı (not, task, güncelleme) kendi data sayısı. Lead Owner Last Activity alanından okunur; otomasyonlar ve Selman hesabından gelen yazmalar sayılmaz. Bir data aralıkta birden fazla kez işlense de bir kez sayılır.">Aktivite sayıları</Ipucu></div>
         {ARALIKLAR.map(([d, ad]) => <button key={d} type="button" onClick={() => { setAralik(d); setNYazi(""); }} style={secimStil(aralik === d)}>{ad}</button>)}
         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
           <button type="button" onClick={() => { const n = Number(nYazi) || 30; setNYazi(String(n)); setAralik(n === 7 ? 7 : n); }} style={secimStil(nSecili)}>Son N gün</button>
@@ -277,7 +278,6 @@ function AktiviteGrafigi({ kisiler }) {
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", borderLeft: "1px solid #e2e8f0", paddingLeft: "0", minHeight: "26px" }}>
                   <div style={{ width: `${(s.sayi / enFazla) * 88}%`, minWidth: s.sayi ? "6px" : 0, height: "22px", borderRadius: "0 7px 7px 0", background: CUBUK_RENK[i % CUBUK_RENK.length], transition: "width .5s ease" }} />
                   <span style={{ fontSize: "13px", fontWeight: 600, color: s.sayi ? "#334155" : "#cbd5e1", fontVariantNumeric: "tabular-nums" }}>{s.sayi}</span>
-                  {s.tum > s.sayi && <span title="Aynı dönemde herhangi bir hareketi olan tüm datalar (otomasyonlar dahil)" style={{ fontSize: "12px", color: "#94a3b8", fontVariantNumeric: "tabular-nums" }}>/ {s.tum} tüm hareket</span>}
                 </div>
               </div>
             ))}
