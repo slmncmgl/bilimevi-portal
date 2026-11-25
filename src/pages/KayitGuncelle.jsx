@@ -1,4 +1,5 @@
-// KayitGuncelle.jsx v1.89
+// KayitGuncelle.jsx v1.90
+// v1.90 (25.11.2026): Listeden açılan kayıt Tally ID ile seçilir (aynı TC'li birden fazla satırda hep ilki açılıyordu); n8n ogrenci-getir &tally= destekliyor.
 // v1.89 (25.11.2026): Onay Durumu "İptal Etti" olan kayıtlar listede gösterilmiyor.
 // v1.88 (25.11.2026): TR Okul Adı sütunu TR_Okul_Default boşsa form adını göstermiyor, "-" yazıyor.
 // v1.87: Tüm Filtreleri Temizle düğmesinde ikon yok
@@ -1101,7 +1102,7 @@ export default function KayitGuncelle() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  async function sorgula(tcParam, viewOnly = false) {
+  async function sorgula(tcParam, viewOnly = false, tallyId = "") {
     const ham = String(tcParam || tc).trim();
     const targetTC = ham.replace(/\D/g, "");
     if (!ham) {
@@ -1115,7 +1116,7 @@ export default function KayitGuncelle() {
     if (tcParam) setTc(targetTC);
     setLoading(true);
     try {
-      const res = await fetch(`${FETCH_URL}?tc=${targetTC}&_t=${Date.now()}`, { cache: "no-store" });
+      const res = await fetch(`${FETCH_URL}?tc=${targetTC}${String(tallyId || "").trim() ? `&tally=${encodeURIComponent(String(tallyId).trim())}` : ""}&_t=${Date.now()}`, { cache: "no-store" });
       const json = await res.json();
       if (!json.found) return showToast("Bu TC ile kayıt bulunamadı", "error");
       if (!erisebilir(json.data)) return showToast("Bu kayda erişim yetkiniz yok", "error");
@@ -2486,7 +2487,7 @@ export default function KayitGuncelle() {
                         <span style={{ position: "relative", display: "inline-flex" }}>
                           <button
                             // Danışmanı olmayan kayıtlar da düzenlenebilir açılır
-                            onClick={() => sorgula(ogr["TC Kimlik No"])}
+                            onClick={() => sorgula(ogr["TC Kimlik No"], false, ogr["Tally Submission ID"])}
                             style={{ ...s.editBtn, ...s.aksiyonBtn, minWidth: "76px" }}
                           >{ogr["Danışman Adı"] ? "Düzenle" : "Görüntüle"}</button>
                           {taksitFarki(ogr) && gecerliLink(ogr["Sözleşme Onay Linki"]) && (
@@ -2954,7 +2955,7 @@ export default function KayitGuncelle() {
                 onClick={async () => {
                   const o = taksitOneri;
                   setTaksitOneri(null);
-                  await sorgula(o.kayit["TC Kimlik No"]);
+                  await sorgula(o.kayit["TC Kimlik No"], false, o.kayit["Tally Submission ID"]);
                   const alan = `${o.adet}. Taksit Tutarı`;
                   setData(prev => prev ? { ...prev, [alan]: String(Math.round(o.yeniSonTaksit * 100) / 100) } : prev);
                   setActiveTab("Taksit");
