@@ -1,3 +1,7 @@
+// v3.29: aktiviteSayilari danışmanın KENDİ işlemine göre: sahibi seçili danışman olan ve Lead Owner Last Activity
+//       (cfLeadOwnerLastActivity, n8n B794rLPe1EvUhGbj yazar) aralıkta olan data sayısı. Kylas bu alanla filtrelemiyor; alan her
+//       yazıldığında latestActivity de güncellendiği için önce latestActivity + sahip ile çekilip alan sunucuda süzülür.
+//       "tumHareket": aynı dönemde son aktivitesi olan tüm datalar (Kylas'ın Data Owner raporu), karşılaştırma için.
 // v3.28: islem "aktiviteSayilari": { ownerIds, aralik: "bugun" | "dun" | gün sayısı } -> son aktivitesi (latestActivityCreatedAt)
 //       o aralıkta olan dataları "son güncelleyen" (updatedBy) kişiye göre sayar (Kylas "Yesterday's Activities" raporu gibi).
 //       İstanbul günü (UTC+3). Sadece istenen danışmanlar döner; 10.000 üstü kesilir. 3 dk önbellek.
@@ -649,24 +653,30 @@ async function aktiviteSayilari(req, res, yetki) {
   else return res.status(400).json({ error: "Geçersiz aralık." });
   if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor aktiviteSayilari")) return;
 
-  const anahtar = `aktivite:${ownerIds.join(",")}:${aralik}:${bas.toISOString().slice(0, 13)}`;
+  const anahtar = `aktivite2:${ownerIds.join(",")}:${aralik}:${bas.toISOString().slice(0, 13)}`;
   const eski = onbellek.get(anahtar);
   if (eski && Date.now() - eski.zaman < 3 * 60 * 1000) return res.status(200).json(eski.veri);
 
-  const kurallar = [kural("latestActivityCreatedAt", "between", [bas.toISOString(), bit.toISOString()], "date")];
-  const ilk = await kylasAra(kurallar, 0, ["id", "updatedBy"]);
+  const kurallar = [kural("latestActivityCreatedAt", "between", [bas.toISOString(), bit.toISOString()], "date"), sahipKurali(ownerIds)];
+  const ALAN = ["id", "ownerId", "customFieldValues"];
+  const ilk = await kylasAra(kurallar, 0, ALAN);
   const toplam = ilk.totalElements || 0;
   const satirlar = [...(ilk.content || [])];
   const sayfaSayisi = Math.ceil(Math.min(toplam, KYLAS_LIMIT) / SAYFA);
   for (let p = 1; p < sayfaSayisi; p += 4) {
     const grup = [];
-    for (let q = p; q < Math.min(p + 4, sayfaSayisi); q++) grup.push(kylasAra(kurallar, q, ["id", "updatedBy"]));
+    for (let q = p; q < Math.min(p + 4, sayfaSayisi); q++) grup.push(kylasAra(kurallar, q, ALAN));
     (await Promise.all(grup)).forEach(d => satirlar.push(...(d.content || [])));
   }
-  const istenen = new Set(ownerIds);
-  const sayilar = {};
-  for (const l of satirlar) if (istenen.has(l.updatedBy)) sayilar[l.updatedBy] = (sayilar[l.updatedBy] || 0) + 1;
-  const veri = { bas: bas.toISOString(), bit: bit.toISOString(), sayilar, kesildi: toplam > KYLAS_LIMIT };
+  const basMs = bas.getTime(), bitMs = bit.getTime();
+  const sayilar = {}, tumHareket = {};
+  for (const l of satirlar) {
+    tumHareket[l.ownerId] = (tumHareket[l.ownerId] || 0) + 1;
+    const v = l.customFieldValues?.cfLeadOwnerLastActivity;
+    const z = v ? new Date(v).getTime() : NaN;
+    if (z >= basMs && z <= bitMs) sayilar[l.ownerId] = (sayilar[l.ownerId] || 0) + 1;
+  }
+  const veri = { bas: bas.toISOString(), bit: bit.toISOString(), sayilar, tumHareket, kesildi: toplam > KYLAS_LIMIT };
   onbellek.set(anahtar, { zaman: Date.now(), veri });
   return res.status(200).json(veri);
 }
