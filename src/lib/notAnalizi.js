@@ -1,3 +1,4 @@
+// v1.1: önerilen kapanış (İlgisiz / Olumsuza Dönen + sebep) notların içeriğinden ve temas geçmişinden çıkarılır
 // v1.0: Lead notlarından "gereksiz kovalanan / sağlıklı görüşme olmayan" dataları işaretler (sadece okuma, Kylas'a yazmaz).
 // Girdi: notlar [{ tarih (ISO), yazan, metin }]. Saatler İstanbul (UTC+3). Kişisel veri çıktıya girmez (lead_id + danışman).
 
@@ -100,6 +101,29 @@ export const AKSIYON = {
 };
 const AKSIYON_SIRA = ["KOVALAMA", "RED_SINYALI_SONRASI_DEVAM", "TERCIH_SAATI_DINLENMEDI", "TEK_SAAT_DILIMI", "KOPYALA_YAPISTIR_TAKIP", "SAGLIKSIZ_ILISKI", "DUZENSIZ_TAKIP"];
 
+// ---- Önerilen kapanış: en yeni nottan geriye doğru ilk eşleşen kalıp; yoksa temas geçmişinden ----
+export const ILGISIZ = 217287, OLUMSUZ = 217288;
+const KAPANIS_KALIP = [
+  [/baska (bir )?(acente|firma|sirket|kurum|danisman)|baska yer(den|le)|baska yerle (anlas|kayit)|kaydini yaptird/, g => (g ? [OLUMSUZ, "Başka Acenteyle Kaydolmuş"] : [ILGISIZ, "Başka Acenteyle Kaydolmuş"])],
+  [/yanlis numara|numara yanlis|hatali numara|numara hatali|boyle biri yok|kimseyi tanimiyor|numara (kullanilmiyor|gecersiz|eksik)|abone(ye)? ulasilamiyor|numara mevcut degil/, () => [ILGISIZ, "Hatalı Telefon Numarası"]],
+  [/ayni data|mukerrer|zaten kayitli|ikinci kayit|diger kaydi|tekrar eden kayit|cift kayit/, () => [ILGISIZ, "Aynı Data Mevcut"]],
+  [/yanlis form|yanlislikla|form doldurmad|formu doldurmamis|haberi yok|basvuru yapmad|ben doldurmadim/, () => [ILGISIZ, "Yanlış Form"]],
+  [/sunmuyoruz|hizmet vermiyoruz|programimiz yok|o ulkeye (gonder|hizmet)|destinasyon(umuz)? yok|bizde yok/, () => [ILGISIZ, "Talep Edilen Program / Destinasyon Sunulmuyor"]],
+  [/pahali|butce(si)? (yok|yetmi|yetersiz|uygun degil|ayarlayama)|maddi (durum|imkan|sebep)|karsilayama|fiyat(i|lar)? (yuksek|fazla)|ucret(i|ler)? (yuksek|fazla)/, g => (g ? [OLUMSUZ, "Bütçe Ayarlayamadı"] : [ILGISIZ, "Bütçesi Yok"])],
+  [/olumsuz profil|yasi (kucuk|buyuk|uygun degil)|yas sinir|profil(i)? uygun degil|ingilizce(si)? yok/, () => [ILGISIZ, "Olumsuz Profil"]],
+  [/iptal et|vazgec|plan(lar)?(i|ini)? (degis|iptal)|seneye|gelecek (yil|sene)|bu (yil|sene) degil|gitmeyecek|erteled/, g => (g ? [OLUMSUZ, "Planlarını İptal Etmiş"] : [ILGISIZ, "Artık İlgilenmiyor"])],
+];
+export function kapanisOnerisi(notlarAsc, gorusmeSayisi) {
+  const g = gorusmeSayisi > 0;
+  for (let i = notlarAsc.length - 1; i >= 0; i--) {
+    const n = normal(notlarAsc[i].metin);
+    for (const [re, f] of KAPANIS_KALIP) if (re.test(n)) return f(g);
+  }
+  const turler = notlarAsc.map(x => x.tur);
+  if (turler.includes("REDDETTI")) return [ILGISIZ, "Artık İlgilenmiyor"];
+  return g ? [OLUMSUZ, "Ulaşılamıyor"] : [ILGISIZ, "Cevap Vermiyor"];
+}
+
 // Tek lead'in analizi. notlar: [{ tarih, yazan, metin }] (sıra önemli değil)
 export function leadAnaliz(leadId, sahip, notlar) {
   const n = (notlar || []).filter(x => x && x.tarih)
@@ -193,6 +217,7 @@ export function leadAnaliz(leadId, sahip, notlar) {
   const aksiyonBayrak = AKSIYON_SIRA.find(b => bayrak.includes(b));
   const kisaGerekce = gerekce.length ? (gerekce.slice(0, 2).join("; ") + (gerekce.length > 2 ? ` (+${gerekce.length - 2})` : "")).replace(/^./, c => c.toUpperCase()) + "." : "";
 
+  const [kapanisAsama, kapanisSebep] = kapanisOnerisi(n, gorusmeler.length);
   return {
     lead_id: leadId,
     sahip: sahip || "",
@@ -217,6 +242,8 @@ export function leadAnaliz(leadId, sahip, notlar) {
     risk_skoru: risk,
     kisa_gerekce: kisaGerekce,
     onerilen_aksiyon: aksiyonBayrak ? AKSIYON[aksiyonBayrak] : "",
+    onerilen_kapanis: `${kapanisAsama === ILGISIZ ? "İlgisiz" : "Olumsuza Dönen"} · ${kapanisSebep}`,
+    kapanis: { asama: kapanisAsama, sebep: kapanisSebep },
     turler: n.map(x => x.tur),
   };
 }
@@ -238,7 +265,7 @@ export function danismanOzeti(sonuclar) {
   })).sort((a, b) => b.bayrakli - a.bayrakli || b.lead - a.lead);
 }
 
-export const CSV_SUTUNLAR = ["lead_id", "sahip", "toplam_temas", "gorusme_sayisi", "son_gorusme_tarihi", "ardisik_basarisiz", "tercih_saati", "aralik_disi_arama_orani", "baskin_saat_dilimi", "bayraklar", "risk_skoru", "kisa_gerekce", "onerilen_aksiyon"];
+export const CSV_SUTUNLAR = ["lead_id", "sahip", "toplam_temas", "gorusme_sayisi", "son_gorusme_tarihi", "ardisik_basarisiz", "tercih_saati", "aralik_disi_arama_orani", "baskin_saat_dilimi", "bayraklar", "risk_skoru", "kisa_gerekce", "onerilen_aksiyon", "onerilen_kapanis"];
 export function csvYap(sonuclar) {
   const kac = v => { const s = Array.isArray(v) ? v.join("|") : String(v ?? ""); return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   return "﻿" + [CSV_SUTUNLAR.join(","), ...sonuclar.map(s => CSV_SUTUNLAR.map(k => kac(s[k])).join(","))].join("\n");

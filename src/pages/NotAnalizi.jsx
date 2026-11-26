@@ -70,7 +70,7 @@ export default function NotAnalizi({ liste, kisiAdi, onKapat }) {
     const m = { Yüksek: 0, Orta: 0, Düşük: 0 }; sonuclar.forEach(s => { m[s.risk_skoru]++; }); return m;
   }, [sonuclar]);
   const dosyaAdi = `not-analizi-${new Date().toISOString().slice(0, 10)}`;
-  const temizJson = () => JSON.stringify({ esikler: ESIK, leadler: sonuclar.map(({ turler, ...s }) => s), danismanlar: ozet }, null, 2);
+  const temizJson = () => JSON.stringify({ esikler: ESIK, leadler: sonuclar.map(({ turler, kapanis, ...s }) => s), danismanlar: ozet }, null, 2);
 
   return createPortal(
     <div onClick={() => durum !== "calisiyor" && onKapat()} style={{ position: "fixed", inset: 0, zIndex: 9600, background: "rgba(15,23,42,0.35)", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "24px 16px", overflowY: "auto", fontFamily: "'Sora', sans-serif" }}>

@@ -1,3 +1,4 @@
+// v1.2: önerilen kapanış sütunu; Close Lead penceresi İlgisiz + Olumsuza Dönen'in tüm sebeplerini gösterir, önerilen seçili gelir
 // v1.1: aksiyon filtreleri, "önerisi olmayanlar" kutusu ve Yeniden analiz kalktı; Tümünü Ele Al; satırda Close Lead (Neden + "AI Önerisi ile inceledim ve iptale çektim." notu, İlgisiz · Artık İlgilenmiyor)
 // v1.0: Takip Tablosu "AI Önerileri" kartı. Karta tıklanınca seçili danışman(lar)ın açık datalarının notları okunur
 // (Kylas'a yazılmaz), src/lib/notAnalizi.js kurallarıyla bayraklanır. Analiz sürerken kart soldan sağa dolar;
@@ -5,6 +6,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { apiCagir } from "./CrmRaporu";
+import { KAPANISLAR } from "./EleAl";
 import { leadAnaliz } from "../lib/notAnalizi";
 
 export const AI_UST_SINIR = 300;
@@ -124,11 +126,10 @@ export function AiHazirPopup({ oneri, toplam, onGoster, onKapat }) {
 
 // Sonuç listesi (kartların altında, normal listenin yerinde)
 export const AI_KAPAT_NOTU = "AI Önerisi ile inceledim ve iptale çektim.";
-const ILGISIZ = 217287, ILGISIZ_SEBEP = "Artık İlgilenmiyor";
 
 export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl, onKapandi, AdHucre }) {
-  const [kapat, setKapat] = useState({}); // leadId -> "onay" | "gidiyor" | "tamam" | { hata }
-  const onayZaman = useRef({});
+  const [kapat, setKapat] = useState({}); // leadId -> "gidiyor" | "tamam" | { hata }
+  const [pencere, setPencere] = useState(null); // { s, l }
   const leadMap = useMemo(() => Object.fromEntries(leadler.map(l => [l.id, l])), [leadler]);
   const tum = Object.values(ai.sonuclar);
   const satirlar = tum
@@ -137,19 +138,14 @@ export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl,
 
   const acikSatirlar = satirlar.filter(s => kapat[s.lead_id] !== "tamam" && leadMap[s.lead_id]);
   const kapatilan = useRef({});
-  async function kapatTikla(s, l) {
-    const simdi = Date.now();
-    if (kapat[s.lead_id] !== "onay" || simdi - (onayZaman.current[s.lead_id] || 0) > 5000) {
-      onayZaman.current[s.lead_id] = simdi;
-      setKapat(x => ({ ...x, [s.lead_id]: "onay" }));
-      return;
-    }
+  async function kapatUygula(s, l, asama, sebep) {
+    setPencere(null);
     setKapat(x => ({ ...x, [s.lead_id]: "gidiyor" }));
     try {
       const metin = [s.kisa_gerekce, AI_KAPAT_NOTU].filter(Boolean).join("\n");
       await apiCagir({ islem: "notEkle", leadId: l.id, metin });
-      await apiCagir({ islem: "asamaDegistir", leadId: l.id, asama: ILGISIZ, sebep: ILGISIZ_SEBEP });
-      kapatilan.current[s.lead_id] = l;
+      await apiCagir({ islem: "asamaDegistir", leadId: l.id, asama, sebep });
+      kapatilan.current[s.lead_id] = { l, ad: `${KAPANISLAR.find(k => k.id === asama)?.ad || ""} · ${sebep}` };
       setKapat(x => ({ ...x, [s.lead_id]: "tamam" }));
       onKapandi && onKapandi(l.id);
     } catch (e) { setKapat(x => ({ ...x, [s.lead_id]: { hata: e.message } })); }
@@ -181,11 +177,11 @@ export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl,
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
                 <thead>
-                  <tr>{["Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Risk", "Neden", "Önerilen aksiyon", ""].map((h, i) => <th key={i} style={th}>{h}</th>)}</tr>
+                  <tr>{["Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Risk", "Neden", "Önerilen aksiyon", "Önerilen kapanış", ""].map((h, i) => <th key={i} style={th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {satirlar.map(s => {
-                    const l = leadMap[s.lead_id] || kapatilan.current[s.lead_id];
+                    const l = leadMap[s.lead_id] || kapatilan.current[s.lead_id]?.l;
                     const r = RISK[s.risk_skoru];
                     const k = kapat[s.lead_id];
                     return (
@@ -203,16 +199,16 @@ export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl,
                           )}
                         </td>
                         <td style={{ ...td, minWidth: "170px", fontWeight: 700, color: "#0f172a" }}>{s.onerilen_aksiyon || "-"}</td>
+                        <td style={{ ...td, minWidth: "150px" }}>{s.kapanis && <KapanisRozet kapanis={s.kapanis} />}</td>
                         <td style={{ ...td, textAlign: "right" }}>
                           {k === "tamam" ? (
-                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#b45309", whiteSpace: "nowrap" }}>Kapatıldı · İlgisiz ✓</span>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#b45309", whiteSpace: "nowrap" }}>Kapatıldı · {kapatilan.current[s.lead_id]?.ad} ✓</span>
                           ) : (
                             <div style={{ display: "inline-flex", gap: "6px" }}>
                               <button type="button" onClick={() => onEleAl([l])} disabled={k === "gidiyor"} style={{ ...satirDugme, background: "#0891b2", color: "#fff", border: "1.5px solid #0891b2" }}>Ele Al</button>
-                              <button type="button" onClick={() => kapatTikla(s, l)} disabled={k === "gidiyor"}
-                                title={k === "onay" ? "Tekrar basınca not eklenir ve data İlgisiz · Artık İlgilenmiyor olarak kapanır" : "Neden notu + İlgisiz · Artık İlgilenmiyor"}
-                                style={{ ...satirDugme, background: k === "onay" ? "#b45309" : "#fff", color: k === "onay" ? "#fff" : "#b45309", border: "1.5px solid #fcd34d" }}>
-                                {k === "gidiyor" ? "Kapatılıyor…" : k === "onay" ? "Emin misin? Kapat" : "Close Lead"}
+                              <button type="button" onClick={() => setPencere({ s, l })} disabled={k === "gidiyor"}
+                                style={{ ...satirDugme, background: "#fff", color: "#b45309", border: "1.5px solid #fcd34d" }}>
+                                {k === "gidiyor" ? "Kapatılıyor…" : "Close Lead"}
                               </button>
                             </div>
                           )}
@@ -230,7 +226,69 @@ export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl,
           <div style={{ padding: "10px 20px 14px", fontSize: "11px", color: "#94a3b8" }}>Öneriler notların içeriğine, sayısına ve yazıldığı saate (İstanbul) göre kurallarla çıkarılır; Kylas'ta hiçbir şey değişmez.</div>
         </>
       )}
+      {pencere && <KapanisPenceresi s={pencere.s} l={pencere.l} onKapat={() => setPencere(null)} onTamam={(asama, sebep) => kapatUygula(pencere.s, pencere.l, asama, sebep)} />}
     </div>
+  );
+}
+
+function KapanisRozet({ kapanis }) {
+  const k = KAPANISLAR.find(x => x.id === kapanis.asama);
+  if (!k) return null;
+  return (
+    <span style={{ display: "inline-block", padding: "3px 9px", borderRadius: "10px", background: k.zemin, border: `1px solid ${k.cerceve}`, color: k.renk, fontSize: "11.5px", fontWeight: 700, lineHeight: 1.4 }}>
+      {k.ad} · {kapanis.sebep}
+    </span>
+  );
+}
+
+// Close Lead penceresi: iki kapanış türü ve tüm sebepleri, AI'nın önerdiği seçili gelir
+function KapanisPenceresi({ s, l, onKapat, onTamam }) {
+  const [secim, setSecim] = useState(s.kapanis ? { asama: s.kapanis.asama, sebep: s.kapanis.sebep } : null);
+  useEffect(() => {
+    const tus = e => { if (e.key === "Escape") { e.stopPropagation(); onKapat(); } };
+    document.addEventListener("keydown", tus, true);
+    return () => document.removeEventListener("keydown", tus, true);
+  }, []);
+  const secili = KAPANISLAR.find(k => k.id === secim?.asama);
+  const notMetni = [s.kisa_gerekce, AI_KAPAT_NOTU].filter(Boolean).join("\n");
+  return createPortal(
+    <div onClick={onKapat} style={{ position: "fixed", inset: 0, zIndex: 9700, background: "rgba(15,23,42,0.35)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", fontFamily: "'Sora', sans-serif" }}>
+      <div role="dialog" aria-modal="true" aria-label="Close Lead" onClick={e => e.stopPropagation()}
+        style={{ width: "min(640px, 100%)", maxHeight: "calc(100vh - 32px)", overflowY: "auto", background: "#fff", borderRadius: "20px", padding: "22px 24px", boxShadow: "0 24px 60px rgba(15,23,42,0.25)" }}>
+        <div style={{ fontSize: "17px", fontWeight: 800, color: "#0f172a" }}>{l.ad || `Data ${l.id}`} · Close Lead</div>
+        <div style={{ fontSize: "13px", color: "#475569", margin: "6px 0 16px" }}>Kapanış sebebini seçin. <span style={{ color: MOR, fontWeight: 700 }}>AI önerisi</span> seçili geldi.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "14px" }}>
+          {KAPANISLAR.map(k => (
+            <div key={k.id} style={{ border: `1.5px solid ${secim?.asama === k.id ? k.renk : k.cerceve}`, borderRadius: "14px", padding: "12px 10px 8px", background: secim?.asama === k.id ? k.zemin : "#fff" }}>
+              <div style={{ fontSize: "13px", fontWeight: 800, color: k.renk, padding: "0 6px 6px" }}>{k.ad}</div>
+              {k.sebepler.map(x => {
+                const sec = secim?.asama === k.id && secim.sebep === x;
+                const oneri = s.kapanis?.asama === k.id && s.kapanis.sebep === x;
+                return (
+                  <label key={x} style={{ display: "flex", alignItems: "center", gap: "9px", padding: "7px 6px", borderRadius: "9px", cursor: "pointer", fontSize: "13px", fontWeight: sec ? 700 : 500, color: sec ? k.renk : "#0f172a", background: sec ? "#fff" : "transparent" }}>
+                    <input type="radio" name="aiKapanis" checked={sec} onChange={() => setSecim({ asama: k.id, sebep: x })} style={{ accentColor: k.renk, width: "15px", height: "15px", margin: 0, flexShrink: 0 }} />
+                    <span style={{ flex: 1 }}>{x}</span>
+                    {oneri && <span style={{ padding: "1px 7px", borderRadius: "999px", background: "#f5f3ff", color: MOR, fontSize: "10px", fontWeight: 800, whiteSpace: "nowrap" }}>AI önerisi</span>}
+                  </label>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: "14px", padding: "10px 12px", borderRadius: "12px", background: "#f8fafc", border: "1px solid #eef2f6" }}>
+          <div style={{ fontSize: "11px", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px" }}>Eklenecek not</div>
+          <div style={{ fontSize: "12.5px", color: "#334155", whiteSpace: "pre-line", lineHeight: 1.5 }}>{notMetni}</div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
+          <button type="button" onClick={onKapat} style={{ padding: "9px 16px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Vazgeç</button>
+          <button type="button" disabled={!secim} onClick={() => onTamam(secim.asama, secim.sebep)}
+            style={{ padding: "9px 18px", borderRadius: "12px", border: "none", background: secili?.renk || "#94a3b8", color: "#fff", fontWeight: 700, cursor: secim ? "pointer" : "default", opacity: secim ? 1 : 0.5, fontFamily: "inherit" }}>
+            {secili ? `${secili.ad} olarak kapat` : "Sebep seçin"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 

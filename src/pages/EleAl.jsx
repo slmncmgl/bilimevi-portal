@@ -1,3 +1,4 @@
+// v2.24: KAPANISLAR dışa açıldı (AI Önerileri Close Lead penceresi kullanıyor)
 // v2.23: Close Lead → İlgisiz / Olumsuza Dönen seçilince pencerede aşamalar yok; sadece o kapanışın sebepleri alt alta (Kylas sırası, radyo)
 // v2.22: aşama çubuğu ve Close Lead, CRM'de Göster ile aynı camgöbeği; seçili olmayan aşamalar gri (Kylas gibi)
 // v2.21: task penceresinde Tür seçimi kalktı, her task Follow Up açılır
@@ -61,7 +62,7 @@ import Pomodoro from "./Pomodoro";
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili", 217287: "İlgisiz", 217288: "Olumsuza Dönen" };
 // Aşama penceresi: açık aşamalar arası geçiş ve kapatma sebepleri (crm-rapor asamaDegistir ile aynı liste)
 const ACIK_HEDEFLER = [222366, 253357, 253358, 218701, 218702];
-const KAPANISLAR = [
+export const KAPANISLAR = [
   { id: 217287, ad: "İlgisiz", alt: "Reasons for Unqualification", renk: "#b45309", zemin: "#fffbeb", cerceve: "#fde68a",
     sebepler: ["Olumsuz Profil", "Cevap Vermiyor", "Artık İlgilenmiyor", "Bütçesi Yok", "Yanlış Form", "Hatalı Telefon Numarası", "Başka Acenteyle Kaydolmuş", "Talep Edilen Program / Destinasyon Sunulmuyor", "Aynı Data Mevcut"] },
   { id: 217288, ad: "Olumsuza Dönen", alt: "Reasons for Closed Lost", renk: "#b91c1c", zemin: "#fef2f2", cerceve: "#fecaca",
@@ -99,7 +100,7 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
   );
 }
 
-export const ELEAL_SURUM = "v2.23"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
+export const ELEAL_SURUM = "v2.24"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
 
 export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat }) {
   const [pomYesil, setPomYesil] = useState(false);
