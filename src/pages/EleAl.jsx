@@ -1,3 +1,4 @@
+// v2.17: Kylas Message alanı Data bilgilerinden çıktı; Önceki notların en altında "Form mesajı" olarak (form tarihiyle, sarı zemin)
 // v2.16: iletişim kartında Kylas Data Information alanları (8 alan, küçük punto); kart iç boşlukları sıkılaştı
 // v2.15: pomodoro bitince şerit "Mola ver"e tıklanana kadar yeşil yanar
 // v2.14: pomodoro şeridin ortasında, büyük ikon + altında "Pomodoro"
@@ -426,7 +427,6 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
               <Alan ad="Çocuğun Eğitim Aldığı Okul" bekliyor={dy} kucuk>{dt?.bilgi?.cocukOkul || "-"}</Alan>
               <Alan ad="Çocuk Kaçıncı Sınıfta" bekliyor={dy} kucuk>{dt?.bilgi?.sinif || "-"}</Alan>
               <Alan ad="İlk Form Tarihi" bekliyor={dy} kucuk>{dt?.bilgi?.ilkForm ? tarih(dt.bilgi.ilkForm) : "-"}</Alan>
-              <Alan ad="Message" bekliyor={dy} kucuk>{dt?.bilgi?.mesaj ? <span style={{ fontWeight: 500, whiteSpace: "pre-wrap" }}>{dt.bilgi.mesaj}</span> : "-"}</Alan>
             </div>
             <div style={s.altBilgi}>
               <span>Son aktivite: <b style={{ color: "#0f172a" }}>{l.sonAktivite ? `${tarih(l.sonAktivite)} · ${gunOnce(l.sonAktivite)} gün önce` : "hiç yok"}</b></span>
@@ -510,6 +510,12 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
                 </div>
               ))}
               {n?.toplam > (n?.notlar?.length || 0) && <div style={{ fontSize: "11px", color: "#94a3b8" }}>Son {n.notlar.length} not gösteriliyor, hepsi Kylas'ta.</div>}
+              {dt?.bilgi?.mesaj?.trim() && (
+                <div style={{ ...s.not, background: "#fffbeb", borderColor: "#fde68a" }}>
+                  <div style={{ fontSize: "11px", color: "#92400e", marginBottom: "4px", fontWeight: 700 }}>Form mesajı{dt.olusturma ? ` · ${tarih(dt.olusturma, true)}` : ""}</div>
+                  <div style={{ whiteSpace: "pre-wrap", color: "#0f172a", fontSize: "13px", lineHeight: 1.55 }}>{dt.bilgi.mesaj.trim()}</div>
+                </div>
+              )}
             </div>
           </section>
         </main>
