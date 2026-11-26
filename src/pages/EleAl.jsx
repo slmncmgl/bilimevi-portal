@@ -1,3 +1,4 @@
+// v2.22: aşama çubuğu ve Close Lead, CRM'de Göster ile aynı camgöbeği; seçili olmayan aşamalar gri (Kylas gibi)
 // v2.21: task penceresinde Tür seçimi kalktı, her task Follow Up açılır
 // v2.20: aşama çubuğunun iki ucu oval; Close Lead dolu mavi, ayrık oklu düğme
 // v2.19: not bölümünün üstünde Kylas tarzı aşama çubuğu (tıkla → taşı) + Close Lead menüsü (İlgisiz / Olumsuza Dönen → sebep penceresi); kartta Değiştir kalktı
@@ -97,7 +98,7 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
   );
 }
 
-export const ELEAL_SURUM = "v2.21"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
+export const ELEAL_SURUM = "v2.22"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
 
 export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat }) {
   const [pomYesil, setPomYesil] = useState(false);
@@ -738,7 +739,7 @@ function AsamaCubugu({ lead, onKapat, onDegisti }) {
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: tiklanir && !gidiyor ? "pointer" : "default",
                 clipPath: i === 0 ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)" : i === CUBUK.length - 1 ? "polygon(0 0, 100% 0, 100% 100%, 0 100%, 8px 50%)" : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)",
                 paddingLeft: i === 0 ? "16px" : "18px",
-                background: simdi ? "#7c3aed" : gecti ? "#ddd6fe" : gidiyor === id ? "#c4b5fd" : "#f1f5f9", color: simdi ? "#fff" : gecti ? "#5b21b6" : "#64748b", transition: "background .15s" }}
+                background: simdi ? "#0891b2" : gidiyor === id ? "#a5f3fc" : "#eef2f6", color: simdi ? "#fff" : "#64748b", transition: "background .15s" }}
               className={tiklanir ? "elal-cubuk-adim" : undefined}>
               {gidiyor === id ? "…" : ASAMA_ADLARI[id]}
             </button>
@@ -752,9 +753,9 @@ function AsamaCubugu({ lead, onKapat, onDegisti }) {
           </span>
         ) : (
           <button type="button" onClick={() => setMenu(m => !m)} disabled={!!gidiyor} className="elal-kapat-dugme"
-            style={{ display: "inline-flex", alignItems: "stretch", height: "34px", padding: 0, borderRadius: "10px", border: "none", overflow: "hidden", background: "#2563eb", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 4px 12px rgba(37,99,235,0.3)" }}>
+            style={{ display: "inline-flex", alignItems: "stretch", height: "34px", padding: 0, borderRadius: "10px", border: "none", overflow: "hidden", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 4px 12px rgba(8,145,178,0.3)" }}>
             <span style={{ display: "inline-flex", alignItems: "center", padding: "0 16px" }}>Close Lead</span>
-            <span style={{ display: "inline-flex", alignItems: "center", padding: "0 11px", background: "#1d4ed8", fontSize: "10px" }}>▼</span>
+            <span style={{ display: "inline-flex", alignItems: "center", padding: "0 11px", background: "#0e7490", fontSize: "10px" }}>▼</span>
           </button>
         )}
         {menu && (
@@ -957,8 +958,8 @@ const s = {
 };
 
 const EKRAN_CSS = `
-.elal-kapat-dugme:hover:not(:disabled) { background: #1d4ed8 !important; }
-.elal-cubuk-adim:hover:not(:disabled) { background: #ede9fe !important; color: #5b21b6 !important; }
+.elal-kapat-dugme:hover:not(:disabled) { background: #0e7490 !important; }
+.elal-cubuk-adim:hover:not(:disabled) { background: #cffafe !important; color: #0e7490 !important; }
         @keyframes elalPomYesil {
           0% { background-position: 0% 50%; }
           100% { background-position: 100% 50%; }
