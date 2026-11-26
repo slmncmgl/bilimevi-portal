@@ -1,3 +1,4 @@
+// v1.1: aksiyon filtreleri, "önerisi olmayanlar" kutusu ve Yeniden analiz kalktı; Tümünü Ele Al; satırda Close Lead (Neden + "AI Önerisi ile inceledim ve iptale çektim." notu, İlgisiz · Artık İlgilenmiyor)
 // v1.0: Takip Tablosu "AI Önerileri" kartı. Karta tıklanınca seçili danışman(lar)ın açık datalarının notları okunur
 // (Kylas'a yazılmaz), src/lib/notAnalizi.js kurallarıyla bayraklanır. Analiz sürerken kart soldan sağa dolar;
 // bitince "AI önerileri hazır" penceresi çıkar, sonuçlar kartların altındaki listede görünür.
@@ -122,25 +123,49 @@ export function AiHazirPopup({ oneri, toplam, onGoster, onKapat }) {
 }
 
 // Sonuç listesi (kartların altında, normal listenin yerinde)
-export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl, onYenile, AdHucre }) {
-  const [aksiyon, setAksiyon] = useState("");
-  const [hepsi, setHepsi] = useState(false);
+export const AI_KAPAT_NOTU = "AI Önerisi ile inceledim ve iptale çektim.";
+const ILGISIZ = 217287, ILGISIZ_SEBEP = "Artık İlgilenmiyor";
+
+export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl, onKapandi, AdHucre }) {
+  const [kapat, setKapat] = useState({}); // leadId -> "onay" | "gidiyor" | "tamam" | { hata }
+  const onayZaman = useRef({});
   const leadMap = useMemo(() => Object.fromEntries(leadler.map(l => [l.id, l])), [leadler]);
   const tum = Object.values(ai.sonuclar);
-  const aksiyonlar = useMemo(() => {
-    const m = {}; tum.forEach(s => { if (s.onerilen_aksiyon) m[s.onerilen_aksiyon] = (m[s.onerilen_aksiyon] || 0) + 1; });
-    return Object.entries(m).sort((a, b) => b[1] - a[1]);
-  }, [ai.sonuclar]);
   const satirlar = tum
-    .filter(s => (hepsi || s.bayraklar.length) && (!aksiyon || s.onerilen_aksiyon === aksiyon) && leadMap[s.lead_id])
+    .filter(s => s.bayraklar.length && (leadMap[s.lead_id] || kapat[s.lead_id] === "tamam"))
     .sort((a, b) => RISK[b.risk_skoru].puan - RISK[a.risk_skoru].puan || b.bayraklar.length - a.bayraklar.length || b.toplam_temas - a.toplam_temas);
+
+  const acikSatirlar = satirlar.filter(s => kapat[s.lead_id] !== "tamam" && leadMap[s.lead_id]);
+  const kapatilan = useRef({});
+  async function kapatTikla(s, l) {
+    const simdi = Date.now();
+    if (kapat[s.lead_id] !== "onay" || simdi - (onayZaman.current[s.lead_id] || 0) > 5000) {
+      onayZaman.current[s.lead_id] = simdi;
+      setKapat(x => ({ ...x, [s.lead_id]: "onay" }));
+      return;
+    }
+    setKapat(x => ({ ...x, [s.lead_id]: "gidiyor" }));
+    try {
+      const metin = [s.kisa_gerekce, AI_KAPAT_NOTU].filter(Boolean).join("\n");
+      await apiCagir({ islem: "notEkle", leadId: l.id, metin });
+      await apiCagir({ islem: "asamaDegistir", leadId: l.id, asama: ILGISIZ, sebep: ILGISIZ_SEBEP });
+      kapatilan.current[s.lead_id] = l;
+      setKapat(x => ({ ...x, [s.lead_id]: "tamam" }));
+      onKapandi && onKapandi(l.id);
+    } catch (e) { setKapat(x => ({ ...x, [s.lead_id]: { hata: e.message } })); }
+  }
 
   return (
     <div style={{ background: "#fff", border: "1.5px solid #ddd6fe", borderRadius: "20px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", animation: "fadeUp 0.4s ease-out", scrollMarginTop: "80px" }} id="ai-oneri-listesi">
       <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "16px 20px", borderBottom: "1px solid #f1f5f9", background: "#faf5ff" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "15px", fontWeight: 800, color: "#4c1d95" }}><YildizIkonu boyut={18} renk={MOR} /> AI Önerileri</span>
         {ai.durum === "bitti" && <span style={{ fontSize: "12px", color: "#64748b" }}>{ai.toplam} data analiz edildi{ai.hatali ? ` · ${ai.hatali} okunamadı` : ""}{leadler.length > AI_UST_SINIR ? ` (ilk ${AI_UST_SINIR})` : ""}</span>}
-        {ai.durum === "bitti" && <button type="button" onClick={onYenile} style={{ marginLeft: "auto", padding: "6px 12px", borderRadius: "10px", border: "1.5px solid #ddd6fe", background: "#fff", color: MOR, fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>↻ Yeniden analiz et</button>}
+        {ai.durum === "bitti" && acikSatirlar.length > 0 && (
+          <button type="button" onClick={() => onEleAl(acikSatirlar.map(s => leadMap[s.lead_id]))}
+            style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "12px", border: "none", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(8,145,178,0.25)" }}>
+            Tümünü Ele Al ({acikSatirlar.length})
+          </button>
+        )}
       </div>
 
       {ai.durum === "calisiyor" && (
@@ -152,13 +177,6 @@ export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl,
 
       {ai.durum === "bitti" && (
         <>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", padding: "12px 20px" }}>
-            <button type="button" onClick={() => setAksiyon("")} style={chip(!aksiyon)}>Tüm öneriler ({tum.filter(s => s.bayraklar.length).length})</button>
-            {aksiyonlar.map(([a, n]) => <button key={a} type="button" onClick={() => setAksiyon(x => (x === a ? "" : a))} style={chip(aksiyon === a)}>{a} ({n})</button>)}
-            <label style={{ marginLeft: "auto", fontSize: "12px", color: "#475569", display: "inline-flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-              <input type="checkbox" checked={hepsi} onChange={e => setHepsi(e.target.checked)} style={{ accentColor: MOR }} /> Önerisi olmayanları da göster
-            </label>
-          </div>
           {satirlar.length ? (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
@@ -167,10 +185,11 @@ export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl,
                 </thead>
                 <tbody>
                   {satirlar.map(s => {
-                    const l = leadMap[s.lead_id];
+                    const l = leadMap[s.lead_id] || kapatilan.current[s.lead_id];
                     const r = RISK[s.risk_skoru];
+                    const k = kapat[s.lead_id];
                     return (
-                      <tr key={s.lead_id}>
+                      <tr key={s.lead_id} style={{ opacity: k === "tamam" ? 0.45 : 1, transition: "opacity .3s" }}>
                         <td style={{ ...td, whiteSpace: "nowrap" }}><AdHucre lead={l} /></td>
                         {coklu && <td style={{ ...td, whiteSpace: "nowrap", color: "#475569" }}>{kisiAdi(l.ownerId)}</td>}
                         <td style={{ ...td, whiteSpace: "nowrap" }}>{asamaAdi(l.asama)}</td>
@@ -185,7 +204,19 @@ export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl,
                         </td>
                         <td style={{ ...td, minWidth: "170px", fontWeight: 700, color: "#0f172a" }}>{s.onerilen_aksiyon || "-"}</td>
                         <td style={{ ...td, textAlign: "right" }}>
-                          <button type="button" onClick={() => onEleAl(l)} style={{ padding: "6px 12px", borderRadius: "10px", border: "none", background: "#0891b2", color: "#fff", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>Ele Al</button>
+                          {k === "tamam" ? (
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#b45309", whiteSpace: "nowrap" }}>Kapatıldı · İlgisiz ✓</span>
+                          ) : (
+                            <div style={{ display: "inline-flex", gap: "6px" }}>
+                              <button type="button" onClick={() => onEleAl([l])} disabled={k === "gidiyor"} style={{ ...satirDugme, background: "#0891b2", color: "#fff", border: "1.5px solid #0891b2" }}>Ele Al</button>
+                              <button type="button" onClick={() => kapatTikla(s, l)} disabled={k === "gidiyor"}
+                                title={k === "onay" ? "Tekrar basınca not eklenir ve data İlgisiz · Artık İlgilenmiyor olarak kapanır" : "Neden notu + İlgisiz · Artık İlgilenmiyor"}
+                                style={{ ...satirDugme, background: k === "onay" ? "#b45309" : "#fff", color: k === "onay" ? "#fff" : "#b45309", border: "1.5px solid #fcd34d" }}>
+                                {k === "gidiyor" ? "Kapatılıyor…" : k === "onay" ? "Emin misin? Kapat" : "Close Lead"}
+                              </button>
+                            </div>
+                          )}
+                          {k?.hata && <div style={{ fontSize: "11px", color: "#b91c1c", marginTop: "4px", maxWidth: "220px", marginLeft: "auto" }}>{k.hata}</div>}
                         </td>
                       </tr>
                     );
@@ -203,6 +234,6 @@ export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl,
   );
 }
 
-const chip = aktif => ({ padding: "6px 12px", borderRadius: "999px", border: `1.5px solid ${aktif ? MOR : "#e2e8f0"}`, background: aktif ? MOR : "#fff", color: aktif ? "#fff" : "#475569", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", whiteSpace: "nowrap" });
+const satirDugme = { padding: "6px 12px", borderRadius: "10px", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", whiteSpace: "nowrap" };
 const th = { textAlign: "left", padding: "10px 14px", background: "#f8fafc", color: "#64748b", fontWeight: 700, fontSize: "12px", borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap" };
 const td = { padding: "10px 14px", borderBottom: "1px solid #f1f5f9", color: "#0f172a", verticalAlign: "top" };

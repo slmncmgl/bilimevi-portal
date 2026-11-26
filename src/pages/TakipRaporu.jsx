@@ -1,3 +1,4 @@
+// v6.50: AI Önerileri listesi: filtreler ve Yeniden analiz kalktı, Tümünü Ele Al, satırda Close Lead (not + İlgisiz · Artık İlgilenmiyor)
 // v6.49: AI Önerileri kartı grup kartlarıyla aynı hizada (görünmez grup çerçevesi + boş başlık)
 // v6.48: Takip oranı kartının yerinde "AI Önerileri": tıklayınca açık dataların notları analiz edilir (kart soldan sağa dolar), bitince "AI önerileri hazır" penceresi, öneriler kartların altındaki listede
 // v6.47: admin Takip Tablosu'nda 1-3-5'e basınca Not Analizi (test) paneli açılır: listedeki dataların notlarından kovalama / sağlıksız takip bayrakları
@@ -125,7 +126,7 @@ import { useAiAnaliz, AiKart, AiHazirPopup, AiOneriListesi } from "./AiOneriler"
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.49"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.50"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ASAMA_RENK = { 217285: ["#2563eb", "#eff6ff", "#bfdbfe"], 222366: ["#d97706", "#fffbeb", "#fde68a"], 253357: ["#d97706", "#fffbeb", "#fde68a"], 253358: ["#d97706", "#fffbeb", "#fde68a"], 218701: ["#7c3aed", "#f5f3ff", "#ddd6fe"], 218702: ["#059669", "#ecfdf5", "#a7f3d0"] };
@@ -458,7 +459,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
           {gorunum === "ai" && ai.durum && (
             <AiOneriListesi ai={ai} leadler={rapor?.acik || []} kisiAdi={kisiAdi} coklu={coklu} asamaAdi={id => ASAMA_ADLARI[id] || ""}
-              onEleAl={l => setEleAl([l])} onYenile={() => aiBaslat(rapor?.acik || [], (oneri, toplam) => setAiPopup({ oneri, toplam }))} AdHucre={AdHucresi} />
+              onEleAl={l => setEleAl(l)} onKapandi={() => { sessiz.current = true; setYenile(n => n + 1); setAktiviteYenile(n => n + 1); }} AdHucre={AdHucresi} />
           )}
           <div style={{ ...c.tablo, opacity: arkaYukleniyor ? 0.55 : 1, transition: "opacity 0.2s", display: gorunum === "ai" ? "none" : undefined }}>
             <div style={c.tabloBaslik}>
