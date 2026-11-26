@@ -1,3 +1,4 @@
+// v3.35: islem "asamaDegistir": { leadId, asama, sebep? } -> açık aşamalar arası ya da İlgisiz/Olumsuza Dönen + sebep (danışman token'ı, yoksa anahtar)
 // v3.34: detay yanıtında "bilgi": Kylas Data Information alanları (English Level, Country of Application, School Name, Çocuğun okulu/sınıfı, Planned Application Time, Message, İlk Form Tarihi)
 // v3.33: hatirlat'ta "notlar" [{ baslik, metin }] (en fazla 10): seçilen Kylas notları mesajın en altına (n8n gSnOzr5fNii7YJlK v1.7)
 // v3.32: takip son etkinlik filtresi 7 → 7-14 gün, 14 → 14-30 gün önce (aralık); 30 ve N eskisi gibi "N günden eski"
@@ -956,6 +957,69 @@ async function kylasYaz(url, method, govde) {
   }
 }
 
+// ---- Aşama değiştirme / kapatma (Ele Al) ----
+// Açık aşamalar arası geçiş ya da İlgisiz / Olumsuza Dönen + sebep (Kylas Pipeline Stage Reason). Yeni Kayıt ve Yeni'ye dönüş yok.
+const ACIK_HEDEFLER = [222366, 253357, 253358, 218701, 218702];
+const KAPANIS_SEBEPLERI = {
+  217287: ["Artık İlgilenmiyor", "Yanlış Form", "Cevap Vermiyor", "Olumsuz Profil", "Hatalı Telefon Numarası", "Bütçesi Yok", "Başka Acenteyle Kaydolmuş", "Aynı Data Mevcut", "Talep Edilen Program / Destinasyon Sunulmuyor"],
+  217288: ["Planlarını İptal Etmiş", "Ulaşılamıyor", "Bütçe Ayarlayamadı", "Başka Acenteyle Kaydolmuş"],
+};
+async function asamaDegistir(req, res, yetki) {
+  if (!yazmaYetkisi(yetki, res)) return;
+  const leadId = Number(req.body?.leadId);
+  const asama = Number(req.body?.asama);
+  const sebep = String(req.body?.sebep ?? "").trim();
+  if (!Number.isInteger(leadId) || leadId <= 0) return res.status(400).json({ error: "Data seçilmedi." });
+  const kapanis = KAPANIS_SEBEPLERI[asama];
+  if (!kapanis && !ACIK_HEDEFLER.includes(asama)) return res.status(400).json({ error: "Geçersiz aşama." });
+  if (kapanis && !kapanis.includes(sebep)) return res.status(400).json({ error: "Kapatma sebebi seçin." });
+
+  const d = await kylasAra([kural("id", "equal", leadId)], 0, ["id", "ownerId", "pipelineStage"]);
+  const lead = (d.content || [])[0];
+  if (!lead) return res.status(404).json({ error: "Data bulunamadı." });
+  if (yetki.tur !== "admin" && !yetki.idler.has(Number(lead.ownerId))) return res.status(403).json({ error: "Bu Data'nın aşamasını değiştirme yetkiniz yok." });
+  if (!ACIK_ASAMALAR.includes(lead.pipelineStage)) return res.status(409).json({ error: "Data artık açık aşamada değil, listeyi yenileyin." });
+  if (lead.pipelineStage === asama) return res.status(200).json({ ok: true, asama, degismedi: true });
+
+  const yama = [{ op: "replace", path: "/pipeline", value: { id: PIPELINE_ID, stage: { id: asama } } }];
+  if (kapanis) yama.push({ op: "add", path: "/pipelineStageReason", value: sebep });
+  const url = `https://api.kylas.io/v1/leads/${leadId}`;
+  // 1) Danışmanın kendi token'ıyla (Kylas'ta onun adına, aktivite günlüğüne sayılır)
+  let r = null, yontem = "anahtar";
+  const akt = await aktorToken(req);
+  if (akt) {
+    for (let deneme = 1; deneme <= 2; deneme++) {
+      let br;
+      for (let k = 1; ; k++) {
+        br = await fetch(url, { method: "PATCH", headers: { Authorization: `Bearer ${akt.token}`, "Content-Type": "application/json-patch+json", Accept: "application/json" }, body: JSON.stringify(yama) });
+        if (br.status === 429 && k < 4) { await bekle(1200 * k); continue; }
+        break;
+      }
+      if (br.status === 401 && deneme === 1) { tokenGecersiz(akt.email); const a2 = await aktorToken(req); if (a2) { akt.token = a2.token; continue; } }
+      if (br.ok) { r = br; yontem = "kullanici"; }
+      break;
+    }
+  }
+  // 2) Olmazsa Selman anahtarıyla
+  if (!r) {
+    for (let k = 1; ; k++) {
+      r = await kylasIstek(url, { method: "PATCH", headers: { "Content-Type": "application/json-patch+json" }, body: JSON.stringify(yama) });
+      if (r.status === 429 && k < 5) { await bekle(1500 * k); continue; }
+      break;
+    }
+  }
+  if (!r.ok) {
+    const y = await r.text().catch(() => "");
+    console.warn(`[asama] ${yetki.ad}: data ${leadId} -> ${asama} yazılamadı (HTTP ${r.status}) ${y.slice(0, 200)}`);
+    return res.status(r.status === 429 ? 503 : 502).json({ error: r.status === 429 ? YOGUN : `Aşama Kylas'a kaydedilemedi (HTTP ${r.status}).` });
+  }
+  const l = await r.json().catch(() => ({}));
+  const yeni = Number(l?.pipeline?.stage?.id) || asama;
+  console.log(`[asama] ${yetki.ad}: data ${leadId} ${lead.pipelineStage} -> ${yeni}${sebep ? ` (${sebep})` : ""} [${yontem}]`);
+  onbellek.clear();
+  return res.status(200).json({ ok: true, asama: yeni, sebep: l?.pipelineStageReason ?? (sebep || null), yontem });
+}
+
 async function taskEkle(req, res, yetki) {
   if (!yazmaYetkisi(yetki, res)) return;
   const leadId = Number(req.body?.leadId);
@@ -1317,7 +1381,7 @@ export default async function handler(req, res) {
   if (req.body?.islem === "ozet") {
     try { return await ozet(req, res, yetki); } catch (err) { return hataYaz(res, err); }
   }
-  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat], ["hatirlat", hatirlat], ["topluHatirlat", topluHatirlat], ["aktiviteSayilari", aktiviteSayilari]]) {
+  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat], ["hatirlat", hatirlat], ["topluHatirlat", topluHatirlat], ["aktiviteSayilari", aktiviteSayilari], ["asamaDegistir", asamaDegistir]]) {
     if (req.body?.islem === ad) {
       try { return await fn(req, res, yetki); } catch (err) { return hataYaz(res, err); }
     }

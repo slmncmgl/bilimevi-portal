@@ -1,3 +1,4 @@
+// v2.18: Aşama "Değiştir": açık aşamalar arası geçiş ya da İlgisiz / Olumsuza Dönen + sebep (crm-rapor asamaDegistir); kapanan data işaretli kalır
 // v2.17: Kylas Message alanı Data bilgilerinden çıktı; Önceki notların en altında "Form mesajı" olarak (form tarihiyle, sarı zemin)
 // v2.16: iletişim kartında Kylas Data Information alanları (8 alan, küçük punto); kart iç boşlukları sıkılaştı
 // v2.15: pomodoro bitince şerit "Mola ver"e tıklanana kadar yeşil yanar
@@ -52,7 +53,15 @@ import OnayPenceresi from "./OnayPenceresi";
 import Ipucu from "./Ipucu";
 import Pomodoro from "./Pomodoro";
 
-const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
+const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili", 217287: "İlgisiz", 217288: "Olumsuza Dönen" };
+// Aşama penceresi: açık aşamalar arası geçiş ve kapatma sebepleri (crm-rapor asamaDegistir ile aynı liste)
+const ACIK_HEDEFLER = [222366, 253357, 253358, 218701, 218702];
+const KAPANISLAR = [
+  { id: 217287, ad: "İlgisiz", alt: "Reasons for Unqualification", renk: "#b45309", zemin: "#fffbeb", cerceve: "#fde68a",
+    sebepler: ["Artık İlgilenmiyor", "Yanlış Form", "Cevap Vermiyor", "Olumsuz Profil", "Hatalı Telefon Numarası", "Bütçesi Yok", "Başka Acenteyle Kaydolmuş", "Aynı Data Mevcut", "Talep Edilen Program / Destinasyon Sunulmuyor"] },
+  { id: 217288, ad: "Olumsuza Dönen", alt: "Reasons for Closed Lost", renk: "#b91c1c", zemin: "#fef2f2", cerceve: "#fecaca",
+    sebepler: ["Planlarını İptal Etmiş", "Ulaşılamıyor", "Bütçe Ayarlayamadı", "Başka Acenteyle Kaydolmuş"] },
+];
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const gunOnce = v => (v ? Math.floor((Date.now() - new Date(v).getTime()) / 86400000) : null);
 const ENAZ = 2; // not en az bu kadar karakter
@@ -125,6 +134,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
     aramaZaman.current = setTimeout(() => setArama(a => (a?.telefon === telefon ? null : a)), 12000);
   }
   const taskDegisti = useRef(false);
+  const [asamaPencere, setAsamaPencere] = useState(null); // açık aşama penceresinin lead'i
 
   const toplam = leadler.length;
   const l = leadler[sira];
@@ -173,7 +183,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
   const kapatIste = () => { if (kaydedilmemis && !bitti) setCikisSor(true); else onKapat(Object.keys(yazilan).map(Number), taskDegisti.current); };
   useEffect(() => {
     const tus = e => { if (e.key === "Escape" && liste !== null) { setListe(null); return; }
-      if (e.key === "Escape" && !cikisSor && !pencere) kapatIste(); };
+      if (e.key === "Escape" && !cikisSor && !pencere && !asamaPencere) kapatIste(); };
     document.addEventListener("keydown", tus);
     return () => document.removeEventListener("keydown", tus);
   });
@@ -416,7 +426,14 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
               <Alan ad="Form tarihi" bekliyor={dy}>{dt?.olusturma ? tarih(dt.olusturma, true) : "-"}</Alan>
               <Alan ad="Reklam Adı">{kampanya || "-"}</Alan>
               <Alan ad="Data Kaynağı">{kaynakAdi(kaynak)}{VIP_KAYNAKLAR.includes(kaynak) && <span style={s.etiketSari}>VIP</span>}</Alan>
-              <Alan ad="Aşama">{ASAMA_ADLARI[l.asama] || "-"}{l.zorunlu && <span style={s.etiketKirmizi}>Task zorunlu</span>}</Alan>
+              <Alan ad="Aşama">
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={l.kapandi ? { color: KAPANISLAR.find(k => k.id === l.asama)?.renk } : undefined}>{ASAMA_ADLARI[l.asama] || "-"}</span>
+                  {l.sebep && <span style={{ fontSize: "12px", fontWeight: 500, color: "#64748b" }}>· {l.sebep}</span>}
+                  {l.zorunlu && !l.kapandi && <span style={s.etiketKirmizi}>Task zorunlu</span>}
+                  {!l.kapandi && <button type="button" onClick={() => setAsamaPencere(l)} style={s.asamaDugme}>Değiştir</button>}
+                </span>
+              </Alan>
             </div>
             <div style={s.bilgiBaslik}>Data bilgileri</div>
             <div className="elal-alanlar" style={{ ...s.alanlar, gap: "10px 24px" }}>
@@ -521,6 +538,14 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
         </main>
       )}
 
+      {asamaPencere && (
+        <AsamaPenceresi lead={asamaPencere} onKapat={() => setAsamaPencere(null)}
+          onTamam={(id, asama, sebep) => {
+            taskDegisti.current = true; // Takip Tablosu kapanınca yenilensin
+            setLeadler(ls => ls.map(x => (x.id === id ? { ...x, asama, sebep: sebep || null, kapandi: !ACIK_HEDEFLER.includes(asama), zorunlu: x.zorunlu && ACIK_HEDEFLER.includes(asama) } : x)));
+            setAsamaPencere(null);
+          }} />
+      )}
       {pencere && (
         <TaskPenceresi rect={pencere.rect} atanan={kisiAdi(pencere.ownerId)} ilk={pencere.ilk}
           acikTasklar={(tasklar[pencere.leadId]?.tasklar || []).filter(t => t.durum === "acik" || t.durum === "surecte")}
@@ -678,6 +703,70 @@ const p = {
 };
 
 
+// Aşama değiştir / kapat penceresi. Kapatmada sebep zorunlu. Kaydedince Kylas'a danışmanın kendi hesabıyla yazılır.
+function AsamaPenceresi({ lead, onKapat, onTamam }) {
+  const [hedef, setHedef] = useState(null);
+  const [sebep, setSebep] = useState("");
+  const [durum, setDurum] = useState(null); // null | "gidiyor" | { hata }
+  const kapanis = KAPANISLAR.find(k => k.id === hedef);
+  const hazir = hedef && hedef !== lead.asama && (!kapanis || sebep);
+  useEffect(() => {
+    const tus = e => { if (e.key === "Escape" && durum !== "gidiyor") { e.stopPropagation(); onKapat(); } };
+    document.addEventListener("keydown", tus, true);
+    return () => document.removeEventListener("keydown", tus, true);
+  }, [durum]);
+  async function kaydet() {
+    if (!hazir || durum === "gidiyor") return;
+    setDurum("gidiyor");
+    try {
+      const d = await apiCagir({ islem: "asamaDegistir", leadId: lead.id, asama: hedef, ...(kapanis ? { sebep } : {}) });
+      onTamam(lead.id, d.asama || hedef, kapanis ? sebep : null);
+    } catch (e) { setDurum({ hata: e.message }); }
+  }
+  const sec = (id, ek = {}) => ({ ...s.asamaSecenek, ...(hedef === id ? { borderColor: "#7c3aed", background: "#f5f3ff", color: "#5b21b6" } : {}), ...ek });
+  return createPortal(
+    <div onClick={() => durum !== "gidiyor" && onKapat()} style={{ position: "fixed", inset: 0, zIndex: 9700, background: "rgba(15,23,42,0.35)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", fontFamily: "'Sora', sans-serif" }}>
+      <div role="dialog" aria-modal="true" aria-label="Aşama değiştir" onClick={e => e.stopPropagation()}
+        style={{ width: "min(560px, 100%)", maxHeight: "calc(100vh - 32px)", overflowY: "auto", background: "#fff", borderRadius: "20px", padding: "22px 24px", boxShadow: "0 24px 60px rgba(15,23,42,0.25)" }}>
+        <div style={{ fontSize: "17px", fontWeight: 800, color: "#0f172a" }}>Aşama değiştir</div>
+        <div style={{ fontSize: "12px", color: "#64748b", margin: "2px 0 16px" }}>{lead.ad || `Data ${lead.id}`} · şu an <b>{ASAMA_ADLARI[lead.asama] || "-"}</b></div>
+        <div style={s.asamaGrupBaslik}>Açık aşamalar</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "18px" }}>
+          {ACIK_HEDEFLER.map(id => (
+            <button key={id} type="button" disabled={id === lead.asama} onClick={() => { setHedef(id); setSebep(""); }}
+              style={sec(id, id === lead.asama ? { opacity: 0.4, cursor: "default" } : {})}>{ASAMA_ADLARI[id]}</button>
+          ))}
+        </div>
+        {KAPANISLAR.map(k => (
+          <div key={k.id} style={{ marginBottom: "14px" }}>
+            <button type="button" onClick={() => { setHedef(k.id); setSebep(""); }}
+              style={sec(k.id, hedef === k.id ? { borderColor: k.renk, background: k.zemin, color: k.renk } : { color: k.renk })}>Kapat → {k.ad}</button>
+            <span style={{ marginLeft: "8px", fontSize: "11px", color: "#94a3b8" }}>{k.alt}</span>
+            {hedef === k.id && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px", padding: "10px", border: `1px solid ${k.cerceve}`, background: k.zemin, borderRadius: "12px" }}>
+                {k.sebepler.map(x => (
+                  <button key={x} type="button" onClick={() => setSebep(x)}
+                    style={{ ...s.asamaSebep, ...(sebep === x ? { borderColor: k.renk, background: "#fff", color: k.renk, fontWeight: 700 } : {}) }}>{sebep === x ? "✓ " : ""}{x}</button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+        {durum?.hata && <div style={{ ...s.hata, marginTop: "6px" }}>{durum.hata}</div>}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+          <button type="button" onClick={onKapat} disabled={durum === "gidiyor"} style={s.asamaVazgec}>Vazgeç</button>
+          <button type="button" onClick={kaydet} disabled={!hazir || durum === "gidiyor"}
+            style={{ ...s.asamaKaydet, ...(kapanis ? { background: kapanis.renk } : {}), opacity: hazir ? 1 : 0.45, cursor: hazir ? "pointer" : "default" }}>
+            {durum === "gidiyor" ? "Kaydediliyor..." : kapanis ? `${kapanis.ad} olarak kapat` : "Kaydet"}
+          </button>
+        </div>
+        {kapanis && !sebep && <div style={{ fontSize: "11px", color: "#94a3b8", textAlign: "right", marginTop: "6px" }}>Kapatmak için bir sebep seçin.</div>}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function Alan({ ad, bekliyor, kucuk, children }) {
   return (
     <div style={{ minWidth: 0 }}>
@@ -690,6 +779,12 @@ function Alan({ ad, bekliyor, kucuk, children }) {
 }
 
 const s = {
+  asamaDugme: { padding: "3px 10px", borderRadius: "999px", border: "1.5px solid #ddd6fe", background: "#f5f3ff", color: "#6d28d9", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  asamaGrupBaslik: { fontSize: "11px", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" },
+  asamaSecenek: { padding: "8px 14px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#0f172a", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  asamaSebep: { padding: "6px 10px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#ffffffaa", color: "#334155", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  asamaVazgec: { padding: "9px 16px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  asamaKaydet: { padding: "9px 18px", borderRadius: "12px", border: "none", background: "#7c3aed", color: "#fff", fontWeight: 700, fontFamily: "'Sora', sans-serif" },
   zemin: { position: "fixed", inset: 0, zIndex: 9500, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", fontFamily: "'Sora', sans-serif",
     background: "radial-gradient(1200px 600px at 10% -10%, #ecfeff 0%, transparent 60%), radial-gradient(900px 500px at 110% 0%, #f5f3ff 0%, transparent 55%), #f8fafc",
     animation: "elalGir 0.22s ease-out" },

@@ -60,7 +60,7 @@ export const KYLAS_LEAD_URL = id => `https://app.kylas.io/sales/leads/details/${
 
 // Kylas yoğunsa (sunucu 503 döner) okuma istekleri 2 ve 4 sn sonra kendiliğinden tekrar denenir.
 // Yazma istekleri (not, task, atama) tekrarlanmaz: sunucu zaten kendi içinde tekrar dener, çift kayıt olmasın.
-const YAZMA_ISLEMLERI = ["notEkle", "taskEkle", "taskTamamla", "ata", "aramaBaslat", "hatirlat", "topluHatirlat"];
+const YAZMA_ISLEMLERI = ["notEkle", "taskEkle", "taskTamamla", "ata", "aramaBaslat", "hatirlat", "topluHatirlat", "asamaDegistir"];
 export async function apiCagir(govde) {
   const okuma = !YAZMA_ISLEMLERI.includes(govde?.islem);
   for (let deneme = 1; ; deneme++) {
