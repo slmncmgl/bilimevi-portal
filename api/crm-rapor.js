@@ -1,3 +1,5 @@
+// v3.30: aktiviteSayilari n8n "Danışman Aktivite Günlüğü"nden (webhook danisman-aktivite-gunluk, 5YA15WWxbwDtk7XQ) okunur:
+//       danışmanın kendi datasına dokunduğu her gün ayrı sayılır (dün + bugün aynı data = 2). Kayıt 26.11.2026'da başladı.
 // v3.29: aktiviteSayilari danışmanın KENDİ işlemine göre: sahibi seçili danışman olan ve Lead Owner Last Activity
 //       (cfLeadOwnerLastActivity, n8n B794rLPe1EvUhGbj yazar) aralıkta olan data sayısı. Kylas bu alanla filtrelemiyor; alan her
 //       yazıldığında latestActivity de güncellendiği için önce latestActivity + sahip ile çekilip alan sunucuda süzülür.
@@ -653,30 +655,23 @@ async function aktiviteSayilari(req, res, yetki) {
   else return res.status(400).json({ error: "Geçersiz aralık." });
   if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor aktiviteSayilari")) return;
 
-  const anahtar = `aktivite2:${ownerIds.join(",")}:${aralik}:${bas.toISOString().slice(0, 13)}`;
+  const anahtar = `aktivite3:${ownerIds.join(",")}:${aralik}:${bas.toISOString().slice(0, 13)}`;
   const eski = onbellek.get(anahtar);
-  if (eski && Date.now() - eski.zaman < 3 * 60 * 1000) return res.status(200).json(eski.veri);
+  if (eski && Date.now() - eski.zaman < 60 * 1000) return res.status(200).json(eski.veri);
 
-  const kurallar = [kural("latestActivityCreatedAt", "between", [bas.toISOString(), bit.toISOString()], "date"), sahipKurali(ownerIds)];
-  const ALAN = ["id", "ownerId", "customFieldValues"];
-  const ilk = await kylasAra(kurallar, 0, ALAN);
-  const toplam = ilk.totalElements || 0;
-  const satirlar = [...(ilk.content || [])];
-  const sayfaSayisi = Math.ceil(Math.min(toplam, KYLAS_LIMIT) / SAYFA);
-  for (let p = 1; p < sayfaSayisi; p += 4) {
-    const grup = [];
-    for (let q = p; q < Math.min(p + 4, sayfaSayisi); q++) grup.push(kylasAra(kurallar, q, ALAN));
-    (await Promise.all(grup)).forEach(d => satirlar.push(...(d.content || [])));
-  }
-  const basMs = bas.getTime(), bitMs = bit.getTime();
-  const sayilar = {}, tumHareket = {};
-  for (const l of satirlar) {
-    tumHareket[l.ownerId] = (tumHareket[l.ownerId] || 0) + 1;
-    const v = l.customFieldValues?.cfLeadOwnerLastActivity;
-    const z = v ? new Date(v).getTime() : NaN;
-    if (z >= basMs && z <= bitMs) sayilar[l.ownerId] = (sayilar[l.ownerId] || 0) + 1;
-  }
-  const veri = { bas: bas.toISOString(), bit: bit.toISOString(), sayilar, tumHareket, kesildi: toplam > KYLAS_LIMIT };
+  // n8n "Danışman Aktivite Günlüğü" (B794rLPe1EvUhGbj yazar): her (gün, danışman, data) bir satır
+  const gunYaz = d => new Date(d.getTime() + IST_MS).toISOString().slice(0, 10);
+  let r;
+  try {
+    r = await fetch(`${N8N_WEBHOOK}/danisman-aktivite-gunluk`, {
+      method: "POST", signal: AbortSignal.timeout(20000),
+      headers: { "Content-Type": "application/json", "X-Portal-Token": process.env.N8N_PORTAL_TOKEN },
+      body: JSON.stringify({ ownerIds, basGun: gunYaz(bas), bitGun: gunYaz(bit) }),
+    });
+  } catch { return res.status(502).json({ error: "Aktivite günlüğüne ulaşılamadı." }); }
+  const y = await r.json().catch(() => null);
+  if (!r.ok || !y?.sayilar) return res.status(502).json({ error: "Aktivite günlüğü okunamadı." });
+  const veri = { bas: bas.toISOString(), bit: bit.toISOString(), sayilar: y.sayilar, kesildi: false };
   onbellek.set(anahtar, { zaman: Date.now(), veri });
   return res.status(200).json(veri);
 }

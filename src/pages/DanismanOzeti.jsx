@@ -1,3 +1,4 @@
+// v1.12: aktivite sayıları günlükten: aynı dataya farklı günlerde dokunmak ayrı sayılır
 // v1.11: "/ N tüm hareket" kaldırıldı; sadece danışmanın kendi dokunduğu datalar görünür.
 // v1.10: aktivite grafiği danışmanın kendi işlemine göre (Lead Owner Last Activity); tek danışman seçiliyken de özetin üstünde görünür.
 //        Çubuğun yanında soluk "/ N tüm hareket" (otomasyonlar dahil, Kylas Data Owner raporu).
@@ -29,7 +30,7 @@ const ASAMALAR = [
 const ASAMA_ADI = Object.fromEntries(ASAMALAR);
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const SAYFA = 20;
-export const OZET_SURUM = "v1.11"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const OZET_SURUM = "v1.12"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ACIKLAMA = {
   baslik: "Seçili danışmanın bu dönemdeki işleri ve bu dönemde aldığı yeni datalar. Kaynak seçiliyse sadece o kaynaklardaki datalar sayılır. Tümü: tüm zamanlar.",
@@ -252,7 +253,7 @@ function AktiviteGrafigi({ kisiler }) {
   return (
     <div style={{ padding: "18px 24px 22px" }}>
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "14px" }}>
-        <div style={{ ...c.etiket, margin: 0, marginRight: "6px" }}><Ipucu metin="Danışmanın bu aralıkta kendisinin işlem yaptığı (not, task, güncelleme) kendi data sayısı. Lead Owner Last Activity alanından okunur; otomasyonlar ve Selman hesabından gelen yazmalar sayılmaz. Bir data aralıkta birden fazla kez işlense de bir kez sayılır.">Aktivite sayıları</Ipucu></div>
+        <div style={{ ...c.etiket, margin: 0, marginRight: "6px" }}><Ipucu metin="Danışmanın bu aralıkta kendisinin işlem yaptığı (not, task, güncelleme) kendi data sayısı. Lead Owner Last Activity alanından okunur; otomasyonlar ve Selman hesabından gelen yazmalar sayılmaz. Aynı data aynı gün içinde birden fazla kez işlense de o gün bir kez sayılır; farklı günlerde dokunulursa her gün ayrı sayılır. Notlar ve task'lar 27.10.2026'dan beri, diğer işlemler 26.11.2026'dan beri sayılıyor.">Aktivite sayıları</Ipucu></div>
         {ARALIKLAR.map(([d, ad]) => <button key={d} type="button" onClick={() => { setAralik(d); setNYazi(""); }} style={secimStil(aralik === d)}>{ad}</button>)}
         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
           <button type="button" onClick={() => { const n = Number(nYazi) || 30; setNYazi(String(n)); setAralik(n === 7 ? 7 : n); }} style={secimStil(nSecili)}>Son N gün</button>
