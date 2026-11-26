@@ -1,3 +1,4 @@
+// v2.4: son 10 dk içinde el salladığın kişiden gelen el sallama, karşı taraf eski sürümde olsa bile geri el sallama sayılır (buton çıkmaz).
 // v2.3: isiIste(gun) — servisten saatlik aktiflik (ısı haritası) verisini ister.
 // v2.2: durt(id, karsilik) — geri el sallama işaretlenir, detail.karsiliklar ile iletilir.
 // v2.1: "bilimevi-durtme" detail'i hâlâ ad dizisi; her elemanın yanında window olayında detail.idler (aynı sırada gönderen id'leri) var.
@@ -72,7 +73,14 @@ function baglan() {
     } else if (m.t === "durtme" && Array.isArray(m.kimden) && m.kimden.length) {
       const d = [...m.kimden];
       d.idler = Array.isArray(m.kimdenId) ? m.kimdenId : [];
-      d.karsiliklar = Array.isArray(m.karsilik) ? m.karsilik : [];
+      const gelen = Array.isArray(m.karsilik) ? m.karsilik : [];
+      d.karsiliklar = d.map((_, i) => {
+        if (gelen[i]) return true;
+        const kid = String(d.idler[i] || "").toLowerCase();
+        const t = salladiklarim.get(kid);
+        if (t && Date.now() - t < GERI_PENCERE) { salladiklarim.delete(kid); return true; }
+        return false;
+      });
       yay("bilimevi-durtme", d);
     } else if (m.t === "isi") {
       const b = bekleyenIsi; bekleyenIsi = [];
@@ -98,7 +106,11 @@ export async function nabizGonder() {
   return sonDurum;
 }
 
+const salladiklarim = new Map(); // id (küçük harf) → zaman
+const GERI_PENCERE = 10 * 60000;
+
 export function durt(id, karsilik = false) {
+  if (!karsilik && id) salladiklarim.set(String(id).toLowerCase(), Date.now());
   if (!ws || ws.readyState !== 1) return Promise.resolve(false);
   const ref = ++refSayac;
   return new Promise(resolve => {
