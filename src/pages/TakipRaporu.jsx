@@ -1,3 +1,4 @@
+// v6.46: listede isim artık Kylas'a link değil (renk, kalınlık ve ID balonu aynı)
 // v6.45: aşama düğmeleri renkli: Yeni mavi, Na1-3 turuncu, Görüşme mor, İlgili yeşil (seçilince dolu); Tümü beyaz
 // v6.44: soldaki kartlar da "Data" grubunda (Hepsi · Takipsiz); grup başlıkları ortalı
 // v6.43: kartlar gruplandı: solda Açık Data + Takipsiz, ortada "Task Tarihi" grubu (Bugün · Geçmiş · İleri), sağda Takip oranı
@@ -119,7 +120,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.45"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.46"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ASAMA_RENK = { 217285: ["#2563eb", "#eff6ff", "#bfdbfe"], 222366: ["#d97706", "#fffbeb", "#fde68a"], 253357: ["#d97706", "#fffbeb", "#fde68a"], 253358: ["#d97706", "#fffbeb", "#fde68a"], 218701: ["#7c3aed", "#f5f3ff", "#ddd6fe"], 218702: ["#059669", "#ecfdf5", "#a7f3d0"] };
@@ -595,7 +596,7 @@ function AdHucresi({ lead }) {
     <span onMouseEnter={ac} onMouseLeave={kapatGecikmeli} onFocus={ac}
       onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setKonum(null); }}
       onKeyDown={e => { if (e.key === "Escape") setKonum(null); }}>
-      <a ref={ref} href={KYLAS_LEAD_URL(lead.id)} target="_blank" rel="noopener noreferrer" style={t.adLink}>{lead.ad || "İsimsiz"}</a>
+      <span ref={ref} tabIndex={0} style={{ ...t.adLink, cursor: "default", outline: "none" }}>{lead.ad || "İsimsiz"}</span>
       {konum && (
         // mousedown engellenir: Safari'de düğmeye basınca link odağı kaybedip balonu kapatmasın
         <span style={{ ...t.idBalon, left: konum.left, top: konum.top }} onMouseDown={e => e.preventDefault()}>
