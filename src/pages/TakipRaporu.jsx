@@ -1,3 +1,4 @@
+// v6.43: kartlar gruplandı: solda Açık Data + Takipsiz, ortada "Task Tarihi" grubu (Bugün · Geçmiş · İleri), sağda Takip oranı
 // v6.42: alttaki sürüm etiketi düzeltildi (v6.39-v6.41'de güncellenmemişti); etikette Ele Al sürümü de görünür
 // v6.41: not balonunda notlar işaretlenebilir (yöneticiler); işaretliler satırın Hatırlat mesajının en altına eklenir
 // v6.40: son etkinlik filtresi aralıklı: 7-14 gün önce, 14-30 gün önce, 30 günden eski, N günden eski
@@ -116,7 +117,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.42"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.43"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -344,18 +345,28 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
       {danismanlar.length > 0 && (yukleniyor || (!hata && rapor)) && (
         <>
-          <div style={t.kartlar}>
-            <Kart sayi={yukleniyor ? DONEN : o.toplam} etiket="Açık Data" ipucu={ACIKLAMA.acik} renk="#0e7490" cerceve="#a5f3fc"
-              secili={gorunum === "acik"} onClick={() => setGorunum("acik")} />
-            <Kart sayi={yukleniyor ? DONEN : (rapor?.acik || []).filter(bugunTaskli).length} etiket="Task tarihi bugün" ipucu={ACIKLAMA.bugunTask} renk="#1d4ed8" zemin="#eff6ff" cerceve="#93c5fd"
-              secili={gorunum === "bugun"} onClick={() => setGorunum("bugun")} />
-            <Kart sayi={yukleniyor ? DONEN : o.ileriTask} etiket="İleri tarihli task" ipucu={ACIKLAMA.ileriTask} renk="#166534" zemin="#f0fdf4" cerceve="#86efac"
-              secili={gorunum === "ileri"} onClick={() => setGorunum("ileri")} />
-            <Kart sayi={yukleniyor ? DONEN : o.gecikmisTask} etiket="Gecikmiş task" ipucu={ACIKLAMA.gecikmisTask} renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
-              secili={gorunum === "gecikmis"} onClick={() => setGorunum("gecikmis")} />
-            <Kart sayi={yukleniyor ? DONEN : o.takipsiz} etiket="Takipsiz" ipucu={ACIKLAMA.takipsiz(sessizGun)} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
-              secili={gorunum === "takipsiz"} onClick={() => setGorunum("takipsiz")} />
-            <Kart sayi={yukleniyor ? DONEN : takipOrani === null ? "-" : `%${takipOrani}`} etiket="Takip oranı" ipucu={ACIKLAMA.takipOrani} onClick={() => setGorunum("kapsam")} />
+          <style>{`@media (max-width: 900px) { .takip-kart-satiri { grid-template-columns: 1fr !important; } }`}</style>
+          <div className="takip-kart-satiri" style={t.kartSatiri}>
+            <div style={t.kartIkili}>
+              <Kart sayi={yukleniyor ? DONEN : o.toplam} etiket="Açık Data" ipucu={ACIKLAMA.acik} renk="#0e7490" cerceve="#a5f3fc"
+                secili={gorunum === "acik"} onClick={() => setGorunum("acik")} />
+              <Kart sayi={yukleniyor ? DONEN : o.takipsiz} etiket="Takipsiz" ipucu={ACIKLAMA.takipsiz(sessizGun)} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
+                secili={gorunum === "takipsiz"} onClick={() => setGorunum("takipsiz")} />
+            </div>
+            <div style={t.taskGrup}>
+              <div style={t.taskGrupBaslik}>Task Tarihi</div>
+              <div style={t.taskGrupKartlar}>
+                <Kart sayi={yukleniyor ? DONEN : (rapor?.acik || []).filter(bugunTaskli).length} etiket="Bugün" ipucu={ACIKLAMA.bugunTask} renk="#1d4ed8" zemin="#eff6ff" cerceve="#93c5fd"
+                  secili={gorunum === "bugun"} onClick={() => setGorunum("bugun")} />
+                <Kart sayi={yukleniyor ? DONEN : o.gecikmisTask} etiket="Geçmiş" ipucu={ACIKLAMA.gecikmisTask} renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
+                  secili={gorunum === "gecikmis"} onClick={() => setGorunum("gecikmis")} />
+                <Kart sayi={yukleniyor ? DONEN : o.ileriTask} etiket="İleri" ipucu={ACIKLAMA.ileriTask} renk="#166534" zemin="#f0fdf4" cerceve="#86efac"
+                  secili={gorunum === "ileri"} onClick={() => setGorunum("ileri")} />
+              </div>
+            </div>
+            <div style={t.kartTek}>
+              <Kart sayi={yukleniyor ? DONEN : takipOrani === null ? "-" : `%${takipOrani}`} etiket="Takip oranı" ipucu={ACIKLAMA.takipOrani} onClick={() => setGorunum("kapsam")} />
+            </div>
           </div>
 
           {!yukleniyor && coklu && karsilastirma.length > 0 && (
@@ -668,6 +679,12 @@ const t = {
     background: "#fffbeb", border: "1.5px solid #fde68a", color: "#92400e", fontSize: "14px", lineHeight: 1.5, animation: "fadeUp 0.3s ease-out" },
   uyariIkon: { flex: "0 0 auto", width: "26px", height: "26px", borderRadius: "50%", background: "#f59e0b", color: "#fff", fontWeight: 800,
     display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "14px" },
+  kartSatiri: { display: "grid", gridTemplateColumns: "2fr 3.3fr 1fr", gap: "14px", alignItems: "end", marginBottom: "20px", animation: "fadeUp 0.4s ease-out" },
+  kartIkili: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" },
+  kartTek: { display: "grid" },
+  taskGrup: { padding: "8px 10px 10px", borderRadius: "20px", border: "1.5px dashed #cbd5e1", background: "#f8fafc" },
+  taskGrupBaslik: { fontSize: "11px", fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.6px", margin: "0 0 8px 6px" },
+  taskGrupKartlar: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px" },
   kartlar: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px", animation: "fadeUp 0.4s ease-out" },
   kart: { border: "1.5px solid", borderRadius: "16px", padding: "18px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
   kartSayi: { fontSize: "26px", fontWeight: 700, marginBottom: "4px", fontVariantNumeric: "tabular-nums" },
