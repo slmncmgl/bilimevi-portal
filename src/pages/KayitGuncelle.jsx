@@ -1,4 +1,5 @@
-// KayitGuncelle.jsx v1.93
+// KayitGuncelle.jsx v1.94
+// v1.94 (26.11.2026): "Okul Seç" butonu yalnızca grup ve bireysel yaz okulu kayıtlarında; yetişkin dil okulunda (Sözleşme Türü ya da form adında "yetişkin") hücre "-" kalır.
 // v1.93 (26.11.2026): Onay Durumu "İptal Etti" satırları arka yenilemede (Sorgula/arama) de yüklenmiyor; filtre listeIstegi içinde.
 // v1.92 (26.11.2026): "Sadece Grup Kayıtları" kutusu "Sadece Bireysel Kayıtlar" oldu; boş gelir, açılışta grup kayıtları listelenir.
 // v1.91 (25.11.2026): TR Okul Adı boşsa listede "Okul Seç" butonu; pencerede öğrencinin yazdığı okul, MEB listesinden adaylar, arama ve elle yazma (OkulSecPenceresi.jsx). Kayıt n8n okul-guncelle (i98pkeF6f1e7gCwg) ile TR_Okul_Default'a.
@@ -11,7 +12,7 @@
 //   -> n8n Kayıt İptal Talebi (VmicFOIO7KXCndnm) Selman'a WhatsApp atar; Selman "ok" yanıtlayınca Onay Durumu = İptal Etti.
 import { useState, useEffect, useRef, useMemo } from "react";
 
-const SURUM = "v1.93"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.94"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 import OnayPenceresi from "./OnayPenceresi";
 import OkulSecPenceresi from "./OkulSecPenceresi";
@@ -2413,6 +2414,9 @@ export default function KayitGuncelle() {
                         // Hücrede yalnızca TR_Okul_Default; boş ya da "-" ise "-" (form adına düşme kuralı v1.88'de kaldırıldı); tam form adı balonu masaüstünde Yaz Okulu sütununda, mobilde burada
                         const okul = String(ogr["TR_Okul_Default"] || "").trim();
                         const ad = okul && okul !== "-" ? okul : "";
+                        // Yetişkin dil okulunda TR okul anlamsız, "-" kalır; Okul Seç sadece grup ve bireysel yaz okulunda
+                        const yetiskin = SADE(ogr["Sözleşme Türü"]).includes("yetiskin") || SADE(tam).includes("yetiskin");
+                        if (!ad && yetiskin) return <span style={{ color: "#cbd5e1" }}>-</span>;
                         if (!ad) return (
                           <button type="button" onClick={e => { e.stopPropagation(); setOkulSecModal(ogr); }} style={s.okulSecBtn}>Okul Seç</button>
                         );
