@@ -1,3 +1,4 @@
+// v2.23: Close Lead → İlgisiz / Olumsuza Dönen seçilince pencerede aşamalar yok; sadece o kapanışın sebepleri alt alta (Kylas sırası, radyo)
 // v2.22: aşama çubuğu ve Close Lead, CRM'de Göster ile aynı camgöbeği; seçili olmayan aşamalar gri (Kylas gibi)
 // v2.21: task penceresinde Tür seçimi kalktı, her task Follow Up açılır
 // v2.20: aşama çubuğunun iki ucu oval; Close Lead dolu mavi, ayrık oklu düğme
@@ -62,7 +63,7 @@ const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na
 const ACIK_HEDEFLER = [222366, 253357, 253358, 218701, 218702];
 const KAPANISLAR = [
   { id: 217287, ad: "İlgisiz", alt: "Reasons for Unqualification", renk: "#b45309", zemin: "#fffbeb", cerceve: "#fde68a",
-    sebepler: ["Artık İlgilenmiyor", "Yanlış Form", "Cevap Vermiyor", "Olumsuz Profil", "Hatalı Telefon Numarası", "Bütçesi Yok", "Başka Acenteyle Kaydolmuş", "Aynı Data Mevcut", "Talep Edilen Program / Destinasyon Sunulmuyor"] },
+    sebepler: ["Olumsuz Profil", "Cevap Vermiyor", "Artık İlgilenmiyor", "Bütçesi Yok", "Yanlış Form", "Hatalı Telefon Numarası", "Başka Acenteyle Kaydolmuş", "Talep Edilen Program / Destinasyon Sunulmuyor", "Aynı Data Mevcut"] },
   { id: 217288, ad: "Olumsuza Dönen", alt: "Reasons for Closed Lost", renk: "#b91c1c", zemin: "#fef2f2", cerceve: "#fecaca",
     sebepler: ["Planlarını İptal Etmiş", "Ulaşılamıyor", "Bütçe Ayarlayamadı", "Başka Acenteyle Kaydolmuş"] },
 ];
@@ -98,7 +99,7 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
   );
 }
 
-export const ELEAL_SURUM = "v2.22"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
+export const ELEAL_SURUM = "v2.23"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
 
 export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat }) {
   const [pomYesil, setPomYesil] = useState(false);
@@ -795,6 +796,36 @@ function AsamaPenceresi({ lead, ilkHedef = null, onKapat, onTamam }) {
       const d = await apiCagir({ islem: "asamaDegistir", leadId: lead.id, asama: hedef, ...(kapanis ? { sebep } : {}) });
       onTamam(lead.id, d.asama || hedef, kapanis ? sebep : null);
     } catch (e) { setDurum({ hata: e.message }); }
+  }
+  const sadeceKapanis = KAPANISLAR.find(k => k.id === ilkHedef);
+  if (sadeceKapanis) {
+    const k = sadeceKapanis;
+    return createPortal(
+      <div onClick={() => durum !== "gidiyor" && onKapat()} style={{ position: "fixed", inset: 0, zIndex: 9700, background: "rgba(15,23,42,0.35)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", fontFamily: "'Sora', sans-serif" }}>
+        <div role="dialog" aria-modal="true" aria-label={`${k.ad} olarak kapat`} onClick={e => e.stopPropagation()}
+          style={{ width: "min(480px, 100%)", maxHeight: "calc(100vh - 32px)", overflowY: "auto", background: "#fff", borderRadius: "20px", padding: "22px 24px", boxShadow: "0 24px 60px rgba(15,23,42,0.25)" }}>
+          <div style={{ fontSize: "17px", fontWeight: 800, color: "#0f172a" }}>{lead.ad || `Data ${lead.id}`} · <span style={{ color: k.renk }}>{k.ad}</span></div>
+          <div style={{ fontSize: "13px", color: "#475569", margin: "6px 0 14px" }}>Datayı <b>{k.ad}</b> olarak kapatmak için bir sebep seçin.</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            {k.sebepler.map(x => (
+              <label key={x} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: sebep === x ? 700 : 500, color: sebep === x ? k.renk : "#0f172a", background: sebep === x ? k.zemin : "transparent" }}>
+                <input type="radio" name="kapanisSebep" checked={sebep === x} onChange={() => setSebep(x)} style={{ accentColor: k.renk, width: "16px", height: "16px", margin: 0 }} />
+                {x}
+              </label>
+            ))}
+          </div>
+          {durum?.hata && <div style={{ ...s.hata, marginTop: "10px" }}>{durum.hata}</div>}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "18px" }}>
+            <button type="button" onClick={onKapat} disabled={durum === "gidiyor"} style={s.asamaVazgec}>Vazgeç</button>
+            <button type="button" onClick={kaydet} disabled={!hazir || durum === "gidiyor"}
+              style={{ ...s.asamaKaydet, background: k.renk, opacity: hazir ? 1 : 0.45, cursor: hazir ? "pointer" : "default" }}>
+              {durum === "gidiyor" ? "Kaydediliyor..." : `${k.ad} olarak kapat`}
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
   }
   const sec = (id, ek = {}) => ({ ...s.asamaSecenek, ...(hedef === id ? { borderColor: "#7c3aed", background: "#f5f3ff", color: "#5b21b6" } : {}), ...ek });
   return createPortal(
