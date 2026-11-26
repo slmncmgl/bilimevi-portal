@@ -1,3 +1,4 @@
+// v3.32: takip son etkinlik filtresi 7 → 7-14 gün, 14 → 14-30 gün önce (aralık); 30 ve N eskisi gibi "N günden eski"
 // v3.31: toplu hatırlatmada "bugun" görünümü (Task tarihi bugün kartı)
 // v3.30: aktiviteSayilari n8n "Danışman Aktivite Günlüğü"nden (webhook danisman-aktivite-gunluk, 5YA15WWxbwDtk7XQ) okunur:
 //       danışmanın kendi datasına dokunduğu her gün ayrı sayılır (dün + bugün aynı data = 2). Kayıt 26.11.2026'da başladı.
@@ -521,6 +522,9 @@ async function takip(req, res, yetki) {
   for (const l of leadler) {
     // Son etkinlik filtresi: seçilen günden yeni etkinliği olan data hiç sayılmaz (etkinliği olmayan kalır)
     if (sessizGun && zaman(l.latestActivityCreatedAt) >= sinir) continue;
+    // 7 ve 14 aralık: 7 → 7-14 gün, 14 → 14-30 gün önce (30 ve N: o günden eski hepsi)
+    const ust = SESSIZ_UST[sessizGun];
+    if (ust && l.latestActivityCreatedAt && zaman(l.latestActivityCreatedAt) < simdi - ust * 24 * 60 * 60 * 1000) continue;
     const d = danismanlar[l.ownerId] || (danismanlar[l.ownerId] = bosOzet());
     const say = alan => { ozet[alan]++; d[alan]++; };
     say("toplam");
@@ -1167,10 +1171,11 @@ const GORUNUM_SUZ = {
   kapsam: { kart: "Takip oranı", kelime: "takip edilmesi gereken", suz: l => l.kapsam },
 };
 const listeYaz = a => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} ve ${a.at(-1)}`);
+export const SESSIZ_UST = { 7: 14, 14: 30 }; // takip son etkinlik filtresinde 7 ve 14 aralık olarak çalışır
 export function topluCumle(sayi, gorunum, asamaIdleri, gun = 0) {
   const adlar = ASAMALAR.filter(a => asamaIdleri.includes(a.id)).map(a => a.ad); // aşama sırasıyla
   const asama = !adlar.length || adlar.length === ACIK_ASAMALAR.length || (adlar.length === TAKIP_ASAMALARI.length && !asamaIdleri.includes(YENI)) ? "" : `${listeYaz(adlar)} ${adlar.length > 1 ? "aşamalarındaki" : "aşamasındaki"} `;
-  const sure = gun > 0 ? `son etkinliği ${gun} günden eski olan ` : "";
+  const sure = gun > 0 ? (SESSIZ_UST[gun] ? `son etkinliği ${gun}-${SESSIZ_UST[gun]} gün önce olan ` : `son etkinliği ${gun} günden eski olan `) : "";
   const bas = `${sure}${asama}`;
   return `${bas ? bas[0].toUpperCase() + bas.slice(1) : ""}${sayi} ${GORUNUM_SUZ[gorunum].kelime} datanızla en kısa sürede ilgilenebilir misiniz?`;
 }

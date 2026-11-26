@@ -1,3 +1,4 @@
+// v6.40: son etkinlik filtresi aralıklı: 7-14 gün önce, 14-30 gün önce, 30 günden eski, N günden eski
 // v6.39: "Task tarihi bugün" kartı: açık datalardan sıradaki task'ı bugün olanlar (listedeki sonrakiTask'tan, İstanbul günü)
 // v6.38: takip oranı = (takip edilmesi gereken - takipsiz) / takip edilmesi gereken; küme boşsa "-"; kart tıklanınca o küme listelenir
 // v6.37: admin danışman listesinde "Tüm danışmanlar"; çoklu seçimde Toplu Hatırlat danışman başına ayrı mesaj (n8n kuyruğu)
@@ -131,7 +132,7 @@ const ACIKLAMA = {
   takipsiz: g => (g
     ? `Takipsiz sayılanlar:\n• Task tarihi geçmiş datalar\n• İlgili ve VIP Görüşme'de task'ı olmayanlar\n• VIP Na1-Na3 ve VIP olmayan Görüşme'de task'ı olmayan ve son etkinliği ${g} günden eski olanlar\n• Na1-Na3'te VIP olmayan kaynaklar ve Yeni aşaması sayılmaz\n• Tıklayınca aşağıda listelenir.`
     : "Takipsiz sayılanlar:\n• Task'ı olmayan her açık data (son etkinliğe bakılmaz)\n• Task tarihi geçmiş datalar\n• Na1-Na3'te VIP olmayan kaynaklar ve Yeni aşaması sayılmaz\n• Tıklayınca aşağıda listelenir."),
-  sonEtkinlik: "Sadece son etkinliği seçilen günden eski olan datalar gösterilir (tüm kartlar ve liste). Tümü: son etkinliğe bakılmaz.",
+  sonEtkinlik: "Son etkinliği seçilen aralıkta olan datalar gösterilir (tüm kartlar ve liste):\n• 7-14 gün önce\n• 14-30 gün önce\n• 30 günden eski: 30 gün ve daha eski hepsi\n• N günden eski: N gün ve daha eski hepsi\nTümü: son etkinliğe bakılmaz.",
   sonAktivite: "Kylas'taki son etkinlik tarihi (Latest Activity On). Otomasyon güncellemeleriyle de değişir, not girilince değişmez.",
   taskZorunlu: "İlgili ya da VIP Görüşme datası: task zorunlu ama task yok.",
   karsilastirma: "Satıra tıklayınca aşağıdaki liste o danışmana süzülür, tekrar tıklayınca süzme kalkar.",
@@ -325,7 +326,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           onChange: ids => setDanismanlar(ids[0] === TUM_DANISMANLAR ? secilebilir.map(k => k.id) : ids),
           tekli: true, yukleniyor: !kisiler && !kisiHata } : null}
         kaynak={{ secili: kaynaklar, onChange: setKaynaklar }}
-        tarih={{ deger: sessizGun || null, onChange: v => setSessizGun(v === null ? 0 : v), metin: g => `${g} günden eski`, nMetni: "N günden eski",
+        tarih={{ deger: sessizGun || null, onChange: v => setSessizGun(v === null ? 0 : v), metin: g => (g === 7 ? "7-14 gün önce" : g === 14 ? "14-30 gün önce" : `${g} günden eski`), nMetni: "N günden eski",
           bosMetin: "Son Etkinlik", ipucu: `Son Etkinlik Tarihi: ${ACIKLAMA.sonEtkinlik}` }} />
 
       {kisiHata && <div style={c.hata}>{kisiHata}</div>}
