@@ -1,3 +1,4 @@
+// v6.44: soldaki kartlar da "Data" grubunda (Hepsi · Takipsiz); grup başlıkları ortalı
 // v6.43: kartlar gruplandı: solda Açık Data + Takipsiz, ortada "Task Tarihi" grubu (Bugün · Geçmiş · İleri), sağda Takip oranı
 // v6.42: alttaki sürüm etiketi düzeltildi (v6.39-v6.41'de güncellenmemişti); etikette Ele Al sürümü de görünür
 // v6.41: not balonunda notlar işaretlenebilir (yöneticiler); işaretliler satırın Hatırlat mesajının en altına eklenir
@@ -117,7 +118,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.43"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.44"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;
@@ -347,11 +348,14 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         <>
           <style>{`@media (max-width: 900px) { .takip-kart-satiri { grid-template-columns: 1fr !important; } }`}</style>
           <div className="takip-kart-satiri" style={t.kartSatiri}>
-            <div style={t.kartIkili}>
-              <Kart sayi={yukleniyor ? DONEN : o.toplam} etiket="Açık Data" ipucu={ACIKLAMA.acik} renk="#0e7490" cerceve="#a5f3fc"
+            <div style={t.taskGrup}>
+              <div style={t.taskGrupBaslik}>Data</div>
+              <div style={t.kartIkili}>
+              <Kart sayi={yukleniyor ? DONEN : o.toplam} etiket="Hepsi" ipucu={ACIKLAMA.acik} renk="#0e7490" cerceve="#a5f3fc"
                 secili={gorunum === "acik"} onClick={() => setGorunum("acik")} />
               <Kart sayi={yukleniyor ? DONEN : o.takipsiz} etiket="Takipsiz" ipucu={ACIKLAMA.takipsiz(sessizGun)} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
                 secili={gorunum === "takipsiz"} onClick={() => setGorunum("takipsiz")} />
+              </div>
             </div>
             <div style={t.taskGrup}>
               <div style={t.taskGrupBaslik}>Task Tarihi</div>
@@ -683,7 +687,7 @@ const t = {
   kartIkili: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" },
   kartTek: { display: "grid" },
   taskGrup: { padding: "8px 10px 10px", borderRadius: "20px", border: "1.5px dashed #cbd5e1", background: "#f8fafc" },
-  taskGrupBaslik: { fontSize: "11px", fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.6px", margin: "0 0 8px 6px" },
+  taskGrupBaslik: { fontSize: "11px", fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.6px", margin: "0 0 8px", textAlign: "center" },
   taskGrupKartlar: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px" },
   kartlar: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px", animation: "fadeUp 0.4s ease-out" },
   kart: { border: "1.5px solid", borderRadius: "16px", padding: "18px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
