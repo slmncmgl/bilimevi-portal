@@ -59,7 +59,8 @@ export default function App() {
         <Route path="/stm" element={<STMAwards />} />
         <Route path="/instagram" element={<InstagramDM />} />
         <Route path="/bulten" element={<BultenDuzenleyici />} />
-        <Route path="/kayit-guncelle" element={<KayitGuncelle />} />
+        <Route path="/doldurulan-formlar" element={<KayitGuncelle />} />
+        <Route path="/kayit-guncelle" element={<Navigate to="/doldurulan-formlar" replace />} />
         <Route path="/fiyat-teklifi" element={<FiyatTeklifi />} />
         <Route path="/katalog-parse" element={<KatalogParse />} />
         <Route path="/auth/callback" element={<AuthCallback />} />

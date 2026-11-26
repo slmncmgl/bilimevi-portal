@@ -131,7 +131,7 @@ export const MODULE_CONFIG = [
     key: "kayitguncelle",
     title: "Doldurulan Kayıt Formları",
     desc: "Öğrenci kaydını düzelt ve sözleşmeyi yeniden gönder",
-    path: "/kayit-guncelle",
+    path: "/doldurulan-formlar",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
