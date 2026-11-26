@@ -1,3 +1,4 @@
+// v3.37: notlar işleminde boyut herkes için 100'e kadar (AI Önerileri)
 // v3.36: notlar işleminde admin için boyut 100'e kadar (Not Analizi test görünümü); diğerleri 20
 // v3.35: islem "asamaDegistir": { leadId, asama, sebep? } -> açık aşamalar arası ya da İlgisiz/Olumsuza Dönen + sebep (danışman token'ı, yoksa anahtar)
 // v3.34: detay yanıtında "bilgi": Kylas Data Information alanları (English Level, Country of Application, School Name, Çocuğun okulu/sınıfı, Planned Application Time, Message, İlk Form Tarihi)
@@ -311,7 +312,7 @@ async function notlar(req, res, yetki) {
   let ownerId = Number(req.body?.ownerId);
   if (!Number.isInteger(leadId) || !Number.isInteger(ownerId)) return res.status(400).json({ error: "leadId ve ownerId gerekli." });
   const boyut = req.body?.boyut === undefined ? 3 : Number(req.body.boyut);
-  if (!Number.isInteger(boyut) || boyut < 1 || boyut > (yetki.tur === "admin" ? 100 : 20)) return res.status(400).json({ error: "Geçersiz not sayısı." });
+  if (!Number.isInteger(boyut) || boyut < 1 || boyut > 100) return res.status(400).json({ error: "Geçersiz not sayısı." });
   // Admin değilse istekteki ownerId'ye güvenilmez, lead'in gerçek sahibi Kylas'tan okunur
   if (yetki.tur !== "admin") {
     const d = await kylasAra([kural("id", "equal", leadId)], 0, ["id", "ownerId"]);
