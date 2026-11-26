@@ -1,3 +1,4 @@
+// v2.21: task penceresinde Tür seçimi kalktı, her task Follow Up açılır
 // v2.20: aşama çubuğunun iki ucu oval; Close Lead dolu mavi, ayrık oklu düğme
 // v2.19: not bölümünün üstünde Kylas tarzı aşama çubuğu (tıkla → taşı) + Close Lead menüsü (İlgisiz / Olumsuza Dönen → sebep penceresi); kartta Değiştir kalktı
 // v2.18: Aşama "Değiştir": açık aşamalar arası geçiş ya da İlgisiz / Olumsuza Dönen + sebep (crm-rapor asamaDegistir); kapanan data işaretli kalır
@@ -568,7 +569,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
 // Task oluşturma penceresi: tıklanan düğmenin sağ kenarına yaslanır, sola doğru uzanır; arka plan bulanıklaşır (animasyon yok).
 // "Task oluştur" ile hemen Kylas'a yazılır (onOlustur). Esc ya da arka plana tıklama kapatır.
 function TaskPenceresi({ rect, atanan, ilk, acikTasklar = [], onOlustur, onTamamlaOlustur, onKapat }) {
-  const [f, setF] = useState(() => bosForm(ilk?.ad || "", ilk?.tur || 2614523));
+  const [f, setF] = useState(() => bosForm(ilk?.ad || "", 2614523)); // tür her zaman Follow Up (seçim kaldırıldı)
   const [eskiId, setEskiId] = useState(() => acikTasklar[0]?.id ?? null);
   const eskiGecerli = acikTasklar.some(t => t.id === eskiId) ? eskiId : acikTasklar[0]?.id ?? null;
   const [calisiyor, setCalisiyor] = useState(false);
@@ -628,13 +629,6 @@ function TaskPenceresi({ rect, atanan, ilk, acikTasklar = [], onOlustur, onTamam
           <label style={p.etiket}>Task adı
             <input ref={adAlani} value={f.ad} onChange={e => degis({ ad: e.target.value.slice(0, 200) })} placeholder="ör. Tekrar ara"
               onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); gonder(); } }} style={p.girdi} />
-          </label>
-          <label style={p.etiket}>Tür
-            <div style={p.turler}>
-              {TASK_TURLERI.map(([id, ad]) => (
-                <button key={id} type="button" onClick={() => degis({ tur: id })} style={f.tur === id ? p.turAktif : p.tur} aria-pressed={f.tur === id}>{ad}</button>
-              ))}
-            </div>
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 120px", gap: "10px" }}>
             <label style={p.etiket}>Tarih
