@@ -1,3 +1,4 @@
+// v6.47: admin Takip Tablosu'nda 1-3-5'e basınca Not Analizi (test) paneli açılır: listedeki dataların notlarından kovalama / sağlıksız takip bayrakları
 // v6.46: listede isim artık Kylas'a link değil (renk, kalınlık ve ID balonu aynı)
 // v6.45: aşama düğmeleri renkli: Yeni mavi, Na1-3 turuncu, Görüşme mor, İlgili yeşil (seçilince dolu); Tümü beyaz
 // v6.44: soldaki kartlar da "Data" grubunda (Hepsi · Takipsiz); grup başlıkları ortalı
@@ -117,10 +118,11 @@ import DanismanAta from "./DanismanAta";
 import EleAl, { EleAlDugmesi } from "./EleAl";
 import { gunOnceYazi, gunSayisi } from "../lib/gunOnce";
 import Hatirlat from "./Hatirlat";
+import NotAnalizi from "./NotAnalizi";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.46"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.47"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ASAMA_RENK = { 217285: ["#2563eb", "#eff6ff", "#bfdbfe"], 222366: ["#d97706", "#fffbeb", "#fde68a"], 253357: ["#d97706", "#fffbeb", "#fde68a"], 253358: ["#d97706", "#fffbeb", "#fde68a"], 218701: ["#7c3aed", "#f5f3ff", "#ddd6fe"], 218702: ["#059669", "#ecfdf5", "#a7f3d0"] };
@@ -303,6 +305,24 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const tumTakipsiz = (rapor?.acik || []).filter(gorunumTanim.suz).filter(dataAraSuz(dataAra)).sort(gorunumTanim.sirala);
   const liste = tumTakipsiz.filter(asamaSuz);
   const asamaSayisi = id => tumTakipsiz.filter(l => (id === null || l.asama === id) && (!listeSahip || String(l.ownerId) === listeSahip)).length;
+  // Not Analizi (test): admin 1-3-5 tuşlarına sırayla basınca açılır (yazı alanındayken çalışmaz)
+  const [notAnalizi, setNotAnalizi] = useState(false);
+  const tusSirasi = useRef({ dizi: "", zaman: 0 });
+  useEffect(() => {
+    if (!isAdmin) return;
+    const tus = e => {
+      const h = e.target;
+      if (e.ctrlKey || e.metaKey || e.altKey || (h && (h.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(h.tagName)))) return;
+      const simdi = Date.now();
+      const t = tusSirasi.current;
+      if (simdi - t.zaman > 2000) t.dizi = "";
+      t.zaman = simdi;
+      t.dizi = (t.dizi + e.key).slice(-3);
+      if (t.dizi === "135") { t.dizi = ""; setNotAnalizi(true); }
+    };
+    window.addEventListener("keydown", tus);
+    return () => window.removeEventListener("keydown", tus);
+  }, [isAdmin]);
   const asamaDegistir = id => setAsamaSecim(s => (s.includes(id) ? s.filter(x => x !== id) : [...s, id]));
 
   // Toplu hatırlatma: ekrandaki liste (kart + aşama) tek mesajda. Arama sunucuda tekrarlanamadığı için arama doluyken pasif.
@@ -548,6 +568,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           </div>
         </>
       )}
+      {isAdmin && notAnalizi && <NotAnalizi liste={liste} kisiAdi={kisiAdi} onKapat={() => setNotAnalizi(false)} />}
       {isAdmin && <style>{`@keyframes zilSalla { 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
         .hatirlat-zil svg { transform-origin: 50% 10%; }
         .hatirlat-zil:hover:not(:disabled) svg { animation: zilSalla 0.6s ease-in-out; }
