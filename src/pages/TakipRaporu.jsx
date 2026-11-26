@@ -1,3 +1,4 @@
+// v6.42: alttaki sürüm etiketi düzeltildi (v6.39-v6.41'de güncellenmemişti); etikette Ele Al sürümü de görünür
 // v6.41: not balonunda notlar işaretlenebilir (yöneticiler); işaretliler satırın Hatırlat mesajının en altına eklenir
 // v6.40: son etkinlik filtresi aralıklı: 7-14 gün önce, 14-30 gün önce, 30 günden eski, N günden eski
 // v6.39: "Task tarihi bugün" kartı: açık datalardan sıradaki task'ı bugün olanlar (listedeki sonrakiTask'tan, İstanbul günü)
@@ -115,7 +116,7 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.38"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.42"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ILGILI = 218702;

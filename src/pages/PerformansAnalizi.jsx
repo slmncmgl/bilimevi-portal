@@ -42,6 +42,7 @@ import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 import CrmRaporu, { CRM_SURUM } from "./CrmRaporu";
 import TakipRaporu, { AKTIVITE_SURUM } from "./TakipRaporu";
+import { ELEAL_SURUM } from "./EleAl";
 import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerlendirme";
 import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
@@ -51,7 +52,7 @@ const PERFORMANS_SURUM = "v4.8"; // 1. satırdaki sürümle aynı tut
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
 const SEKME_SURUMU = {
-  takip: `Takip Tablosu ${AKTIVITE_SURUM}`,
+  takip: `Takip Tablosu ${AKTIVITE_SURUM} · Ele Al ${ELEAL_SURUM}`,
   ozet: `Danışman Özeti ${OZET_SURUM}`,
   crm: `Data Tablosu ${CRM_SURUM}`,
   deg: `Performans Tablosu ${DEGERLENDIRME_SURUM}`,

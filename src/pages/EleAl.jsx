@@ -97,6 +97,8 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
   );
 }
 
+export const ELEAL_SURUM = "v2.21"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
+
 export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat }) {
   const [pomYesil, setPomYesil] = useState(false);
   const [leadler, setLeadler] = useState(ilkListe); // bu turda ele alınan datalar (atlananlar turunda sadece onlar)
