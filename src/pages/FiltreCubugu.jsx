@@ -1,3 +1,4 @@
+// v1.9: VIP Datalar düğmesi kaynak/danışman seçicilerle aynı köşe (12px), renkler aynı
 // v1.8: tarih verilmezse (null) süre kutusu gizlenir (Danışman Özeti çoklu seçimde kendi aralık seçicisini kullanır)
 // v1.7: "Campaign Name" yazıları "Reklam Adı" oldu
 // v1.6: VIP Datalar, VIP kaynakların hepsi seçimdeyse ON (renkli) görünür; varsayılanda tüm kaynaklar seçili olduğu için ON.
@@ -140,12 +141,12 @@ const k = {
 };
 
 const VIP_CSS = `
-.vip-neon { position: relative; isolation: isolate; overflow: hidden; padding: 2px; border: none; border-radius: 999px;
+.vip-neon { position: relative; isolation: isolate; overflow: hidden; padding: 2px; border: none; border-radius: 12px;
   background: transparent; cursor: pointer; font-family: 'Sora', sans-serif; animation: vipParilti 2.4s ease-in-out infinite; }
 .vip-neon::before { content: ""; position: absolute; inset: -200%; z-index: -1;
   background: conic-gradient(from 0deg, transparent 0 55%, #f59e0b 65%, #fde047 72%, #f472b6 80%, #a855f7 88%, transparent 95%);
   animation: vipDon 2.4s linear infinite; }
-.vip-neon > span { display: flex; align-items: center; gap: 8px; padding: 5px 8px 5px 14px; border-radius: 999px; background: #f8fafc; color: #94a3b8;
+.vip-neon > span { display: flex; align-items: center; gap: 8px; padding: 5px 8px 5px 14px; border-radius: 10px; background: #f8fafc; color: #94a3b8;
   font-size: 12px; font-weight: 700; letter-spacing: 0.2px; transition: all 0.15s; }
 .vip-neon:hover > span { background: #f1f5f9; color: #64748b; }
 .vip-durum { padding: 1px 7px; border-radius: 999px; font-size: 10px; letter-spacing: 0.5px; background: #e2e8f0; color: #64748b; }

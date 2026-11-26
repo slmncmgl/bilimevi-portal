@@ -1,3 +1,4 @@
+// v1.4: Tümü ve süre listesi kaynak/danışman seçicilerle aynı köşe (12px), renkler aynı
 // v1.3: açılır liste oku tek parça SVG, seçiliyken arka plan rengi ayrı yazılır (garip üçgen görünümü düzeldi)
 // v1.2: bosMetin: listede seçim yokken görünen yazı (başlık kalktığı için "Son etkinlik" / "Data tarihi" yazar)
 // v1.1: tumu={false} ile "Tümü" düğmesi gizlenir, enFazla ile N kutusunun üst sınırı (Aktivite Tablosu özet kutusu: 90)
@@ -63,7 +64,7 @@ export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} g�
 // Açılır liste oku: tek parça SVG (iki gradyanlı eski ok bazı durumlarda kocaman üçgen gibi görünüyordu)
 const ok = renk => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='${renk}' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>`)}")`;
 
-const temel = { height: "34px", borderRadius: "999px", fontSize: "12px", fontWeight: 600, fontFamily: "'Sora', sans-serif", cursor: "pointer", transition: "all 0.15s" };
+const temel = { height: "34px", borderRadius: "12px", fontSize: "12px", fontWeight: 600, fontFamily: "'Sora', sans-serif", cursor: "pointer", transition: "all 0.15s" };
 const t = {
   dugme: { ...temel, padding: "0 14px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569" },
   aktif: { background: "#0891b2", color: "#fff", borderColor: "#0891b2" },
