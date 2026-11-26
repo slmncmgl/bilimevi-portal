@@ -1,3 +1,4 @@
+// v1.10: Giriş saatleri: yorumlar kalktı; haftalık giriş yoğunluğu (gün bazında çubuk) + gün × saat sıcaklık haritası (Pzt-Paz, son 4 hafta, ısınan renk, hover)
 // v1.9: "Giriş saatleri" ortada açılan pencerede: saatlik ortalama çubuk grafiği + ısı haritası + yorum
 // v1.8: yöneticiler çevrimiçi listesinin altında "Giriş saatleri" ısı haritası açabilir (son 14 gün × 24 saat + kısa yorum)
 // v1.7: standart sayfa genişliği 1100px (tüm sayfalar aynı)
@@ -300,13 +301,26 @@ function DurtmeBildirim({ isFortis }) {
   );
 }
 
-// Yöneticiler için: son 14 günde her saatte portalda bulunan farklı kişi sayısı (İstanbul saati).
-// Ortada açılan pencere: üstte yorum, saatlik ortalama çubuk grafiği, altta gün × saat ısı haritası.
+// Yöneticiler için: son 4 haftanın giriş yoğunluğu (İstanbul saati, servis bilimevi-cevrimici v1.4).
+// 1) Haftanın günlerine göre ortalama giriş yapan kişi (çubuk). 2) Gün × saat sıcaklık haritası: X saat 00-23, Y Pazartesi-Pazar,
+//    hücre = o gün ve saatte portalda bulunan farklı kişilerin 4 haftalık toplamı; renk açık maviden koyu kırmızıya ısınır.
 function ikiH(n) { return String(n).padStart(2, "0"); }
+const ISI_GUN = 28;
+const GUN_ADLARI = { tr: ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"], en: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] };
+// 0 → 1 arası değeri renk skalasına çevirir: açık mavi → yeşil → sarı → turuncu → koyu kırmızı
+const ISI_DURAKLAR = [[224, 242, 254], [134, 239, 172], [253, 224, 71], [249, 115, 22], [153, 27, 27]];
+function isiRengi(x) {
+  if (!(x > 0)) return "#f1f5f9";
+  const k = Math.min(1, x) * (ISI_DURAKLAR.length - 1);
+  const i = Math.min(Math.floor(k), ISI_DURAKLAR.length - 2), f = k - i;
+  const [a, b] = [ISI_DURAKLAR[i], ISI_DURAKLAR[i + 1]];
+  return `rgb(${a.map((v, j) => Math.round(v + (b[j] - v) * f)).join(",")})`;
+}
+const haftaGunu = g => (new Date(g + "T12:00:00Z").getUTCDay() + 6) % 7; // 0 = Pazartesi
 function IsiPenceresi({ isFortis, onKapat }) {
   const [gunler, setGunler] = useState(undefined); // undefined: yükleniyor, null: alınamadı
-  const [secili, setSecili] = useState(null); // çubuk üstündeki saat
-  useEffect(() => { let iptal = false; isiIste(14).then(g => { if (!iptal) setGunler(g); }); return () => { iptal = true; }; }, []);
+  const [ipucu, setIpucu] = useState(null); // { x, y, metin }
+  useEffect(() => { let iptal = false; isiIste(ISI_GUN).then(g => { if (!iptal) setGunler(g); }); return () => { iptal = true; }; }, []);
   useEffect(() => {
     const tus = e => { if (e.key === "Escape") onKapat(); };
     document.addEventListener("keydown", tus);
@@ -314,72 +328,75 @@ function IsiPenceresi({ isFortis, onKapat }) {
     return () => { document.removeEventListener("keydown", tus); document.body.style.overflow = eski; };
   }, []);
   const T = (tr, en) => (isFortis ? en : tr);
+  const adlar = GUN_ADLARI[isFortis ? "en" : "tr"];
+  const goster = (e, metin) => { const r = e.currentTarget.getBoundingClientRect(); setIpucu({ x: r.left + r.width / 2, y: r.top, metin }); };
   let icerik;
   if (gunler === undefined) icerik = <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>{T("Yükleniyor…", "Loading…")}</div>;
   else if (!gunler || !gunler.length) icerik = <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>{T("Henüz veri yok. Kayıt 25.11.2026'da başladı.", "No data yet.")}</div>;
   else {
-    const enFazla = Math.max(1, ...gunler.flatMap(g => g.saatler));
-    const ort = Array.from({ length: 24 }, (_, s) => gunler.reduce((t, g) => t + (g.saatler[s] || 0), 0) / gunler.length);
-    const ortMax = Math.max(...ort);
-    const zirve = ort.indexOf(ortMax);
-    let ikili = 0; for (let s = 1; s < 23; s++) if (ort[s] + ort[s + 1] > ort[ikili] + ort[ikili + 1]) ikili = s;
-    const aktif = ort.map((v, s) => (v > 0 && v >= ortMax * 0.25 ? s : -1)).filter(s => s >= 0);
-    const gunToplam = gunler.map(g => ({ gun: g.gun, toplam: g.saatler.reduce((a, b) => a + b, 0) }));
-    const enYogunGun = gunToplam.reduce((a, b) => (b.toplam > a.toplam ? b : a));
-    const gunAdi = (g, uzun) => new Date(g + "T12:00:00").toLocaleDateString(isFortis ? "en-GB" : "tr-TR", uzun ? { day: "numeric", month: "long", weekday: "long" } : { day: "2-digit", month: "2-digit", weekday: "short" });
-    const virgul = v => v.toFixed(1).replace(".", isFortis ? "." : ",");
-    const renk = v => (v ? `rgba(16, 185, 129, ${0.15 + 0.85 * (v / enFazla)})` : "#f1f5f9");
-    const yorumlar = ortMax === 0 ? [T("Henüz hareket yok.", "No activity yet.")] : [
-      T(`En yoğun aralık ${ikiH(ikili)}:00–${ikiH(ikili + 2)}:00.`, `Busiest window ${ikiH(ikili)}:00–${ikiH(ikili + 2)}:00.`),
-      T(`Zirve saat ${ikiH(zirve)}:00, ortalama ${virgul(ortMax)} kişi.`, `Peak hour ${ikiH(zirve)}:00, avg ${virgul(ortMax)} people.`),
-      T(`Portal genelde ${ikiH(aktif[0])}:00–${ikiH(aktif[aktif.length - 1] + 1)}:00 arası kullanılıyor.`, `Usually used ${ikiH(aktif[0])}:00–${ikiH(aktif[aktif.length - 1] + 1)}:00.`),
-      gunler.length > 1 && T(`En hareketli gün ${gunAdi(enYogunGun.gun, true)}.`, `Busiest day ${gunAdi(enYogunGun.gun, true)}.`),
-    ].filter(Boolean);
-    const GRAFIK_Y = 160;
+    // Gün × saat toplamları ve haftanın günü başına gün sayısı
+    const matris = Array.from({ length: 7 }, () => Array(24).fill(0));
+    const gunSayisi = Array(7).fill(0), kisiToplam = Array(7).fill(0);
+    for (const g of gunler) {
+      const w = haftaGunu(g.gun);
+      gunSayisi[w]++;
+      kisiToplam[w] += g.kisi ?? Math.max(0, ...g.saatler);
+      g.saatler.forEach((v, s) => { matris[w][s] += v || 0; });
+    }
+    const enFazla = Math.max(1, ...matris.flat());
+    const ort = kisiToplam.map((t, w) => (gunSayisi[w] ? t / gunSayisi[w] : 0));
+    const ortMax = Math.max(1, ...ort);
+    const virgul = v => (Math.round(v * 10) / 10).toLocaleString(isFortis ? "en-GB" : "tr-TR");
+    const GRAFIK_Y = 170;
     icerik = (
       <>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "18px" }}>
-          {yorumlar.map((y, i) => (
-            <span key={i} style={{ padding: "6px 12px", background: i === 0 ? "#047857" : "#ecfdf5", color: i === 0 ? "#fff" : "#065f46", border: i === 0 ? "none" : "1px solid #a7f3d0", borderRadius: "100px", fontSize: "13px", fontWeight: 600 }}>{y}</span>
-          ))}
-        </div>
-        <div style={{ fontSize: "12px", fontWeight: 700, color: "#334155", marginBottom: "8px" }}>{T("Saatlik ortalama (kişi)", "Hourly average (people)")}</div>
-        <div style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gap: "4px", alignItems: "end", height: `${GRAFIK_Y}px`, padding: "0 2px", borderBottom: "1px solid #e2e8f0" }}
-          onMouseLeave={() => setSecili(null)}>
-          {ort.map((v, s) => {
-            const h = ortMax ? Math.max(v ? 4 : 0, (v / ortMax) * (GRAFIK_Y - 22)) : 0;
-            const vurgu = s >= ikili && s <= ikili + 1;
-            return (
-              <div key={s} onMouseEnter={() => setSecili(s)} style={{ position: "relative", height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", cursor: "default" }}>
-                {(secili === s || s === zirve) && v > 0 && (
-                  <span style={{ position: "absolute", bottom: `${h + 4}px`, left: "50%", transform: "translateX(-50%)", fontSize: "11px", fontWeight: 700, color: "#065f46", whiteSpace: "nowrap" }}>{virgul(v)}</span>
-                )}
-                <div style={{ height: `${h}px`, borderRadius: "5px 5px 2px 2px", background: vurgu ? "linear-gradient(180deg, #10b981, #047857)" : secili === s ? "#34d399" : "#a7f3d0", transition: "height .5s ease, background .15s" }} />
+        <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155", marginBottom: "10px" }}>{T("Haftalık giriş yoğunluğu", "Weekly login density")}
+          <span style={{ fontWeight: 500, color: "#94a3b8" }}> · {T("günlük ortalama giriş yapan kişi", "average people per day")}</span></div>
+        <div style={{ display: "grid", gridTemplateColumns: "36px 1fr", gap: "8px" }}>
+          <div style={{ position: "relative", height: `${GRAFIK_Y}px`, fontSize: "10px", color: "#94a3b8" }}>
+            {[1, 0.5, 0].map(o => <span key={o} style={{ position: "absolute", right: 0, top: `${(1 - o) * (GRAFIK_Y - 12)}px` }}>{virgul(ortMax * o)}</span>)}
+          </div>
+          <div style={{ position: "relative", height: `${GRAFIK_Y}px`, borderLeft: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0", display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "14px", alignItems: "end", padding: "0 14px" }}>
+            {[0.5, 1].map(o => <div key={o} style={{ position: "absolute", left: 0, right: 0, bottom: `${o * (GRAFIK_Y - 12)}px`, borderTop: "1px dashed #eef2f6" }} />)}
+            {ort.map((v, w) => (
+              <div key={w} onMouseEnter={e => goster(e, `${adlar[w]}: ${T("ortalama", "avg")} ${virgul(v)} ${T("kişi", "people")} · ${gunSayisi[w]} ${T("gün", "days")}, ${T("toplam", "total")} ${kisiToplam[w]}`)} onMouseLeave={() => setIpucu(null)}
+                style={{ position: "relative", height: `${(v / ortMax) * (GRAFIK_Y - 12)}px`, minHeight: v ? "4px" : 0, borderRadius: "6px 6px 2px 2px", background: isiRengi(0.25 + 0.75 * (v / ortMax)), transition: "height .5s ease", cursor: "default" }}>
+                {v > 0 && <span style={{ position: "absolute", top: "-17px", left: "50%", transform: "translateX(-50%)", fontSize: "11px", fontWeight: 700, color: "#334155" }}>{virgul(v)}</span>}
               </div>
-            );
-          })}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gap: "4px", padding: "4px 2px 0", fontSize: "10px", color: "#94a3b8", textAlign: "center" }}>
-          {ort.map((_, s) => <span key={s}>{s % 2 === 0 ? ikiH(s) : ""}</span>)}
+            ))}
+          </div>
+          <span />
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "14px", padding: "0 14px", fontSize: "11px", color: "#64748b", textAlign: "center" }}>
+            {adlar.map(a => <span key={a}>{a.slice(0, 3)}</span>)}
+          </div>
         </div>
 
-        <div style={{ fontSize: "12px", fontWeight: 700, color: "#334155", margin: "22px 0 8px" }}>{T("Gün × saat", "Day × hour")}</div>
-        <div style={{ display: "grid", gridTemplateColumns: "78px repeat(24, minmax(0, 1fr))", gap: "3px", alignItems: "center", fontSize: "11px", color: "#64748b" }}>
+        <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155", margin: "26px 0 10px" }}>{T("Sıcaklık haritası", "Activity heatmap")}
+          <span style={{ fontWeight: 500, color: "#94a3b8" }}> · {T("gün × saat, giriş sayısı", "day × hour, logins")}</span></div>
+        <div style={{ display: "grid", gridTemplateColumns: "84px repeat(24, minmax(0, 1fr))", gap: "3px", alignItems: "center", fontSize: "11px", color: "#64748b" }}
+          onMouseLeave={() => setIpucu(null)}>
           <span />
-          {Array.from({ length: 24 }, (_, s) => <span key={s} style={{ textAlign: "center", fontSize: "10px" }}>{s % 3 === 0 ? ikiH(s) : ""}</span>)}
-          {gunler.map(g => (
-            <div key={g.gun} style={{ display: "contents" }}>
-              <span style={{ whiteSpace: "nowrap" }}>{gunAdi(g.gun)}</span>
-              {g.saatler.map((v, s) => <span key={s} title={`${gunAdi(g.gun)} ${ikiH(s)}:00 · ${v} ${T("kişi", "people")}`} style={{ height: "18px", borderRadius: "4px", background: renk(v), outline: secili === s ? "1.5px solid #047857" : "none" }} />)}
+          {Array.from({ length: 24 }, (_, s) => <span key={s} style={{ textAlign: "center", fontSize: "10px" }}>{s % 2 === 0 ? ikiH(s) : ""}</span>)}
+          {matris.map((satir, w) => (
+            <div key={w} style={{ display: "contents" }}>
+              <span style={{ whiteSpace: "nowrap" }}>{adlar[w]}</span>
+              {satir.map((v, s) => (
+                <span key={s} onMouseEnter={e => goster(e, `${adlar[w]} ${ikiH(s)}:00–${ikiH((s + 1) % 24)}:00 · ${v} ${T("giriş", "logins")}`)}
+                  style={{ height: "24px", borderRadius: "4px", background: isiRengi(v / enFazla), cursor: "default" }} />
+              ))}
             </div>
           ))}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "12px", fontSize: "11px", color: "#94a3b8" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "12px", fontSize: "11px", color: "#94a3b8" }}>
           <span>{T("Az", "Less")}</span>
-          {[0, 0.25, 0.5, 0.75, 1].map(x => <span key={x} style={{ width: "14px", height: "14px", borderRadius: "3px", background: x ? `rgba(16,185,129,${0.15 + 0.85 * x})` : "#f1f5f9" }} />)}
+          <span style={{ width: "140px", height: "10px", borderRadius: "999px", background: `linear-gradient(90deg, ${[0.01, 0.25, 0.5, 0.75, 1].map(isiRengi).join(", ")})` }} />
           <span>{T("Çok", "More")}</span>
-          <span style={{ marginLeft: "auto" }}>{T("Son 14 gün · İstanbul saati · o saatte portalda bulunan farklı kişi", "Last 14 days · Istanbul time · distinct people online")}</span>
+          <span style={{ marginLeft: "auto" }}>{T(`Son ${gunler.length} gün · İstanbul saati · giriş = o saatte portalda bulunan farklı kişi`, `Last ${gunler.length} days · Istanbul time`)}</span>
         </div>
+        {ipucu && createPortal(
+          <div style={{ position: "fixed", left: ipucu.x, top: ipucu.y - 8, transform: "translate(-50%, -100%)", zIndex: 9800, padding: "6px 10px", background: "#0f172a", color: "#fff", borderRadius: "8px", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap", pointerEvents: "none", boxShadow: "0 6px 16px rgba(15,23,42,0.25)" }}>{ipucu.metin}</div>,
+          document.body
+        )}
       </>
     );
   }

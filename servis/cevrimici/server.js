@@ -1,3 +1,4 @@
+// v1.4: isi yanıtında her gün için "kisi" (o gün bağlanan farklı kişi sayısı) da var.
 // v1.3: saatlik aktiflik kaydı (İstanbul saati, gün × 24 saat, o saatte bağlı olan farklı kişi sayısı), /data/aktiflik.json'da 60 gün.
 //   {t:"isi", gun} → {t:"isi", gunler:[{gun, saatler:[24 sayı]}]}; sadece sayılar gider, isim/mail gitmez.
 // v1.2: durt mesajındaki karsilik:true (geri el sallama) hedefe iletilir; alan tarafta tekrar "Sen de el salla" çıkmaz.
@@ -50,7 +51,7 @@ function veriKaydet() {
 }
 function isiVerisi(gunSayi) {
   const n = Math.min(Math.max(Number(gunSayi) || 14, 1), SAKLA_GUN);
-  return Object.keys(aktiflik).sort().slice(-n).map(gun => ({ gun, saatler: aktiflik[gun].map(s => s.size) }));
+  return Object.keys(aktiflik).sort().slice(-n).map(gun => ({ gun, saatler: aktiflik[gun].map(s => s.size), kisi: new Set(aktiflik[gun].flatMap(s => [...s])).size }));
 }
 veriYukle();
 
