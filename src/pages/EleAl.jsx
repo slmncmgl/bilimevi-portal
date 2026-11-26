@@ -1,3 +1,4 @@
+// v2.16: iletişim kartında Kylas Data Information alanları (8 alan, küçük punto); kart iç boşlukları sıkılaştı
 // v2.15: pomodoro bitince şerit "Mola ver"e tıklanana kadar yeşil yanar
 // v2.14: pomodoro şeridin ortasında, büyük ikon + altında "Pomodoro"
 // v2.13: üst şeritte basit pomodoro (5-25 dk, tek tur); bitince şerit 3 sn yeşil yanar
@@ -416,6 +417,17 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
               <Alan ad="Data Kaynağı">{kaynakAdi(kaynak)}{VIP_KAYNAKLAR.includes(kaynak) && <span style={s.etiketSari}>VIP</span>}</Alan>
               <Alan ad="Aşama">{ASAMA_ADLARI[l.asama] || "-"}{l.zorunlu && <span style={s.etiketKirmizi}>Task zorunlu</span>}</Alan>
             </div>
+            <div style={s.bilgiBaslik}>Data bilgileri</div>
+            <div className="elal-alanlar" style={{ ...s.alanlar, gap: "10px 24px" }}>
+              <Alan ad="English Level" bekliyor={dy} kucuk>{dt?.bilgi?.ingilizce || "-"}</Alan>
+              <Alan ad="Country of Application" bekliyor={dy} kucuk>{dt?.bilgi?.ulke || "-"}</Alan>
+              <Alan ad="School Name" bekliyor={dy} kucuk>{dt?.bilgi?.okul || "-"}</Alan>
+              <Alan ad="Planned Application Time" bekliyor={dy} kucuk>{dt?.bilgi?.planlanan || "-"}</Alan>
+              <Alan ad="Çocuğun Eğitim Aldığı Okul" bekliyor={dy} kucuk>{dt?.bilgi?.cocukOkul || "-"}</Alan>
+              <Alan ad="Çocuk Kaçıncı Sınıfta" bekliyor={dy} kucuk>{dt?.bilgi?.sinif || "-"}</Alan>
+              <Alan ad="İlk Form Tarihi" bekliyor={dy} kucuk>{dt?.bilgi?.ilkForm ? tarih(dt.bilgi.ilkForm) : "-"}</Alan>
+              <Alan ad="Message" bekliyor={dy} kucuk>{dt?.bilgi?.mesaj ? <span style={{ fontWeight: 500, whiteSpace: "pre-wrap" }}>{dt.bilgi.mesaj}</span> : "-"}</Alan>
+            </div>
             <div style={s.altBilgi}>
               <span>Son aktivite: <b style={{ color: "#0f172a" }}>{l.sonAktivite ? `${tarih(l.sonAktivite)} · ${gunOnce(l.sonAktivite)} gün önce` : "hiç yok"}</b></span>
               {l.sonrakiTask && (new Date(l.sonrakiTask).getTime() < Date.now()
@@ -660,11 +672,11 @@ const p = {
 };
 
 
-function Alan({ ad, bekliyor, children }) {
+function Alan({ ad, bekliyor, kucuk, children }) {
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>{ad}</div>
-      <div style={{ fontSize: "14px", color: "#0f172a", fontWeight: 600, wordBreak: "break-word" }}>
+      <div style={{ fontSize: kucuk ? "11px" : "12px", color: "#64748b", marginBottom: "3px" }}>{ad}</div>
+      <div style={{ fontSize: kucuk ? "13px" : "14px", color: "#0f172a", fontWeight: 600, wordBreak: "break-word" }}>
         {bekliyor ? <span className="elal-iskelet" /> : children}
       </div>
     </div>
@@ -698,14 +710,15 @@ const s = {
   cubukZemin: { position: "absolute", left: 0, right: 0, bottom: 0, height: "4px", background: "#e2e8f0" },
   govde: { flexShrink: 0, display: "flex", flexDirection: "column", gap: "16px",
     padding: `24px max(24px, calc((100% - ${ICERIK}px) / 2)) 32px`, width: "100%", boxSizing: "border-box" },
-  kart: { flexShrink: 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "22px 24px",
+  kart: { flexShrink: 0, background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", padding: "16px 24px 14px",
     boxShadow: "0 8px 24px rgba(15,23,42,0.06)" },
-  baslikSatir: { display: "grid", gridTemplateColumns: SUTUNLAR, columnGap: "24px", alignItems: "center", marginBottom: "20px" },
+  baslikSatir: { display: "grid", gridTemplateColumns: SUTUNLAR, columnGap: "24px", alignItems: "center", marginBottom: "12px" },
   ad: { margin: 0, fontSize: "24px", fontWeight: 600, color: "#0f172a", lineHeight: 1.25, wordBreak: "break-word" },
   idNo: { marginLeft: "6px", color: "#64748b", fontWeight: 500 },
   kylas: { gridColumn: 4, justifySelf: "end", whiteSpace: "nowrap", padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #a5f3fc", background: "#ecfeff", fontSize: "12px",
     fontWeight: 700, color: "#0891b2", textDecoration: "none" },
-  alanlar: { display: "grid", gridTemplateColumns: SUTUNLAR, gap: "20px 24px" },
+  alanlar: { display: "grid", gridTemplateColumns: SUTUNLAR, gap: "12px 24px" },
+  bilgiBaslik: { margin: "14px 0 8px", paddingTop: "12px", borderTop: "1px solid #f1f5f9", fontSize: "11px", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" },
   liste: { display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" },
   aramaDugme: { display: "inline-flex", alignItems: "center", gap: "8px", padding: 0, border: "none", background: "none", color: "#2563eb", fontSize: "14px",
     fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
@@ -718,7 +731,7 @@ const s = {
     alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0 },
   ikonMavi: { width: "22px", height: "22px", borderRadius: "7px", background: "#dbeafe", color: "#2563eb", display: "inline-flex",
     alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800, flexShrink: 0 },
-  altBilgi: { display: "flex", gap: "8px 24px", flexWrap: "wrap", marginTop: "20px", paddingTop: "14px", borderTop: "1px solid #f1f5f9",
+  altBilgi: { display: "flex", gap: "8px 24px", flexWrap: "wrap", marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #f1f5f9",
     fontSize: "12px", color: "#64748b" },
   etiketKirmizi: { display: "inline-block", whiteSpace: "nowrap", marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fee2e2", color: "#991b1b", fontSize: "10px", fontWeight: 700 },
   etiketSari: { display: "inline-block", whiteSpace: "nowrap", marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },

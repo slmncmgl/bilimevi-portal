@@ -1,3 +1,4 @@
+// v3.34: detay yanıtında "bilgi": Kylas Data Information alanları (English Level, Country of Application, School Name, Çocuğun okulu/sınıfı, Planned Application Time, Message, İlk Form Tarihi)
 // v3.33: hatirlat'ta "notlar" [{ baslik, metin }] (en fazla 10): seçilen Kylas notları mesajın en altına (n8n gSnOzr5fNii7YJlK v1.7)
 // v3.32: takip son etkinlik filtresi 7 → 7-14 gün, 14 → 14-30 gün önce (aralık); 30 ve N eskisi gibi "N günden eski"
 // v3.31: toplu hatırlatmada "bugun" görünümü (Task tarihi bugün kartı)
@@ -867,6 +868,17 @@ async function detay(req, res, yetki) {
     olusturma: l.createdAt || null,
     kampanya: l.utmCampaign || "",
     kaynak: l.source ?? null,
+    // Kylas "Data Information" sekmesi
+    bilgi: {
+      ingilizce: l.customFieldValues?.cfEnglishLevel || "",
+      ulke: l.utmContent || "",
+      okul: l.companyName || "",
+      cocukOkul: l.companyState || "",
+      planlanan: l.utmTerm || "",
+      mesaj: l.customFieldValues?.cfMessage || "",
+      sinif: l.companyZipcode || "",
+      ilkForm: l.customFieldValues?.cfCourseStartDate || null,
+    },
   });
 }
 
