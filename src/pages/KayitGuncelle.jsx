@@ -1,4 +1,5 @@
-// KayitGuncelle.jsx v1.92
+// KayitGuncelle.jsx v1.93
+// v1.93 (26.11.2026): Onay Durumu "İptal Etti" satırları arka yenilemede (Sorgula/arama) de yüklenmiyor; filtre listeIstegi içinde.
 // v1.92 (26.11.2026): "Sadece Grup Kayıtları" kutusu "Sadece Bireysel Kayıtlar" oldu; boş gelir, açılışta grup kayıtları listelenir.
 // v1.91 (25.11.2026): TR Okul Adı boşsa listede "Okul Seç" butonu; pencerede öğrencinin yazdığı okul, MEB listesinden adaylar, arama ve elle yazma (OkulSecPenceresi.jsx). Kayıt n8n okul-guncelle (i98pkeF6f1e7gCwg) ile TR_Okul_Default'a.
 // v1.90 (25.11.2026): Listeden açılan kayıt Tally ID ile seçilir (aynı TC'li birden fazla satırda hep ilki açılıyordu); n8n ogrenci-getir &tally= destekliyor.
@@ -10,7 +11,7 @@
 //   -> n8n Kayıt İptal Talebi (VmicFOIO7KXCndnm) Selman'a WhatsApp atar; Selman "ok" yanıtlayınca Onay Durumu = İptal Etti.
 import { useState, useEffect, useRef, useMemo } from "react";
 
-const SURUM = "v1.92"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.93"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 import OnayPenceresi from "./OnayPenceresi";
 import OkulSecPenceresi from "./OkulSecPenceresi";
@@ -1016,7 +1017,9 @@ export default function KayitGuncelle() {
     try {
       const res = await fetch(`${FETCH_URL}?danisman=${encodeURIComponent(user.name)}&_t=${Date.now()}`, { cache: "no-store", signal: kontrol.signal });
       const json = await res.json();
-      return json?.found && Array.isArray(json.list) ? json.list : null;
+      // v1.93: İptal Etti satırları hiç yüklenmez (ilk yükleme, elle ve arka yenileme)
+      return json?.found && Array.isArray(json.list)
+        ? json.list.filter(o => !sadelestir(o["Onay Durumu"]).includes("iptal")) : null;
     } catch {
       return null;
     } finally {
@@ -1046,7 +1049,6 @@ export default function KayitGuncelle() {
         // Elle yenilemede neon çizgi en az bir tur dönsün
         new Promise(r => setTimeout(r, elle ? 1000 : 0)),
       ]);
-      if (liste) liste = liste.filter(o => !sadelestir(o["Onay Durumu"]).includes("iptal"));
       if (liste) {
         if (elle) {
           const eskiler = new Set(ogrencilerim.map(satirAnahtari));
