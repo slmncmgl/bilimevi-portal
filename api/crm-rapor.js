@@ -1,3 +1,4 @@
+// v3.31: toplu hatırlatmada "bugun" görünümü (Task tarihi bugün kartı)
 // v3.30: aktiviteSayilari n8n "Danışman Aktivite Günlüğü"nden (webhook danisman-aktivite-gunluk, 5YA15WWxbwDtk7XQ) okunur:
 //       danışmanın kendi datasına dokunduğu her gün ayrı sayılır (dün + bugün aynı data = 2). Kayıt 26.11.2026'da başladı.
 // v3.29: aktiviteSayilari danışmanın KENDİ işlemine göre: sahibi seçili danışman olan ve Lead Owner Last Activity
@@ -1159,6 +1160,7 @@ async function hatirlatGonder(res, yetki, { danisman, onizleme, not, onay, kayit
 const GORUNUM_SUZ = {
   acik: { kart: "Açık Data", kelime: "açık", suz: () => true },
   taskBeklenen: { kart: "Task beklenen", kelime: "task bekleyen", suz: l => l.zorunlu },
+  bugun: { kart: "Task tarihi bugün", kelime: "task tarihi bugün olan", suz: l => !!l.sonrakiTask && new Date(new Date(l.sonrakiTask).getTime() + IST_MS).toISOString().slice(0, 10) === new Date(Date.now() + IST_MS).toISOString().slice(0, 10) },
   ileri: { kart: "İleri tarihli task", kelime: "ileri tarihli task'lı", suz: l => l.zorunlu && l.taskTur === "ileri" },
   gecikmis: { kart: "Gecikmiş task", kelime: "gecikmiş task'lı", suz: l => l.zorunlu && l.taskTur === "gecikmis" },
   takipsiz: { kart: "Takipsiz", kelime: "takipsiz", suz: l => l.takipsiz },

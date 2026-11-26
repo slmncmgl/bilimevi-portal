@@ -1,3 +1,4 @@
+// v6.39: "Task tarihi bugün" kartı: açık datalardan sıradaki task'ı bugün olanlar (listedeki sonrakiTask'tan, İstanbul günü)
 // v6.38: takip oranı = (takip edilmesi gereken - takipsiz) / takip edilmesi gereken; küme boşsa "-"; kart tıklanınca o küme listelenir
 // v6.37: admin danışman listesinde "Tüm danışmanlar"; çoklu seçimde Toplu Hatırlat danışman başına ayrı mesaj (n8n kuyruğu)
 // v6.36: son etkinlik filtresi tüm kartları ve listeyi süzer
@@ -123,6 +124,7 @@ const SAYFA_BOYLARI = [10, 20, 30, 50];
 const ACIKLAMA = {
   acik: "• Yeni, Na1, Na2, Na3, Görüşme ve İlgili aşamalarındaki tüm datalar\n• Yeni datalar takipsiz sayılmaz\n• Tıklayınca aşağıda listelenir.",
   taskBeklenen: "Task'ı zorunlu olan datalar:\n• İlgili aşamasındaki tüm datalar\n• VIP kaynaklı Görüşme datası\n• Tıklayınca aşağıda listelenir.",
+  bugunTask: "• Tüm açık datalardan sıradaki task'ının tarihi bugün olanlar (saati geçmiş olsa da)\n• Tıklayınca aşağıda listelenir.",
   ileriTask: "• Task zorunlu datalardan (İlgili + VIP Görüşme)\n• İleri tarihli task'ı olanlar\n• Tıklayınca aşağıda listelenir.",
   gecikmisTask: "• Task zorunlu datalardan (İlgili + VIP Görüşme)\n• Task tarihi geçmiş olanlar\n• Tıklayınca aşağıda listelenir.",
   takipOrani: "• Takip edilmesi gereken datalardan takipsiz olmayanların payı\n• Takip edilmesi gereken: Yeni ve VIP olmayan Na1-Na3 dışındaki açık datalar\n• Son etkinlik filtresi seçiliyse süzülmüş datadan hesaplanır\n• Tıklayınca takip edilmesi gereken datalar listelenir.",
@@ -152,6 +154,9 @@ const sonAktiviteStili = v => {
   return { color: `hsl(${Math.round(25 - 25 * o)}, ${Math.round(90 - 15 * o)}%, ${Math.round(45 - 15 * o)}%)`, fontWeight: o >= 0.5 ? 800 : o >= 0.15 ? 700 : 600 };
 };
 
+// Task tarihi bugün mü (İstanbul günü)
+const istGun = v => new Date(new Date(v).getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+const bugunTaskli = l => !!l.sonrakiTask && istGun(l.sonrakiTask) === istGun(Date.now());
 const kaynakAdi = id => KAYNAKLAR.find(k => k.id === id)?.ad || "Diğer";
 const zm = v => (v ? new Date(v).getTime() : 0);
 const sonEtkinlikSirasi = (a, b) => zm(a.sonAktivite) - zm(b.sonAktivite);
@@ -160,6 +165,7 @@ const taskSirasi = (a, b) => (a.sonrakiTask ? 1 : 0) - (b.sonrakiTask ? 1 : 0) |
 const GORUNUMLER = {
   acik: { ad: "Açık Datalar", suz: () => true, sirala: sonEtkinlikSirasi },
   taskBeklenen: { ad: "Task beklenen Datalar", suz: l => l.zorunlu, sirala: taskSirasi },
+  bugun: { ad: "Task tarihi bugün olan Datalar", suz: bugunTaskli, sirala: taskSirasi },
   ileri: { ad: "İleri tarihli task'lı Datalar", suz: l => l.zorunlu && l.taskTur === "ileri", sirala: taskSirasi },
   gecikmis: { ad: "Gecikmiş task'lı Datalar", suz: l => l.zorunlu && l.taskTur === "gecikmis", sirala: taskSirasi },
   takipsiz: { ad: "Takipsiz Datalar", suz: l => l.takipsiz, sirala: sonEtkinlikSirasi },
@@ -336,6 +342,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           <div style={t.kartlar}>
             <Kart sayi={yukleniyor ? DONEN : o.toplam} etiket="Açık Data" ipucu={ACIKLAMA.acik} renk="#0e7490" cerceve="#a5f3fc"
               secili={gorunum === "acik"} onClick={() => setGorunum("acik")} />
+            <Kart sayi={yukleniyor ? DONEN : (rapor?.acik || []).filter(bugunTaskli).length} etiket="Task tarihi bugün" ipucu={ACIKLAMA.bugunTask} renk="#1d4ed8" zemin="#eff6ff" cerceve="#93c5fd"
+              secili={gorunum === "bugun"} onClick={() => setGorunum("bugun")} />
             <Kart sayi={yukleniyor ? DONEN : o.ileriTask} etiket="İleri tarihli task" ipucu={ACIKLAMA.ileriTask} renk="#166534" zemin="#f0fdf4" cerceve="#86efac"
               secili={gorunum === "ileri"} onClick={() => setGorunum("ileri")} />
             <Kart sayi={yukleniyor ? DONEN : o.gecikmisTask} etiket="Gecikmiş task" ipucu={ACIKLAMA.gecikmisTask} renk="#92400e" zemin="#fffbeb" cerceve="#fde68a"
