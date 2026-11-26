@@ -1,3 +1,4 @@
+// v2.19: not bölümünün üstünde Kylas tarzı aşama çubuğu (tıkla → taşı) + Close Lead menüsü (İlgisiz / Olumsuza Dönen → sebep penceresi); kartta Değiştir kalktı
 // v2.18: Aşama "Değiştir": açık aşamalar arası geçiş ya da İlgisiz / Olumsuza Dönen + sebep (crm-rapor asamaDegistir); kapanan data işaretli kalır
 // v2.17: Kylas Message alanı Data bilgilerinden çıktı; Önceki notların en altında "Form mesajı" olarak (form tarihiyle, sarı zemin)
 // v2.16: iletişim kartında Kylas Data Information alanları (8 alan, küçük punto); kart iç boşlukları sıkılaştı
@@ -134,7 +135,11 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
     aramaZaman.current = setTimeout(() => setArama(a => (a?.telefon === telefon ? null : a)), 12000);
   }
   const taskDegisti = useRef(false);
-  const [asamaPencere, setAsamaPencere] = useState(null); // açık aşama penceresinin lead'i
+  const [asamaPencere, setAsamaPencere] = useState(null); // açık aşama penceresinin lead'i (+ ilkHedef)
+  const asamaUygula = (id, asama, sebep) => {
+    taskDegisti.current = true; // Takip Tablosu kapanınca yenilensin
+    setLeadler(ls => ls.map(x => (x.id === id ? { ...x, asama, sebep: sebep || null, kapandi: !ACIK_HEDEFLER.includes(asama), zorunlu: x.zorunlu && ACIK_HEDEFLER.includes(asama) } : x)));
+  };
 
   const toplam = leadler.length;
   const l = leadler[sira];
@@ -431,7 +436,6 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
                   <span style={l.kapandi ? { color: KAPANISLAR.find(k => k.id === l.asama)?.renk } : undefined}>{ASAMA_ADLARI[l.asama] || "-"}</span>
                   {l.sebep && <span style={{ fontSize: "12px", fontWeight: 500, color: "#64748b" }}>· {l.sebep}</span>}
                   {l.zorunlu && !l.kapandi && <span style={s.etiketKirmizi}>Task zorunlu</span>}
-                  {!l.kapandi && <button type="button" onClick={() => setAsamaPencere(l)} style={s.asamaDugme}>Değiştir</button>}
                 </span>
               </Alan>
             </div>
@@ -453,6 +457,8 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
             </div>
           </section>
 
+
+          <AsamaCubugu lead={l} onKapat={k => setAsamaPencere({ ...l, ilkHedef: k })} onDegisti={asamaUygula} />
 
           <div className="elal-ikili" style={s.ikili}>
           <section style={s.notKutusu}>
@@ -540,11 +546,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
 
       {asamaPencere && (
         <AsamaPenceresi lead={asamaPencere} onKapat={() => setAsamaPencere(null)}
-          onTamam={(id, asama, sebep) => {
-            taskDegisti.current = true; // Takip Tablosu kapanınca yenilensin
-            setLeadler(ls => ls.map(x => (x.id === id ? { ...x, asama, sebep: sebep || null, kapandi: !ACIK_HEDEFLER.includes(asama), zorunlu: x.zorunlu && ACIK_HEDEFLER.includes(asama) } : x)));
-            setAsamaPencere(null);
-          }} />
+          ilkHedef={asamaPencere.ilkHedef} onTamam={(id, asama, sebep) => { asamaUygula(id, asama, sebep); setAsamaPencere(null); }} />
       )}
       {pencere && (
         <TaskPenceresi rect={pencere.rect} atanan={kisiAdi(pencere.ownerId)} ilk={pencere.ilk}
@@ -703,9 +705,81 @@ const p = {
 };
 
 
+// Kylas'taki gibi aşama çubuğu (Yeni → İlgili) + sağda Close Lead. Açık bir aşamaya tıklayınca hemen kaydedilir;
+// Close Lead menüsünden İlgisiz / Olumsuza Dönen seçilince sebep penceresi açılır. Kapanmış datada çubuk pasif.
+const CUBUK = [217285, ...ACIK_HEDEFLER];
+function AsamaCubugu({ lead, onKapat, onDegisti }) {
+  const [gidiyor, setGidiyor] = useState(null); // tıklanan aşama
+  const [hata, setHata] = useState(null);
+  const [menu, setMenu] = useState(false);
+  const menuRef = useRef(null);
+  useEffect(() => { setHata(null); setMenu(false); }, [lead.id]);
+  useEffect(() => {
+    if (!menu) return;
+    const dis = e => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenu(false); };
+    document.addEventListener("mousedown", dis);
+    return () => document.removeEventListener("mousedown", dis);
+  }, [menu]);
+  const sira = CUBUK.indexOf(lead.asama);
+  const kapali = !!lead.kapandi || sira < 0;
+  async function sec(id) {
+    if (kapali || gidiyor || id === lead.asama || id === 217285) return;
+    setGidiyor(id); setHata(null);
+    try { const d = await apiCagir({ islem: "asamaDegistir", leadId: lead.id, asama: id }); onDegisti(lead.id, d.asama || id, null); }
+    catch (e) { setHata(e.message); }
+    setGidiyor(null);
+  }
+  const kapanis = KAPANISLAR.find(k => k.id === lead.asama);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+      <div className="elal-cubuk" style={{ display: "flex", flex: 1, minWidth: "280px", opacity: kapali ? 0.5 : 1 }}>
+        {CUBUK.map((id, i) => {
+          const gecti = !kapali && i < sira, simdi = !kapali && i === sira, tiklanir = !kapali && !simdi && id !== 217285;
+          return (
+            <button key={id} type="button" onClick={() => sec(id)} disabled={!tiklanir || !!gidiyor} title={tiklanir ? `${ASAMA_ADLARI[id]} aşamasına taşı` : undefined}
+              style={{ flex: 1, minWidth: 0, height: "30px", marginLeft: i ? "-6px" : 0, border: "none", padding: "0 14px", fontSize: "12px", fontWeight: simdi ? 700 : 600, fontFamily: "'Sora', sans-serif",
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: tiklanir && !gidiyor ? "pointer" : "default",
+                clipPath: i === 0 ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)" : i === CUBUK.length - 1 ? "polygon(0 0, 100% 0, 100% 100%, 0 100%, 8px 50%)" : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)",
+                borderRadius: i === 0 ? "999px 0 0 999px" : i === CUBUK.length - 1 ? "0 999px 999px 0" : 0,
+                background: simdi ? "#7c3aed" : gecti ? "#ddd6fe" : gidiyor === id ? "#c4b5fd" : "#f1f5f9", color: simdi ? "#fff" : gecti ? "#5b21b6" : "#64748b", transition: "background .15s" }}
+              className={tiklanir ? "elal-cubuk-adim" : undefined}>
+              {gidiyor === id ? "…" : ASAMA_ADLARI[id]}
+            </button>
+          );
+        })}
+      </div>
+      <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
+        {kapanis ? (
+          <span style={{ display: "inline-flex", alignItems: "center", height: "30px", padding: "0 12px", borderRadius: "999px", background: kapanis.zemin, border: `1px solid ${kapanis.cerceve}`, color: kapanis.renk, fontSize: "12px", fontWeight: 700 }}>
+            Kapandı · {kapanis.ad}{lead.sebep ? ` · ${lead.sebep}` : ""}
+          </span>
+        ) : (
+          <button type="button" onClick={() => setMenu(m => !m)} disabled={!!gidiyor}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px", height: "30px", padding: "0 12px", borderRadius: "999px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#334155", fontSize: "12px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" }}>
+            Close Lead <span style={{ fontSize: "9px", color: "#94a3b8" }}>▼</span>
+          </button>
+        )}
+        {menu && (
+          <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", zIndex: 20, minWidth: "190px", background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 12px 28px rgba(15,23,42,0.14)", padding: "6px" }}>
+            {KAPANISLAR.map(k => (
+              <button key={k.id} type="button" onClick={() => { setMenu(false); onKapat(k.id); }}
+                style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", padding: "8px 10px", border: "none", borderRadius: "8px", background: "transparent", color: "#0f172a", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif", textAlign: "left" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#f8fafc"; }} onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+                <span style={{ width: "22px", height: "22px", borderRadius: "50%", border: `1.5px solid ${k.cerceve}`, color: k.renk, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "11px" }}>✕</span>
+                {k.ad}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {hata && <div style={{ width: "100%", fontSize: "12px", color: "#b91c1c" }}>{hata}</div>}
+    </div>
+  );
+}
+
 // Aşama değiştir / kapat penceresi. Kapatmada sebep zorunlu. Kaydedince Kylas'a danışmanın kendi hesabıyla yazılır.
-function AsamaPenceresi({ lead, onKapat, onTamam }) {
-  const [hedef, setHedef] = useState(null);
+function AsamaPenceresi({ lead, ilkHedef = null, onKapat, onTamam }) {
+  const [hedef, setHedef] = useState(ilkHedef);
   const [sebep, setSebep] = useState("");
   const [durum, setDurum] = useState(null); // null | "gidiyor" | { hata }
   const kapanis = KAPANISLAR.find(k => k.id === hedef);
@@ -885,6 +959,7 @@ const s = {
 };
 
 const EKRAN_CSS = `
+.elal-cubuk-adim:hover:not(:disabled) { background: #ede9fe !important; color: #5b21b6 !important; }
         @keyframes elalPomYesil {
           0% { background-position: 0% 50%; }
           100% { background-position: 100% 50%; }
