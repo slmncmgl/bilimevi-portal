@@ -1,3 +1,4 @@
+// v6.49: AI Önerileri kartı grup kartlarıyla aynı hizada (görünmez grup çerçevesi + boş başlık)
 // v6.48: Takip oranı kartının yerinde "AI Önerileri": tıklayınca açık dataların notları analiz edilir (kart soldan sağa dolar), bitince "AI önerileri hazır" penceresi, öneriler kartların altındaki listede
 // v6.47: admin Takip Tablosu'nda 1-3-5'e basınca Not Analizi (test) paneli açılır: listedeki dataların notlarından kovalama / sağlıksız takip bayrakları
 // v6.46: listede isim artık Kylas'a link değil (renk, kalınlık ve ID balonu aynı)
@@ -124,7 +125,7 @@ import { useAiAnaliz, AiKart, AiHazirPopup, AiOneriListesi } from "./AiOneriler"
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.48"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.49"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const ASAMA_RENK = { 217285: ["#2563eb", "#eff6ff", "#bfdbfe"], 222366: ["#d97706", "#fffbeb", "#fde68a"], 253357: ["#d97706", "#fffbeb", "#fde68a"], 253358: ["#d97706", "#fffbeb", "#fde68a"], 218701: ["#7c3aed", "#f5f3ff", "#ddd6fe"], 218702: ["#059669", "#ecfdf5", "#a7f3d0"] };
@@ -412,8 +413,11 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   secili={gorunum === "ileri"} onClick={() => setGorunum("ileri")} />
               </div>
             </div>
-            <div style={t.kartTek}>
+            <div style={{ ...t.taskGrup, borderColor: "transparent", background: "transparent", display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box" }}>
+              <div style={t.taskGrupBaslik} aria-hidden="true">&nbsp;</div>
+              <div style={{ flex: 1, display: "grid" }}>
               <AiKart ai={ai} secili={gorunum === "ai"} onClick={aiTikla} yukleniyor={yukleniyor || !rapor?.acik?.length} />
+              </div>
             </div>
           </div>
 
@@ -733,7 +737,7 @@ const t = {
     background: "#fffbeb", border: "1.5px solid #fde68a", color: "#92400e", fontSize: "14px", lineHeight: 1.5, animation: "fadeUp 0.3s ease-out" },
   uyariIkon: { flex: "0 0 auto", width: "26px", height: "26px", borderRadius: "50%", background: "#f59e0b", color: "#fff", fontWeight: 800,
     display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "14px" },
-  kartSatiri: { display: "grid", gridTemplateColumns: "2fr 3.3fr 1fr", gap: "14px", alignItems: "end", marginBottom: "20px", animation: "fadeUp 0.4s ease-out" },
+  kartSatiri: { display: "grid", gridTemplateColumns: "2fr 3.3fr 1fr", gap: "14px", alignItems: "stretch", marginBottom: "20px", animation: "fadeUp 0.4s ease-out" },
   kartIkili: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" },
   kartTek: { display: "grid" },
   taskGrup: { padding: "8px 10px 10px", borderRadius: "20px", border: "1.5px dashed #cbd5e1", background: "#f8fafc" },
