@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
+import HataYakalayici from "./components/HataYakalayici.jsx";
 import { fetchTokenEkle } from "./lib/oturum.js";
 import { nabizBaslat } from "./lib/cevrimici.js";
 
@@ -11,6 +12,8 @@ nabizBaslat();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
+    <HataYakalayici>
+      <App />
+    </HataYakalayici>
   </StrictMode>
 );
