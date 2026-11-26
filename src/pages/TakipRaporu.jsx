@@ -1,3 +1,4 @@
+// v6.45: aşama düğmeleri renkli: Yeni mavi, Na1-3 turuncu, Görüşme mor, İlgili yeşil (seçilince dolu); Tümü beyaz
 // v6.44: soldaki kartlar da "Data" grubunda (Hepsi · Takipsiz); grup başlıkları ortalı
 // v6.43: kartlar gruplandı: solda Açık Data + Takipsiz, ortada "Task Tarihi" grubu (Bugün · Geçmiş · İleri), sağda Takip oranı
 // v6.42: alttaki sürüm etiketi düzeltildi (v6.39-v6.41'de güncellenmemişti); etikette Ele Al sürümü de görünür
@@ -118,9 +119,15 @@ import Hatirlat from "./Hatirlat";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.44"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.45"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
+const ASAMA_RENK = { 217285: ["#2563eb", "#eff6ff", "#bfdbfe"], 222366: ["#d97706", "#fffbeb", "#fde68a"], 253357: ["#d97706", "#fffbeb", "#fde68a"], 253358: ["#d97706", "#fffbeb", "#fde68a"], 218701: ["#7c3aed", "#f5f3ff", "#ddd6fe"], 218702: ["#059669", "#ecfdf5", "#a7f3d0"] };
+const asamaChip = (id, secili) => {
+  const r = ASAMA_RENK[id];
+  if (!r) return secili ? c.chipAktif : c.chip;
+  return secili ? { ...c.chip, background: r[0], color: "#fff", border: `1.5px solid ${r[0]}` } : { ...c.chip, background: r[1], color: r[0], border: `1.5px solid ${r[2]}` };
+};
 const ILGILI = 218702;
 const ASAMA_SIRASI = [217285, 222366, 253357, 253358, 218701, 218702];
 const SAYFA_BOYLARI = [10, 20, 30, 50];
@@ -425,9 +432,9 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
               <Cerceve tur="asama" metin="Aşama: birden fazla seçilebilir.">
                 <div style={c.chipSatir}>
-                  <button onClick={() => setAsamaSecim([])} style={!asamaSecim.length ? c.chipAktif : c.chip}>Tümü ({asamaSayisi(null)})</button>
+                  <button onClick={() => setAsamaSecim([])} style={!asamaSecim.length ? { ...c.chip, color: "#0f172a", fontWeight: 700, border: "1.5px solid #94a3b8" } : c.chip}>Tümü ({asamaSayisi(null)})</button>
                   {ASAMA_SIRASI.map(id => (
-                    <button key={id} onClick={() => asamaDegistir(id)} style={asamaSecim.includes(id) ? c.chipAktif : c.chip}>
+                    <button key={id} onClick={() => asamaDegistir(id)} style={asamaChip(id, asamaSecim.includes(id))}>
                       {asamaSecim.includes(id) ? "✓ " : ""}{ASAMA_ADLARI[id]} ({asamaSayisi(id)})
                     </button>
                   ))}
