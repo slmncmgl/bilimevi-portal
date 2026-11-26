@@ -1,3 +1,4 @@
+// v6.41: not balonunda notlar işaretlenebilir (yöneticiler); işaretliler satırın Hatırlat mesajının en altına eklenir
 // v6.40: son etkinlik filtresi aralıklı: 7-14 gün önce, 14-30 gün önce, 30 günden eski, N günden eski
 // v6.39: "Task tarihi bugün" kartı: açık datalardan sıradaki task'ı bugün olanlar (listedeki sonrakiTask'tan, İstanbul günü)
 // v6.38: takip oranı = (takip edilmesi gereken - takipsiz) / takip edilmesi gereken; küme boşsa "-"; kart tıklanınca o küme listelenir
@@ -194,6 +195,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [gorunum, setGorunum] = useState("takipsiz"); // GORUNUMLER anahtarı: acik | taskBeklenen | ileri | gecikmis | takipsiz
   const notOnbellek = useRef({});
   const [hatirlat, setHatirlat] = useState(null); // açık Hatırlat penceresi: { anahtar, govde, baslik }
+  const [notSecim, setNotSecim] = useState({}); // leadId -> { anahtar: not } (not balonunda işaretlenenler, Hatırlat'a eklenir)
+  const notSec = leadId => (n, k) => setNotSecim(s => { const y = { ...(s[leadId] || {}) }; if (y[k]) delete y[k]; else y[k] = { baslik: n.baslik, metin: n.metin }; return { ...s, [leadId]: y }; });
   const [eleAl, setEleAl] = useState(null); // ele alınan datalar (tam ekran açıkken)
   const [dataAra, setDataAra] = useState(""); // liste içi Data araması (ad, ID, telefon)
   const [aktivite, setAktivite] = useState(null); // bugün portaldan not girilen Data sayısı
@@ -484,10 +487,10 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           <td style={{ ...c.td, whiteSpace: "nowrap" }}>
                             {l.sonAktivite ? <Ipucu metin={tarih(l.sonAktivite, true)} isaret={false}><span style={sonAktiviteStili(l.sonAktivite)}>{gunOnceYazi(l.sonAktivite)}</span></Ipucu>  : <span style={{ color: "hsl(0, 75%, 30%)", fontWeight: 800 }}>Hiç yok</span>}
                           </td>
-                          <td style={{ ...c.td, textAlign: "center" }}><NotBalonu lead={l} onbellek={notOnbellek} /></td>
+                          <td style={{ ...c.td, textAlign: "center" }}><NotBalonu lead={l} onbellek={notOnbellek} {...(isAdmin ? { secili: Object.keys(notSecim[l.id] || {}), onSec: notSec(l.id) } : {})} /></td>
                           {isAdmin && (
                             <td style={{ ...c.td, textAlign: "center" }}>
-                              <button type="button" onClick={() => setHatirlat({ anahtar: `d${l.id}`, govde: { islem: "hatirlat", leadId: l.id } })} disabled={aktarim} className="hatirlat-zil"
+                              <button type="button" onClick={() => setHatirlat({ anahtar: `d${l.id}`, govde: { islem: "hatirlat", leadId: l.id }, notlar: Object.values(notSecim[l.id] || {}), onGitti: () => setNotSecim(s => { const y = { ...s }; delete y[l.id]; return y; }) })} disabled={aktarim} className="hatirlat-zil"
                                 aria-label={`${l.ad || "Data"}: danışmana hatırlat`} title="Danışmana hatırlat" style={t.hatirlat}><ZilIkonu /></button>
                             </td>
                           )}
@@ -525,7 +528,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         .hatirlat-zil svg { transform-origin: 50% 10%; }
         .hatirlat-zil:hover:not(:disabled) svg { animation: zilSalla 0.6s ease-in-out; }
         @media (prefers-reduced-motion: reduce) { .hatirlat-zil:hover:not(:disabled) svg { animation: none; } }`}</style>}
-      {hatirlat && <Hatirlat key={hatirlat.anahtar} govde={hatirlat.govde} baslik={hatirlat.baslik} onKapat={() => setHatirlat(null)} />}
+      {hatirlat && <Hatirlat key={hatirlat.anahtar} govde={hatirlat.govde} baslik={hatirlat.baslik} notlar={hatirlat.notlar} onGitti={hatirlat.onGitti} onKapat={() => setHatirlat(null)} />}
       {eleAl && (
         <EleAl leadler={eleAl} kisiAdi={kisiAdi} listeAdi={gorunumTanim.ad}
           onKapat={(idler, taskDegisti) => {

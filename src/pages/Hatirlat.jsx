@@ -1,3 +1,4 @@
+// v1.3: tekli hatırlatmada not balonunda işaretlenen notlar önizlemede ve mesajın en altında (notlar)
 // v1.2: çoklu danışman: önizlemede danışman başına sayı + örnek mesaj; gönderim n8n kuyruğuna alınır
 // v1.1: tekli ve toplu ortak: govde (istek) ve baslik dışarıdan; gönderimde önizlemenin "onay" değeri geri gider
 // v1.0: Takip Tablosu satırında "Hatırlat": datanın danışmanına WhatsApp (crm-rapor islem "hatirlat")
@@ -5,8 +6,9 @@
 import { useEffect, useRef, useState } from "react";
 import OnayPenceresi from "./OnayPenceresi";
 import { apiCagir } from "./CrmRaporu";
+const tekSatir = v => String(v ?? "").replace(/[*_~`]/g, "").replace(/\s+/g, " ").trim();
 
-export default function Hatirlat({ govde, baslik = "Danışmana Hatırlat", onKapat }) {
+export default function Hatirlat({ govde, baslik = "Danışmana Hatırlat", notlar = [], onGitti, onKapat }) {
   const [onizleme, setOnizleme] = useState(null);
   const [notMetni, setNotMetni] = useState("");
   const [hata, setHata] = useState(null);
@@ -30,8 +32,9 @@ export default function Hatirlat({ govde, baslik = "Danışmana Hatırlat", onKa
     kilit.current = true;
     setDurum("gonderiliyor");
     try {
-      setSonuc(await apiCagir({ ...govde, onizleme: false, onay: onizleme.onay, not: notMetni }));
+      setSonuc(await apiCagir({ ...govde, onizleme: false, onay: onizleme.onay, not: notMetni, ...(notlar.length ? { notlar } : {}) }));
       setDurum("gitti");
+      onGitti?.();
     } catch (e) {
       setHata(e.message);
       setDurum("hata");
@@ -68,7 +71,7 @@ export default function Hatirlat({ govde, baslik = "Danışmana Hatırlat", onKa
         <>
           <div>Alıcı: <b>{onizleme.alici}</b></div>
           <div>Gönderen hat: <b>{onizleme.hat}</b></div>
-          <div style={s.mesaj}>{onizleme.metin}{temizNot && `\n\nNot: ${temizNot}`}</div>
+          <div style={s.mesaj}>{onizleme.metin}{temizNot && `\n\nNot: ${temizNot}`}{notlar.length > 0 && `\n\nNotlar:\n${notlar.map(n => `${n.baslik}\n${tekSatir(n.metin)}`).join("\n\n")}`}</div>
           <textarea value={notMetni} onChange={e => setNotMetni(e.target.value)} maxLength={300} rows={2} autoFocus
             disabled={durum === "gonderiliyor"} placeholder="Not ekle (isteğe bağlı)" aria-label="Hatırlatma notu" style={s.not} />
         </>

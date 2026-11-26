@@ -421,7 +421,9 @@ export function Sayfalama({ toplam, sayfaBoyu, onSayfaBoyu, sayfa, sayfaSayisi, 
 }
 
 // Not ikonu: üzerine gelince lead'in son 3 notu çekilir (bir kez) ve balonda gösterilir.
-export function NotBalonu({ lead, onbellek }) {
+// secili: işaretli notların anahtarları, onSec(not, anahtar): verilirse her notta üzerine gelince seçim kutusu çıkar (Takip Tablosu hatırlatma)
+export const notAnahtari = (n, i) => `${n.tarih || ""}|${i}`;
+export function NotBalonu({ lead, onbellek, secili, onSec }) {
   const [konum, setKonum] = useState(null);
   const [durum, setDurum] = useState(onbellek.current[lead.id] || null);
   const zamanlayici = useRef(null);
@@ -454,11 +456,23 @@ export function NotBalonu({ lead, onbellek }) {
           {durum?.hata && <div style={{ color: "#991b1b" }}>{durum.hata}</div>}
           {durum?.notlar && durum.notlar.length === 0 && <div style={{ color: "#64748b" }}>Bu Data'da not yok.</div>}
           {durum?.notlar?.map((n, i) => (
-            <div key={i} style={{ paddingBottom: "10px", marginBottom: "10px", borderBottom: i < durum.notlar.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-              <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>{tarih(n.tarih, true)}{n.yazan ? ` · ${n.yazan}` : ""}</div>
-              <div style={{ whiteSpace: "pre-wrap", color: "#0f172a" }}>{n.metin || <span style={{ color: "#cbd5e1" }}>Boş not</span>}</div>
+            <div key={i} className={onSec ? "not-secilir" : undefined} onClick={onSec && n.metin ? () => onSec({ ...n, baslik: `${tarih(n.tarih, true)}${n.yazan ? ` · ${n.yazan}` : ""}` }, notAnahtari(n, i)) : undefined}
+              style={{ display: "flex", gap: "10px", alignItems: "flex-start", paddingBottom: "10px", marginBottom: "10px", borderBottom: i < durum.notlar.length - 1 ? "1px solid #f1f5f9" : "none",
+                cursor: onSec && n.metin ? "pointer" : undefined, ...(secili?.includes(notAnahtari(n, i)) ? { background: "#f0fdf4", margin: "0 -8px 10px", padding: "6px 8px 10px", borderRadius: "10px" } : {}) }}>
+              {onSec && n.metin && (
+                <input type="checkbox" readOnly checked={!!secili?.includes(notAnahtari(n, i))} aria-label="Hatırlatmaya ekle" title="Hatırlatma mesajına ekle"
+                  className={secili?.includes(notAnahtari(n, i)) ? "not-kutu secili" : "not-kutu"} style={{ marginTop: "2px", width: "16px", height: "16px", accentColor: "#16a34a", cursor: "pointer", flexShrink: 0 }} />
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "11px", color: "#94a3b8", marginBottom: "4px" }}>{tarih(n.tarih, true)}{n.yazan ? ` · ${n.yazan}` : ""}</div>
+                <div style={{ whiteSpace: "pre-wrap", color: "#0f172a" }}>{n.metin || <span style={{ color: "#cbd5e1" }}>Boş not</span>}</div>
+              </div>
             </div>
           ))}
+          {onSec && durum?.notlar?.length > 0 && (
+            <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "6px" }}>{secili?.length ? `${secili.length} not işaretli: Hatırlat mesajının en altına eklenir.` : "Nota tıklayıp işaretlersen Hatırlat mesajının en altına eklenir."}</div>
+          )}
+          <style>{`.not-secilir .not-kutu { opacity: 0; transition: opacity .12s; } .not-secilir:hover .not-kutu, .not-kutu.secili { opacity: 1; }`}</style>
           {durum?.toplam > (durum?.notlar?.length || 0) && (
             <div style={{ fontSize: "11px", color: "#94a3b8" }}>Toplam {durum.toplam} not, son {durum.notlar.length} tanesi gösteriliyor.</div>
           )}

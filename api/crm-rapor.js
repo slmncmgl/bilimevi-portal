@@ -1,3 +1,4 @@
+// v3.33: hatirlat'ta "notlar" [{ baslik, metin }] (en fazla 10): seçilen Kylas notları mesajın en altına (n8n gSnOzr5fNii7YJlK v1.7)
 // v3.32: takip son etkinlik filtresi 7 → 7-14 gün, 14 → 14-30 gün önce (aralık); 30 ve N eskisi gibi "N günden eski"
 // v3.31: toplu hatırlatmada "bugun" görünümü (Task tarihi bugün kartı)
 // v3.30: aktiviteSayilari n8n "Danışman Aktivite Günlüğü"nden (webhook danisman-aktivite-gunluk, 5YA15WWxbwDtk7XQ) okunur:
@@ -1127,6 +1128,10 @@ async function hatirlat(req, res, yetki) {
   if (!Number.isInteger(leadId) || leadId <= 0) return res.status(400).json({ error: "Geçersiz Data." });
   if (typeof notMetni !== "string" || notMetni.length > 300) return res.status(400).json({ error: "Not en fazla 300 karakter olabilir." });
   if (!process.env.N8N_PORTAL_TOKEN) return res.status(500).json({ error: "N8N_PORTAL_TOKEN tanımlı değil." });
+  // Not balonunda işaretlenen Kylas notları: mesajın en altına (n8n v1.7)
+  const hamNotlar = req.body?.notlar ?? [];
+  if (!Array.isArray(hamNotlar) || hamNotlar.length > 10) return res.status(400).json({ error: "En fazla 10 not eklenebilir." });
+  const notlar = hamNotlar.map(x => ({ baslik: String(x?.baslik ?? "").slice(0, 120), metin: String(x?.metin ?? "").slice(0, 1500) })).filter(x => x.metin.trim());
 
   const d = await kylasAra([kural("id", "equal", leadId)], 0, [...LISTE_ALANLARI, "source"]);
   const l = (d.content || [])[0];
@@ -1137,19 +1142,19 @@ async function hatirlat(req, res, yetki) {
   const danisman = [...(await dizinGetir()).kisiler.values()].find(k => k.kylasId === ownerId && satisBul(k.ad));
   if (!danisman) return res.status(422).json({ error: "Datanın sahibi satış ekibinde değil." });
 
-  return hatirlatGonder(res, yetki, { danisman: danisman.ad, onizleme, not: notMetni.trim(), onay: ownerId, kayit: `data ${leadId}`,
+  return hatirlatGonder(res, yetki, { danisman: danisman.ad, onizleme, not: notMetni.trim(), notlar, onay: ownerId, kayit: `data ${leadId}`,
     data: { id: leadId, ad: [l.firstName, l.lastName].filter(Boolean).join(" "), asama: ASAMALAR.find(a => a.id === l.pipelineStage).ad, kaynak: KAYNAKLAR.find(k => k.id === Number(l.source))?.ad || (l.source ? "Diğer" : "Belirtilmemiş"), sonAktivite: gunOnceYazi(l.latestActivityCreatedAt) } });
 }
 
 // n8n'e gönderir, yanıtı ekrana aktarır (tekli ve toplu ortak)
-async function hatirlatGonder(res, yetki, { danisman, onizleme, not, onay, kayit, data, tur = "tekli" }) {
+async function hatirlatGonder(res, yetki, { danisman, onizleme, not, notlar = [], onay, kayit, data, tur = "tekli" }) {
   let r;
   try {
     r = await fetch(`${N8N_WEBHOOK}/data-hatirlat`, {
       method: "POST",
       signal: AbortSignal.timeout(40000),
       headers: { "Content-Type": "application/json", "X-Portal-Token": process.env.N8N_PORTAL_TOKEN },
-      body: JSON.stringify({ gonderen: yetki.ad, danisman, onizleme, not, tur, data }),
+      body: JSON.stringify({ gonderen: yetki.ad, danisman, onizleme, not, notlar, tur, data }),
     });
   } catch {
     return res.status(502).json({ error: onizleme ? "Hatırlatma servisine ulaşılamadı." : "Yanıt alınamadı. Mesaj gitmiş olabilir, tekrar göndermeden önce kontrol edin." });
