@@ -1,4 +1,5 @@
-// KayitGuncelle.jsx v1.91
+// KayitGuncelle.jsx v1.92
+// v1.92 (26.11.2026): "Sadece Grup Kayıtları" kutusu "Sadece Bireysel Kayıtlar" oldu; boş gelir, açılışta grup kayıtları listelenir.
 // v1.91 (25.11.2026): TR Okul Adı boşsa listede "Okul Seç" butonu; pencerede öğrencinin yazdığı okul, MEB listesinden adaylar, arama ve elle yazma (OkulSecPenceresi.jsx). Kayıt n8n okul-guncelle (i98pkeF6f1e7gCwg) ile TR_Okul_Default'a.
 // v1.90 (25.11.2026): Listeden açılan kayıt Tally ID ile seçilir (aynı TC'li birden fazla satırda hep ilki açılıyordu); n8n ogrenci-getir &tally= destekliyor.
 // v1.89 (25.11.2026): Onay Durumu "İptal Etti" olan kayıtlar listede gösterilmiyor.
@@ -9,7 +10,7 @@
 //   -> n8n Kayıt İptal Talebi (VmicFOIO7KXCndnm) Selman'a WhatsApp atar; Selman "ok" yanıtlayınca Onay Durumu = İptal Etti.
 import { useState, useEffect, useRef, useMemo } from "react";
 
-const SURUM = "v1.91"; // 1. satırdaki sürümle aynı tut
+const SURUM = "v1.92"; // 1. satırdaki sürümle aynı tut
 import { getSession } from "../utils/sheets";
 import OnayPenceresi from "./OnayPenceresi";
 import OkulSecPenceresi from "./OkulSecPenceresi";
@@ -947,7 +948,9 @@ export default function KayitGuncelle() {
   const [onayliGoster, setOnayliGoster] = useState(() => kayitliFiltre.onayliGoster ?? false); // sadece onaylılar
   // Varsayılan kapalı: Bireysel Yaz Okulu ve Yetişkin Dil Okulu sözleşmeleri gizli kalır
   // Açıkken (varsayılan) sadece grup kayıtları, kapalıyken tüm kayıt türleri (Grup, Bireysel, Yetişkin)
-  const [sadeceGrup, setSadeceGrup] = useState(() => kayitliFiltre.sadeceGrup ?? true);
+  // v1.92: kutu "Sadece Bireysel Kayıtlar"; boşken grup kayıtları, işaretliyken bireysel/yetişkin/okulsuz kayıtlar listelenir
+  const [sadeceBireysel, setSadeceBireysel] = useState(() => kayitliFiltre.sadeceBireysel ?? false);
+  const sadeceGrup = !sadeceBireysel;
   const [listeFlash, setListeFlash] = useState(false);
   const [sayfaBoyutu, setSayfaBoyutu] = useState(() => [10, 20, 30, 50].includes(kayitliFiltre.sayfaBoyutu) ? kayitliFiltre.sayfaBoyutu : 10);
   const SAYFA_BOYUTU = sayfaBoyutu;
@@ -1466,10 +1469,10 @@ export default function KayitGuncelle() {
 
   const VARSAYILAN_TARIH = "2026-08-01";
   // "Sadece Grup Kayıtları" da filtre sayılır: işaretliyken Temizle aktiftir ve temizleyince işaret kalkar (v1.80)
-  const filtreDegisti = sadeceBenim || onayliGoster || sadeceGrup || beklemedeGoster
+  const filtreDegisti = sadeceBenim || onayliGoster || sadeceBireysel || beklemedeGoster
     || sozlesmesizGoster || hazirGoster || !!formFiltre || !!tc || tarihFiltre !== VARSAYILAN_TARIH;
   const filtreleriTemizle = () => {
-    setSadeceBenim(false); setOnayliGoster(false); setSadeceGrup(false);
+    setSadeceBenim(false); setOnayliGoster(false); setSadeceBireysel(false);
     setBeklemedeGoster(false); setSozlesmesizGoster(false); setHazirGoster(false);
     setFormFiltre(""); setTc(""); setTarihFiltre(VARSAYILAN_TARIH); setSayfa(1);
   };
@@ -1506,7 +1509,7 @@ export default function KayitGuncelle() {
     // Form Yetkisi kısıtı aramada da geçerli, hiçbir filtreyle aşılamaz
     if (!erisebilir(o)) return false;
     if (!aramaTerimi) {
-      if (sadeceGrup && gizliTurMu(o)) return false;
+      if (gizliTurMu(o) === sadeceGrup) return false;
       if (onayliGoster && !onayliMi(o)) return false;
       if (beklemedeGoster && sozlesmeDurumu(o).simge !== "bekle") return false;
       if (sozlesmesizGoster && gecerliLink(o["Sözleşme Onay Linki"])) return false;
@@ -1529,7 +1532,7 @@ export default function KayitGuncelle() {
   // onFiltreli'ye dokunulmadan aynı kurallar ayrı uygulanır; aramada sayılar gizlenir.
   const kutuUygun = (o, a) => {
     if (!erisebilir(o)) return false;
-    if (a.sadeceGrup && gizliTurMu(o)) return false;
+    if (gizliTurMu(o) === a.sadeceGrup) return false;
     if (a.onayli && !onayliMi(o)) return false;
     if (a.bekleyen && sozlesmeDurumu(o).simge !== "bekle") return false;
     if (a.hazirlanacak && gecerliLink(o["Sözleşme Onay Linki"])) return false;
@@ -1551,7 +1554,7 @@ export default function KayitGuncelle() {
     benim: kutuSay({ benim: true }),
     onayli: kutuSay({ ...DURUM_KAPALI, onayli: true }),
     // Kutu açılınca okul seçenekleri değişebildiği için okul filtresi sayılmaz
-    sadeceGrup: kutuSay({ sadeceGrup: true, okul: "" }),
+    sadeceBireysel: kutuSay({ sadeceGrup: false, okul: "" }),
     bekleyen: kutuSay({ ...DURUM_KAPALI, bekleyen: true }),
     hazirlanacak: kutuSay({ ...DURUM_KAPALI, hazirlanacak: true }),
     hazir: kutuSay({ ...DURUM_KAPALI, hazir: true }),
@@ -1634,10 +1637,10 @@ export default function KayitGuncelle() {
     try {
       sessionStorage.setItem(FILTRE_ANAHTARI, JSON.stringify({
         sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, hazirGoster, sadeceBenim,
-        tarihFiltre, onayliGoster, sadeceGrup, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler,
+        tarihFiltre, onayliGoster, sadeceBireysel, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler,
       }));
     } catch { /* depolama kapalıysa sessizce geç */ }
-  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, hazirGoster, sadeceBenim, tarihFiltre, onayliGoster, sadeceGrup, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler]);
+  }, [sayfa, beklemedeGoster, formFiltre, sozlesmesizGoster, hazirGoster, sadeceBenim, tarihFiltre, onayliGoster, sadeceBireysel, sayfaBoyutu, grafikAcik, grafikMod, grafikSubeler]);
 
   // Hatırlanan sayfa numarası yeni listede yoksa son sayfaya çek
   useEffect(() => {
@@ -1755,7 +1758,7 @@ export default function KayitGuncelle() {
   const listeOzeti = aramaTerimi
     ? `"${tc.trim()}" Araması, Tüm Kayıtlarda`
     : [
-        sadeceGrup ? "Grup Kayıtları" : "Tüm Kayıt Türleri (Grup, Bireysel, Yetişkin)",
+        sadeceGrup ? "Grup Kayıtları" : "Bireysel Kayıtlar (Bireysel, Yetişkin)",
         sadeceBenim && "Kendi Öğrencilerim",
         onayliGoster && "Onaylı Sözleşmeler",
         beklemedeGoster && "Onay Bekleyenler",
@@ -1977,14 +1980,14 @@ export default function KayitGuncelle() {
                 Onaylı Sözleşmeler{kutuSayisi("onayli")}
               </label>
 
-              <label style={s.filtreLabel} title="İşaret kaldırılınca bireysel yaz okulu, yetişkin dil okulu ve okulu belirtilmemiş kayıtlar da listelenir">
+              <label style={s.filtreLabel} title="İşaretlenince grup kayıtları yerine bireysel yaz okulu, yetişkin dil okulu ve okulu belirtilmemiş kayıtlar listelenir">
                 <input
                   type="checkbox"
-                  checked={sadeceGrup}
-                  onChange={e => { setSadeceGrup(e.target.checked); setSayfa(1); }}
+                  checked={sadeceBireysel}
+                  onChange={e => { setSadeceBireysel(e.target.checked); setSayfa(1); }}
                   style={s.checkbox}
                 />
-                Sadece Grup Kayıtları{kutuSayisi("sadeceGrup")}
+                Sadece Bireysel Kayıtlar{kutuSayisi("sadeceBireysel")}
               </label>
               </div>
 
