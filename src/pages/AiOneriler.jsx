@@ -1,3 +1,4 @@
+// v1.4: başlıkta analiz kapsamı (kart + aşama)
 // v1.3: tema sınıfları (tema-kart vb.), Takip Tablosu Tema v2'de kurumsal lacivert
 // v1.2: önerilen kapanış sütunu; Close Lead penceresi İlgisiz + Olumsuza Dönen'in tüm sebeplerini gösterir, önerilen seçili gelir
 // v1.1: aksiyon filtreleri, "önerisi olmayanlar" kutusu ve Yeniden analiz kalktı; Tümünü Ele Al; satırda Close Lead (Neden + "AI Önerisi ile inceledim ve iptale çektim." notu, İlgisiz · Artık İlgilenmiyor)
@@ -28,7 +29,7 @@ export function useAiAnaliz(kisiAdi) {
   async function baslat(leadler, onBitti) {
     const benim = ++nesil.current;
     const hedef = leadler.slice(0, AI_UST_SINIR);
-    setAi({ durum: "calisiyor", bitti: 0, toplam: hedef.length, hatali: 0, sonuclar: {} });
+    setAi({ durum: "calisiyor", bitti: 0, toplam: hedef.length, hatali: 0, sonuclar: {}, kesildi: leadler.length > AI_UST_SINIR });
     const kuyruk = [...hedef];
     const sonuclar = {};
     let hatali = 0;
@@ -128,7 +129,7 @@ export function AiHazirPopup({ oneri, toplam, onGoster, onKapat }) {
 // Sonuç listesi (kartların altında, normal listenin yerinde)
 export const AI_KAPAT_NOTU = "AI Önerisi ile inceledim ve iptale çektim.";
 
-export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl, onKapandi, AdHucre }) {
+export function AiOneriListesi({ ai, kapsamAdi, leadler, kisiAdi, coklu, asamaAdi, onEleAl, onKapandi, AdHucre }) {
   const [kapat, setKapat] = useState({}); // leadId -> "gidiyor" | "tamam" | { hata }
   const [pencere, setPencere] = useState(null); // { s, l }
   const leadMap = useMemo(() => Object.fromEntries(leadler.map(l => [l.id, l])), [leadler]);
@@ -156,7 +157,8 @@ export function AiOneriListesi({ ai, leadler, kisiAdi, coklu, asamaAdi, onEleAl,
     <div style={{ background: "#fff", border: "1.5px solid #ddd6fe", borderRadius: "20px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", animation: "fadeUp 0.4s ease-out", scrollMarginTop: "80px" }} id="ai-oneri-listesi">
       <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "16px 20px", borderBottom: "1px solid #f1f5f9", background: "#faf5ff" }}>
         <span style={{ display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "15px", fontWeight: 800, color: "#4c1d95" }}><YildizIkonu boyut={18} renk={MOR} /> AI Önerileri</span>
-        {ai.durum === "bitti" && <span style={{ fontSize: "12px", color: "#64748b" }}>{ai.toplam} data analiz edildi{ai.hatali ? ` · ${ai.hatali} okunamadı` : ""}{leadler.length > AI_UST_SINIR ? ` (ilk ${AI_UST_SINIR})` : ""}</span>}
+        {kapsamAdi && <span style={{ fontSize: "12px", fontWeight: 700, color: "#4c1d95", background: "#ede9fe", padding: "3px 10px", borderRadius: "999px" }}>{kapsamAdi}</span>}
+        {ai.durum === "bitti" && <span style={{ fontSize: "12px", color: "#64748b" }}>{ai.toplam} data analiz edildi{ai.hatali ? ` · ${ai.hatali} okunamadı` : ""}{ai.kesildi ? ` (ilk ${AI_UST_SINIR})` : ""}</span>}
         {ai.durum === "bitti" && acikSatirlar.length > 0 && (
           <button type="button" onClick={() => onEleAl(acikSatirlar.map(s => leadMap[s.lead_id]))}
             style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "12px", border: "none", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(8,145,178,0.25)" }}>
