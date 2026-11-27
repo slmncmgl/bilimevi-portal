@@ -2,7 +2,7 @@
 
 Bu dosya koddan okunamayan şeyleri anlatır: kurallar, kararlar, tuzaklar, açık işler. Kod ile çelişirse kod doğrudur, bu dosyayı güncelle.
 
-Son güncelleme: 23 Kasım 2026 (v134 kur servisi sheet.js içinde). Repo'daki BFT sürümü: `v137-kur-notu-3-satir-2026-11-24`.
+Son güncelleme: 23 Kasım 2026 (v134 kur servisi sheet.js içinde). Repo'daki BFT sürümü: `v144-konaklama-hs-kesisim-2026-11-27`.
 
 ## Kapsam
 
@@ -38,6 +38,7 @@ Son güncelleme: 23 Kasım 2026 (v134 kur servisi sheet.js içinde). Repo'daki B
 - PHP plugin değişikliklerinde plugin sürüm numarası yükselir.
 
 ## Repo dışındaki parçalar
+- **v144 (27 Kasım):** konaklama yüksek sezon farkı = (hs_price − price) × konaklamanın sezonla çakışan hafta sayısı (`kesisenHafta`, Pazar giriş/Pazar çıkış, yarım hafta tam sayılır); kart, özet ve PDF aynı tutarı gösterir. Sebep: CES Londra homestay 28.06 başlangıç 8 hafta 0, 16.08 başlangıç 8 hafta Eylül dahil 8 hafta ekliyordu.
 - **v143 (24 Kasım):** Hata bildir butonu üst şeritte sadece ⚠ ikonu (32px yuvarlak, turuncu, title="Hata bildir"); popup ve butonları portal yazı tipinde (Sora). v142 (başka sohbet): butonu üst şeride (#ust-serit-ek, createPortal) taşıdı, şerit yoksa sağ altta turuncu.
 - **v141 (24 Kasım):** staff sayfasında her aşamada sağ altta kırmızı "⚠ Hata bildir" ikonu (`HataBildir`). Popup mesajı + aşama/okul/şehir/kurs/hafta/sürüm/sayfa → `/api/hata-bildirimi` (api/n8n.js ?hedef=hata-bildirimi, `_n8nHataBildirim.js`, yeni fonksiyon değil) → n8n "BFT Hata Bildirimi" `9oYA6OIyjdmJprkc` (webhook bft-hata-bildirimi, X-Portal-Token) → it@bilimevi.com mail.
 - **v140 (24 Kasım):** "Son güncelleme" kutusu artık her okul kartında (indirimsizlerde de), farenin hemen altında ve fareyi izleyerek çıkıyor (`FareIpucu`, position fixed).
@@ -156,7 +157,6 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - `calculation_type = per_day` ve `percentage`: şu an ikisi de sabit tutar gibi ekleniyor. Engel: kalış başı tavan (Malta eco tax vb.), sheet'te tavan sütunu yok. Yöntem netleşmeden yazılmayacak. English Path Dubai'de "Accommodation 2027 Booking Surcharge" %10 `percentage` olarak duruyor (opsiyonel).
 - Paket + fazla haftalar (paket + kalan haftalar normal fiyat). Şimdilik hafta eşit değilse paket uygulanmıyor.
 - Liverpool çıkış günü: accommodation'a `checkout_day` benzeri sütun (Liverpool Pazar giriş / Cumartesi çıkış, portal Pazar gösteriyor, fiyat etkilenmiyor).
-- Yüksek sezon kısmi kesişim: KURS zammı v127'den beri kesişimli (okul faturasıyla aynı). Konaklama zammı hâlâ başlangıç tarihine göre tüm haftalara uygulanıyor.
 - Siteye özel buton stili: CSS değişkenleri (`--bft-btn-bg` vb.) `BFT_CONFIG` ya da shortcode üzerinden. JSX'e site kodu girmez.
 - `SUB_SOURCE` fallback'i JSX'te `"ingilteredil"`: shortcode'da eksikse lead yanlış kaynağa gider (almanyadil olayının JSX tarafı). Boş bırakıp uyarı vermek daha güvenli olabilir, karar kullanıcıda.
 - Otomatik supplement effect'i iki yerde (`accWeeks/tatilHafta` ve `holidayWeeks`) aynı state'i yazıyor. Çalışıyor ama sadeleştirme adayı.

@@ -18,7 +18,7 @@ function detectMode() {
 const APP_MODE = detectMode();
 
 // Versiyon etiketi — hangi build'in yüklü olduğunu anlamak için
-const BFT_BUILD_VERSION = "v143-hata-bildir-ikon-font-2026-11-24";
+const BFT_BUILD_VERSION = "v144-konaklama-hs-kesisim-2026-11-27";
 // v138: staff modunda üst başlık (← Dashboard + "Fiyat Teklifi") kaldırıldı, portalın ortak şeridi gösteriyor. Müşteri modu aynı.
 // v130: okul sınırları (tek yer). Ülke sınırı toplamla aynı olduğu için ayrıca yok.
 const MAX_OKUL_TOPLAM = 6;
@@ -541,13 +541,22 @@ function getHighSeasonSupplement(course, weeks, startDate) {
 
 function getAccommodationHighSeasonSupplement(acc, weeks, startDate) {
   if (!acc?.hs_price || !acc?.hs_start || !acc?.hs_end || acc.hs_price === acc.price) return { amount: 0, isActive: false, supplementPerWeek: 0 };
-  const start = new Date(startDate), hsStart = new Date(acc.hs_start), hsEnd = new Date(acc.hs_end);
-  let isActive = start >= hsStart && start <= hsEnd;
+  // v144: fark sadece konaklamanın sezonla çakışan haftalarına (kurs zammı v127 ile aynı yöntem). Eskiden başlangıç
+  // sezondaysa tüm haftalara, değilse hiç uygulanmıyordu. Tarihler konaklamaTarihleri ile aynı: kurs başlangıcından
+  // önceki Pazar giriş, `weeks` hafta sonraki Pazar çıkış (çağrı yerleri weeks = konaklamaHafta(d) geçiyor).
+  // SİL: const start = ..., hsStart = ..., hsEnd = ...; let isActive = start >= hsStart && start <= hsEnd; amount: supplementPerWeek * weeks
+  const start = startDate ? new Date(startDate) : null;
+  if (!start || isNaN(start)) return { amount: 0, isActive: false, supplementPerWeek: 0, weeks: 0 };
+  const giris = new Date(start); giris.setDate(giris.getDate() - 1);
+  const cikis = new Date(giris); cikis.setDate(cikis.getDate() + weeks * 7);
+  const hsHafta = Math.min(weeks, kesisenHafta(acc.hs_start, acc.hs_end, giris, cikis));
+  let isActive = hsHafta > 0;
   if (acc.min_weeks && weeks < acc.min_weeks) isActive = false;
   const _accKosulN = hsKosulHafta(acc.hs_cond);          // v114: Atlas Malta 12+ hafta konaklamada zam yok
   if (_accKosulN && weeks >= _accKosulN) isActive = false;
   const supplementPerWeek = isActive ? (acc.hs_price - acc.price) : 0;
-  return { amount: supplementPerWeek * weeks, isActive, supplementPerWeek, startDate: acc.hs_start, endDate: acc.hs_end, hsPrice: acc.hs_price, basePrice: acc.price };
+  const _hsH = isActive ? hsHafta : 0;
+  return { amount: supplementPerWeek * _hsH, isActive, supplementPerWeek, weeks: _hsH, startDate: acc.hs_start, endDate: acc.hs_end, hsPrice: acc.hs_price, basePrice: acc.price };
 }
 
 function getTotalCoursePrice(course, weeks, startDate) {
@@ -560,7 +569,7 @@ function getTotalAccommodationPrice(acc, weeks, startDate) {
   if (!acc) return { basePrice: 0, hsAmount: 0, totalPrice: 0, hsActive: false };
   const basePrice = acc.price * weeks;
   const hs = getAccommodationHighSeasonSupplement(acc, weeks, startDate);
-  return { basePrice, hsAmount: hs.amount, totalPrice: basePrice + hs.amount, hsActive: hs.isActive, hsPerWeek: hs.supplementPerWeek, hsStart: hs.startDate, hsEnd: hs.endDate, hsPrice: hs.hsPrice };
+  return { basePrice, hsAmount: hs.amount, totalPrice: basePrice + hs.amount, hsActive: hs.isActive, hsPerWeek: hs.supplementPerWeek, hsStart: hs.startDate, hsEnd: hs.endDate, hsPrice: hs.hsPrice, hsWeeks: hs.weeks || 0 };
 }
 
 const FEE_NAME_MAP = {
@@ -2093,7 +2102,7 @@ export default function FiyatTeklifi() {
           courseHsPerWeek: coursePrice.hsPerWeek, courseHsStart: coursePrice.hsStart, courseHsEnd: coursePrice.hsEnd,
           accBasePrice: accPrice.basePrice, accHsAmount: accPrice.hsAmount,
           accTotalPrice: accPrice.totalPrice, accHsActive: accPrice.hsActive,
-          accHsPerWeek: accPrice.hsPerWeek, accHsStart: accPrice.hsStart, accHsEnd: accPrice.hsEnd,
+          accHsPerWeek: accPrice.hsPerWeek, accHsStart: accPrice.hsStart, accHsEnd: accPrice.hsEnd, accHsWeeks: accPrice.hsWeeks,   // v144
           selectedPackage: cur.selectedPackage || null, noAccommodation: cur.noAccommodation || false,
         };
         // Düzenlemeden geliyorsa eski sırasına geri koy, yoksa sona ekle
@@ -2521,7 +2530,7 @@ export default function FiyatTeklifi() {
             doc.setFont(FONT, "bold");
             doc.setFontSize(9); doc.setTextColor(146,64,14);
             const accHsLabel = d.accHsPerWeek
-              ? `High Season (+${money(d.accHsPerWeek)}/hafta, ${formatDateShort(d.accHsStart)}-${formatDateShort(d.accHsEnd)})`
+              ? `High Season (+${money(d.accHsPerWeek)}/hafta${d.accHsWeeks ? " × " + d.accHsWeeks : ""}, ${formatDateShort(d.accHsStart)}-${formatDateShort(d.accHsEnd)})`
               : `High Season (${formatDateShort(d.accHsStart)}-${formatDateShort(d.accHsEnd)})`;
             doc.text(accHsLabel, MARGIN + 32, y);
             doc.text(`+${money(d.accHsAmount)}`, PAGE_W - MARGIN, y, { align:"right" });
@@ -3363,7 +3372,11 @@ export default function FiyatTeklifi() {
                     <div style={{ marginTop:16, display:"flex", flexDirection:"column", gap:10 }}>
                       {accs.filter(a => a.type === accType).map((a,i) => {
                         const sel = cur.acc?.name===a.name && cur.acc?.room===a.room && cur.acc?.board===a.board && cur.acc?.bathroom===a.bathroom && cur.acc?.price===a.price;
-                        const hsActive = getAccommodationHighSeasonSupplement(a, konaklamaHafta(cur), cur.startDate).isActive;   // v114: toplamla ayni hafta
+                        // v144: kart toplamı = taban × hafta + sezonla çakışan haftaların farkı (toplamla aynı fonksiyon)
+                        const _kh = konaklamaHafta(cur);
+                        const _ahs = getAccommodationHighSeasonSupplement(a, _kh, cur.startDate);
+                        const hsActive = _ahs.isActive, hsTum = hsActive && _ahs.weeks >= _kh;
+                        // SİL: const hsActive = getAccommodationHighSeasonSupplement(...).isActive;
                         // v110: konaklama haftasi bu satirin tier araligi disindaysa kart pasif
                         const uygun = accHaftaUygun(a, konaklamaHafta(cur));
                         const tierEtiket = accTierEtiket(a);
@@ -3379,7 +3392,7 @@ export default function FiyatTeklifi() {
                             {tierEtiket && <div style={{ display:"inline-block", marginTop:4, padding:"1px 7px", borderRadius:999, fontSize:10.5, fontWeight:700,
                               background: uygun ? "var(--marka-acik)" : "#f1f5f9", color: uygun ? "var(--marka-koyu)" : "#94a3b8", border:`1px solid ${uygun ? "#a5f3fc" : "#e2e8f0"}` }}>
                               {uygun ? "" : "⛔ "}{tierEtiket} fiyatı</div>}
-                            {hsActive && uygun && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>⚠️ Yüksek sezon fiyatı geçerli</div>}
+                            {hsActive && uygun && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>{hsTum ? "⚠️ Yüksek sezon fiyatı geçerli" : `⚠️ ${_ahs.weeks} hafta yüksek sezon farkı (+${a.currency} ${_ahs.supplementPerWeek}/h)`}</div>}
                             {(() => { // v116: bu oda seçilirse paket fiyatı uygulanır mı?
                               const pk = uygun ? findFixedPackage(cur.cityData?.discounts, cur.course, cur.weeks, cur.startDate, a, konaklamaHafta(cur)) : null;
                               return pk && paketEslesmeliMi(pk) ? <div style={{ display:"inline-block", marginTop:4, marginLeft:4, padding:"1px 7px", borderRadius:999, fontSize:10.5, fontWeight:700, background:"#ecfdf5", color:"#065f46", border:"1px solid #6ee7b7" }}>📦 Paket: {pk.currency} {roundHalf(pk.package_price).toLocaleString("tr-TR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} (kurs + konaklama)</div> : null;
@@ -3387,8 +3400,8 @@ export default function FiyatTeklifi() {
                             {a.notes && <div style={{ fontSize:11, color:"#94a3b8", marginTop:2 }}>{a.notes}</div>}
                           </div>
                           <div style={{ textAlign:"right", flexShrink:0 }}>
-                            <div style={{ fontWeight:700, color: hsActive ? "#f59e0b" : "inherit" }}>{a.currency} {hsActive ? a.hs_price : a.price}/h</div>
-                            <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>{konaklamaHafta(cur)}h: {a.currency} {roundHalf((hsActive ? a.hs_price : a.price) * konaklamaHafta(cur)).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                            <div style={{ fontWeight:700, color: hsActive ? "#f59e0b" : "inherit" }}>{a.currency} {hsTum ? a.hs_price : a.price}/h</div>
+                            <div style={{ fontSize:11, color: sel?"inherit":"#94a3b8" }}>{_kh}h: {a.currency} {roundHalf(a.price * _kh + _ahs.amount).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                           </div>
                         </div>);
                       })}
@@ -3565,7 +3578,7 @@ export default function FiyatTeklifi() {
                           </div>
                         ); })()}
                         {d.accHsAmount > 0 && (<>
-                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span>}</div>
+                          <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}><span style={{ color:"#f59e0b" }}>High Season Supplement ({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)}){d.accHsWeeks ? `, ${d.accHsWeeks} hafta` : ""}</span>{isStaff && <span style={{ color:"#f59e0b", fontWeight:500 }}>+ {fmt(d.accHsAmount, cur2)}</span>}</div>
 
                         </>)}
                         {accSD && <div style={{ fontSize:12, color:"#64748b", marginTop:3 }}>📅 {fmtDate(accSD)} — {fmtDate(accED)}</div>}
@@ -3793,7 +3806,7 @@ function PdfTemplate({ destinations, student, user, logoSrc }) {
                 {d.acc && !d.isOnline && d.accHsAmount > 0 && (<>
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid", background:"#fef9ec" }}>
                     <td style={{ padding:"2mm 2mm 2mm 0", verticalAlign:"top", color:"#92400e" }}></td>
-                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#92400e" }}>High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span><div style={{ fontSize:"7pt", color:"#b45309", marginTop:"1mm" }}>+{(d.accHsPrice - d.acc.price)} {cur}/hafta</div></td>
+                    <td style={{ padding:"2mm 2mm", verticalAlign:"top", fontSize:"9pt", color:"#92400e" }}>High Season Supplement <span style={{ fontSize:"8pt" }}>({formatDateShort(d.accHsStart)} – {formatDateShort(d.accHsEnd)})</span><div style={{ fontSize:"7pt", color:"#b45309", marginTop:"1mm" }}>+{d.accHsPerWeek ?? (d.acc.hs_price - d.acc.price)} {cur}/hafta{d.accHsWeeks ? ` × ${d.accHsWeeks}` : ""}</div></td>
                     <td style={{ padding:"2mm 0 2mm 2mm", textAlign:"right", fontSize:"9pt", verticalAlign:"top", whiteSpace:"nowrap", color:"#92400e", fontWeight:"500" }}>+{Number(d.accHsAmount).toLocaleString("tr-TR")},00</td>
                   </tr>
                   <tr style={{ borderBottom:"0.5px solid #ddd", pageBreakInside:"avoid" }}>
