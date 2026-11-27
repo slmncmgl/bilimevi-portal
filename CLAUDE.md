@@ -137,6 +137,7 @@ Bunlar GitHub'da **yok**, değişiklikleri kullanıcı elle uygular:
 - Apps Script web app'te kaydetmek yetmez, New version ile deploy et. Arşivde tekrar eden paylaşım maillerinin sebebi buydu.
 - `deploy-wp.yml` `assets/` klasörünü siliyor, oraya elle dosya koyma.
 - Kampanya takip script'inde `SABIT_SUTUN` ile `school_registry`'nin gerçek düzeni uyuşmalı. Teslim edilen K3 dosyasında `SABIT_SUTUN = 4` (A-D korunur) yazıyor, ama 16 Ekim'deki sheet'te dinamik sütunlar D'den başlıyor (A-C sabit). Editördeki kopya farklı olabilir, düzenlemeden önce teyit et.
+- **CSS sınıf / id adlarında reklam kelimeleri kullanma:** `ad-`, `ads`, `advert`, `banner`, `sponsor`, `promo` gibi. Reklam engelleyiciler (Opera'nın yerleşik engelleyicisi dahil) bu öğeleri gizliyor; kendi tarayıcında görünür, kullanıcıda boş çıkar. Takip Tablosu'nda isim hücresine `ad-link` verilince isimler engelleyicili tarayıcılarda kayboldu (v6.57'de `isim-hucre` yapıldı, 27.11.2026). Türkçe `ad` (isim) için `isim` kullan.
 - Kullanıcıya kılavuz yazarken varsayım yapma, emin olmadığın yeri "teyit et" diye işaretle.
 
 ## Açık işler
