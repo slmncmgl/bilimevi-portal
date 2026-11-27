@@ -1,3 +1,4 @@
+// v2.28: aşama çubuğunda aşamalar arasındaki ok çizgisi beyaz (önceden ilerleme çubuğunun renkli "elal-cubuk" sınıfı aralıkta görünüyordu; sınıf ayrıldı)
 // v2.27: not alanının altında iki düğme: "Kaydet" (notu yazar, aynı datada kalır) ve "Kaydet ve Sonrakine Geç"
 // v2.26: sağ üstteki ✕ yerine belirgin "← Geri" düğmesi; Dataları Ele Al düğmesi seçim sonrası kalp atışı (atis prop)
 // v2.25: haftalık AI işaretleri (🔥 🛂 ⚠️ ⛔) kanıtlarıyla data kartının başında
@@ -107,7 +108,7 @@ export function EleAlDugmesi({ sayi, onClick, disabled, atis = 0 }) {
   );
 }
 
-export const ELEAL_SURUM = "v2.27"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
+export const ELEAL_SURUM = "v2.28"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
 
 export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat, aiIsaret = {} }) {
   const [pomYesil, setPomYesil] = useState(false);
@@ -753,12 +754,12 @@ function AsamaCubugu({ lead, onKapat, onDegisti }) {
   const kapanis = KAPANISLAR.find(k => k.id === lead.asama);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-      <div className="elal-cubuk" style={{ display: "flex", flex: 1, minWidth: "280px", borderRadius: "999px", overflow: "hidden", opacity: kapali ? 0.5 : 1 }}>
+      <div className="elal-asama-cubuk" style={{ display: "flex", flex: 1, minWidth: "280px", borderRadius: "999px", overflow: "hidden", background: "#fff", opacity: kapali ? 0.5 : 1 }}>
         {CUBUK.map((id, i) => {
           const gecti = !kapali && i < sira, simdi = !kapali && i === sira, tiklanir = !kapali && !simdi && id !== 217285;
           return (
             <button key={id} type="button" onClick={() => sec(id)} disabled={!tiklanir || !!gidiyor} title={tiklanir ? `${ASAMA_ADLARI[id]} aşamasına taşı` : undefined}
-              style={{ flex: 1, minWidth: 0, height: "34px", marginLeft: i ? "-6px" : 0, border: "none", padding: "0 14px", fontSize: "12px", fontWeight: simdi ? 700 : 600, fontFamily: "'Sora', sans-serif",
+              style={{ flex: 1, minWidth: 0, height: "34px", marginLeft: i ? "-5px" : 0, border: "none", padding: "0 14px", fontSize: "12px", fontWeight: simdi ? 700 : 600, fontFamily: "'Sora', sans-serif",
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: tiklanir && !gidiyor ? "pointer" : "default",
                 clipPath: i === 0 ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)" : i === CUBUK.length - 1 ? "polygon(0 0, 100% 0, 100% 100%, 0 100%, 8px 50%)" : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)",
                 paddingLeft: i === 0 ? "16px" : "18px",

@@ -1,3 +1,4 @@
+// v6.70: Ele Al aşama çubuğunda aşamalar arası çizgi beyaz (EleAl v2.28)
 // v6.69: Ele Al ekranında "Kaydet" ve "Kaydet ve Sonrakine Geç" iki ayrı düğme (EleAl v2.27)
 // v6.68: isme tıklayınca o data Ele Al ekranında tek başına açılır; Data ID balonu 2 sn üzerinde bekleyince çıkar
 // v6.67: Close Lead satırdan kalktı; sadece ⛔ Vakit kaybetme işaretli datanın AI penceresinde (CloseLead v1.2, AiIsaret v1.4)
@@ -147,7 +148,7 @@ import { useTema } from "../lib/tema";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.69"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.70"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
