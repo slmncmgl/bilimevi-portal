@@ -1,3 +1,4 @@
+// v6.57: isim hücresinin sınıfı ad-link → isim-hucre (reklam engelleyiciler .ad-link'i gizliyordu, isimler boş görünüyordu)
 // v6.56: AI işaretli satırın üzerine gelince işaretler + kanıtlar özel pencerede; AI süzgeci değişince ilk sayfa
 // v6.55: haftalık AI işaretleri: isim yanında 🔥 🛂 ⚠️ ⛔ ikonları (üzerine gelince kanıt), aşama satırında AI süzgeci, Ele Al'da kanıtlar
 // v6.54: Tema seçimi portal geneli (src/lib/tema.js, --marka değişkenleri): v2'de sekmeler, Geri ve tüm marka renkli düğmeler lacivert
@@ -134,7 +135,7 @@ import { useAiAnaliz, AiKart, AiHazirPopup, AiOneriListesi } from "./AiOneriler"
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.56"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.57"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -166,7 +167,7 @@ const TEMA_V2_CSS = `
 .tema-v2 .tema-aktif { background: #001A71 !important; border-color: #001A71 !important; color: #fff !important; }
 .tema-v2 .tema-liste-aktif { border-color: #001A71 !important; background-color: #fff !important; color: #001A71 !important; }
 .tema-v2 .hatirlat-zil { border-color: #d5dae8 !important; background: #fff !important; color: #001A71 !important; }
-.tema-v2 .ad-link { color: #001A71 !important; }
+.tema-v2 .isim-hucre { color: #001A71 !important; }
 `;
 
 const ASAMA_RENK = { 217285: ["#2563eb", "#eff6ff", "#bfdbfe"], 222366: ["#d97706", "#fffbeb", "#fde68a"], 253357: ["#d97706", "#fffbeb", "#fde68a"], 253358: ["#d97706", "#fffbeb", "#fde68a"], 218701: ["#7c3aed", "#f5f3ff", "#ddd6fe"], 218702: ["#059669", "#ecfdf5", "#a7f3d0"] };
@@ -744,7 +745,7 @@ function AdHucresi({ lead }) {
     <span onMouseEnter={ac} onMouseLeave={kapatGecikmeli} onFocus={ac}
       onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setKonum(null); }}
       onKeyDown={e => { if (e.key === "Escape") setKonum(null); }}>
-      <span ref={ref} tabIndex={0} className="ad-link" style={{ ...t.adLink, cursor: "default", outline: "none" }}>{lead.ad || "İsimsiz"}</span>
+      <span ref={ref} tabIndex={0} className="isim-hucre" style={{ ...t.adLink, cursor: "default", outline: "none" }}>{lead.ad || "İsimsiz"}</span>
       {konum && (
         // mousedown engellenir: Safari'de düğmeye basınca link odağı kaybedip balonu kapatmasın
         <span style={{ ...t.idBalon, left: konum.left, top: konum.top }} onMouseDown={e => e.preventDefault()}>
