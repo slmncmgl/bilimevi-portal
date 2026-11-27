@@ -1,3 +1,4 @@
+// v6.65: Close Lead notunda sabit "AI Önerisi ile inceledim ve kapattım." satırı yok (CloseLead v1.1)
 // v6.64: tema adları Renkli / Sade, varsayılan Sade (tema.js v1.1)
 // v6.63: AI satır penceresinde açıklamanın yanında kopyala ikonu; satırdan çıkınca pencere kısa gecikmeyle kapanır (AiIsaret v1.2)
 // v6.62: Notlar sütununda not ikonunun yanında "Close / Lead" düğmesi: AI kapanış önerisi + AI notu (düzenlenebilir) → CRM (CloseLead v1.0)
@@ -142,7 +143,7 @@ import { useTema } from "../lib/tema";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.64"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.65"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `

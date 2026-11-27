@@ -1,3 +1,4 @@
+// v1.1: "AI Önerisi ile inceledim ve kapattım." satırı nota eklenmiyor; sadece AI açıklaması / gerekçe
 // v1.0: Takip Tablosu satırında (Notlar sütunu, not ikonunun yanında) "Close / Lead" düğmesi.
 // Tıklayınca datanın notları okunur, kural motoru (notAnalizi) kapanış kodu önerir; haftalık AI işareti (⛔ / ⚠️) varsa kanıtı,
 // yoksa kural gerekçesi nota peşinen yazılır, danışman altına ekleyip düzenleyebilir. Kaydet: önce not, sonra aşama (crm-rapor notEkle + asamaDegistir).
@@ -8,7 +9,6 @@ import { KAPANISLAR } from "./EleAl";
 import { leadAnaliz } from "../lib/notAnalizi";
 
 const MOR = "#7c3aed";
-export const AI_KAPAT_NOTU = "AI Önerisi ile inceledim ve kapattım.";
 const ENAZ = 2;
 
 export function CloseLeadDugmesi({ onClick }) {
@@ -43,7 +43,7 @@ export function CloseLeadPenceresi({ lead, ai, kisiAdi, onKapat, onTamam }) {
         const gerekce = aiKanit || a.kisa_gerekce || "";
         setOneri(a.kapanis);
         setSecim(a.kapanis);
-        setMetin([gerekce, AI_KAPAT_NOTU].filter(Boolean).join("\n") + "\n\n");
+        setMetin(gerekce ? gerekce + "\n\n" : "");
         setDurum("hazir");
       })
       .catch(e => { if (!iptal) { setHata(e.message); setDurum("hata"); } });
