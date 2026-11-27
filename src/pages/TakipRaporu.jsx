@@ -1,3 +1,4 @@
+// v6.58: AI Önerileri kartı kalktı, yerine Takip oranı geri geldi (tıklayınca takip edilmesi gereken datalar); işaretler haftalık AI analizinden
 // v6.57: isim hücresinin sınıfı ad-link → isim-hucre (reklam engelleyiciler .ad-link'i gizliyordu, isimler boş görünüyordu)
 // v6.56: AI işaretli satırın üzerine gelince işaretler + kanıtlar özel pencerede; AI süzgeci değişince ilk sayfa
 // v6.55: haftalık AI işaretleri: isim yanında 🔥 🛂 ⚠️ ⛔ ikonları (üzerine gelince kanıt), aşama satırında AI süzgeci, Ele Al'da kanıtlar
@@ -131,11 +132,10 @@ import Hatirlat from "./Hatirlat";
 import NotAnalizi from "./NotAnalizi";
 import { AiIkonlar, AI_TURLER, AI_SIRA, AiSatirPenceresi } from "./AiIsaret";
 import { useTema, temaAyarla } from "../lib/tema";
-import { useAiAnaliz, AiKart, AiHazirPopup, AiOneriListesi } from "./AiOneriler";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.57"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.58"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -251,7 +251,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [sayfaBoyu, setSayfaBoyu] = useState(20);
   const [sayfa, setSayfa] = useState(1);
   const [gorunum, setGorunum] = useState("takipsiz");
-  const [aiKaynak, setAiKaynak] = useState("takipsiz"); // AI kartına basmadan önceki kart: analiz bu listeyi kapsar // GORUNUMLER anahtarı: acik | taskBeklenen | ileri | gecikmis | takipsiz
+ // GORUNUMLER anahtarı: acik | taskBeklenen | ileri | gecikmis | takipsiz
   const notOnbellek = useRef({});
   const [hatirlat, setHatirlat] = useState(null); // açık Hatırlat penceresi: { anahtar, govde, baslik }
   const [notSecim, setNotSecim] = useState({}); // leadId -> { anahtar: not } (not balonunda işaretlenenler, Hatırlat'a eklenir)
@@ -355,8 +355,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     : [];
   // Liste filtresi: aşama (çoklu). Kaynak sunucuda süzülür.
   const asamaSuz = l => (!asamaSecim.length || asamaSecim.includes(l.asama)) && (!listeSahip || String(l.ownerId) === listeSahip);
-  const listeGorunum = gorunum === "ai" ? aiKaynak : gorunum;
-  const gorunumTanim = GORUNUMLER[listeGorunum] || GORUNUMLER.takipsiz;
+  const gorunumTanim = GORUNUMLER[gorunum] || GORUNUMLER.takipsiz;
   const taskSutunu = gorunum !== "takipsiz";
   const tumTakipsiz = (rapor?.acik || []).filter(gorunumTanim.suz).filter(dataAraSuz(dataAra)).sort(gorunumTanim.sirala);
   const aiSuz = l => !aiSecim.length || aiSecim.some(t => aiIsaret[l.id]?.turler?.includes(t));
@@ -373,30 +372,6 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
       .catch(() => { if (!iptal) setAiIsaret({}); });
     return () => { iptal = true; };
   }, [danismanlar.join(",")]);
-  // AI Önerileri: karta tıklanınca analiz başlar; danışman / kaynak / kampanya değişince sonuçlar sıfırlanır
-  const { ai, baslat: aiBaslat, sifirla: aiSifirla } = useAiAnaliz(kisiAdi);
-  const [aiPopup, setAiPopup] = useState(null); // { oneri, toplam }
-  const aiAnahtar = `${danismanlar.join(",")}|${JSON.stringify(kaynaklar)}|${kampanya}`;
-  useEffect(() => { aiSifirla(); setAiPopup(null); setGorunum(g => (g === "ai" ? "takipsiz" : g)); }, [aiAnahtar]);
-  const [aiKapsam, setAiKapsam] = useState(null); // { anahtar, ad } son analizin kapsamı
-  const kapsamAnahtar = `${listeGorunum}|${asamaSecim.join(",")}|${listeSahip || ""}|${dataAra}`;
-  const kapsamAdi = `${gorunumTanim.ad}${asamaSecim.length ? ` · ${asamaSecim.map(id => ASAMA_ADLARI[id]).join(", ")}` : ""}${listeSahip ? ` · ${kisiAdi(listeSahip)}` : ""}${dataAra ? ` · "${dataAra}"` : ""}`;
-  useEffect(() => { if (gorunum !== "ai") setAiKaynak(gorunum); }, [gorunum]);
-  useEffect(() => { setAiKapsam(null); }, [aiAnahtar]);
-  function aiTikla() {
-    if (ai.durum === "calisiyor") { setGorunum("ai"); return; }
-    if (ai.durum === "bitti" && aiKapsam?.anahtar === kapsamAnahtar) { setGorunum("ai"); return; }
-    if (!liste.length) return;
-    const hedef = liste;
-    setAiKapsam({ anahtar: kapsamAnahtar, ad: kapsamAdi });
-    setGorunum("ai");
-    aiBaslat(hedef, (oneri, toplam) => setAiPopup({ oneri, toplam }));
-  }
-  function aiGoster() {
-    setAiPopup(null);
-    setGorunum("ai");
-    setTimeout(() => document.getElementById("ai-oneri-listesi")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-  }
   // Not Analizi (test): admin 1-3-5 tuşlarına sırayla basınca açılır (yazı alanındayken çalışmaz)
   const [notAnalizi, setNotAnalizi] = useState(false);
   const tusSirasi = useRef({ dizi: "", zaman: 0 });
@@ -502,7 +477,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             <div className="tema-grup-gizli" style={{ ...t.taskGrup, borderColor: "transparent", background: "transparent", display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box" }}>
               <div style={t.taskGrupBaslik} aria-hidden="true">&nbsp;</div>
               <div style={{ flex: 1, display: "grid" }}>
-              <AiKart ai={ai} secili={gorunum === "ai"} onClick={aiTikla} yukleniyor={yukleniyor || (!liste.length && ai.durum !== "calisiyor")} />
+              <Kart sayi={yukleniyor ? DONEN : takipOrani === null ? "-" : `%${takipOrani}`} etiket="Takip oranı" ipucu={ACIKLAMA.takipOrani} secili={gorunum === "kapsam"} onClick={() => setGorunum("kapsam")} />
               </div>
             </div>
           </div>
@@ -542,11 +517,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             </div>
           )}
 
-          {gorunum === "ai" && ai.durum && (
-            <AiOneriListesi ai={ai} kapsamAdi={aiKapsam?.ad} leadler={rapor?.acik || []} kisiAdi={kisiAdi} coklu={coklu} asamaAdi={id => ASAMA_ADLARI[id] || ""}
-              onEleAl={l => setEleAl(l)} onKapandi={() => { sessiz.current = true; setYenile(n => n + 1); setAktiviteYenile(n => n + 1); }} AdHucre={AdHucresi} />
-          )}
-          <div style={{ ...c.tablo, opacity: arkaYukleniyor ? 0.55 : 1, transition: "opacity 0.2s", display: gorunum === "ai" ? "none" : undefined }}>
+          <div style={{ ...c.tablo, opacity: arkaYukleniyor ? 0.55 : 1, transition: "opacity 0.2s" }}>
             <div style={c.tabloBaslik}>
               <span className="data-ara" style={{ ...t.dataAra, flex: "1 1 auto", minWidth: 0, boxSizing: "border-box" }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.4" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
@@ -695,7 +666,6 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         </>
       )}
       {aiSatir && <AiSatirPenceresi ai={aiIsaret[aiSatir.id]} konum={aiSatir.konum} />}
-      {aiPopup && <AiHazirPopup oneri={aiPopup.oneri} toplam={aiPopup.toplam} onGoster={aiGoster} onKapat={() => setAiPopup(null)} />}
       {isAdmin && notAnalizi && <NotAnalizi liste={liste} kisiAdi={kisiAdi} onKapat={() => setNotAnalizi(false)} />}
       {isAdmin && <style>{`@keyframes zilSalla { 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
         .hatirlat-zil svg { transform-origin: 50% 10%; }
