@@ -1,3 +1,4 @@
+// v2.27: not alanının altında iki düğme: "Kaydet" (notu yazar, aynı datada kalır) ve "Kaydet ve Sonrakine Geç"
 // v2.26: sağ üstteki ✕ yerine belirgin "← Geri" düğmesi; Dataları Ele Al düğmesi seçim sonrası kalp atışı (atis prop)
 // v2.25: haftalık AI işaretleri (🔥 🛂 ⚠️ ⛔) kanıtlarıyla data kartının başında
 // v2.24: KAPANISLAR dışa açıldı (AI Önerileri Close Lead penceresi kullanıyor)
@@ -106,7 +107,7 @@ export function EleAlDugmesi({ sayi, onClick, disabled, atis = 0 }) {
   );
 }
 
-export const ELEAL_SURUM = "v2.26"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
+export const ELEAL_SURUM = "v2.27"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
 
 export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat, aiIsaret = {} }) {
   const [pomYesil, setPomYesil] = useState(false);
@@ -277,10 +278,11 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
     }
   }
 
-  async function kaydet() {
+  // gec: false → not yazılır, aynı datada kalınır ("Kaydet")
+  async function kaydet(gec = true) {
     const m = metin.trim();
     if (kaydediliyor) return;
-    if (m.length < ENAZ) { if (notVar) ilerle(); return; }
+    if (m.length < ENAZ) { if (notVar && gec) ilerle(); return; }
     setKaydediliyor(true);
     setHata(null);
     const leadId = l.id;
@@ -293,8 +295,8 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
         const eski = s[leadId]?.notlar ? s[leadId] : { notlar: [], toplam: 0 };
         return { ...s, [leadId]: { notlar: [{ tarih: d.tarih, yazan: "Sen", metin: m, portal: true, yeni: true }, ...eski.notlar], toplam: (eski.toplam || 0) + 1 } };
       });
-      setBasari(true);
-      setTimeout(() => { setBasari(false); ilerle(); }, 650);
+      setBasari(gec ? "gec" : "kal");
+      setTimeout(() => { setBasari(false); if (gec) ilerle(); else alan.current?.focus(); }, 650);
     } catch (e) {
       setHata(e.message);
     } finally {
@@ -490,11 +492,18 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
               <div className="elal-izgara" style={s.altSatir}>
                 <button type="button" onClick={() => setSira(sira - 1)} disabled={sira === 0 || kaydediliyor} style={{ ...s.geri, opacity: sira === 0 ? 0.35 : 1, justifySelf: "start" }}>‹ Önceki</button>
                 <span style={{ fontSize: "11px", color: "#94a3b8", gridColumn: 2, justifySelf: "end", whiteSpace: "nowrap" }}>{notVar && !metinYeterli ? "" : "⌘/Ctrl + Enter"}</span>
-                <button type="button" onClick={kaydet} disabled={!ileriAcik} className={ileriAcik ? "elal-ileri-acik" : undefined}
-                  style={{ ...s.ileri, ...(ileriAcik ? {} : s.ileriKapali), ...(basari ? s.ileriBasari : {}) }}
-                  title={ileriAcik ? undefined : "Sonrakine geçmek için not yaz"}>
-                  {basari ? "✓ Kaydedildi" : kaydediliyor ? "Kaydediliyor..." : notVar && !metinYeterli ? (sira + 1 >= toplam ? "Bitir" : "Sonrakine Geç") : sira + 1 >= toplam ? "Kaydet ve Bitir" : "Kaydet ve Sonrakine Geç"}
+                <span style={{ gridColumn: "3 / 5", justifySelf: "end", display: "inline-flex", gap: "8px" }}>
+                <button type="button" onClick={() => kaydet(false)} disabled={!metinYeterli || kaydediliyor || !!basari}
+                  style={{ ...s.kaydetKal, ...(metinYeterli && !kaydediliyor && !basari ? {} : s.kaydetKalKapali), ...(basari === "kal" ? { borderColor: "#16a34a", color: "#16a34a" } : {}) }}
+                  title={metinYeterli ? "Notu kaydet, bu datada kal" : "Kaydetmek için not yaz"}>
+                  {basari === "kal" ? "✓ Kaydedildi" : "Kaydet"}
                 </button>
+                <button type="button" onClick={() => kaydet(true)} disabled={!ileriAcik} className={ileriAcik ? "elal-ileri-acik" : undefined}
+                  style={{ ...s.ileri, gridColumn: undefined, justifySelf: undefined, ...(ileriAcik ? {} : s.ileriKapali), ...(basari === "gec" ? s.ileriBasari : {}) }}
+                  title={ileriAcik ? undefined : "Sonrakine geçmek için not yaz"}>
+                  {basari === "gec" ? "✓ Kaydedildi" : kaydediliyor ? "Kaydediliyor..." : notVar && !metinYeterli ? (sira + 1 >= toplam ? "Bitir" : "Sonrakine Geç") : sira + 1 >= toplam ? "Kaydet ve Bitir" : "Kaydet ve Sonrakine Geç"}
+                </button>
+                </span>
               </div>
             </div>
           </section>
@@ -996,6 +1005,8 @@ const s = {
     fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   ileri: { gridColumn: "3 / 5", justifySelf: "end", width: "auto", padding: "10px 22px", whiteSpace: "nowrap", borderRadius: "999px", border: "none", color: "#fff", fontSize: "13px", fontWeight: 800, cursor: "pointer",
     fontFamily: "'Sora', sans-serif", background: "linear-gradient(135deg, var(--marka), #7c3aed)", boxShadow: "0 6px 18px rgba(124,58,237,0.35)", transition: "all 0.2s" },
+  kaydetKal: { padding: "10px 20px", whiteSpace: "nowrap", borderRadius: "999px", border: "1.5px solid var(--marka)", background: "#fff", color: "var(--marka)", fontSize: "13px", fontWeight: 800, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  kaydetKalKapali: { borderColor: "#e2e8f0", color: "#94a3b8", cursor: "not-allowed" },
   ileriKapali: { background: "#e2e8f0", color: "#94a3b8", boxShadow: "none", cursor: "not-allowed" },
   ileriBasari: { background: "linear-gradient(135deg, #16a34a, #059669)", boxShadow: "0 6px 18px rgba(22,163,74,0.35)" },
   bitti: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "24px" },
