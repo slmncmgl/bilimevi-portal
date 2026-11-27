@@ -1,3 +1,4 @@
+// v3.38: islem "aiIsaretleri": { ownerIds } -> haftalık Claude analizinin işaretleri (n8n Data Table "AI İşaretleri", webhook ai-isaretler-getir); 10 dk önbellek, hata olursa boş döner
 // v3.37: notlar işleminde boyut herkes için 100'e kadar (AI Önerileri)
 // v3.36: notlar işleminde admin için boyut 100'e kadar (Not Analizi test görünümü); diğerleri 20
 // v3.35: islem "asamaDegistir": { leadId, asama, sebep? } -> açık aşamalar arası ya da İlgisiz/Olumsuza Dönen + sebep (danışman token'ı, yoksa anahtar)
@@ -653,6 +654,35 @@ function istGunBasi(gunOnce) {
   yerel.setUTCHours(0, 0, 0, 0);
   return new Date(yerel.getTime() - IST_MS - gunOnce * GUN_MS);
 }
+// Haftalık Claude Code analizi (~/ai-isaretler) n8n Data Table'a yazar; portal buradan okur. Tablo küçük (≤ açık lead sayısı), tamamı önbelleğe alınır.
+let aiTablo = { zaman: 0, satirlar: null };
+async function aiIsaretleri(req, res, yetki) {
+  const ham = Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : [];
+  const ownerIds = [...new Set(ham.map(Number))].filter(Number.isInteger);
+  if (!ownerIds.length || ownerIds.length > 100) return res.status(400).json({ error: "Danışman seçilmedi." });
+  if (!yetkiKontrol(yetki, ownerIds, res, "crm-rapor aiIsaretleri")) return;
+  if (!aiTablo.satirlar || Date.now() - aiTablo.zaman > 10 * 60 * 1000) {
+    try {
+      const r = await fetch(`${N8N_WEBHOOK}/ai-isaretler-getir`, { signal: AbortSignal.timeout(20000), headers: { "X-Portal-Token": process.env.N8N_PORTAL_TOKEN } });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = await r.json();
+      aiTablo = { zaman: Date.now(), satirlar: Array.isArray(d) ? d : d.satirlar || [] };
+    } catch (e) {
+      console.warn(`[ai-isaretler] okunamadı: ${e.message}`);
+      return res.status(200).json({ isaretler: {}, hata: true });
+    }
+  }
+  const izinli = new Set(ownerIds);
+  const isaretler = {};
+  for (const x of aiTablo.satirlar) {
+    if (!izinli.has(Number(x.ownerId)) || !x.isaretler) continue;
+    let detay = [];
+    try { detay = JSON.parse(x.detay || "[]"); } catch {}
+    isaretler[x.leadId] = { turler: String(x.isaretler).split(",").filter(Boolean), detay, analiz: x.analiz || "" };
+  }
+  return res.status(200).json({ isaretler });
+}
+
 async function aktiviteSayilari(req, res, yetki) {
   const ham = Array.isArray(req.body?.ownerIds) ? req.body.ownerIds : [];
   const ownerIds = [...new Set(ham.map(Number))].filter(Number.isInteger).sort((a, b) => a - b);
@@ -1383,7 +1413,7 @@ export default async function handler(req, res) {
   if (req.body?.islem === "ozet") {
     try { return await ozet(req, res, yetki); } catch (err) { return hataYaz(res, err); }
   }
-  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat], ["hatirlat", hatirlat], ["topluHatirlat", topluHatirlat], ["aktiviteSayilari", aktiviteSayilari], ["asamaDegistir", asamaDegistir]]) {
+  for (const [ad, fn] of [["tasklar", tasklar], ["taskEkle", taskEkle], ["taskTamamla", taskTamamla], ["portalAktivite", portalAktivite], ["aramaBaslat", aramaBaslat], ["hatirlat", hatirlat], ["topluHatirlat", topluHatirlat], ["aktiviteSayilari", aktiviteSayilari], ["asamaDegistir", asamaDegistir], ["aiIsaretleri", aiIsaretleri]]) {
     if (req.body?.islem === ad) {
       try { return await fn(req, res, yetki); } catch (err) { return hataYaz(res, err); }
     }

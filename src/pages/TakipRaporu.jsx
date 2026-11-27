@@ -1,3 +1,4 @@
+// v6.55: haftalık AI işaretleri: isim yanında 🔥 🛂 ⚠️ ⛔ ikonları (üzerine gelince kanıt), aşama satırında AI süzgeci, Ele Al'da kanıtlar
 // v6.54: Tema seçimi portal geneli (src/lib/tema.js, --marka değişkenleri): v2'de sekmeler, Geri ve tüm marka renkli düğmeler lacivert
 // v6.53: AI Önerileri sadece seçili kartın (Hepsi/Takipsiz/Bugün/Geçmiş/İleri) ve seçili aşamaların listesini analiz eder; seçim değişince karta basınca yeniden analiz
 // v6.52: Tema v1 (renkli, bugünkü) / v2 (kurumsal lacivert #001A71 + beyaz, minimalist) seçici; seçim tarayıcıda saklanır
@@ -126,12 +127,13 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import { gunOnceYazi, gunSayisi } from "../lib/gunOnce";
 import Hatirlat from "./Hatirlat";
 import NotAnalizi from "./NotAnalizi";
+import { AiIkonlar, AI_TURLER, AI_SIRA } from "./AiIsaret";
 import { useTema, temaAyarla } from "../lib/tema";
 import { useAiAnaliz, AiKart, AiHazirPopup, AiOneriListesi } from "./AiOneriler";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.54"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.55"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -256,6 +258,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [dataAra, setDataAra] = useState(""); // liste içi Data araması (ad, ID, telefon)
   const [aktivite, setAktivite] = useState(null); // bugün portaldan not girilen Data sayısı
   const [aktiviteYenile, setAktiviteYenile] = useState(0);
+  const [aiIsaret, setAiIsaret] = useState({}); // leadId -> { turler, detay, analiz } (haftalık Claude analizi)
+  const [aiSecim, setAiSecim] = useState([]);
 
   useEffect(() => {
     kisileriYukle().then(setKisiler).catch(() => setKisiHata("Danışman listesi okunamadı."));
@@ -346,10 +350,20 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const gorunumTanim = GORUNUMLER[listeGorunum] || GORUNUMLER.takipsiz;
   const taskSutunu = gorunum !== "takipsiz";
   const tumTakipsiz = (rapor?.acik || []).filter(gorunumTanim.suz).filter(dataAraSuz(dataAra)).sort(gorunumTanim.sirala);
-  const liste = tumTakipsiz.filter(asamaSuz);
+  const aiSuz = l => !aiSecim.length || aiSecim.some(t => aiIsaret[l.id]?.turler?.includes(t));
+  const liste = tumTakipsiz.filter(asamaSuz).filter(aiSuz);
+  const aiSayisi = t => tumTakipsiz.filter(l => asamaSuz(l) && aiIsaret[l.id]?.turler?.includes(t)).length;
   const asamaSayisi = id => tumTakipsiz.filter(l => (id === null || l.asama === id) && (!listeSahip || String(l.ownerId) === listeSahip)).length;
   const tema = useTema();
   const temaSec = temaAyarla; // portal geneli: sekmeler, Geri ve düğmeler de değişir
+  useEffect(() => {
+    if (!danismanlar.length) { setAiIsaret({}); return; }
+    let iptal = false;
+    apiCagir({ islem: "aiIsaretleri", ownerIds: danismanlar.map(Number) })
+      .then(d => { if (!iptal) setAiIsaret(d.isaretler || {}); })
+      .catch(() => { if (!iptal) setAiIsaret({}); });
+    return () => { iptal = true; };
+  }, [danismanlar.join(",")]);
   // AI Önerileri: karta tıklanınca analiz başlar; danışman / kaynak / kampanya değişince sonuçlar sıfırlanır
   const { ai, baslat: aiBaslat, sifirla: aiSifirla } = useAiAnaliz(kisiAdi);
   const [aiPopup, setAiPopup] = useState(null); // { oneri, toplam }
@@ -548,6 +562,22 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   ))}
                 </div>
               </Cerceve>
+              {AI_SIRA.some(t => aiSayisi(t)) && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "3px", borderRadius: "999px", border: "1.5px dashed #ddd6fe" }} title="Haftalık AI analizi: notlar okunarak konan işaretler. Birden fazla seçilebilir.">
+                  <span style={{ fontSize: "10.5px", fontWeight: 800, color: "#7c3aed", padding: "0 4px 0 8px" }}>AI</span>
+                  {AI_SIRA.map(t => {
+                    const n = aiSayisi(t), sec = aiSecim.includes(t);
+                    return (
+                      <button key={t} type="button" disabled={!n && !sec} onClick={() => setAiSecim(x => (x.includes(t) ? x.filter(y => y !== t) : [...x, t]))}
+                        title={AI_TURLER[t].ad} aria-pressed={sec}
+                        style={{ display: "inline-flex", alignItems: "center", gap: "4px", height: "28px", padding: "0 10px", borderRadius: "999px", border: `1.5px solid ${sec ? AI_TURLER[t].renk : "transparent"}`,
+                          background: sec ? AI_TURLER[t].zemin : "transparent", color: "#0f172a", fontSize: "12px", fontWeight: 700, cursor: n || sec ? "pointer" : "default", opacity: n || sec ? 1 : 0.35, fontFamily: "inherit" }}>
+                        <span style={{ fontSize: "13px" }}>{AI_TURLER[t].ikon}</span>{n}
+                      </button>
+                    );
+                  })}
+                </span>
+              )}
               <KampanyaAra deger={kampanya} onChange={v => { if (rapor) sessiz.current = true; setKampanya(v); }} />
               {isAdmin && (
                 <button type="button" className="hatirlat-zil" style={{ ...t.hatirlat, ...t.topluZil, ...(topluPasif ? { opacity: 0.4, cursor: "default" } : null) }}
@@ -602,7 +632,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                                 style={{ accentColor: "var(--marka)", cursor: "pointer" }} />
                             </td>
                           )}
-                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}><AdHucresi lead={l} /></td>
+                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}><AdHucresi lead={l} /><AiIkonlar ai={aiIsaret[l.id]} /></td>
                           {coklu && <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>{kisiAdi(l.ownerId)}</td>}
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap", fontWeight: l.asama === ILGILI ? 700 : 400, color: l.asama === ILGILI ? "var(--marka-koyu)" : undefined }}>{ASAMA_ADLARI[l.asama] || ""}{l.zorunlu && <Ipucu metin={ACIKLAMA.taskZorunlu} isaret={false}><span style={t.zorunlu}>Task zorunlu</span></Ipucu>}</td>
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>
@@ -663,7 +693,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         @media (prefers-reduced-motion: reduce) { .hatirlat-zil:hover:not(:disabled) svg { animation: none; } }`}</style>}
       {hatirlat && <Hatirlat key={hatirlat.anahtar} govde={hatirlat.govde} baslik={hatirlat.baslik} notlar={hatirlat.notlar} onGitti={hatirlat.onGitti} onKapat={() => setHatirlat(null)} />}
       {eleAl && (
-        <EleAl leadler={eleAl} kisiAdi={kisiAdi} listeAdi={gorunumTanim.ad}
+        <EleAl leadler={eleAl} kisiAdi={kisiAdi} listeAdi={gorunumTanim.ad} aiIsaret={aiIsaret}
           onKapat={(idler, taskDegisti) => {
             idler.forEach(id => { delete notOnbellek.current[id]; });
             setEleAl(null);

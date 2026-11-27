@@ -1,3 +1,4 @@
+// v2.25: haftalık AI işaretleri (🔥 🛂 ⚠️ ⛔) kanıtlarıyla data kartının başında
 // v2.24: KAPANISLAR dışa açıldı (AI Önerileri Close Lead penceresi kullanıyor)
 // v2.23: Close Lead → İlgisiz / Olumsuza Dönen seçilince pencerede aşamalar yok; sadece o kapanışın sebepleri alt alta (Kylas sırası, radyo)
 // v2.22: aşama çubuğu ve Close Lead, CRM'de Göster ile aynı camgöbeği; seçili olmayan aşamalar gri (Kylas gibi)
@@ -51,6 +52,7 @@
 // Her datada bilgiler ve son 10 not görünür; not yazılmadan sonrakine geçilmez. Not Kylas'a kaydedilir (islem "notEkle"),
 // başına sunucu "[Yazan · Portal]" ekler. Önceki datalara dönülebilir. Kapatınca not girilen datalar üst bileşene bildirilir.
 // EleAlDugmesi: liste başlığındaki parlayan düğme.
+import { AiKanitlar } from "./AiIsaret";
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { apiCagir, tarih, KYLAS_LEAD_URL, KAYNAKLAR } from "./CrmRaporu";
@@ -100,9 +102,9 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
   );
 }
 
-export const ELEAL_SURUM = "v2.24"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
+export const ELEAL_SURUM = "v2.25"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
 
-export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat }) {
+export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat, aiIsaret = {} }) {
   const [pomYesil, setPomYesil] = useState(false);
   const [leadler, setLeadler] = useState(ilkListe); // bu turda ele alınan datalar (atlananlar turunda sadece onlar)
   const [tur, setTur] = useState(1);
@@ -395,6 +397,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
               </div>
               <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={s.kylas}>CRM'de Göster ↗</a>
             </div>
+            <AiKanitlar ai={aiIsaret[l.id]} />
             {dt?.hata && <div style={{ ...s.hata, marginTop: 0, marginBottom: "14px" }}>{dt.hata} <button type="button" onClick={() => detayGetir(l)} style={s.metinDugme}>Tekrar dene</button></div>}
             <div className="elal-alanlar" style={s.alanlar}>
               <Alan ad="Telefon" bekliyor={dy}>
