@@ -1,3 +1,4 @@
+// v6.56: AI işaretli satırın üzerine gelince işaretler + kanıtlar özel pencerede; AI süzgeci değişince ilk sayfa
 // v6.55: haftalık AI işaretleri: isim yanında 🔥 🛂 ⚠️ ⛔ ikonları (üzerine gelince kanıt), aşama satırında AI süzgeci, Ele Al'da kanıtlar
 // v6.54: Tema seçimi portal geneli (src/lib/tema.js, --marka değişkenleri): v2'de sekmeler, Geri ve tüm marka renkli düğmeler lacivert
 // v6.53: AI Önerileri sadece seçili kartın (Hepsi/Takipsiz/Bugün/Geçmiş/İleri) ve seçili aşamaların listesini analiz eder; seçim değişince karta basınca yeniden analiz
@@ -127,13 +128,13 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import { gunOnceYazi, gunSayisi } from "../lib/gunOnce";
 import Hatirlat from "./Hatirlat";
 import NotAnalizi from "./NotAnalizi";
-import { AiIkonlar, AI_TURLER, AI_SIRA } from "./AiIsaret";
+import { AiIkonlar, AI_TURLER, AI_SIRA, AiSatirPenceresi } from "./AiIsaret";
 import { useTema, temaAyarla } from "../lib/tema";
 import { useAiAnaliz, AiKart, AiHazirPopup, AiOneriListesi } from "./AiOneriler";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.55"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.56"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -260,6 +261,13 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [aktiviteYenile, setAktiviteYenile] = useState(0);
   const [aiIsaret, setAiIsaret] = useState({}); // leadId -> { turler, detay, analiz } (haftalık Claude analizi)
   const [aiSecim, setAiSecim] = useState([]);
+  const [aiSatir, setAiSatir] = useState(null); // { id, konum } fare üzerindeki işaretli satır
+  useEffect(() => {
+    if (!aiSatir) return;
+    const kapat = () => setAiSatir(null);
+    window.addEventListener("scroll", kapat, true);
+    return () => window.removeEventListener("scroll", kapat, true);
+  }, [aiSatir]);
 
   useEffect(() => {
     kisileriYukle().then(setKisiler).catch(() => setKisiHata("Danışman listesi okunamadı."));
@@ -414,7 +422,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
     islem: "topluHatirlat", ownerId: Number(danismanlar[0]), ...(coklu ? { ownerIds: danismanlar.map(Number) } : {}), sessizGun, kaynaklar: kaynakFiltresi(kaynaklar), kampanya, gorunum, asamalar: asamaSecim } });
 
   // Sayfalama: filtre, sayfa boyu ya da rapor değişince ilk sayfaya dön
-  useEffect(() => { setSayfa(1); }, [asamaSecim, sayfaBoyu, rapor, gorunum, listeSahip, dataAra]);
+  useEffect(() => { setSayfa(1); }, [asamaSecim, sayfaBoyu, rapor, gorunum, listeSahip, dataAra, aiSecim]);
   // Kart ya da listedeki danışman değişince Data araması sıfırlanır
   useEffect(() => { setDataAra(""); }, [gorunum, listeSahip]);
   const sayfaSayisi = Math.max(1, Math.ceil(liste.length / sayfaBoyu));
@@ -624,7 +632,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   <tbody>
                     {sayfaListesi.map((l, i) => {
                       return (
-                        <tr key={l.id} style={{ background: isaretli.includes(l.id) ? "var(--marka-acik)" : i % 2 ? "#fbfdff" : "#fff" }}>
+                        <tr key={l.id} onMouseEnter={aiIsaret[l.id]?.turler?.length ? e => setAiSatir({ id: l.id, konum: e.currentTarget.getBoundingClientRect() }) : undefined} onMouseLeave={() => setAiSatir(null)} style={{ background: isaretli.includes(l.id) ? "var(--marka-acik)" : i % 2 ? "#fbfdff" : "#fff" }}>
                           {atanabilir && (
                             <td style={{ ...c.td, textAlign: "center" }}>
                               <input type="checkbox" checked={isaretli.includes(l.id)} disabled={aktarim} aria-label={`Data ${l.id} seç`}
@@ -685,6 +693,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           </div>
         </>
       )}
+      {aiSatir && <AiSatirPenceresi ai={aiIsaret[aiSatir.id]} konum={aiSatir.konum} />}
       {aiPopup && <AiHazirPopup oneri={aiPopup.oneri} toplam={aiPopup.toplam} onGoster={aiGoster} onKapat={() => setAiPopup(null)} />}
       {isAdmin && notAnalizi && <NotAnalizi liste={liste} kisiAdi={kisiAdi} onKapat={() => setNotAnalizi(false)} />}
       {isAdmin && <style>{`@keyframes zilSalla { 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
