@@ -1,3 +1,4 @@
+// v6.63: AI satır penceresinde açıklamanın yanında kopyala ikonu; satırdan çıkınca pencere kısa gecikmeyle kapanır (AiIsaret v1.2)
 // v6.62: Notlar sütununda not ikonunun yanında "Close / Lead" düğmesi: AI kapanış önerisi + AI notu (düzenlenebilir) → CRM (CloseLead v1.0)
 // v6.61: kart / aşama / AI seçimi değişince Dataları Ele Al düğmesi 3 kez kalp atışı yapar; Ele Al ekranında ✕ yerine "← Geri" (EleAl v2.26)
 // v6.60: satırda "Task zorunlu" yerine "Task"; satır zili (admin) Notlar sütununda not ikonunun yanında, Hatırlatma sütunu kalktı
@@ -140,7 +141,7 @@ import { useTema } from "../lib/tema";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.62"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.63"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -270,6 +271,9 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [aiIsaret, setAiIsaret] = useState({}); // leadId -> { turler, detay, analiz } (haftalık Claude analizi)
   const [aiSecim, setAiSecim] = useState([]);
   const [aiSatir, setAiSatir] = useState(null); // { id, konum } fare üzerindeki işaretli satır
+  const aiKapatZaman = useRef(null); // satırdan kopyala ikonuna geçerken pencere kapanmasın
+  const aiKapatGecikmeli = () => { clearTimeout(aiKapatZaman.current); aiKapatZaman.current = setTimeout(() => setAiSatir(null), 250); };
+  const aiAcikTut = () => clearTimeout(aiKapatZaman.current);
   useEffect(() => {
     if (!aiSatir) return;
     const kapat = () => setAiSatir(null);
@@ -603,7 +607,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   <tbody>
                     {sayfaListesi.map((l, i) => {
                       return (
-                        <tr key={l.id} onMouseEnter={aiIsaret[l.id]?.turler?.length ? e => setAiSatir({ id: l.id, konum: e.currentTarget.getBoundingClientRect() }) : undefined} onMouseLeave={() => setAiSatir(null)} style={{ background: isaretli.includes(l.id) ? "var(--marka-acik)" : i % 2 ? "#fbfdff" : "#fff" }}>
+                        <tr key={l.id} onMouseEnter={aiIsaret[l.id]?.turler?.length ? e => { aiAcikTut(); setAiSatir({ id: l.id, konum: e.currentTarget.getBoundingClientRect() }); } : undefined} onMouseLeave={aiKapatGecikmeli} style={{ background: isaretli.includes(l.id) ? "var(--marka-acik)" : i % 2 ? "#fbfdff" : "#fff" }}>
                           {atanabilir && (
                             <td style={{ ...c.td, textAlign: "center" }}>
                               <input type="checkbox" checked={isaretli.includes(l.id)} disabled={aktarim} aria-label={`Data ${l.id} seç`}
@@ -667,7 +671,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           </div>
         </>
       )}
-      {aiSatir && <AiSatirPenceresi ai={aiIsaret[aiSatir.id]} konum={aiSatir.konum} />}
+      {aiSatir && <AiSatirPenceresi ai={aiIsaret[aiSatir.id]} konum={aiSatir.konum} onFare={ic => (ic ? aiAcikTut() : aiKapatGecikmeli())} />}
       {isAdmin && notAnalizi && <NotAnalizi liste={liste} kisiAdi={kisiAdi} onKapat={() => setNotAnalizi(false)} />}
       {isAdmin && <style>{`@keyframes zilSalla { 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
         .hatirlat-zil svg { transform-origin: 50% 10%; }
