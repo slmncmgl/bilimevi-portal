@@ -901,6 +901,8 @@ export default function KayitGuncelle() {
   // Düzeldiğinde alttaki satırı sil, üstteki yorumu kaldır.
   // const tumunuGorebilir = ["manager", "admin", "owner", "director"].includes(rol);
   const tumunuGorebilir = true;
+  // Rapor butonu sadece admin/owner/director/manager (müdür) rollerinde (Dashboard ile aynı user.rol)
+  const raporYetkili = ["admin", "owner", "director", "manager"].includes(String(user?.rol || user?.title || "").toLowerCase().trim());
   // Form Yetkisi: All Submissions'taki "Form Yetkisi" sütununa virgülle danışman adları yazılır.
   // v1.76: "SADECE adının yazılı olduğu satırları görür" kısıtı yalnızca KISITLI_KULLANICILAR listesindekilere uygulanır.
   // n8n 10.11.2026'dan beri formdaki danışman adını bu sütuna yazdığı için (Grup "Ön Kayıt Verisini Map Et"),
@@ -1777,7 +1779,7 @@ export default function KayitGuncelle() {
   // Aktivite grafiği: listede görünen kayıtlar Eklenme Tarihi'ne göre son 7 gün, son 30 gün
   // ya da tümü (ilk kaydın haftasından bu haftaya kadar haftalık)
   const grafikVerisi = useMemo(() => {
-    if (!grafikAcik) return null;
+    if (!grafikAcik || !raporYetkili) return null;
     const bugun = new Date(); bugun.setHours(0, 0, 0, 0);
     const gunAnahtari = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
     const pazartesi = d => new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
@@ -1822,7 +1824,7 @@ export default function KayitGuncelle() {
     const enCok = Math.max(1, ...kovalar.map(k => k.sayi));
     const toplam = kovalar.reduce((a, k) => a + k.sayi, 0);
     return { kovalar, enCok, toplam, haftalik, subeler, mod: grafikMod };
-  }, [grafikAcik, grafikMod, grafikSubeler, siraliOgrenciler]);
+  }, [grafikAcik, raporYetkili, grafikMod, grafikSubeler, siraliOgrenciler]);
 
   return (
     <div style={s.root}>
@@ -2244,7 +2246,7 @@ export default function KayitGuncelle() {
                         </svg>
                         {!isMobile && "Yenile"}
                       </button>
-                      <button
+                      {raporYetkili && <button
                         type="button" className={grafikAcik ? "listeKapsul" : "listeKapsul listeKapsulBtn"}
                         onClick={() => { setGrafikAcik(v => !v); setGrafikHover(null); }}
                         title={grafikAcik ? "Raporu kapat" : "Aktivite raporu"} aria-label="Aktivite raporu"
@@ -2255,7 +2257,7 @@ export default function KayitGuncelle() {
                           <path d="M4 20h16" /><path d="M7 16v-4" /><path d="M12 16V7" /><path d="M17 16v-7" />
                         </svg>
                         {!isMobile && "Rapor"}
-                      </button>
+                      </button>}
                     </span>
                   );
                 })()}
