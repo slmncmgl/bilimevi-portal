@@ -513,7 +513,7 @@ export function Cerceve({ tur, metin, children, style }) {
   const renk = BASLIK_RENK[tur];
   const gizli = useSyncExternalStore(cerceveAbone, () => cerceveDurum.gizli);
   const kutu = (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "6px", borderRadius: "18px",
+    <div className="tema-cerceve" style={{ display: "inline-flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "6px", borderRadius: "18px",
       border: `1.5px solid ${gizli ? "transparent" : renk}`, background: gizli ? "transparent" : `${renk}0d`, transition: "border-color 0.2s, background 0.2s", ...style }}>
       {children}
     </div>

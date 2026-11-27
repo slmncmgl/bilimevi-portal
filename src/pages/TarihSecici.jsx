@@ -44,8 +44,8 @@ export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} g�
   const aktifTumu = deger === null;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-      {tumu && <button type="button" onClick={() => { setNAcik(false); onChange(null); }} style={{ ...t.dugme, ...(aktifTumu ? t.aktif : {}) }}>Tümü</button>}
-      <select value={secim} onChange={e => listeDegisti(e.target.value)} style={{ ...t.liste, ...(!aktifTumu ? t.listeAktif : {}) }} aria-label="Süre seçin">
+      {tumu && <button type="button" onClick={() => { setNAcik(false); onChange(null); }} className={aktifTumu ? "tema-aktif" : "tema-dugme"} style={{ ...t.dugme, ...(aktifTumu ? t.aktif : {}) }}>Tümü</button>}
+      <select value={secim} onChange={e => listeDegisti(e.target.value)} className={!aktifTumu ? "tema-liste-aktif" : "tema-liste"} style={{ ...t.liste, ...(!aktifTumu ? t.listeAktif : {}) }} aria-label="Süre seçin">
         <option value="" disabled>{bosMetin}</option>
         {HAZIR.map(g => <option key={g} value={String(g)}>{metin(g)}</option>)}
         <option value="N">{nMetni}</option>

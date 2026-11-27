@@ -1,3 +1,4 @@
+// v6.52: Tema v1 (renkli, bugünkü) / v2 (kurumsal lacivert #001A71 + beyaz, minimalist) seçici; seçim tarayıcıda saklanır
 // v6.51: AI Önerileri: önerilen kapanış sütunu, Close Lead penceresinde iki kapanış türü + tüm sebepler (öneri seçili)
 // v6.50: AI Önerileri listesi: filtreler ve Yeniden analiz kalktı, Tümünü Ele Al, satırda Close Lead (not + İlgisiz · Artık İlgilenmiyor)
 // v6.49: AI Önerileri kartı grup kartlarıyla aynı hizada (görünmez grup çerçevesi + boş başlık)
@@ -127,9 +128,41 @@ import { useAiAnaliz, AiKart, AiHazirPopup, AiOneriListesi } from "./AiOneriler"
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.51"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.52"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
+const TEMA_V2_CSS = `
+.tema-v2 .tema-kart { background: #fff !important; border-color: #e3e6ef !important; box-shadow: none !important; transition: border-color .15s, background .15s; }
+.tema-v2 .tema-kart:hover { border-color: #001A71 !important; }
+.tema-v2 .tema-kart .tema-kart-sayi { color: #001A71 !important; }
+.tema-v2 .tema-kart .tema-kart-etiket { color: #5b6585 !important; }
+.tema-v2 .tema-kart.secili { background: #001A71 !important; border-color: #001A71 !important; }
+.tema-v2 .tema-kart.secili .tema-kart-sayi, .tema-v2 .tema-kart.secili .tema-kart-etiket { color: #fff !important; }
+.tema-v2 .tema-kart .tema-dolum { background: #e8ebf5 !important; }
+.tema-v2 .tema-grup { border: 1px solid #e3e6ef !important; background: #fff !important; }
+.tema-v2 .tema-grup-gizli { border-color: transparent !important; background: transparent !important; }
+.tema-v2 .tema-grup-baslik { color: #001A71 !important; }
+.tema-v2 .asama-chip { background: #fff !important; color: #001A71 !important; border-color: #d5dae8 !important; }
+.tema-v2 .asama-chip.aktif { background: #001A71 !important; color: #fff !important; border-color: #001A71 !important; }
+.tema-v2 .data-ara { border: 1.5px solid #d5dae8 !important; background: #fff !important; box-shadow: none !important; }
+.tema-v2 .data-ara:focus-within { border-color: #001A71 !important; }
+.tema-v2 .data-ara svg { stroke: #001A71 !important; }
+.tema-v2 .elal-btn:not(:disabled) { background: #001A71 !important; animation: none !important; box-shadow: none !important; }
+.tema-v2 .elal-btn::after { display: none !important; }
+.tema-v2 .elal-sayi { color: #001A71 !important; }
+.tema-v2 .vip-neon::before { animation: none !important; background: #001A71 !important; }
+.tema-v2 .vip-neon { box-shadow: none !important; }
+.tema-v2 .vip-neon > span { background: #fff !important; color: #001A71 !important; }
+.tema-v2 .vip-neon-aktif > span { background: #001A71 !important; color: #fff !important; }
+.tema-v2 .tema-cerceve { border-color: transparent !important; background: transparent !important; }
+.tema-v2 .tema-tetik { border-color: #d5dae8 !important; }
+.tema-v2 .tema-rozet { background: #001A71 !important; }
+.tema-v2 .tema-aktif { background: #001A71 !important; border-color: #001A71 !important; color: #fff !important; }
+.tema-v2 .tema-liste-aktif { border-color: #001A71 !important; background-color: #fff !important; color: #001A71 !important; }
+.tema-v2 .hatirlat-zil { border-color: #d5dae8 !important; background: #fff !important; color: #001A71 !important; }
+.tema-v2 .ad-link { color: #001A71 !important; }
+`;
+
 const ASAMA_RENK = { 217285: ["#2563eb", "#eff6ff", "#bfdbfe"], 222366: ["#d97706", "#fffbeb", "#fde68a"], 253357: ["#d97706", "#fffbeb", "#fde68a"], 253358: ["#d97706", "#fffbeb", "#fde68a"], 218701: ["#7c3aed", "#f5f3ff", "#ddd6fe"], 218702: ["#059669", "#ecfdf5", "#a7f3d0"] };
 const asamaChip = (id, secili) => {
   const r = ASAMA_RENK[id];
@@ -310,6 +343,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const tumTakipsiz = (rapor?.acik || []).filter(gorunumTanim.suz).filter(dataAraSuz(dataAra)).sort(gorunumTanim.sirala);
   const liste = tumTakipsiz.filter(asamaSuz);
   const asamaSayisi = id => tumTakipsiz.filter(l => (id === null || l.asama === id) && (!listeSahip || String(l.ownerId) === listeSahip)).length;
+  const [tema, setTema] = useState(() => { try { return localStorage.getItem("takipTema") === "v2" ? "v2" : "v1"; } catch { return "v1"; } });
+  const temaSec = v => { setTema(v); try { localStorage.setItem("takipTema", v); } catch {} };
   // AI Önerileri: karta tıklanınca analiz başlar; danışman / kaynak / kampanya değişince sonuçlar sıfırlanır
   const { ai, baslat: aiBaslat, sifirla: aiSifirla } = useAiAnaliz(kisiAdi);
   const [aiPopup, setAiPopup] = useState(null); // { oneri, toplam }
@@ -371,7 +406,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const takipOrani = o ? oranHesap(o) : null;
 
   return (
-    <>
+    <div className={tema === "v2" ? "tema-v2" : undefined}>
+      {tema === "v2" && <style>{TEMA_V2_CSS}</style>}
       <FiltreCubugu
         danisman={isAdmin || isManager ? {
           liste: isAdmin ? [{ id: TUM_DANISMANLAR, ad: "Tüm danışmanlar", sube: "Tümü" }, ...subeyeGore] : subeyeGore,
@@ -394,9 +430,19 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
       {danismanlar.length > 0 && (yukleniyor || (!hata && rapor)) && (
         <>
           <style>{`@media (max-width: 900px) { .takip-kart-satiri { grid-template-columns: 1fr !important; } }`}</style>
+          <div style={{ display: "flex", justifyContent: "flex-end", margin: "-8px 0 8px" }}>
+            <div role="radiogroup" aria-label="Tema" style={{ display: "inline-flex", alignItems: "center", gap: "2px", padding: "3px", borderRadius: "999px", border: "1px solid #e2e8f0", background: "#fff", fontSize: "11px", fontWeight: 700 }}>
+              <span style={{ padding: "0 6px 0 8px", color: "#94a3b8" }}>Tema</span>
+              {["v1", "v2"].map(v => (
+                <button key={v} type="button" role="radio" aria-checked={tema === v} onClick={() => temaSec(v)}
+                  style={{ padding: "3px 10px", borderRadius: "999px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "11px", fontWeight: 700,
+                    background: tema === v ? (v === "v2" ? "#001A71" : "linear-gradient(90deg, #0891b2, #7c3aed)") : "transparent", color: tema === v ? "#fff" : "#64748b" }}>{v}</button>
+              ))}
+            </div>
+          </div>
           <div className="takip-kart-satiri" style={t.kartSatiri}>
-            <div style={t.taskGrup}>
-              <div style={t.taskGrupBaslik}>Data</div>
+            <div className="tema-grup" style={t.taskGrup}>
+              <div className="tema-grup-baslik" style={t.taskGrupBaslik}>Data</div>
               <div style={t.kartIkili}>
               <Kart sayi={yukleniyor ? DONEN : o.toplam} etiket="Hepsi" ipucu={ACIKLAMA.acik} renk="#0e7490" cerceve="#a5f3fc"
                 secili={gorunum === "acik"} onClick={() => setGorunum("acik")} />
@@ -404,8 +450,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                 secili={gorunum === "takipsiz"} onClick={() => setGorunum("takipsiz")} />
               </div>
             </div>
-            <div style={t.taskGrup}>
-              <div style={t.taskGrupBaslik}>Task Tarihi</div>
+            <div className="tema-grup" style={t.taskGrup}>
+              <div className="tema-grup-baslik" style={t.taskGrupBaslik}>Task Tarihi</div>
               <div style={t.taskGrupKartlar}>
                 <Kart sayi={yukleniyor ? DONEN : (rapor?.acik || []).filter(bugunTaskli).length} etiket="Bugün" ipucu={ACIKLAMA.bugunTask} renk="#1d4ed8" zemin="#eff6ff" cerceve="#93c5fd"
                   secili={gorunum === "bugun"} onClick={() => setGorunum("bugun")} />
@@ -415,7 +461,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   secili={gorunum === "ileri"} onClick={() => setGorunum("ileri")} />
               </div>
             </div>
-            <div style={{ ...t.taskGrup, borderColor: "transparent", background: "transparent", display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box" }}>
+            <div className="tema-grup-gizli" style={{ ...t.taskGrup, borderColor: "transparent", background: "transparent", display: "flex", flexDirection: "column", height: "100%", boxSizing: "border-box" }}>
               <div style={t.taskGrupBaslik} aria-hidden="true">&nbsp;</div>
               <div style={{ flex: 1, display: "grid" }}>
               <AiKart ai={ai} secili={gorunum === "ai"} onClick={aiTikla} yukleniyor={yukleniyor || !rapor?.acik?.length} />
@@ -464,7 +510,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           )}
           <div style={{ ...c.tablo, opacity: arkaYukleniyor ? 0.55 : 1, transition: "opacity 0.2s", display: gorunum === "ai" ? "none" : undefined }}>
             <div style={c.tabloBaslik}>
-              <span style={{ ...t.dataAra, flex: "1 1 auto", minWidth: 0, boxSizing: "border-box" }}>
+              <span className="data-ara" style={{ ...t.dataAra, flex: "1 1 auto", minWidth: 0, boxSizing: "border-box" }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.4" strokeLinecap="round" style={{ flexShrink: 0 }}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
                 <input value={dataAra} onChange={e => setDataAra(e.target.value)} placeholder="Data Ara: Ad / Telefon / Mail / ID" maxLength={60}
                   aria-label="Listede Data ara" style={t.dataAraGirdi} />
@@ -479,9 +525,9 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
               <Cerceve tur="asama" metin="Aşama: birden fazla seçilebilir.">
                 <div style={c.chipSatir}>
-                  <button onClick={() => setAsamaSecim([])} style={!asamaSecim.length ? { ...c.chip, color: "#0f172a", fontWeight: 700, border: "1.5px solid #94a3b8" } : c.chip}>Tümü ({asamaSayisi(null)})</button>
+                  <button onClick={() => setAsamaSecim([])} className={`asama-chip${!asamaSecim.length ? " aktif" : ""}`} style={!asamaSecim.length ? { ...c.chip, color: "#0f172a", fontWeight: 700, border: "1.5px solid #94a3b8" } : c.chip}>Tümü ({asamaSayisi(null)})</button>
                   {ASAMA_SIRASI.map(id => (
-                    <button key={id} onClick={() => asamaDegistir(id)} style={asamaChip(id, asamaSecim.includes(id))}>
+                    <button key={id} onClick={() => asamaDegistir(id)} className={`asama-chip${asamaSecim.includes(id) ? " aktif" : ""}`} style={asamaChip(id, asamaSecim.includes(id))}>
                       {asamaSecim.includes(id) ? "✓ " : ""}{ASAMA_ADLARI[id]} ({asamaSayisi(id)})
                     </button>
                   ))}
@@ -610,7 +656,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             if (idler.length) setAktiviteYenile(n => n + 1);
           }} />
       )}
-    </>
+    </div>
   );
 }
 
@@ -644,7 +690,7 @@ function AdHucresi({ lead }) {
     <span onMouseEnter={ac} onMouseLeave={kapatGecikmeli} onFocus={ac}
       onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setKonum(null); }}
       onKeyDown={e => { if (e.key === "Escape") setKonum(null); }}>
-      <span ref={ref} tabIndex={0} style={{ ...t.adLink, cursor: "default", outline: "none" }}>{lead.ad || "İsimsiz"}</span>
+      <span ref={ref} tabIndex={0} className="ad-link" style={{ ...t.adLink, cursor: "default", outline: "none" }}>{lead.ad || "İsimsiz"}</span>
       {konum && (
         // mousedown engellenir: Safari'de düğmeye basınca link odağı kaybedip balonu kapatmasın
         <span style={{ ...t.idBalon, left: konum.left, top: konum.top }} onMouseDown={e => e.preventDefault()}>
@@ -717,11 +763,11 @@ function Kart({ sayi, etiket, ipucu, renk = "#0f172a", zemin = "#fff", cerceve =
   const tiklanir = !!onClick;
   return (
     <Ipucu metin={ipucu} blok>
-      <div onClick={onClick} role={tiklanir ? "button" : undefined}
+      <div onClick={onClick} role={tiklanir ? "button" : undefined} className={`tema-kart${secili ? " secili" : ""}`}
         style={{ ...t.kart, background: zemin, borderColor: secili ? renk : cerceve, cursor: tiklanir ? "pointer" : "help",
           boxShadow: secili ? `0 0 0 3px ${cerceve}` : t.kart.boxShadow, height: "100%", boxSizing: "border-box" }}>
-        <div style={{ ...t.kartSayi, color: renk }}>{typeof sayi === "number" ? sayi.toLocaleString("tr-TR") : sayi}</div>
-        <div style={t.kartEtiket}>{etiket}</div>
+        <div className="tema-kart-sayi" style={{ ...t.kartSayi, color: renk }}>{typeof sayi === "number" ? sayi.toLocaleString("tr-TR") : sayi}</div>
+        <div className="tema-kart-etiket" style={t.kartEtiket}>{etiket}</div>
       </div>
     </Ipucu>
   );

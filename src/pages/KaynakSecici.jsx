@@ -43,12 +43,12 @@ export default function KaynakSecici({ kaynaklar, secili, onChange, bosMetin = "
   return (
     <div ref={kutu} style={{ position: "relative", display: "inline-block", minWidth: "260px" }}>
       <button type="button" onClick={() => setAcik(a => !a)} aria-expanded={acik}
-        style={{ ...k.tetik, borderColor: acik ? "#0891b2" : secili.length ? "#67c6dc" : "#e2e8f0" }}>
+        className="tema-tetik" style={{ ...k.tetik, borderColor: acik ? "#0891b2" : secili.length ? "#67c6dc" : "#e2e8f0" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: secili.length ? "#0f172a" : "#94a3b8" }}>
           {kaynakOzeti(kaynaklar, secili, bosMetin)}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-          {secili.length > 0 && <span style={k.rozet}>{secili.length}</span>}
+          {secili.length > 0 && <span className="tema-rozet" style={k.rozet}>{secili.length}</span>}
           <span style={{ fontSize: "10px", color: "#64748b", transform: acik ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>▼</span>
         </span>
       </button>

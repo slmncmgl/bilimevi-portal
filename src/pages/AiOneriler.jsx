@@ -1,3 +1,4 @@
+// v1.3: tema sınıfları (tema-kart vb.), Takip Tablosu Tema v2'de kurumsal lacivert
 // v1.2: önerilen kapanış sütunu; Close Lead penceresi İlgisiz + Olumsuza Dönen'in tüm sebeplerini gösterir, önerilen seçili gelir
 // v1.1: aksiyon filtreleri, "önerisi olmayanlar" kutusu ve Yeniden analiz kalktı; Tümünü Ele Al; satırda Close Lead (Neden + "AI Önerisi ile inceledim ve iptale çektim." notu, İlgisiz · Artık İlgilenmiyor)
 // v1.0: Takip Tablosu "AI Önerileri" kartı. Karta tıklanınca seçili danışman(lar)ın açık datalarının notları okunur
@@ -58,20 +59,20 @@ export function AiKart({ ai, secili, onClick, yukleniyor }) {
     <div onClick={yukleniyor ? undefined : onClick} role="button" tabIndex={0} aria-busy={calisiyor}
       onKeyDown={e => { if ((e.key === "Enter" || e.key === " ") && !yukleniyor) { e.preventDefault(); onClick(); } }}
       title={calisiyor ? "Notlar analiz ediliyor…" : ai.durum === "bitti" ? "Önerileri göster" : "Tıklayınca seçili danışmanların açık datalarının notları analiz edilir"}
-      className="ai-kart"
+      className={`ai-kart tema-kart${secili ? " secili" : ""}`}
       style={{ position: "relative", overflow: "hidden", border: "1.5px solid", borderColor: secili ? MOR : "#ddd6fe", borderRadius: "16px", padding: "18px", textAlign: "center",
         background: "#faf5ff", cursor: yukleniyor ? "default" : "pointer", height: "100%", boxSizing: "border-box",
         boxShadow: secili ? "0 0 0 3px #ede9fe" : "0 1px 3px rgba(0,0,0,0.06)", outline: "none" }}>
       {calisiyor && (
-        <div aria-hidden="true" style={{ position: "absolute", inset: 0, width: `${Math.max(yuzde, 3)}%`, background: "linear-gradient(90deg, #ede9fe, #ddd6fe)", transition: "width .35s ease-out" }}>
+        <div aria-hidden="true" className="tema-dolum" style={{ position: "absolute", inset: 0, width: `${Math.max(yuzde, 3)}%`, background: "linear-gradient(90deg, #ede9fe, #ddd6fe)", transition: "width .35s ease-out" }}>
           <div className="ai-kart-parilti" />
         </div>
       )}
       <div style={{ position: "relative" }}>
-        <div style={{ fontSize: "26px", fontWeight: 700, marginBottom: "4px", fontVariantNumeric: "tabular-nums", color: MOR, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+        <div className="tema-kart-sayi" style={{ fontSize: "26px", fontWeight: 700, marginBottom: "4px", fontVariantNumeric: "tabular-nums", color: MOR, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
           {calisiyor ? `%${yuzde}` : oneri !== null ? oneri.toLocaleString("tr-TR") : <YildizIkonu boyut={26} />}
         </div>
-        <div style={{ fontSize: "11px", color: "#6d28d9", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.4px" }}>
+        <div className="tema-kart-etiket" style={{ fontSize: "11px", color: "#6d28d9", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.4px" }}>
           {calisiyor ? `Analiz · ${ai.bitti}/${ai.toplam}` : "AI Önerileri"}
         </div>
       </div>
