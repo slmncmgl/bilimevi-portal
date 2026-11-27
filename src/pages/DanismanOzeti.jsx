@@ -115,7 +115,7 @@ export default function DanismanOzeti({ user, isAdmin, isManager }) {
       {!kisiIdler.length && !kisiHata && <div style={{ ...c.bos, padding: "40px 0" }}>Özeti görmek için yukarıdan bir danışman seçin. Birden fazla seçerseniz aktivite sayıları grafiği açılır.</div>}
       {kisiIdler.length > 0 && <AktiviteGrafigi kisiler={secilebilir.filter(k => kisiIdler.includes(k.id))} />}
       {kisiId && <div style={{ borderTop: "1px solid #eef2f6" }} />}
-      {kisiId && yukleniyor && veri && <div style={{ height: "3px", background: "linear-gradient(90deg, #0891b2, #7c3aed)", animation: "fadeUp 0.6s ease-in-out infinite alternate" }} />}
+      {kisiId && yukleniyor && veri && <div style={{ height: "3px", background: "linear-gradient(90deg, var(--marka), #7c3aed)", animation: "fadeUp 0.6s ease-in-out infinite alternate" }} />}
       {kisiId && yukleniyor && !veri && <div style={{ ...c.bos, padding: "28px 0" }}><span style={c.spinner} /> CRM'den Alınıyor...</div>}
       {kisiId && !yukleniyor && hata && <div style={{ ...c.hata, margin: "16px 24px" }}>{hata}</div>}
 
@@ -212,7 +212,7 @@ function Kucuk({ sayi, etiket, ipucu, renk = "#0f172a", zemin = "#fff", cerceve 
   return (
     <Ipucu metin={ipucu} blok isaret={false}>
       <div onClick={onClick || undefined} role={onClick ? "button" : undefined}
-        style={{ ...o.kart, background: zemin, borderColor: secili ? "#0891b2" : cerceve, cursor: onClick ? "pointer" : "help",
+        style={{ ...o.kart, background: zemin, borderColor: secili ? "var(--marka)" : cerceve, cursor: onClick ? "pointer" : "help",
           boxShadow: secili ? "0 0 0 3px #cffafe" : "none" }}>
         <div style={{ fontSize: "24px", fontWeight: 800, color: renk, fontVariantNumeric: "tabular-nums" }}>{(sayi ?? 0).toLocaleString("tr-TR")}</div>
         <div style={{ fontSize: "11px", fontWeight: 600, color: "#64748b", marginTop: "2px" }}>{etiket}</div>
@@ -292,7 +292,7 @@ function AktiviteGrafigi({ kisiler }) {
 
 const RENK = ["#0891b2", "#6366f1", "#8b5cf6", "#a855f7", "#f59e0b", "#16a34a", "#059669", "#94a3b8", "#ef4444"];
 const o = {
-  secim: { height: "34px", padding: "0 12px", borderRadius: "999px", border: "1.5px solid #0891b2", background: "#ecfeff", color: "#0f172a",
+  secim: { height: "34px", padding: "0 12px", borderRadius: "999px", border: "1.5px solid var(--marka)", background: "var(--marka-acik)", color: "#0f172a",
     fontSize: "12px", fontWeight: 700, fontFamily: "'Sora', sans-serif", cursor: "pointer" },
   secimBos: { borderColor: "#e2e8f0", background: "#fff", color: "#64748b" },
   ikili: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px" },

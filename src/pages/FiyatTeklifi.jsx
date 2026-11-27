@@ -3377,7 +3377,7 @@ export default function FiyatTeklifi() {
                             </>); })()}
                             <div style={{ fontSize:12, color: sel?"inherit":"#0d9488", marginTop:2, fontWeight:500 }}>{a.distance ? `Okula ${a.distance}` : ""}</div>
                             {tierEtiket && <div style={{ display:"inline-block", marginTop:4, padding:"1px 7px", borderRadius:999, fontSize:10.5, fontWeight:700,
-                              background: uygun ? "#ecfeff" : "#f1f5f9", color: uygun ? "#0e7490" : "#94a3b8", border:`1px solid ${uygun ? "#a5f3fc" : "#e2e8f0"}` }}>
+                              background: uygun ? "var(--marka-acik)" : "#f1f5f9", color: uygun ? "var(--marka-koyu)" : "#94a3b8", border:`1px solid ${uygun ? "#a5f3fc" : "#e2e8f0"}` }}>
                               {uygun ? "" : "⛔ "}{tierEtiket} fiyatı</div>}
                             {hsActive && uygun && <div style={{ fontSize:11, color:"#f59e0b", marginTop:2 }}>⚠️ Yüksek sezon fiyatı geçerli</div>}
                             {(() => { // v116: bu oda seçilirse paket fiyatı uygulanır mı?

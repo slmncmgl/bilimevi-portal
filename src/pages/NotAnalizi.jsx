@@ -93,12 +93,12 @@ export default function NotAnalizi({ liste, kisiAdi, onKapat }) {
           {durum === "calisiyor" ? (
             <button type="button" onClick={() => { dur.current = true; }} style={st.dugme("#fef2f2", "#b91c1c")}>Durdur</button>
           ) : (
-            <button type="button" onClick={baslat} disabled={!hedef.length} style={st.dugme("#0891b2", "#fff")}>{durum ? "Yeniden analiz et" : `Analizi başlat (${hedef.length} data)`}</button>
+            <button type="button" onClick={baslat} disabled={!hedef.length} style={st.dugme("var(--marka)", "#fff")}>{durum ? "Yeniden analiz et" : `Analizi başlat (${hedef.length} data)`}</button>
           )}
           {durum && (
             <div style={{ flex: 1, minWidth: "200px", display: "flex", alignItems: "center", gap: "10px" }}>
               <div style={{ flex: 1, height: "8px", borderRadius: "999px", background: "#eef2f6", overflow: "hidden" }}>
-                <div style={{ width: `${hedef.length ? (ilerleme / hedef.length) * 100 : 0}%`, height: "100%", background: "#0891b2", transition: "width .2s" }} />
+                <div style={{ width: `${hedef.length ? (ilerleme / hedef.length) * 100 : 0}%`, height: "100%", background: "var(--marka)", transition: "width .2s" }} />
               </div>
               <span style={{ fontSize: "12px", color: "#475569", whiteSpace: "nowrap" }}>{ilerleme}/{hedef.length}{hatali ? ` · ${hatali} okunamadı` : ""}{durum === "durdu" ? " · durduruldu" : ""}</span>
             </div>
@@ -120,7 +120,7 @@ export default function NotAnalizi({ liste, kisiAdi, onKapat }) {
               <span style={{ width: "1px", background: "#e2e8f0", margin: "0 4px" }} />
               {Object.entries(BAYRAK_AD).map(([b, ad]) => (
                 <button key={b} type="button" onClick={() => setBayrakSec(x => (x === b ? "" : b))}
-                  style={{ ...st.rozet, cursor: "pointer", border: `1.5px solid ${bayrakSec === b ? "#0891b2" : "#e2e8f0"}`, background: bayrakSec === b ? "#ecfeff" : "#fff", color: "#0f172a" }}>
+                  style={{ ...st.rozet, cursor: "pointer", border: `1.5px solid ${bayrakSec === b ? "var(--marka)" : "#e2e8f0"}`, background: bayrakSec === b ? "var(--marka-acik)" : "#fff", color: "#0f172a" }}>
                   {ad}: {bayrakSay[b] || 0}
                 </button>
               ))}

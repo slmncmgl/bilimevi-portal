@@ -161,7 +161,7 @@ export function AiOneriListesi({ ai, kapsamAdi, leadler, kisiAdi, coklu, asamaAd
         {ai.durum === "bitti" && <span style={{ fontSize: "12px", color: "#64748b" }}>{ai.toplam} data analiz edildi{ai.hatali ? ` · ${ai.hatali} okunamadı` : ""}{ai.kesildi ? ` (ilk ${AI_UST_SINIR})` : ""}</span>}
         {ai.durum === "bitti" && acikSatirlar.length > 0 && (
           <button type="button" onClick={() => onEleAl(acikSatirlar.map(s => leadMap[s.lead_id]))}
-            style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "12px", border: "none", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(8,145,178,0.25)" }}>
+            style={{ marginLeft: "auto", padding: "8px 16px", borderRadius: "12px", border: "none", background: "var(--marka)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 12px rgba(8,145,178,0.25)" }}>
             Tümünü Ele Al ({acikSatirlar.length})
           </button>
         )}
@@ -208,7 +208,7 @@ export function AiOneriListesi({ ai, kapsamAdi, leadler, kisiAdi, coklu, asamaAd
                             <span style={{ fontSize: "12px", fontWeight: 700, color: "#b45309", whiteSpace: "nowrap" }}>Kapatıldı · {kapatilan.current[s.lead_id]?.ad} ✓</span>
                           ) : (
                             <div style={{ display: "inline-flex", gap: "6px" }}>
-                              <button type="button" onClick={() => onEleAl([l])} disabled={k === "gidiyor"} style={{ ...satirDugme, background: "#0891b2", color: "#fff", border: "1.5px solid #0891b2" }}>Ele Al</button>
+                              <button type="button" onClick={() => onEleAl([l])} disabled={k === "gidiyor"} style={{ ...satirDugme, background: "var(--marka)", color: "#fff", border: "1.5px solid var(--marka)" }}>Ele Al</button>
                               <button type="button" onClick={() => setPencere({ s, l })} disabled={k === "gidiyor"}
                                 style={{ ...satirDugme, background: "#fff", color: "#b45309", border: "1.5px solid #fcd34d" }}>
                                 {k === "gidiyor" ? "Kapatılıyor…" : "Close Lead"}

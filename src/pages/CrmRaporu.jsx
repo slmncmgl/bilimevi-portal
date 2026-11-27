@@ -249,7 +249,7 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
                 <thead>
                   <tr>
                     {asamalar.map(a => <th key={a.id} style={c.th}>{a.ad}</th>)}
-                    <th style={{ ...c.th, background: "#ecfeff", color: "#0e7490" }}>Toplam</th>
+                    <th style={{ ...c.th, background: "var(--marka-acik)", color: "var(--marka-koyu)" }}>Toplam</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -258,14 +258,14 @@ export default function CrmRaporu({ user, isAdmin, isManager }) {
                     return (
                       <tr key={r.diger ? "diger" : r.email} style={{ background: zemin }}>
                         {asamalar.map(a => <td key={a.id} style={c.td}>{sayiHucresi(r, a, r.sayilar[a.id] || 0)}</td>)}
-                        <td style={{ ...c.td, background: "#f0fdff" }}>{sayiHucresi(r, null, r.toplam, { fontWeight: 700, color: "#0891b2" })}</td>
+                        <td style={{ ...c.td, background: "#f0fdff" }}>{sayiHucresi(r, null, r.toplam, { fontWeight: 700, color: "var(--marka)" })}</td>
                       </tr>
                     );
                   })}
                   {gorunen.length > 1 && (
                     <tr style={{ background: "#f8fafc" }}>
                       {asamalar.map(a => <td key={a.id} style={{ ...c.td, fontWeight: 700, color: "#0f172a" }}>{sutunToplam(a.id).toLocaleString("tr-TR")}</td>)}
-                      <td style={{ ...c.td, fontWeight: 700, color: "#0891b2", background: "#ecfeff" }}>{genelToplam.toLocaleString("tr-TR")}</td>
+                      <td style={{ ...c.td, fontWeight: 700, color: "var(--marka)", background: "var(--marka-acik)" }}>{genelToplam.toLocaleString("tr-TR")}</td>
                     </tr>
                   )}
                 </tbody>
@@ -341,7 +341,7 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
                 {atanabilir && (
                   <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0, width: "36px" }}>
                     <input type="checkbox" checked={tumuIsaretli} disabled={!!aktarim} aria-label="Bu sayfadakileri seç"
-                      onChange={() => { const idler = sayfaLeadleri.map(l => l.id); setIsaretli(s => (tumuIsaretli ? s.filter(id => !idler.includes(id)) : [...new Set([...s, ...idler])])); }} style={{ accentColor: "#0891b2", cursor: "pointer" }} />
+                      onChange={() => { const idler = sayfaLeadleri.map(l => l.id); setIsaretli(s => (tumuIsaretli ? s.filter(id => !idler.includes(id)) : [...new Set([...s, ...idler])])); }} style={{ accentColor: "var(--marka)", cursor: "pointer" }} />
                   </th>
                 )}
                 <th style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>Data ID</th>
@@ -356,11 +356,11 @@ function LeadPaneli({ secim, kaynaklar, gun, kaynakAd, asamalar, onKapat, hedefl
             </thead>
             <tbody>
               {sayfaLeadleri.map((l, i) => (
-                <tr key={l.id} style={{ background: isaretli.includes(l.id) ? "#ecfeff" : i % 2 ? "#fbfdff" : "#fff" }}>
+                <tr key={l.id} style={{ background: isaretli.includes(l.id) ? "var(--marka-acik)" : i % 2 ? "#fbfdff" : "#fff" }}>
                   {atanabilir && (
                     <td style={{ ...c.td, textAlign: "center" }}>
                       <input type="checkbox" checked={isaretli.includes(l.id)} disabled={!!aktarim} onChange={() => isaretle(l.id)}
-                        aria-label={`Data ${l.id} seç`} style={{ accentColor: "#0891b2", cursor: "pointer" }} />
+                        aria-label={`Data ${l.id} seç`} style={{ accentColor: "var(--marka)", cursor: "pointer" }} />
                     </td>
                   )}
                   <td style={{ ...c.td, textAlign: "left" }}>
@@ -526,10 +526,10 @@ export const c = {
   etiket: { fontSize: "11px", color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" },
   chipSatir: { display: "flex", flexWrap: "wrap", gap: "8px" },
   chip: { ...chipTemel, background: "#fff", color: "#475569", border: "1.5px solid #e2e8f0" },
-  chipAktif: { ...chipTemel, background: "#0891b2", color: "#fff", border: "1.5px solid #0891b2" },
+  chipAktif: { ...chipTemel, background: "var(--marka)", color: "#fff", border: "1.5px solid var(--marka)" },
   bos: { display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", padding: "48px 0", color: "#64748b", fontSize: "14px" },
   hata: { background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "12px", padding: "16px 20px", color: "#991b1b", fontSize: "13px", fontWeight: 500, marginBottom: "16px" },
-  spinner: { display: "inline-block", width: "18px", height: "18px", border: "2px solid #e2e8f0", borderTopColor: "#0891b2", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
+  spinner: { display: "inline-block", width: "18px", height: "18px", border: "2px solid #e2e8f0", borderTopColor: "var(--marka)", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
   tablo: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "20px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", animation: "fadeUp 0.4s ease-out" },
   tabloBaslik: { padding: "18px 24px", borderBottom: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" },
   grid: { width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: "13px" },
@@ -537,10 +537,10 @@ export const c = {
   td: { padding: "8px 12px", textAlign: "right", fontVariantNumeric: "tabular-nums", color: "#334155", borderBottom: "1px solid #eef2f6", borderRight: "1px solid #eef2f6" },
   ilkSutun: { position: "sticky", left: 0, borderRight: "1.5px solid #e2e8f0" },
   sayiBtn: { background: "none", border: "none", padding: "3px 6px", margin: "-3px -6px", borderRadius: "6px", cursor: "pointer", font: "inherit", color: "#0f172a", fontVariantNumeric: "tabular-nums", textDecoration: "underline", textDecorationColor: "#cbd5e1", textUnderlineOffset: "3px" },
-  sayiBtnSecili: { background: "#0891b2", color: "#fff", textDecoration: "none" },
-  atamaCubugu: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "10px 24px", background: "#ecfeff",
+  sayiBtnSecili: { background: "var(--marka)", color: "#fff", textDecoration: "none" },
+  atamaCubugu: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "10px 24px", background: "var(--marka-acik)",
     borderBottom: "1px solid #a5f3fc", fontSize: "13px" },
-  atamaSecim: { height: "34px", padding: "0 12px", borderRadius: "999px", border: "1.5px solid #0891b2", background: "#fff", color: "#0f172a",
+  atamaSecim: { height: "34px", padding: "0 12px", borderRadius: "999px", border: "1.5px solid var(--marka)", background: "#fff", color: "#0f172a",
     fontSize: "12px", fontWeight: 700, fontFamily: "'Sora', sans-serif", cursor: "pointer" },
   atamaSonuc: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "10px 24px", fontSize: "13px", fontWeight: 600 },
   atamaTamam: { background: "#f0fdf4", color: "#166534", borderBottom: "1px solid #bbf7d0" },
@@ -548,9 +548,9 @@ export const c = {
   atamaHata: { background: "#fef2f2", color: "#991b1b", borderBottom: "1px solid #fecaca" },
   sayfalama: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", padding: "12px 24px", borderTop: "1px solid #f1f5f9" },
   kucuk: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
-  kucukAktif: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #0891b2", background: "#0891b2", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
+  kucukAktif: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid var(--marka)", background: "var(--marka)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
   kapatBtn: { width: "28px", height: "28px", borderRadius: "8px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", cursor: "pointer", fontSize: "12px" },
-  link: { color: "#0891b2", fontWeight: 600, textDecoration: "none", fontVariantNumeric: "tabular-nums" },
+  link: { color: "var(--marka)", fontWeight: 600, textDecoration: "none", fontVariantNumeric: "tabular-nums" },
   vip: { marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
   notIkon: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "8px", color: "#64748b", cursor: "default", background: "#f1f5f9" },
   balon: { position: "fixed", width: "360px", maxHeight: "320px", overflowY: "auto", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", boxShadow: "0 12px 32px rgba(15,23,42,0.16)", padding: "14px 16px", fontSize: "13px", lineHeight: 1.5, textAlign: "left", zIndex: 50 },

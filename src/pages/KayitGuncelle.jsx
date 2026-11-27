@@ -419,7 +419,7 @@ function FieldInput({ label, value, onChange, taksitSayisi, vurgulu, saltOkunur,
         style={{
           ...baseStyle, display: "flex", alignItems: "center", justifyContent: "center",
           gap: "8px", textDecoration: "none", fontWeight: "600",
-          color: "#0e7490", background: "#ecfeff", border: "1.5px solid #a5f3fc", cursor: "pointer",
+          color: "var(--marka-koyu)", background: "var(--marka-acik)", border: "1.5px solid #a5f3fc", cursor: "pointer",
         }}
       >Fotoğrafı Aç</a>
     );
@@ -494,9 +494,9 @@ function OzetSatir({ etiket, deger, tip }) {
   const govde = bos
     ? <span style={{ color: "#cbd5e1" }}>—</span>
     : tip === "tel"
-      ? <a href={`tel:${String(deger).replace(/[^\d+]/g, "")}`} style={{ color: "#0e7490", textDecoration: "none" }}>{deger}</a>
+      ? <a href={`tel:${String(deger).replace(/[^\d+]/g, "")}`} style={{ color: "var(--marka-koyu)", textDecoration: "none" }}>{deger}</a>
       : tip === "mail"
-        ? <a href={`mailto:${deger}`} style={{ color: "#0e7490", textDecoration: "none", wordBreak: "break-all" }}>{deger}</a>
+        ? <a href={`mailto:${deger}`} style={{ color: "var(--marka-koyu)", textDecoration: "none", wordBreak: "break-all" }}>{deger}</a>
         : deger;
 
   return (
@@ -540,7 +540,7 @@ function BelgeButonu({ etiket, link }) {
   }
   return (
     <a href={url} target="_blank" rel="noreferrer"
-      style={{ ...ortak, background: "#ecfeff", color: "#0e7490", border: "1px solid #a5f3fc", cursor: "pointer" }}>
+      style={{ ...ortak, background: "var(--marka-acik)", color: "var(--marka-koyu)", border: "1px solid #a5f3fc", cursor: "pointer" }}>
       {etiket} · Aç
     </a>
   );
@@ -2146,7 +2146,7 @@ export default function KayitGuncelle() {
           <div style={{ textAlign: "center", padding: "40px" }}>
             <span style={{
               width: "28px", height: "28px", border: "3px solid #e2e8f0",
-              borderTop: "3px solid #0891b2", borderRadius: "50%",
+              borderTop: "3px solid var(--marka)", borderRadius: "50%",
               display: "inline-block", animation: "spin 0.8s linear infinite"
             }} />
             {listeDeneme > 1 && (
@@ -2183,7 +2183,7 @@ export default function KayitGuncelle() {
               📋 Kayıt Formları
               <span style={{
                 background: listeFlash ? "#fff" : TEMA_RENKLERI[tema].rozet,
-                color: listeFlash ? "#0891b2" : TEMA_RENKLERI[tema].yazi,
+                color: listeFlash ? "var(--marka)" : TEMA_RENKLERI[tema].yazi,
                 padding: "2px 10px", borderRadius: "20px", fontSize: "12px",
                 transition: "background 0.4s, color 0.4s",
               }}>{siraliOgrenciler.length}</span>
@@ -2656,7 +2656,7 @@ export default function KayitGuncelle() {
             <div style={{ ...s.infoCard, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", ...(saltOkunur ? { background: "#f8fafc", borderColor: "#e2e8f0" } : {}) }}>
               <div>
                 <strong>{data["Öğrenci Adı Soyadı"]}</strong> {saltOkunur ? "kaydı görüntüleniyor (salt okunur)" : "kaydı düzenleniyor"}.
-                {data["Okul Adı"] && <span style={{ color: "#0e7490" }}> — {data["Okul Adı"]}</span>}
+                {data["Okul Adı"] && <span style={{ color: "var(--marka-koyu)" }}> — {data["Okul Adı"]}</span>}
               </div>
               {!saltOkunur && String(data["Tally Submission ID"] || "").trim()
                 && !sadelestir(data["Onay Durumu"]).includes("iptal") && (
@@ -2686,8 +2686,8 @@ export default function KayitGuncelle() {
               {TABS.map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} style={{
                   ...s.tabBtn,
-                  borderBottom: activeTab === tab ? "2px solid #0891b2" : "none",
-                  color: activeTab === tab ? "#0891b2" : "#64748b"
+                  borderBottom: activeTab === tab ? "2px solid var(--marka)" : "none",
+                  color: activeTab === tab ? "var(--marka)" : "#64748b"
                 }}>{tab}</button>
               ))}
             </div>
@@ -2769,8 +2769,8 @@ export default function KayitGuncelle() {
                 onClick={operasyonaGonder}
                 disabled={operasyonGonderiliyor || submitting}
                 style={{
-                  ...s.submitBtn, background: "#fff", color: "#0891b2",
-                  border: "1.5px solid #0891b2", marginRight: isMobile ? 0 : "auto",
+                  ...s.submitBtn, background: "#fff", color: "var(--marka)",
+                  border: "1.5px solid var(--marka)", marginRight: isMobile ? 0 : "auto",
                   opacity: operasyonGonderiliyor ? 0.6 : 1,
                   cursor: operasyonGonderiliyor ? "wait" : "pointer",
                 }}
@@ -2957,9 +2957,9 @@ export default function KayitGuncelle() {
               Formda ilgili alana yapıştırabilirsin.
             </p>
             <div style={{
-              background: "#ecfeff", border: "1px solid #a5f3fc", borderRadius: "10px",
+              background: "var(--marka-acik)", border: "1px solid #a5f3fc", borderRadius: "10px",
               padding: "12px", fontSize: "16px", fontWeight: "700",
-              color: "#0e7490", letterSpacing: "1px",
+              color: "var(--marka-koyu)", letterSpacing: "1px",
             }}>{kopyaModal.tc}</div>
             <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
               <button onClick={() => setKopyaModal(null)} style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: 0 }}>Kapat</button>
@@ -2991,7 +2991,7 @@ export default function KayitGuncelle() {
               background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px",
               padding: "12px", marginTop: "12px", fontSize: "13px", color: "#334155",
             }}>
-              <strong style={{ color: "#0e7490" }}>Öneri: Son Taksiti Düzelt</strong>
+              <strong style={{ color: "var(--marka-koyu)" }}>Öneri: Son Taksiti Düzelt</strong>
               <div style={{ marginTop: "5px" }}>
                 {taksitOneri.adet}. taksit <strong>{taksitOneri.sonTaksit}</strong> yerine{" "}
                 <strong>{Math.round(taksitOneri.yeniSonTaksit * 100) / 100}</strong> olsun.
@@ -3114,10 +3114,10 @@ export default function KayitGuncelle() {
               <strong>{gonderOnay["Öğrenci Adı Soyadı"]}</strong> için sözleşme linki e-posta ve WhatsApp ile gönderilecek.
             </p>
             <div style={{
-              background: mail ? "#ecfeff" : "#fef2f2",
+              background: mail ? "var(--marka-acik)" : "#fef2f2",
               border: `1px solid ${mail ? "#a5f3fc" : "#fca5a5"}`,
               borderRadius: "10px", padding: "10px", fontSize: "13px",
-              color: mail ? "#0e7490" : "#991b1b", wordBreak: "break-all",
+              color: mail ? "var(--marka-koyu)" : "#991b1b", wordBreak: "break-all",
             }}>
               {mail || "Mail adresi bulunamadı"}
             </div>
@@ -3216,7 +3216,7 @@ const s = {
   td: { padding: "8px 10px", fontSize: "13px", color: "#0f172a", verticalAlign: "middle" },
   // Sabit genişlikli hücrede taşan metni "…" ile keser (balonlar dış span'de olduğu için kırpılmaz)
   hucreKes: { display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
-  okulSecBtn: { padding: "3px 10px", borderRadius: "999px", border: "1.5px dashed #0891b2", background: "#ecfeff", color: "#0e7490", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+  okulSecBtn: { padding: "3px 10px", borderRadius: "999px", border: "1.5px dashed var(--marka)", background: "var(--marka-acik)", color: "var(--marka-koyu)", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
   pagination: { display: "flex", gap: "6px", justifyContent: "center", alignItems: "center", marginTop: "18px", flexWrap: "wrap" },
   pageBtn: { minWidth: "34px", height: "34px", padding: "0 8px", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontFamily: "'Sora', sans-serif", background: "transparent" },
   pageNav: { height: "34px", padding: "0 12px", borderRadius: "8px", border: "1px solid #e2e8f0", background: "#fff", color: "#1e3a5f", fontSize: "13px", fontWeight: "600", fontFamily: "'Sora', sans-serif" },
@@ -3224,7 +3224,7 @@ const s = {
   filtreLabel: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: "400", color: "#1e3a5f", cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" },
   filtreMetin: { fontSize: "13px", fontWeight: "700", color: "#3d5a8a", letterSpacing: "0.2px", whiteSpace: "nowrap" },
   checkbox: { width: "16px", height: "16px", accentColor: "#1e3a5f", cursor: "pointer" },
-  editBtn: { padding: "5px 12px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
+  editBtn: { padding: "5px 12px", background: "var(--marka-acik)", color: "var(--marka)", border: "1px solid #a5f3fc", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   // Sözleşmeyi Gönder: etrafında dönen ışık çizgisi
   donenCerceve: {
     position: "relative", display: "inline-flex", padding: "3px", borderRadius: "13px",
@@ -3287,16 +3287,16 @@ const s = {
   },
   warnBtn: { padding: "5px 8px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "6px", cursor: "pointer", fontSize: "12px", lineHeight: 1 },
   viewBtn: { padding: "5px 12px", background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0", borderRadius: "6px", fontSize: "12px", whiteSpace: "nowrap" },
-  sendBtn: { padding: "5px 12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
+  sendBtn: { padding: "5px 12px", background: "var(--marka)", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", whiteSpace: "nowrap" },
   iptalBtn: { background: "#dc2626", color: "#fff", border: "none", borderRadius: "8px", padding: "7px 14px", fontSize: "12.5px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" },
-  infoCard: { background: "#ecfeff", border: "1px solid #a5f3fc", padding: "12px", borderRadius: "10px", marginBottom: "15px", fontSize: "13px" },
+  infoCard: { background: "var(--marka-acik)", border: "1px solid #a5f3fc", padding: "12px", borderRadius: "10px", marginBottom: "15px", fontSize: "13px" },
   tabBar: { display: "flex", background: "#fff", border: "1px solid #e2e8f0", borderBottom: "none", borderRadius: "12px 12px 0 0", overflowX: "auto", WebkitOverflowScrolling: "touch" },
   tabBtn: { flex: "1 0 auto", padding: "12px 14px", border: "none", background: "none", cursor: "pointer", fontSize: "13px", whiteSpace: "nowrap" },
   formCard: { background: "#fff", border: "1px solid #e2e8f0", padding: "20px", borderRadius: "0 0 15px 15px" },
   fieldGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(max(min(100%, 320px), calc(50% - 8px)), 1fr))", gap: "15px" }, // en fazla 2 sütun
   fieldLabel: { fontSize: "12px", fontWeight: "600", color: "#475569", display: "block", marginBottom: "5px" },
   submitRow: { marginTop: "20px", display: "flex", justifyContent: "flex-end" },
-  submitBtn: { padding: "15px 30px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer" },
+  submitBtn: { padding: "15px 30px", background: "var(--marka)", color: "#fff", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer" },
   taksitSilBtn: {
     width: "30px", height: "30px", flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
     marginBottom: "4px", borderRadius: "8px", border: "1px solid #fecdd3", background: "#fff1f2",
@@ -3304,5 +3304,5 @@ const s = {
   },
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 },
   modal: { background: "#fff", padding: "30px", borderRadius: "20px", textAlign: "center", maxWidth: "400px", width: "90%" },
-  modalBtn: { width: "100%", marginTop: "15px", padding: "12px", background: "#0891b2", color: "#fff", border: "none", borderRadius: "10px", fontWeight: "600", cursor: "pointer" },
+  modalBtn: { width: "100%", marginTop: "15px", padding: "12px", background: "var(--marka)", color: "#fff", border: "none", borderRadius: "10px", fontWeight: "600", cursor: "pointer" },
 };

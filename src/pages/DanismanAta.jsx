@@ -74,7 +74,7 @@ export default function DanismanAta({ isaretli, setIsaretli, hedefler, onAktaril
     <>
       {onayAcik && hedefKisi && (
         <OnayPenceresi baslik="Danışman ata" onayMetni={`${isaretli.length} Data'yı aktar`} onOnay={aktar} onVazgec={() => setOnayAcik(false)}>
-          <b style={{ color: "#0f172a" }}>{isaretli.length} Data</b>, <b style={{ color: "#0891b2" }}>{hedefKisi.ad}</b>
+          <b style={{ color: "#0f172a" }}>{isaretli.length} Data</b>, <b style={{ color: "var(--marka)" }}>{hedefKisi.ad}</b>
           {hedefKisi.sube ? <span style={{ color: "#94a3b8" }}> · {hedefKisi.sube}</span> : null} adlı danışmana aktarılacak.
           <div style={{ marginTop: "10px", padding: "10px 12px", borderRadius: "12px", background: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: "12px" }}>
             Kylas'ta Data sahibi hemen değişir.
@@ -99,7 +99,7 @@ export default function DanismanAta({ isaretli, setIsaretli, hedefler, onAktaril
               <b style={{ color: "#0f172a", fontVariantNumeric: "tabular-nums" }}>{sayac}/{aktarim.toplam}</b>
               <span style={{ width: "90px", height: "6px", borderRadius: "999px", background: "#cffafe", overflow: "hidden", display: "inline-block" }}>
                 <span style={{ display: "block", height: "100%", width: `${Math.round((sayac / aktarim.toplam) * 100)}%`,
-                  background: aktarim.bitti ? "#16a34a" : "#0891b2", borderRadius: "999px", transition: "width 0.25s ease-out" }} />
+                  background: aktarim.bitti ? "#16a34a" : "var(--marka)", borderRadius: "999px", transition: "width 0.25s ease-out" }} />
               </span>
             </span>
           ) : !ataAcik ? (

@@ -1962,7 +1962,7 @@ KURALLAR:
             onDragOver={e => { e.preventDefault(); setSpecialIsDragOver(true); }}
             onDragLeave={() => setSpecialIsDragOver(false)}
             onDrop={handleSpecialDrop}
-            style={{ ...S.dropZone, borderColor: specialIsDragOver ? "#0891b2" : "#e2e8f0", background: specialIsDragOver ? "#ecfeff" : "#f8fafc" }}>
+            style={{ ...S.dropZone, borderColor: specialIsDragOver ? "var(--marka)" : "#e2e8f0", background: specialIsDragOver ? "var(--marka-acik)" : "#f8fafc" }}>
             <input type="file" accept="application/pdf" onChange={handleSpecialFileSelect}
               style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity:0, cursor:"pointer", zIndex:10 }}/>
             {specialFile ? (
@@ -1981,7 +1981,7 @@ KURALLAR:
           </div>
           {specialError && <div style={S.errorBox}>{specialError}</div>}
           <button onClick={analyzeSpecialFile} disabled={!specialFile || specialLoading}
-            style={{...S.primaryBtn, background:"#0891b2", opacity:(!specialFile||specialLoading)?0.5:1}}>
+            style={{...S.primaryBtn, background:"var(--marka)", opacity:(!specialFile||specialLoading)?0.5:1}}>
             {specialLoading ? "Analiz ediliyor..." : "📊 Analiz Et"}
           </button>
         </div>
@@ -2005,19 +2005,19 @@ KURALLAR:
           <div style={{display:"flex", flexDirection:"column", gap:8, marginBottom:24}}>
             {knownBrands.map(brand => (
               <div key={brand} onClick={() => setSpecialBrand(brand)}
-                style={{...S.brandCard, borderColor: specialBrand===brand?"#0891b2":"#e2e8f0", background: specialBrand===brand?"#ecfeff":"#fff"}}>
+                style={{...S.brandCard, borderColor: specialBrand===brand?"var(--marka)":"#e2e8f0", background: specialBrand===brand?"var(--marka-acik)":"#fff"}}>
                 <span style={{fontSize:22}}>{brand==="EC"?"🇬🇧":brand==="Kaplan"?"🇺🇸":"🏫"}</span>
                 <div>
                   <div style={{fontWeight:700}}>{brand}</div>
-                  {specialDetected===brand && <div style={{fontSize:11,color:"#0891b2"}}>✓ Tespit edildi</div>}
+                  {specialDetected===brand && <div style={{fontSize:11,color:"var(--marka)"}}>✓ Tespit edildi</div>}
                 </div>
-                {specialBrand===brand && <span style={{color:"#0891b2",marginLeft:"auto",fontWeight:700}}>✓</span>}
+                {specialBrand===brand && <span style={{color:"var(--marka)",marginLeft:"auto",fontWeight:700}}>✓</span>}
               </div>
             ))}
           </div>
           {specialError && <div style={S.errorBox}>{specialError}</div>}
           <button onClick={startSpecialParsing} disabled={!specialBrand}
-            style={{...S.primaryBtn, background:"#0891b2", opacity:!specialBrand?0.5:1}}>
+            style={{...S.primaryBtn, background:"var(--marka)", opacity:!specialBrand?0.5:1}}>
             {specialBrand ? `${specialBrand} özel fiyatlarını hesapla →` : "Okul seçin"}
           </button>
         </div>
@@ -2033,9 +2033,9 @@ KURALLAR:
       <Header title="Hesaplanıyor..." user={user}/>
       <main style={S.main}>
         <div style={S.card}>
-          <div style={{...S.spinner, borderTopColor:"#0891b2"}}/>
+          <div style={{...S.spinner, borderTopColor:"var(--marka)"}}/>
           <h3 style={{fontSize:16,fontWeight:600,color:"#0f172a",marginBottom:8}}>{specialProgressMsg}</h3>
-          <div style={S.progressBar}><div style={{...S.progressFill,width:`${specialProgress}%`,background:"#0891b2"}}/></div>
+          <div style={S.progressBar}><div style={{...S.progressFill,width:`${specialProgress}%`,background:"var(--marka)"}}/></div>
           <p style={{fontSize:12,color:"#94a3b8",marginTop:8}}>{Math.floor(specialProgress)}% tamamlandı</p>
         </div>
       </main>
@@ -2082,11 +2082,11 @@ KURALLAR:
                     <tr key={i} style={{borderBottom:"1px solid #f1f5f9"}}>
                       <td style={{padding:"9px 6px", fontWeight:600, color:"#0f172a"}}>
                         {r.city}
-                        {r.cityCount > 1 && <span style={{fontSize:10,color:"#0891b2",marginLeft:6}}>({r.cityCount} şehir)</span>}
+                        {r.cityCount > 1 && <span style={{fontSize:10,color:"var(--marka)",marginLeft:6}}>({r.cityCount} şehir)</span>}
                       </td>
                       <td style={{padding:"9px 6px", color:"#475569"}}>
                         {r.course_name}
-                        {r.courseCount > 1 && <span style={{fontSize:10,color:"#0891b2",marginLeft:6}}>({r.courseCount} kurs)</span>}
+                        {r.courseCount > 1 && <span style={{fontSize:10,color:"var(--marka)",marginLeft:6}}>({r.courseCount} kurs)</span>}
                       </td>
                       <td style={{padding:"9px 6px", color:"#64748b"}}>{r.weeks_min}-{r.weeks_max === 999 ? "∞" : r.weeks_max}</td>
                       <td style={{padding:"9px 6px", color:"#059669", textAlign:"right", fontWeight:700}}>%{r.discount_value}</td>
@@ -2121,7 +2121,7 @@ KURALLAR:
             ← Yeniden Hesapla
           </button>
           <button onClick={saveSpecialData} disabled={specialRows.length===0}
-            style={{...S.primaryBtn, flex:1, background:"#0891b2", opacity:specialRows.length===0?0.5:1}}>
+            style={{...S.primaryBtn, flex:1, background:"var(--marka)", opacity:specialRows.length===0?0.5:1}}>
             💾 discounts Taslağına Kaydet ({specialRows.length})
           </button>
         </div>

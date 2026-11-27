@@ -100,7 +100,7 @@ function DanismanDetay({ danisman, sonuclar, onGeri }) {
     <>
       {onGeri && (
         <button onClick={onGeri} style={{ ...s.backBtn, marginBottom: "20px", display: "inline-flex" }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "#0891b2"}
+          onMouseEnter={e => e.currentTarget.style.borderColor = "var(--marka)"}
           onMouseLeave={e => e.currentTarget.style.borderColor = "#e2e8f0"}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
             <polyline points="15 18 9 12 15 6"/>
@@ -115,7 +115,7 @@ function DanismanDetay({ danisman, sonuclar, onGeri }) {
           <div style={s.summaryLabel}>Toplam Sınav</div>
         </div>
         <div style={s.summaryCard}>
-          <div style={{ ...s.summaryNum, color: "#0891b2" }}>{girilmisler.length}</div>
+          <div style={{ ...s.summaryNum, color: "var(--marka)" }}>{girilmisler.length}</div>
           <div style={s.summaryLabel}>Tamamlanan</div>
         </div>
         <div style={{ ...s.summaryCard, background: ortNum >= 80 ? "#f0fdf4" : ortNum >= 50 ? "#fffbeb" : "#fef2f2", border: `1px solid ${ortNum >= 80 ? "#86efac" : ortNum >= 50 ? "#fde68a" : "#fca5a5"}` }}>
@@ -316,7 +316,7 @@ export default function PerformansAnalizi() {
                           onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                           <td style={{ ...s.td, fontWeight: "600", color: "#0f172a" }}>{d}</td>
                           <td style={s.td}>
-                            <span style={{ color: "#0891b2", fontWeight: "600" }}>{dSonuclar.length}</span>
+                            <span style={{ color: "var(--marka)", fontWeight: "600" }}>{dSonuclar.length}</span>
                             <span style={{ color: "#94a3b8" }}> sınav</span>
                           </td>
                           <td style={s.td}>
@@ -326,9 +326,9 @@ export default function PerformansAnalizi() {
                           </td>
                           <td style={{ ...s.td, textAlign: "right" }}>
                             <button onClick={() => setSeciliDanisman(d)}
-                              style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "#ecfeff", color: "#0891b2", border: "1px solid #a5f3fc", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'Sora', sans-serif" }}
-                              onMouseEnter={e => { e.currentTarget.style.background = "#0891b2"; e.currentTarget.style.color = "#fff"; }}
-                              onMouseLeave={e => { e.currentTarget.style.background = "#ecfeff"; e.currentTarget.style.color = "#0891b2"; }}>
+                              style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "var(--marka-acik)", color: "var(--marka)", border: "1px solid #a5f3fc", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "700", fontFamily: "'Sora', sans-serif" }}
+                              onMouseEnter={e => { e.currentTarget.style.background = "var(--marka)"; e.currentTarget.style.color = "#fff"; }}
+                              onMouseLeave={e => { e.currentTarget.style.background = "var(--marka-acik)"; e.currentTarget.style.color = "var(--marka)"; }}>
                               Detay
                             </button>
                           </td>
@@ -362,7 +362,7 @@ const s = {
   backBtn: { display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600", color: "#475569", fontFamily: "'Sora', sans-serif", transition: "border-color 0.2s", whiteSpace: "nowrap" },
   main: { maxWidth: "1100px", margin: "0 auto", padding: "32px 24px 64px", position: "relative", zIndex: 1 },
   loadingWrap: { display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", padding: "80px 0" },
-  spinner: { display: "inline-block", width: "20px", height: "20px", border: "2px solid #e2e8f0", borderTopColor: "#0891b2", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
+  spinner: { display: "inline-block", width: "20px", height: "20px", border: "2px solid #e2e8f0", borderTopColor: "var(--marka)", borderRadius: "50%", animation: "spin 0.8s linear infinite" },
   errorCard: { display: "flex", alignItems: "center", gap: "10px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: "12px", padding: "16px 20px", color: "#991b1b", fontSize: "13px", fontWeight: "500" },
   summaryRow: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px", animation: "fadeUp 0.4s ease-out" },
   summaryCard: { background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "16px", padding: "20px", textAlign: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" },
@@ -375,5 +375,5 @@ const s = {
   td: { padding: "12px 16px", verticalAlign: "middle" },
   sekmeler: { display: "flex", width: "100%", boxSizing: "border-box", gap: "4px", padding: "4px", background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: "12px", marginBottom: "20px" },
   sekme: { flex: "1 1 0", minWidth: 0, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", padding: "8px 12px", border: "none", borderRadius: "8px", background: "transparent", color: "#64748b", fontSize: "13px", fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
-  sekmeAktif: { flex: "1 1 0", minWidth: 0, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", padding: "8px 12px", border: "none", borderRadius: "8px", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  sekmeAktif: { flex: "1 1 0", minWidth: 0, textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", padding: "8px 12px", border: "none", borderRadius: "8px", background: "var(--marka)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
 };

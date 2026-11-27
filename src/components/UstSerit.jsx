@@ -110,9 +110,9 @@ export default function UstSerit() {
             </button>
           ) : (
             <button onClick={geri}
-              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", border: "none", borderRadius: "8px", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: "700", cursor: "pointer", transition: "background 0.2s", fontFamily: "inherit", whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(8,145,178,0.35)" }}
-              onMouseEnter={e => e.currentTarget.style.background = "#0e7490"}
-              onMouseLeave={e => e.currentTarget.style.background = "#0891b2"}>
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", border: "none", borderRadius: "8px", background: "var(--marka)", color: "#fff", fontSize: "13px", fontWeight: "700", cursor: "pointer", transition: "background 0.2s", fontFamily: "inherit", whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(8,145,178,0.35)" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--marka-koyu)"}
+              onMouseLeave={e => e.currentTarget.style.background = "var(--marka)"}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
                 <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
               </svg>

@@ -43,7 +43,7 @@ export default function KaynakSecici({ kaynaklar, secili, onChange, bosMetin = "
   return (
     <div ref={kutu} style={{ position: "relative", display: "inline-block", minWidth: "260px" }}>
       <button type="button" onClick={() => setAcik(a => !a)} aria-expanded={acik}
-        className="tema-tetik" style={{ ...k.tetik, borderColor: acik ? "#0891b2" : secili.length ? "#67c6dc" : "#e2e8f0" }}>
+        className="tema-tetik" style={{ ...k.tetik, borderColor: acik ? "var(--marka)" : secili.length ? "#67c6dc" : "#e2e8f0" }}>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: secili.length ? "#0f172a" : "#94a3b8" }}>
           {kaynakOzeti(kaynaklar, secili, bosMetin)}
         </span>
@@ -67,8 +67,8 @@ export default function KaynakSecici({ kaynaklar, secili, onChange, bosMetin = "
                 {sutun.map(x => {
                   const var_ = secili.includes(x.id);
                   return (
-                    <label key={x.id} style={{ ...k.secenek, background: var_ ? "#ecfeff" : "transparent" }}>
-                      <input type="checkbox" checked={var_} onChange={() => degistir(x.id)} style={{ accentColor: "#0891b2", margin: 0 }} />
+                    <label key={x.id} style={{ ...k.secenek, background: var_ ? "var(--marka-acik)" : "transparent" }}>
+                      <input type="checkbox" checked={var_} onChange={() => degistir(x.id)} style={{ accentColor: "var(--marka)", margin: 0 }} />
                       <span style={{ fontWeight: var_ ? 700 : 500 }}>{x.ad}</span>
                       {VIP_KAYNAKLAR.includes(x.id) && <span style={k.vipEtiket}>VIP</span>}
                     </label>
@@ -90,7 +90,7 @@ const k = {
   tetik: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", padding: "9px 14px",
     background: "#fff", border: "1.5px solid", borderRadius: "12px", fontSize: "13px", fontWeight: 600, cursor: "pointer",
     fontFamily: "'Sora', sans-serif", textAlign: "left" },
-  rozet: { minWidth: "20px", height: "20px", padding: "0 6px", borderRadius: "999px", background: "#0891b2", color: "#fff",
+  rozet: { minWidth: "20px", height: "20px", padding: "0 6px", borderRadius: "999px", background: "var(--marka)", color: "#fff",
     fontSize: "11px", fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" },
   panel: { position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 50, width: "min(440px, 90vw)", background: "#fff",
     border: "1.5px solid #e2e8f0", borderRadius: "14px", boxShadow: "0 12px 32px rgba(15,23,42,0.14)", padding: "12px" },
@@ -103,6 +103,6 @@ const k = {
   secenek: { display: "flex", alignItems: "center", gap: "8px", padding: "7px 8px", borderRadius: "8px", fontSize: "13px",
     color: "#0f172a", cursor: "pointer", userSelect: "none" },
   vipEtiket: { marginLeft: "auto", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
-  tamam: { padding: "6px 16px", borderRadius: "999px", border: "none", background: "#0891b2", color: "#fff", fontSize: "12px",
+  tamam: { padding: "6px 16px", borderRadius: "999px", border: "none", background: "var(--marka)", color: "#fff", fontSize: "12px",
     fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
 };

@@ -172,7 +172,7 @@ export default function PerformansDegerlendirme({ user, isAdmin, isManager }) {
                     return (
                       <FragmentSatir key={r.id}>
                         <tr onClick={() => setAcikSatir(acik ? null : r.id)}
-                          style={{ cursor: "pointer", background: acik ? "#ecfeff" : i % 2 ? "#fbfdff" : "#fff", opacity: r.musait ? 1 : 0.6 }}>
+                          style={{ cursor: "pointer", background: acik ? "var(--marka-acik)" : i % 2 ? "#fbfdff" : "#fff", opacity: r.musait ? 1 : 0.6 }}>
                           <td style={{ ...c.td, textAlign: "left", fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap" }}>
                             <span style={{ color: "#94a3b8", fontSize: "10px", marginRight: "6px" }}>{acik ? "▼" : "▶"}</span>{r.ad}
                             {oneri?.id === r.id && <span style={p.oneriEtiket}>Öneri</span>}
@@ -233,7 +233,7 @@ function Anahtar({ ad, acik, onClick, ipucu, vip }) {
   return (
     <Ipucu metin={ipucu} isaret={false}>
     <button type="button" role="switch" aria-checked={acik} onClick={onClick}
-      style={{ ...p.anahtar, borderColor: acik ? ana : "#e2e8f0", background: acik ? (vip ? "#fffbeb" : "#ecfeff") : "#fff", color: acik ? "#0f172a" : "#64748b" }}>
+      style={{ ...p.anahtar, borderColor: acik ? ana : "#e2e8f0", background: acik ? (vip ? "#fffbeb" : "var(--marka-acik)") : "#fff", color: acik ? "#0f172a" : "#64748b" }}>
       <span style={{ ...p.ray, background: acik ? ana : "#cbd5e1" }}>
         <span style={{ ...p.top, transform: acik ? "translateX(14px)" : "none" }} />
       </span>

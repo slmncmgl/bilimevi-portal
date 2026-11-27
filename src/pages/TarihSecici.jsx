@@ -53,7 +53,7 @@ export default function TarihSecici({ deger, onChange, metin = g => `Son ${g} g�
       {nAcik && (
         <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
           <input type="text" inputMode="numeric" pattern="[0-9]*" autoFocus value={yazi} onChange={e => yaziDegisti(e.target.value)}
-            placeholder="N" aria-label="Gün sayısı" style={{ ...t.kutu, borderColor: yazi ? "#0891b2" : "#e2e8f0" }} />
+            placeholder="N" aria-label="Gün sayısı" style={{ ...t.kutu, borderColor: yazi ? "var(--marka)" : "#e2e8f0" }} />
           <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>gün</span>
         </span>
       )}
@@ -67,10 +67,10 @@ const ok = renk => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='ht
 const temel = { height: "34px", borderRadius: "12px", fontSize: "12px", fontWeight: 600, fontFamily: "'Sora', sans-serif", cursor: "pointer", transition: "all 0.15s" };
 const t = {
   dugme: { ...temel, padding: "0 14px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569" },
-  aktif: { background: "#0891b2", color: "#fff", borderColor: "#0891b2" },
+  aktif: { background: "var(--marka)", color: "#fff", borderColor: "var(--marka)" },
   liste: { ...temel, padding: "0 30px 0 14px", border: "1.5px solid #e2e8f0", backgroundColor: "#fff", color: "#475569", appearance: "none",
     WebkitAppearance: "none", backgroundImage: ok("#64748b"), backgroundPosition: "right 11px center", backgroundSize: "10px 6px", backgroundRepeat: "no-repeat" },
-  listeAktif: { borderColor: "#0891b2", color: "#0f172a", backgroundColor: "#ecfeff", backgroundImage: ok("#0891b2") },
+  listeAktif: { borderColor: "var(--marka)", color: "#0f172a", backgroundColor: "var(--marka-acik)", backgroundImage: ok("var(--marka)") },
   kutu: { width: "64px", height: "34px", padding: "0 10px", borderRadius: "10px", border: "1.5px solid", fontSize: "13px", fontWeight: 700,
     fontFamily: "'Sora', sans-serif", color: "#0f172a", textAlign: "center", outline: "none", fontVariantNumeric: "tabular-nums" },
 };

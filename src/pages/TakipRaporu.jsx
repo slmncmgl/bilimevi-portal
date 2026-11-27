@@ -1,3 +1,4 @@
+// v6.54: Tema seçimi portal geneli (src/lib/tema.js, --marka değişkenleri): v2'de sekmeler, Geri ve tüm marka renkli düğmeler lacivert
 // v6.53: AI Önerileri sadece seçili kartın (Hepsi/Takipsiz/Bugün/Geçmiş/İleri) ve seçili aşamaların listesini analiz eder; seçim değişince karta basınca yeniden analiz
 // v6.52: Tema v1 (renkli, bugünkü) / v2 (kurumsal lacivert #001A71 + beyaz, minimalist) seçici; seçim tarayıcıda saklanır
 // v6.51: AI Önerileri: önerilen kapanış sütunu, Close Lead penceresinde iki kapanış türü + tüm sebepler (öneri seçili)
@@ -125,11 +126,12 @@ import EleAl, { EleAlDugmesi } from "./EleAl";
 import { gunOnceYazi, gunSayisi } from "../lib/gunOnce";
 import Hatirlat from "./Hatirlat";
 import NotAnalizi from "./NotAnalizi";
+import { useTema, temaAyarla } from "../lib/tema";
 import { useAiAnaliz, AiKart, AiHazirPopup, AiOneriListesi } from "./AiOneriler";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.53"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.54"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -346,8 +348,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const tumTakipsiz = (rapor?.acik || []).filter(gorunumTanim.suz).filter(dataAraSuz(dataAra)).sort(gorunumTanim.sirala);
   const liste = tumTakipsiz.filter(asamaSuz);
   const asamaSayisi = id => tumTakipsiz.filter(l => (id === null || l.asama === id) && (!listeSahip || String(l.ownerId) === listeSahip)).length;
-  const [tema, setTema] = useState(() => { try { return localStorage.getItem("takipTema") === "v2" ? "v2" : "v1"; } catch { return "v1"; } });
-  const temaSec = v => { setTema(v); try { localStorage.setItem("takipTema", v); } catch {} };
+  const tema = useTema();
+  const temaSec = temaAyarla; // portal geneli: sekmeler, Geri ve düğmeler de değişir
   // AI Önerileri: karta tıklanınca analiz başlar; danışman / kaynak / kampanya değişince sonuçlar sıfırlanır
   const { ai, baslat: aiBaslat, sifirla: aiSifirla } = useAiAnaliz(kisiAdi);
   const [aiPopup, setAiPopup] = useState(null); // { oneri, toplam }
@@ -449,7 +451,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               {["v1", "v2"].map(v => (
                 <button key={v} type="button" role="radio" aria-checked={tema === v} onClick={() => temaSec(v)}
                   style={{ padding: "3px 10px", borderRadius: "999px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "11px", fontWeight: 700,
-                    background: tema === v ? (v === "v2" ? "#001A71" : "linear-gradient(90deg, #0891b2, #7c3aed)") : "transparent", color: tema === v ? "#fff" : "#64748b" }}>{v}</button>
+                    background: tema === v ? (v === "v2" ? "#001A71" : "linear-gradient(90deg, var(--marka), #7c3aed)") : "transparent", color: tema === v ? "#fff" : "#64748b" }}>{v}</button>
               ))}
             </div>
           </div>
@@ -457,7 +459,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
             <div className="tema-grup" style={t.taskGrup}>
               <div className="tema-grup-baslik" style={t.taskGrupBaslik}>Data</div>
               <div style={t.kartIkili}>
-              <Kart sayi={yukleniyor ? DONEN : o.toplam} etiket="Hepsi" ipucu={ACIKLAMA.acik} renk="#0e7490" cerceve="#a5f3fc"
+              <Kart sayi={yukleniyor ? DONEN : o.toplam} etiket="Hepsi" ipucu={ACIKLAMA.acik} renk="var(--marka-koyu)" cerceve="#a5f3fc"
                 secili={gorunum === "acik"} onClick={() => setGorunum("acik")} />
               <Kart sayi={yukleniyor ? DONEN : o.takipsiz} etiket="Takipsiz" ipucu={ACIKLAMA.takipsiz(sessizGun)} renk="#991b1b" zemin="#fef2f2" cerceve="#fca5a5"
                 secili={gorunum === "takipsiz"} onClick={() => setGorunum("takipsiz")} />
@@ -500,7 +502,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                       const aktif = listeSahip === d.id;
                       return (
                         <tr key={d.id} onClick={() => setListeSahip(aktif ? null : d.id)}
-                          style={{ cursor: "pointer", background: aktif ? "#ecfeff" : i % 2 ? "#fbfdff" : "#fff" }}>
+                          style={{ cursor: "pointer", background: aktif ? "var(--marka-acik)" : i % 2 ? "#fbfdff" : "#fff" }}>
                           <td style={{ ...c.td, textAlign: "left", fontWeight: 600, color: "#0f172a", whiteSpace: "nowrap" }}>{aktif ? "▸ " : ""}{d.ad}</td>
                           <td style={c.td}>{d.toplam}</td>
                           <td style={c.td}>{d.taskBeklenen}</td>
@@ -579,7 +581,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                       {atanabilir && (
                         <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0, width: "36px" }}>
                           <input type="checkbox" checked={sayfaTumuIsaretli} disabled={aktarim} aria-label="Bu sayfadakileri seç" onChange={sayfayiIsaretle}
-                            style={{ accentColor: "#0891b2", cursor: "pointer" }} />
+                            style={{ accentColor: "var(--marka)", cursor: "pointer" }} />
                         </th>
                       )}
                       {["Ad Soyad", ...(coklu ? ["Danışman"] : []), "Aşama", "Kaynak", ...(reklamSutunu ? ["Reklam Adı"] : [])].map(b => <th key={b} style={{ ...c.th, textAlign: "left", position: "sticky", top: 0 }}>{b}</th>)}
@@ -592,17 +594,17 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                   <tbody>
                     {sayfaListesi.map((l, i) => {
                       return (
-                        <tr key={l.id} style={{ background: isaretli.includes(l.id) ? "#ecfeff" : i % 2 ? "#fbfdff" : "#fff" }}>
+                        <tr key={l.id} style={{ background: isaretli.includes(l.id) ? "var(--marka-acik)" : i % 2 ? "#fbfdff" : "#fff" }}>
                           {atanabilir && (
                             <td style={{ ...c.td, textAlign: "center" }}>
                               <input type="checkbox" checked={isaretli.includes(l.id)} disabled={aktarim} aria-label={`Data ${l.id} seç`}
                                 onChange={() => setIsaretli(s => (s.includes(l.id) ? s.filter(x => x !== l.id) : [...s, l.id]))}
-                                style={{ accentColor: "#0891b2", cursor: "pointer" }} />
+                                style={{ accentColor: "var(--marka)", cursor: "pointer" }} />
                             </td>
                           )}
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}><AdHucresi lead={l} /></td>
                           {coklu && <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>{kisiAdi(l.ownerId)}</td>}
-                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap", fontWeight: l.asama === ILGILI ? 700 : 400, color: l.asama === ILGILI ? "#0e7490" : undefined }}>{ASAMA_ADLARI[l.asama] || ""}{l.zorunlu && <Ipucu metin={ACIKLAMA.taskZorunlu} isaret={false}><span style={t.zorunlu}>Task zorunlu</span></Ipucu>}</td>
+                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap", fontWeight: l.asama === ILGILI ? 700 : 400, color: l.asama === ILGILI ? "var(--marka-koyu)" : undefined }}>{ASAMA_ADLARI[l.asama] || ""}{l.zorunlu && <Ipucu metin={ACIKLAMA.taskZorunlu} isaret={false}><span style={t.zorunlu}>Task zorunlu</span></Ipucu>}</td>
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>
                             {kaynakAdi(l.kaynak)}
                             {VIP_KAYNAKLAR.includes(l.kaynak) && <span style={t.vip}>VIP</span>}
@@ -791,7 +793,7 @@ function Kart({ sayi, etiket, ipucu, renk = "#0f172a", zemin = "#fff", cerceve =
 const t = {
   hatirlat: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "30px", height: "28px", padding: 0, borderRadius: "8px", border: "1.5px solid #fcd34d", background: "#fffbeb", color: "#b45309", cursor: "pointer" },
   topluZil: { width: "34px", height: "32px", borderRadius: "10px", border: "1.5px solid #c4b5fd", background: "#f5f3ff", color: "#6d28d9" },
-  adLink: { color: "#0e7490", fontWeight: 600, textDecoration: "none" },
+  adLink: { color: "var(--marka-koyu)", fontWeight: 600, textDecoration: "none" },
   idBalon: { position: "fixed", zIndex: 9999, transform: "translateY(-50%)", display: "inline-flex", alignItems: "center", gap: "7px", padding: "5px 7px 5px 11px", borderRadius: "10px", background: "#0f172a", color: "#f8fafc", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", boxShadow: "0 10px 28px rgba(15,23,42,0.28)", fontFamily: "'Sora', sans-serif" },
   kopyala: { display: "inline-flex", alignItems: "center", justifyContent: "center", width: "24px", height: "24px", padding: 0, border: "none", borderRadius: "6px", background: "rgba(255,255,255,0.14)", color: "inherit", cursor: "pointer" },
   uyari: { display: "flex", alignItems: "center", gap: "12px", padding: "16px 20px", marginBottom: "20px", borderRadius: "16px",
@@ -818,5 +820,5 @@ const t = {
   filtreler: { display: "flex", gap: "24px", flexWrap: "wrap", padding: "14px 24px", borderBottom: "1px solid #f1f5f9", background: "#fafcff" },
   sayfalama: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", padding: "12px 24px", borderTop: "1px solid #f1f5f9" },
   kucuk: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
-  kucukAktif: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid #0891b2", background: "#0891b2", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
+  kucukAktif: { minWidth: "30px", height: "28px", padding: "0 8px", borderRadius: "8px", border: "1.5px solid var(--marka)", background: "var(--marka)", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: "pointer" },
 };

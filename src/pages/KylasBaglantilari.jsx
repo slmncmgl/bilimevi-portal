@@ -102,7 +102,7 @@ const s = {
   alan: { width: "100%", minHeight: "160px", resize: "vertical", padding: "14px", borderRadius: "14px", border: "1.5px solid #e2e8f0", fontSize: "13px",
     fontFamily: "ui-monospace, monospace", lineHeight: 1.6, color: "#0f172a", outline: "none", boxSizing: "border-box" },
   alt: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginTop: "12px" },
-  kaydet: { padding: "10px 22px", borderRadius: "999px", border: "none", background: "linear-gradient(135deg, #0891b2, #0e7490)", color: "#fff", fontSize: "13px", fontWeight: 800, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+  kaydet: { padding: "10px 22px", borderRadius: "999px", border: "none", background: "linear-gradient(135deg, var(--marka), var(--marka-koyu))", color: "#fff", fontSize: "13px", fontWeight: 800, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   hata: { marginTop: "12px", padding: "10px 14px", borderRadius: "12px", background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", fontSize: "13px" },
   liste: { display: "flex", flexDirection: "column", gap: "6px" },
   satir: { display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", borderRadius: "12px", border: "1px solid", fontSize: "13px" },

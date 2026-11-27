@@ -423,7 +423,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
                       {a && (
                         <span style={{ fontSize: "11px", fontWeight: 700, color: a.durum === "hata" ? "#b91c1c" : a.durum === "tamam" ? "#166534" : "#64748b" }}>
                           {a.durum === "gidiyor" ? "Telefona gönderiliyor..." : a.durum === "tamam" ? `✓ ${a.mesaj}` : a.mesaj}
-                          {a.baglantiYok && <> · <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={{ color: "#0891b2" }}>CRM'de aç ↗</a></>}
+                          {a.baglantiYok && <> · <a href={KYLAS_LEAD_URL(l.id)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--marka)" }}>CRM'de aç ↗</a></>}
                         </span>
                       )}
                     </div>
@@ -681,8 +681,8 @@ const p = {
   arka: { position: "fixed", inset: 0, zIndex: 9600, background: "rgba(15, 23, 42, 0.22)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" },
   kutu: { position: "fixed", zIndex: 9601, maxHeight: "calc(100vh - 24px)", overflowY: "auto", background: "#fff", borderRadius: "20px", border: "1.5px solid #bbf7d0",
     boxShadow: "0 24px 60px rgba(15, 23, 42, 0.28), 0 0 0 6px rgba(34, 197, 94, 0.08)", fontFamily: "'Sora', sans-serif" },
-  ust: { display: "flex", alignItems: "center", gap: "12px", padding: "16px 18px", background: "linear-gradient(135deg, #f0fdf4, #ecfeff)", borderBottom: "1px solid #dcfce7" },
-  ikon: { width: "34px", height: "34px", borderRadius: "11px", background: "linear-gradient(135deg, #16a34a, #0891b2)", color: "#fff", display: "inline-flex",
+  ust: { display: "flex", alignItems: "center", gap: "12px", padding: "16px 18px", background: "linear-gradient(135deg, #f0fdf4, var(--marka-acik))", borderBottom: "1px solid #dcfce7" },
+  ikon: { width: "34px", height: "34px", borderRadius: "11px", background: "linear-gradient(135deg, #16a34a, var(--marka))", color: "#fff", display: "inline-flex",
     alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 800, flexShrink: 0, boxShadow: "0 6px 14px rgba(22,163,74,0.3)" },
   kapat: { marginLeft: "auto", width: "32px", height: "32px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer", flexShrink: 0 },
   govde: { display: "flex", flexDirection: "column", gap: "14px", padding: "16px 18px" },
@@ -692,13 +692,13 @@ const p = {
   turler: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "6px" },
   tur: { height: "34px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "12px", fontWeight: 700,
     cursor: "pointer", fontFamily: "'Sora', sans-serif", textTransform: "none", letterSpacing: 0 },
-  turAktif: { height: "34px", borderRadius: "10px", border: "1.5px solid #0891b2", background: "#ecfeff", color: "#0e7490", fontSize: "12px", fontWeight: 800,
+  turAktif: { height: "34px", borderRadius: "10px", border: "1.5px solid var(--marka)", background: "var(--marka-acik)", color: "var(--marka-koyu)", fontSize: "12px", fontWeight: 800,
     cursor: "pointer", fontFamily: "'Sora', sans-serif", textTransform: "none", letterSpacing: 0 },
   alt: { display: "flex", justifyContent: "flex-end", gap: "8px", padding: "12px 18px", background: "#f8fafc", borderTop: "1px solid #f1f5f9" },
   vazgec: { padding: "9px 16px", borderRadius: "999px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "13px", fontWeight: 600,
     cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   eskiKutu: { display: "flex", flexDirection: "column", gap: "8px", padding: "12px", borderRadius: "14px", border: "1.5px solid #bae6fd", background: "#f0f9ff" },
-  tamamlaOlustur: { padding: "10px 16px", borderRadius: "999px", border: "none", background: "linear-gradient(135deg, #0891b2, #0e7490)", color: "#fff", fontSize: "13px",
+  tamamlaOlustur: { padding: "10px 16px", borderRadius: "999px", border: "none", background: "linear-gradient(135deg, var(--marka), var(--marka-koyu))", color: "#fff", fontSize: "13px",
     fontWeight: 800, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 6px 16px rgba(8,145,178,0.3)" },
   olustur: { padding: "9px 20px", borderRadius: "999px", border: "none", background: "linear-gradient(135deg, #16a34a, #059669)", color: "#fff", fontSize: "13px",
     fontWeight: 800, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 6px 16px rgba(22,163,74,0.32)" },
@@ -741,7 +741,7 @@ function AsamaCubugu({ lead, onKapat, onDegisti }) {
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", cursor: tiklanir && !gidiyor ? "pointer" : "default",
                 clipPath: i === 0 ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)" : i === CUBUK.length - 1 ? "polygon(0 0, 100% 0, 100% 100%, 0 100%, 8px 50%)" : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)",
                 paddingLeft: i === 0 ? "16px" : "18px",
-                background: simdi ? "#0891b2" : gidiyor === id ? "#a5f3fc" : "#eef2f6", color: simdi ? "#fff" : "#64748b", transition: "background .15s" }}
+                background: simdi ? "var(--marka)" : gidiyor === id ? "#a5f3fc" : "#eef2f6", color: simdi ? "#fff" : "#64748b", transition: "background .15s" }}
               className={tiklanir ? "elal-cubuk-adim" : undefined}>
               {gidiyor === id ? "…" : ASAMA_ADLARI[id]}
             </button>
@@ -755,9 +755,9 @@ function AsamaCubugu({ lead, onKapat, onDegisti }) {
           </span>
         ) : (
           <button type="button" onClick={() => setMenu(m => !m)} disabled={!!gidiyor} className="elal-kapat-dugme"
-            style={{ display: "inline-flex", alignItems: "stretch", height: "34px", padding: 0, borderRadius: "10px", border: "none", overflow: "hidden", background: "#0891b2", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 4px 12px rgba(8,145,178,0.3)" }}>
+            style={{ display: "inline-flex", alignItems: "stretch", height: "34px", padding: 0, borderRadius: "10px", border: "none", overflow: "hidden", background: "var(--marka)", color: "#fff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 4px 12px rgba(8,145,178,0.3)" }}>
             <span style={{ display: "inline-flex", alignItems: "center", padding: "0 16px" }}>Close Lead</span>
-            <span style={{ display: "inline-flex", alignItems: "center", padding: "0 11px", background: "#0e7490", fontSize: "10px" }}>▼</span>
+            <span style={{ display: "inline-flex", alignItems: "center", padding: "0 11px", background: "var(--marka-koyu)", fontSize: "10px" }}>▼</span>
           </button>
         )}
         {menu && (
@@ -891,11 +891,11 @@ const s = {
   asamaVazgec: { padding: "9px 16px", borderRadius: "12px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   asamaKaydet: { padding: "9px 18px", borderRadius: "12px", border: "none", background: "#7c3aed", color: "#fff", fontWeight: 700, fontFamily: "'Sora', sans-serif" },
   zemin: { position: "fixed", inset: 0, zIndex: 9500, display: "flex", flexDirection: "column", overflowY: "auto", overflowX: "hidden", fontFamily: "'Sora', sans-serif",
-    background: "radial-gradient(1200px 600px at 10% -10%, #ecfeff 0%, transparent 60%), radial-gradient(900px 500px at 110% 0%, #f5f3ff 0%, transparent 55%), #f8fafc",
+    background: "radial-gradient(1200px 600px at 10% -10%, var(--marka-acik) 0%, transparent 60%), radial-gradient(900px 500px at 110% 0%, #f5f3ff 0%, transparent 55%), #f8fafc",
     animation: "elalGir 0.22s ease-out" },
   ust: { position: "sticky", top: 0, zIndex: 3, display: "grid", gridTemplateColumns: SUTUNLAR, columnGap: "24px", alignItems: "center", padding: `14px calc(max(24px, (100% - ${ICERIK}px) / 2) + 25.5px) 18px`, background: "linear-gradient(100deg, rgba(207,250,254,0.85), rgba(233,226,255,0.9) 50%, rgba(252,231,243,0.85))",
     backdropFilter: "blur(8px)", borderBottom: "1px solid #e9d5ff", flexShrink: 0 },
-  logo: { width: "38px", height: "38px", borderRadius: "12px", background: "linear-gradient(135deg, #0891b2, #7c3aed 60%, #db2777)",
+  logo: { width: "38px", height: "38px", borderRadius: "12px", background: "linear-gradient(135deg, var(--marka), #7c3aed 60%, #db2777)",
     display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 16px rgba(124,58,237,0.35)", flexShrink: 0 },
   sagBlok: { gridColumn: "3 / 5", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", minWidth: 0 },
   ok: { width: "34px", height: "34px", borderRadius: "11px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "20px",
@@ -921,8 +921,8 @@ const s = {
   baslikSatir: { display: "grid", gridTemplateColumns: SUTUNLAR, columnGap: "24px", alignItems: "center", marginBottom: "12px" },
   ad: { margin: 0, fontSize: "24px", fontWeight: 600, color: "#0f172a", lineHeight: 1.25, wordBreak: "break-word" },
   idNo: { marginLeft: "6px", color: "#64748b", fontWeight: 500 },
-  kylas: { gridColumn: 4, justifySelf: "end", whiteSpace: "nowrap", padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #a5f3fc", background: "#ecfeff", fontSize: "12px",
-    fontWeight: 700, color: "#0891b2", textDecoration: "none" },
+  kylas: { gridColumn: 4, justifySelf: "end", whiteSpace: "nowrap", padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #a5f3fc", background: "var(--marka-acik)", fontSize: "12px",
+    fontWeight: 700, color: "var(--marka)", textDecoration: "none" },
   alanlar: { display: "grid", gridTemplateColumns: SUTUNLAR, gap: "12px 24px" },
   bilgiBaslik: { margin: "14px 0 8px", paddingTop: "12px", borderTop: "1px solid #f1f5f9", fontSize: "11px", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" },
   liste: { display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" },
@@ -955,7 +955,7 @@ const s = {
     borderRadius: "12px", background: "#f8fafc", border: "1px solid #f1f5f9", fontSize: "13px" },
   taskGecikmis: { background: "#fef2f2", border: "1px solid #fecaca" },
   taskKapali: { background: "#fff", border: "1px dashed #e2e8f0" },
-  taskTur: { display: "inline-block", marginBottom: "3px", padding: "1px 7px", borderRadius: "999px", background: "#ecfeff", color: "#0e7490", fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap" },
+  taskTur: { display: "inline-block", marginBottom: "3px", padding: "1px 7px", borderRadius: "999px", background: "var(--marka-acik)", color: "var(--marka-koyu)", fontSize: "10.5px", fontWeight: 600, whiteSpace: "nowrap" },
   taskDugmeler: { gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", gap: "6px", justifyContent: "flex-start" },
   taskTamam: { padding: "6px 10px", borderRadius: "999px", border: "1.5px solid #86efac", background: "#fff", color: "#166534", fontSize: "11.5px",
     fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", whiteSpace: "nowrap" },
@@ -974,7 +974,7 @@ const s = {
   not: { padding: "10px 12px", borderRadius: "12px", background: "#f8fafc", border: "1px solid #f1f5f9" },
   notYeni: { background: "#f5f3ff", border: "1px solid #ddd6fe" },
   bilgiMetni: { display: "flex", alignItems: "center", gap: "8px", color: "#64748b", fontSize: "13px" },
-  metinDugme: { border: "none", background: "none", color: "#0891b2", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: "13px" },
+  metinDugme: { border: "none", background: "none", color: "var(--marka)", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", fontSize: "13px" },
   yazma: { borderBottom: "1px solid #f1f5f9", padding: "18px 24px", background: "#fcfcff" },
   alan: { width: "100%", minHeight: "110px", resize: "vertical", padding: "12px 14px", borderRadius: "14px", border: "1.5px solid", outline: "none",
     fontFamily: "'Sora', sans-serif", fontSize: "14px", lineHeight: 1.5, color: "#0f172a", boxSizing: "border-box", background: "#fff", transition: "border-color 0.15s" },
@@ -983,15 +983,15 @@ const s = {
   geri: { padding: "9px 16px", borderRadius: "999px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", fontSize: "13px",
     fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   ileri: { gridColumn: "3 / 5", justifySelf: "end", width: "auto", padding: "10px 22px", whiteSpace: "nowrap", borderRadius: "999px", border: "none", color: "#fff", fontSize: "13px", fontWeight: 800, cursor: "pointer",
-    fontFamily: "'Sora', sans-serif", background: "linear-gradient(135deg, #0891b2, #7c3aed)", boxShadow: "0 6px 18px rgba(124,58,237,0.35)", transition: "all 0.2s" },
+    fontFamily: "'Sora', sans-serif", background: "linear-gradient(135deg, var(--marka), #7c3aed)", boxShadow: "0 6px 18px rgba(124,58,237,0.35)", transition: "all 0.2s" },
   ileriKapali: { background: "#e2e8f0", color: "#94a3b8", boxShadow: "none", cursor: "not-allowed" },
   ileriBasari: { background: "linear-gradient(135deg, #16a34a, #059669)", boxShadow: "0 6px 18px rgba(22,163,74,0.35)" },
   bitti: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "24px" },
 };
 
 const EKRAN_CSS = `
-.elal-kapat-dugme:hover:not(:disabled) { background: #0e7490 !important; }
-.elal-cubuk-adim:hover:not(:disabled) { background: #cffafe !important; color: #0e7490 !important; }
+.elal-kapat-dugme:hover:not(:disabled) { background: var(--marka-koyu) !important; }
+.elal-cubuk-adim:hover:not(:disabled) { background: #cffafe !important; color: var(--marka-koyu) !important; }
         @keyframes elalPomYesil {
           0% { background-position: 0% 50%; }
           100% { background-position: 100% 50%; }
@@ -1011,12 +1011,12 @@ const EKRAN_CSS = `
 @keyframes elalHale { 0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.35); } 50% { box-shadow: 0 0 0 10px rgba(124,58,237,0); } }
 .elal-govde { animation: elalKart 0.28s ease-out; }
 .elal-cubuk { height: 100%; border-radius: 0 4px 4px 0; transition: width 0.4s ease;
-  background: linear-gradient(90deg, #0891b2, #7c3aed, #db2777, #0891b2); background-size: 200% 100%; animation: elalAkis 2.4s linear infinite; }
+  background: linear-gradient(90deg, var(--marka), #7c3aed, #db2777, var(--marka)); background-size: 200% 100%; animation: elalAkis 2.4s linear infinite; }
 .elal-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #e2e8f0; border-top-color: #7c3aed; display: inline-block; animation: elalDon 0.8s linear infinite; }
 .elal-yeni-not { animation: elalYeni 0.3s ease-out; }
 .elal-ileri-acik { animation: elalHale 1.8s ease-in-out infinite; }
 .elal-bitti-ikon { width: 88px; height: 88px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 800;
-  color: #fff; background: linear-gradient(135deg, #0891b2, #7c3aed 55%, #db2777); box-shadow: 0 16px 40px rgba(124,58,237,0.35); animation: elalPatla 0.5s ease-out; }
+  color: #fff; background: linear-gradient(135deg, var(--marka), #7c3aed 55%, #db2777); box-shadow: 0 16px 40px rgba(124,58,237,0.35); animation: elalPatla 0.5s ease-out; }
 @keyframes elalIskelet { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 .elal-iskelet { display: inline-block; width: 70%; height: 14px; border-radius: 6px; background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
   background-size: 200% 100%; animation: elalIskelet 1.2s linear infinite; }
@@ -1032,7 +1032,7 @@ const EKRAN_CSS = `
 const DUGME_CSS = `
 .elal-btn { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 8px 0 14px;
   border: none; border-radius: 12px; color: #fff; font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 800; letter-spacing: 0.2px; cursor: pointer;
-  background: linear-gradient(120deg, #0891b2, #7c3aed, #db2777, #7c3aed, #0891b2); background-size: 300% 100%;
+  background: linear-gradient(120deg, var(--marka), #7c3aed, #db2777, #7c3aed, var(--marka)); background-size: 300% 100%;
   animation: elalBtnAkis 6s ease-in-out infinite; box-shadow: 0 6px 18px rgba(124,58,237,0.32); transition: transform 0.15s, box-shadow 0.15s; }
 .elal-btn::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%;
   background: linear-gradient(100deg, transparent, rgba(255,255,255,0.45), transparent); transform: skewX(-20deg); animation: elalBtnParilti 3.2s ease-in-out infinite; }
