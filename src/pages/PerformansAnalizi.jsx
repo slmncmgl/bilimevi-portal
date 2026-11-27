@@ -1,3 +1,4 @@
+// v4.9: Tema v1/v2 seçici sayfanın altında sürüm etiketinin yanında (Takip Tablosu'ndaki kartların üstünden taşındı)
 // v4.8: açıklama satırı ortak üst şeride (kart adının yanına) taşındı, sayfadaki başlık şeridi kaldırıldı
 // v4.7: Üst başlık ortak şeride uyarlandı (Geri, "CRM" başlığı ve kullanıcı kaldırıldı; açıklama kaldı, başlık şeridin altına yapışır)
 // v4.6: sayfa adı CRM (modül izni sheet'te hâlâ "Performans Analizi" sütunu)
@@ -46,6 +47,7 @@ import { ELEAL_SURUM } from "./EleAl";
 import PerformansDegerlendirme, { DEGERLENDIRME_SURUM } from "./PerformansDegerlendirme";
 import DanismanOzeti, { OZET_SURUM } from "./DanismanOzeti";
 import SurumEtiketi from "./dashboard/SurumEtiketi";
+import TemaSecici from "../components/TemaSecici";
 
 const PERFORMANS_SURUM = "v4.8"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
@@ -342,7 +344,11 @@ export default function PerformansAnalizi() {
           )
         )}
         </>)}
-        <SurumEtiketi surum={surumMetni(sekme)} />
+        <div className="surum-satiri" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", flexWrap: "wrap", marginTop: "40px" }}>
+          <SurumEtiketi surum={surumMetni(sekme)} />
+          <TemaSecici />
+          <style>{`.surum-satiri .surum-etiketi { margin: 0 !important; }`}</style>
+        </div>
       </main>
 
       <style>{`

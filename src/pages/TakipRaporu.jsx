@@ -1,3 +1,4 @@
+// v6.59: Tema seçici kartların üstünden kalktı, sayfanın altında sürüm etiketinin yanında
 // v6.58: AI Önerileri kartı kalktı, yerine Takip oranı geri geldi (tıklayınca takip edilmesi gereken datalar); işaretler haftalık AI analizinden
 // v6.57: isim hücresinin sınıfı ad-link → isim-hucre (reklam engelleyiciler .ad-link'i gizliyordu, isimler boş görünüyordu)
 // v6.56: AI işaretli satırın üzerine gelince işaretler + kanıtlar özel pencerede; AI süzgeci değişince ilk sayfa
@@ -131,11 +132,11 @@ import { gunOnceYazi, gunSayisi } from "../lib/gunOnce";
 import Hatirlat from "./Hatirlat";
 import NotAnalizi from "./NotAnalizi";
 import { AiIkonlar, AI_TURLER, AI_SIRA, AiSatirPenceresi } from "./AiIsaret";
-import { useTema, temaAyarla } from "../lib/tema";
+import { useTema } from "../lib/tema";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.58"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.59"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -363,7 +364,6 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const aiSayisi = t => tumTakipsiz.filter(l => asamaSuz(l) && aiIsaret[l.id]?.turler?.includes(t)).length;
   const asamaSayisi = id => tumTakipsiz.filter(l => (id === null || l.asama === id) && (!listeSahip || String(l.ownerId) === listeSahip)).length;
   const tema = useTema();
-  const temaSec = temaAyarla; // portal geneli: sekmeler, Geri ve düğmeler de değişir
   useEffect(() => {
     if (!danismanlar.length) { setAiIsaret({}); return; }
     let iptal = false;
@@ -443,16 +443,6 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
       {danismanlar.length > 0 && (yukleniyor || (!hata && rapor)) && (
         <>
           <style>{`@media (max-width: 900px) { .takip-kart-satiri { grid-template-columns: 1fr !important; } }`}</style>
-          <div style={{ display: "flex", justifyContent: "flex-end", margin: "-8px 0 8px" }}>
-            <div role="radiogroup" aria-label="Tema" style={{ display: "inline-flex", alignItems: "center", gap: "2px", padding: "3px", borderRadius: "999px", border: "1px solid #e2e8f0", background: "#fff", fontSize: "11px", fontWeight: 700 }}>
-              <span style={{ padding: "0 6px 0 8px", color: "#94a3b8" }}>Tema</span>
-              {["v1", "v2"].map(v => (
-                <button key={v} type="button" role="radio" aria-checked={tema === v} onClick={() => temaSec(v)}
-                  style={{ padding: "3px 10px", borderRadius: "999px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "11px", fontWeight: 700,
-                    background: tema === v ? (v === "v2" ? "#001A71" : "linear-gradient(90deg, var(--marka), #7c3aed)") : "transparent", color: tema === v ? "#fff" : "#64748b" }}>{v}</button>
-              ))}
-            </div>
-          </div>
           <div className="takip-kart-satiri" style={t.kartSatiri}>
             <div className="tema-grup" style={t.taskGrup}>
               <div className="tema-grup-baslik" style={t.taskGrupBaslik}>Data</div>
