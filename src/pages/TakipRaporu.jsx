@@ -1,3 +1,4 @@
+// v6.60: satırda "Task zorunlu" yerine "Task"; satır zili (admin) Notlar sütununda not ikonunun yanında, Hatırlatma sütunu kalktı
 // v6.59: Tema seçici kartların üstünden kalktı, sayfanın altında sürüm etiketinin yanında
 // v6.58: AI Önerileri kartı kalktı, yerine Takip oranı geri geldi (tıklayınca takip edilmesi gereken datalar); işaretler haftalık AI analizinden
 // v6.57: isim hücresinin sınıfı ad-link → isim-hucre (reklam engelleyiciler .ad-link'i gizliyordu, isimler boş görünüyordu)
@@ -136,7 +137,7 @@ import { useTema } from "../lib/tema";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.59"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.60"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -588,7 +589,6 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                       {taskSutunu && <th style={{ ...c.th, position: "sticky", top: 0 }}>Task tarihi</th>}
                       <th style={{ ...c.th, position: "sticky", top: 0 }}><Ipucu metin={ACIKLAMA.sonAktivite}>Son aktivite</Ipucu></th>
                       <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Notlar</th>
-                      {isAdmin && <th style={{ ...c.th, textAlign: "center", position: "sticky", top: 0 }}>Hatırlatma</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -604,7 +604,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           )}
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}><AdHucresi lead={l} /><AiIkonlar ai={aiIsaret[l.id]} /></td>
                           {coklu && <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>{kisiAdi(l.ownerId)}</td>}
-                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap", fontWeight: l.asama === ILGILI ? 700 : 400, color: l.asama === ILGILI ? "var(--marka-koyu)" : undefined }}>{ASAMA_ADLARI[l.asama] || ""}{l.zorunlu && <Ipucu metin={ACIKLAMA.taskZorunlu} isaret={false}><span style={t.zorunlu}>Task zorunlu</span></Ipucu>}</td>
+                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap", fontWeight: l.asama === ILGILI ? 700 : 400, color: l.asama === ILGILI ? "var(--marka-koyu)" : undefined }}>{ASAMA_ADLARI[l.asama] || ""}{l.zorunlu && <Ipucu metin={ACIKLAMA.taskZorunlu} isaret={false}><span style={t.zorunlu}>Task</span></Ipucu>}</td>
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>
                             {kaynakAdi(l.kaynak)}
                             {VIP_KAYNAKLAR.includes(l.kaynak) && <span style={t.vip}>VIP</span>}
@@ -618,13 +618,15 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           <td style={{ ...c.td, whiteSpace: "nowrap" }}>
                             {l.sonAktivite ? <Ipucu metin={tarih(l.sonAktivite, true)} isaret={false}><span style={sonAktiviteStili(l.sonAktivite)}>{gunOnceYazi(l.sonAktivite)}</span></Ipucu>  : <span style={{ color: "hsl(0, 75%, 30%)", fontWeight: 800 }}>Hiç yok</span>}
                           </td>
-                          <td style={{ ...c.td, textAlign: "center" }}><NotBalonu lead={l} onbellek={notOnbellek} {...(isAdmin ? { secili: Object.keys(notSecim[l.id] || {}), onSec: notSec(l.id) } : {})} /></td>
-                          {isAdmin && (
-                            <td style={{ ...c.td, textAlign: "center" }}>
-                              <button type="button" onClick={() => setHatirlat({ anahtar: `d${l.id}`, govde: { islem: "hatirlat", leadId: l.id }, notlar: Object.values(notSecim[l.id] || {}), onGitti: () => setNotSecim(s => { const y = { ...s }; delete y[l.id]; return y; }) })} disabled={aktarim} className="hatirlat-zil"
-                                aria-label={`${l.ad || "Data"}: danışmana hatırlat`} title="Danışmana hatırlat" style={t.hatirlat}><ZilIkonu /></button>
-                            </td>
-                          )}
+                          <td style={{ ...c.td, textAlign: "center", whiteSpace: "nowrap" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", verticalAlign: "middle" }}>
+                              <NotBalonu lead={l} onbellek={notOnbellek} {...(isAdmin ? { secili: Object.keys(notSecim[l.id] || {}), onSec: notSec(l.id) } : {})} />
+                              {isAdmin && (
+                                <button type="button" onClick={() => setHatirlat({ anahtar: `d${l.id}`, govde: { islem: "hatirlat", leadId: l.id }, notlar: Object.values(notSecim[l.id] || {}), onGitti: () => setNotSecim(s => { const y = { ...s }; delete y[l.id]; return y; }) })} disabled={aktarim} className="hatirlat-zil"
+                                  aria-label={`${l.ad || "Data"}: danışmana hatırlat`} title="Danışmana hatırlat" style={t.hatirlat}><ZilIkonu /></button>
+                              )}
+                            </span>
+                          </td>
                         </tr>
                       );
                     })}
