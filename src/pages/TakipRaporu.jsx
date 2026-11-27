@@ -1,3 +1,4 @@
+// v6.62: Notlar sütununda not ikonunun yanında "Close / Lead" düğmesi: AI kapanış önerisi + AI notu (düzenlenebilir) → CRM (CloseLead v1.0)
 // v6.61: kart / aşama / AI seçimi değişince Dataları Ele Al düğmesi 3 kez kalp atışı yapar; Ele Al ekranında ✕ yerine "← Geri" (EleAl v2.26)
 // v6.60: satırda "Task zorunlu" yerine "Task"; satır zili (admin) Notlar sütununda not ikonunun yanında, Hatırlatma sütunu kalktı
 // v6.59: Tema seçici kartların üstünden kalktı, sayfanın altında sürüm etiketinin yanında
@@ -130,6 +131,7 @@ import { VIP_KAYNAKLAR } from "./KaynakSecici";
 import FiltreCubugu, { KampanyaAra } from "./FiltreCubugu";
 import DanismanAta from "./DanismanAta";
 import EleAl, { EleAlDugmesi } from "./EleAl";
+import { CloseLeadDugmesi, CloseLeadPenceresi } from "./CloseLead";
 import { gunOnceYazi, gunSayisi } from "../lib/gunOnce";
 import Hatirlat from "./Hatirlat";
 import NotAnalizi from "./NotAnalizi";
@@ -138,7 +140,7 @@ import { useTema } from "../lib/tema";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.61"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.62"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -259,6 +261,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const [hatirlat, setHatirlat] = useState(null); // açık Hatırlat penceresi: { anahtar, govde, baslik }
   const [notSecim, setNotSecim] = useState({}); // leadId -> { anahtar: not } (not balonunda işaretlenenler, Hatırlat'a eklenir)
   const notSec = leadId => (n, k) => setNotSecim(s => { const y = { ...(s[leadId] || {}) }; if (y[k]) delete y[k]; else y[k] = { baslik: n.baslik, metin: n.metin }; return { ...s, [leadId]: y }; });
+  const [closeLead, setCloseLead] = useState(null); // Close Lead penceresindeki data
+  const [kapatilanlar, setKapatilanlar] = useState(() => new Set()); // bu oturumda Close Lead ile kapatılanlar listeden düşer
   const [eleAl, setEleAl] = useState(null); // ele alınan datalar (tam ekran açıkken)
   const [dataAra, setDataAra] = useState(""); // liste içi Data araması (ad, ID, telefon)
   const [aktivite, setAktivite] = useState(null); // bugün portaldan not girilen Data sayısı
@@ -362,7 +366,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
   const taskSutunu = gorunum !== "takipsiz";
   const tumTakipsiz = (rapor?.acik || []).filter(gorunumTanim.suz).filter(dataAraSuz(dataAra)).sort(gorunumTanim.sirala);
   const aiSuz = l => !aiSecim.length || aiSecim.some(t => aiIsaret[l.id]?.turler?.includes(t));
-  const liste = tumTakipsiz.filter(asamaSuz).filter(aiSuz);
+  const liste = tumTakipsiz.filter(asamaSuz).filter(aiSuz).filter(l => !kapatilanlar.has(l.id));
   const aiSayisi = t => tumTakipsiz.filter(l => asamaSuz(l) && aiIsaret[l.id]?.turler?.includes(t)).length;
   const asamaSayisi = id => tumTakipsiz.filter(l => (id === null || l.asama === id) && (!listeSahip || String(l.ownerId) === listeSahip)).length;
   const tema = useTema();
@@ -626,6 +630,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           <td style={{ ...c.td, textAlign: "center", whiteSpace: "nowrap" }}>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", verticalAlign: "middle" }}>
                               <NotBalonu lead={l} onbellek={notOnbellek} {...(isAdmin ? { secili: Object.keys(notSecim[l.id] || {}), onSec: notSec(l.id) } : {})} />
+                              <CloseLeadDugmesi onClick={() => setCloseLead(l)} />
                               {isAdmin && (
                                 <button type="button" onClick={() => setHatirlat({ anahtar: `d${l.id}`, govde: { islem: "hatirlat", leadId: l.id }, notlar: Object.values(notSecim[l.id] || {}), onGitti: () => setNotSecim(s => { const y = { ...s }; delete y[l.id]; return y; }) })} disabled={aktarim} className="hatirlat-zil"
                                   aria-label={`${l.ad || "Data"}: danışmana hatırlat`} title="Danışmana hatırlat" style={t.hatirlat}><ZilIkonu /></button>
@@ -669,6 +674,15 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
         .hatirlat-zil:hover:not(:disabled) svg { animation: zilSalla 0.6s ease-in-out; }
         @media (prefers-reduced-motion: reduce) { .hatirlat-zil:hover:not(:disabled) svg { animation: none; } }`}</style>}
       {hatirlat && <Hatirlat key={hatirlat.anahtar} govde={hatirlat.govde} baslik={hatirlat.baslik} notlar={hatirlat.notlar} onGitti={hatirlat.onGitti} onKapat={() => setHatirlat(null)} />}
+      {closeLead && (
+        <CloseLeadPenceresi lead={closeLead} ai={aiIsaret[closeLead.id]} kisiAdi={kisiAdi} onKapat={() => setCloseLead(null)}
+          onTamam={id => {
+            delete notOnbellek.current[id];
+            setKapatilanlar(s => new Set(s).add(id));
+            setCloseLead(null);
+            setAktiviteYenile(n => n + 1);
+          }} />
+      )}
       {eleAl && (
         <EleAl leadler={eleAl} kisiAdi={kisiAdi} listeAdi={gorunumTanim.ad} aiIsaret={aiIsaret}
           onKapat={(idler, taskDegisti) => {
