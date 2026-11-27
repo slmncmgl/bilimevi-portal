@@ -1,3 +1,4 @@
+// v6.68: isme tıklayınca o data Ele Al ekranında tek başına açılır; Data ID balonu 2 sn üzerinde bekleyince çıkar
 // v6.67: Close Lead satırdan kalktı; sadece ⛔ Vakit kaybetme işaretli datanın AI penceresinde (CloseLead v1.2, AiIsaret v1.4)
 // v6.66: AI satır penceresine fareyle geçilebiliyor: kapanma gecikmesi 600 ms, pencere satıra bitişik, üzerindeyken başka işaretli satıra geçmez (AiIsaret v1.3)
 // v6.65: Close Lead notunda sabit "AI Önerisi ile inceledim ve kapattım." satırı yok (CloseLead v1.1)
@@ -145,7 +146,7 @@ import { useTema } from "../lib/tema";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.67"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.68"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -620,7 +621,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                                 style={{ accentColor: "var(--marka)", cursor: "pointer" }} />
                             </td>
                           )}
-                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}><AdHucresi lead={l} /><AiIkonlar ai={aiIsaret[l.id]} /></td>
+                          <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}><AdHucresi lead={l} onAc={() => setEleAl([l])} /><AiIkonlar ai={aiIsaret[l.id]} /></td>
                           {coklu && <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>{kisiAdi(l.ownerId)}</td>}
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap", fontWeight: l.asama === ILGILI ? 700 : 400, color: l.asama === ILGILI ? "var(--marka-koyu)" : undefined }}>{ASAMA_ADLARI[l.asama] || ""}{l.zorunlu && <Ipucu metin={ACIKLAMA.taskZorunlu} isaret={false}><span style={t.zorunlu}>Task</span></Ipucu>}</td>
                           <td style={{ ...c.td, textAlign: "left", whiteSpace: "nowrap" }}>
@@ -706,12 +707,13 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 }
 
 // Ad Soyad hücresi: tıklayınca CRM; üzerine gelince yanında Data ID + kopyala (alttaki satırı örtmesin diye sağda açılır)
-function AdHucresi({ lead }) {
+function AdHucresi({ lead, onAc }) {
   const [konum, setKonum] = useState(null);
   const [kopya, setKopya] = useState(null); // ok | hata
   const ref = useRef(null);
   const zamanlayici = useRef(null);
-  useEffect(() => () => clearTimeout(zamanlayici.current), []);
+  const acZaman = useRef(null); // ID balonu 2 sn bekleyince açılır
+  useEffect(() => () => { clearTimeout(zamanlayici.current); clearTimeout(acZaman.current); }, []);
   useEffect(() => {
     if (!konum) return;
     const kapat = () => setKonum(null);
@@ -726,16 +728,20 @@ function AdHucresi({ lead }) {
     setKopya(null);
     setKonum({ left: Math.max(8, Math.min(r.right + 6, window.innerWidth - 220)), top: r.top + r.height / 2 });
   }
-  const kapatGecikmeli = () => { zamanlayici.current = setTimeout(() => setKonum(null), 150); };
+  const acGecikmeli = () => { clearTimeout(zamanlayici.current); if (konum) return; clearTimeout(acZaman.current); acZaman.current = setTimeout(ac, 2000); };
+  const kapatGecikmeli = () => { clearTimeout(acZaman.current); zamanlayici.current = setTimeout(() => setKonum(null), 150); };
+  const detayAc = () => { clearTimeout(acZaman.current); setKonum(null); onAc && onAc(); };
   async function kopyala() {
     try { await navigator.clipboard.writeText(String(lead.id)); setKopya("ok"); } catch { setKopya("hata"); }
   }
 
   return (
-    <span onMouseEnter={ac} onMouseLeave={kapatGecikmeli} onFocus={ac}
+    <span onMouseEnter={acGecikmeli} onMouseLeave={kapatGecikmeli} onFocus={e => { if (e.target.matches?.(":focus-visible")) ac(); }}
       onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget)) setKonum(null); }}
       onKeyDown={e => { if (e.key === "Escape") setKonum(null); }}>
-      <span ref={ref} tabIndex={0} className="isim-hucre" style={{ ...t.adLink, cursor: "default", outline: "none" }}>{lead.ad || "İsimsiz"}</span>
+      <span ref={ref} tabIndex={0} role="button" className="isim-hucre" title="Detayı aç" onClick={detayAc}
+        onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); detayAc(); } }}
+        style={{ ...t.adLink, cursor: "pointer", outline: "none" }}>{lead.ad || "İsimsiz"}</span>
       {konum && (
         // mousedown engellenir: Safari'de düğmeye basınca link odağı kaybedip balonu kapatmasın
         <span style={{ ...t.idBalon, left: konum.left, top: konum.top }} onMouseDown={e => e.preventDefault()}>
