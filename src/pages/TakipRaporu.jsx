@@ -1,3 +1,4 @@
+// v6.67: Close Lead satırdan kalktı; sadece ⛔ Vakit kaybetme işaretli datanın AI penceresinde (CloseLead v1.2, AiIsaret v1.4)
 // v6.66: AI satır penceresine fareyle geçilebiliyor: kapanma gecikmesi 600 ms, pencere satıra bitişik, üzerindeyken başka işaretli satıra geçmez (AiIsaret v1.3)
 // v6.65: Close Lead notunda sabit "AI Önerisi ile inceledim ve kapattım." satırı yok (CloseLead v1.1)
 // v6.64: tema adları Renkli / Sade, varsayılan Sade (tema.js v1.1)
@@ -135,7 +136,7 @@ import { VIP_KAYNAKLAR } from "./KaynakSecici";
 import FiltreCubugu, { KampanyaAra } from "./FiltreCubugu";
 import DanismanAta from "./DanismanAta";
 import EleAl, { EleAlDugmesi } from "./EleAl";
-import { CloseLeadDugmesi, CloseLeadPenceresi } from "./CloseLead";
+import { CloseLeadPenceresi } from "./CloseLead";
 import { gunOnceYazi, gunSayisi } from "../lib/gunOnce";
 import Hatirlat from "./Hatirlat";
 import NotAnalizi from "./NotAnalizi";
@@ -144,7 +145,7 @@ import { useTema } from "../lib/tema";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.66"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.67"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -638,7 +639,6 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
                           <td style={{ ...c.td, textAlign: "center", whiteSpace: "nowrap" }}>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", verticalAlign: "middle" }}>
                               <NotBalonu lead={l} onbellek={notOnbellek} {...(isAdmin ? { secili: Object.keys(notSecim[l.id] || {}), onSec: notSec(l.id) } : {})} />
-                              <CloseLeadDugmesi onClick={() => setCloseLead(l)} />
                               {isAdmin && (
                                 <button type="button" onClick={() => setHatirlat({ anahtar: `d${l.id}`, govde: { islem: "hatirlat", leadId: l.id }, notlar: Object.values(notSecim[l.id] || {}), onGitti: () => setNotSecim(s => { const y = { ...s }; delete y[l.id]; return y; }) })} disabled={aktarim} className="hatirlat-zil"
                                   aria-label={`${l.ad || "Data"}: danışmana hatırlat`} title="Danışmana hatırlat" style={t.hatirlat}><ZilIkonu /></button>
@@ -675,7 +675,8 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
           </div>
         </>
       )}
-      {aiSatir && <AiSatirPenceresi ai={aiIsaret[aiSatir.id]} konum={aiSatir.konum} onFare={ic => { aiPencerede.current = ic; if (ic) aiAcikTut(); else aiKapatGecikmeli(); }} />}
+      {aiSatir && <AiSatirPenceresi ai={aiIsaret[aiSatir.id]} konum={aiSatir.konum} onFare={ic => { aiPencerede.current = ic; if (ic) aiAcikTut(); else aiKapatGecikmeli(); }}
+        onCloseLead={() => { const l = tumTakipsiz.find(x => x.id === aiSatir.id); aiPencerede.current = false; setAiSatir(null); if (l) setCloseLead(l); }} />}
       {isAdmin && notAnalizi && <NotAnalizi liste={liste} kisiAdi={kisiAdi} onKapat={() => setNotAnalizi(false)} />}
       {isAdmin && <style>{`@keyframes zilSalla { 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
         .hatirlat-zil svg { transform-origin: 50% 10%; }

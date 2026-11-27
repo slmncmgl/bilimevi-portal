@@ -1,3 +1,4 @@
+// v1.2: satırdaki "Close / Lead" düğmesi kalktı; pencere AI satır penceresindeki Close Lead ile (sadece ⛔ işaretli datada) açılır
 // v1.1: "AI Önerisi ile inceledim ve kapattım." satırı nota eklenmiyor; sadece AI açıklaması / gerekçe
 // v1.0: Takip Tablosu satırında (Notlar sütunu, not ikonunun yanında) "Close / Lead" düğmesi.
 // Tıklayınca datanın notları okunur, kural motoru (notAnalizi) kapanış kodu önerir; haftalık AI işareti (⛔ / ⚠️) varsa kanıtı,
@@ -10,19 +11,6 @@ import { leadAnaliz } from "../lib/notAnalizi";
 
 const MOR = "#7c3aed";
 const ENAZ = 2;
-
-export function CloseLeadDugmesi({ onClick }) {
-  return (
-    <button type="button" className="kapat-lead-btn" onClick={onClick} title="Close Lead: AI kapanış önerisiyle kapat">
-      <span>Close</span><span>Lead</span>
-      <style>{`.kapat-lead-btn { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; height: 30px; padding: 0 7px;
-        border: 1.5px solid #fecaca; border-radius: 8px; background: #fff; color: #b91c1c; font-family: 'Sora', sans-serif; font-size: 9.5px; font-weight: 800;
-        line-height: 1; letter-spacing: 0.2px; cursor: pointer; transition: background .15s, border-color .15s; }
-        .kapat-lead-btn:hover { background: #fef2f2; border-color: #f87171; }
-        .kapat-lead-btn:focus-visible { outline: 3px solid #fecaca; outline-offset: 2px; }`}</style>
-    </button>
-  );
-}
 
 // lead: { id, ad, ownerId }, ai: aiIsaret[lead.id], kisiAdi(ownerId)
 export function CloseLeadPenceresi({ lead, ai, kisiAdi, onKapat, onTamam }) {

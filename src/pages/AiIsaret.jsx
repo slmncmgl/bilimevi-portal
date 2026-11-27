@@ -1,3 +1,4 @@
+// v1.4: ⛔ Vakit kaybetme işaretli datada pencerenin altında "Close Lead" düğmesi (onCloseLead)
 // v1.3: satır penceresi satıra bitişik (boşluk 6 → 1 px); pencerenin üzerindeyken her fare hareketi açık tutar (onMouseOver/Move)
 // v1.2: kanıt cümlesinin yanında kopyala ikonu (satır penceresinin üzerine gelince pencere açık kalır)
 // v1.1: AiSatirPenceresi — listede satırın üzerine gelince işaretler ve kanıtları özel pencerede
@@ -70,9 +71,10 @@ export function AiKanitlar({ ai }) {
 }
 
 // Liste satırının üzerine gelince açılan pencere; üzerine gelince açık kalır (kopyala için). onFare(true|false). konum: satırın getBoundingClientRect()
-export function AiSatirPenceresi({ ai, konum, onFare }) {
+export function AiSatirPenceresi({ ai, konum, onFare, onCloseLead }) {
   if (!ai?.turler?.length || !konum) return null;
-  const GEN = 380, tahminiYuk = 70 + ai.turler.length * 52;
+  const closeVar = onCloseLead && ai.turler.includes("vakit");
+  const GEN = 380, tahminiYuk = 70 + ai.turler.length * 52 + (closeVar ? 46 : 0);
   const asagi = konum.bottom + tahminiYuk + 12 < window.innerHeight;
   const left = Math.max(8, Math.min(konum.left + 48, window.innerWidth - GEN - 8));
   const top = asagi ? konum.bottom + 1 : Math.max(8, konum.top - tahminiYuk - 1);
@@ -86,6 +88,13 @@ export function AiSatirPenceresi({ ai, konum, onFare }) {
         {ai.analiz && <span style={{ marginLeft: "auto", fontWeight: 600, color: "#94a3b8", textTransform: "none", letterSpacing: 0 }}>analiz {tarihYaz(ai.analiz.slice(0, 10))}</span>}
       </div>
       <AiKanitlar ai={ai} />
+      {closeVar && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
+          <button type="button" onClick={onCloseLead} title="AI kapanış önerisiyle kapat"
+            style={{ display: "inline-flex", alignItems: "center", height: "34px", padding: "0 16px", borderRadius: "10px", border: "none", background: "var(--marka)", color: "#fff",
+              fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "'Sora', sans-serif", boxShadow: "0 4px 12px rgba(15,23,42,0.18)" }}>Close Lead</button>
+        </div>
+      )}
       <style>{`@keyframes aiSatirGel { from { opacity: 0; transform: translateY(${asagi ? "-4px" : "4px"}); } to { opacity: 1; transform: none; } }`}</style>
     </div>,
     document.body
