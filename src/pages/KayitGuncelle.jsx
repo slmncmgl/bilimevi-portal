@@ -46,14 +46,10 @@ const gonderimAdresi = (...kaynaklar) => {
   return adres;
 };
 const DANISMAN_FORM_URL = "https://form.bilimevi.com/danisman-sozlesme-formu";
-// kayit_id: sözleşme Kayıt Formu satırına TC yerine Tally Submission ID ile eşlenir.
-// Şimdilik sadece admin'de açık; herkese açmak için KAYIT_ID_ROLLERI'ni kaldırıp koşulu true yap.
-const KAYIT_ID_ROLLERI = ["admin"];
-const danismanFormLinki = (kayit, rol) => {
+// kayit_id: sözleşme Kayıt Formu satırına TC yerine Tally Submission ID ile eşlenir (herkese açık, 27.11.2026).
+const danismanFormLinki = (kayit) => {
   const id = String(kayit?.["Tally Submission ID"] || "").trim();
-  return KAYIT_ID_ROLLERI.includes(rol) && id
-    ? `${DANISMAN_FORM_URL}?kayit_id=${encodeURIComponent(id)}`
-    : DANISMAN_FORM_URL;
+  return id ? `${DANISMAN_FORM_URL}?kayit_id=${encodeURIComponent(id)}` : DANISMAN_FORM_URL;
 };
 const NOT_URL = "https://n8n.bilimevi.cloud/webhook/not-guncelle";
 const OKUL_URL = "https://n8n.bilimevi.cloud/webhook/okul-guncelle";
@@ -2973,7 +2969,7 @@ export default function KayitGuncelle() {
             <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
               <button onClick={() => setKopyaModal(null)} style={{ ...s.modalBtn, background: "#f1f5f9", color: "#475569", marginTop: 0 }}>Kapat</button>
               <a
-                href={danismanFormLinki(kopyaModal.kayit, String(user?.rol || "").toLowerCase().trim())}
+                href={danismanFormLinki(kopyaModal.kayit)}
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => { islemKaydet(kopyaModal.kayit, "Sözleşme formu açıldı", "Danışman Sözleşme Formu"); setKopyaModal(null); }}
