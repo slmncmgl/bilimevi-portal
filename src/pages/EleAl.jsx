@@ -1,3 +1,4 @@
+// v2.29: iletişim ve Data bilgileri alanları ~%15 daha alçak (satır aralıkları, başlık boşlukları, satır yüksekliği)
 // v2.28: aşama çubuğunda aşamalar arasındaki ok çizgisi beyaz (önceden ilerleme çubuğunun renkli "elal-cubuk" sınıfı aralıkta görünüyordu; sınıf ayrıldı)
 // v2.27: not alanının altında iki düğme: "Kaydet" (notu yazar, aynı datada kalır) ve "Kaydet ve Sonrakine Geç"
 // v2.26: sağ üstteki ✕ yerine belirgin "← Geri" düğmesi; Dataları Ele Al düğmesi seçim sonrası kalp atışı (atis prop)
@@ -108,7 +109,7 @@ export function EleAlDugmesi({ sayi, onClick, disabled, atis = 0 }) {
   );
 }
 
-export const ELEAL_SURUM = "v2.28"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
+export const ELEAL_SURUM = "v2.29"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
 
 export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat, aiIsaret = {} }) {
   const [pomYesil, setPomYesil] = useState(false);
@@ -460,7 +461,7 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
               </Alan>
             </div>
             <div style={s.bilgiBaslik}>Data bilgileri</div>
-            <div className="elal-alanlar" style={{ ...s.alanlar, gap: "10px 24px" }}>
+            <div className="elal-alanlar" style={{ ...s.alanlar, gap: "7px 24px" }}>
               <Alan ad="English Level" bekliyor={dy} kucuk>{dt?.bilgi?.ingilizce || "-"}</Alan>
               <Alan ad="Country of Application" bekliyor={dy} kucuk>{dt?.bilgi?.ulke || "-"}</Alan>
               <Alan ad="School Name" bekliyor={dy} kucuk>{dt?.bilgi?.okul || "-"}</Alan>
@@ -897,8 +898,8 @@ function AsamaPenceresi({ lead, ilkHedef = null, onKapat, onTamam }) {
 function Alan({ ad, bekliyor, kucuk, children }) {
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ fontSize: kucuk ? "11px" : "12px", color: "#64748b", marginBottom: "3px" }}>{ad}</div>
-      <div style={{ fontSize: kucuk ? "13px" : "14px", color: "#0f172a", fontWeight: 600, wordBreak: "break-word" }}>
+      <div style={{ fontSize: kucuk ? "11px" : "12px", color: "#64748b", marginBottom: "1px", lineHeight: 1.3 }}>{ad}</div>
+      <div style={{ fontSize: kucuk ? "13px" : "14px", color: "#0f172a", fontWeight: 600, wordBreak: "break-word", lineHeight: 1.35 }}>
         {bekliyor ? <span className="elal-iskelet" /> : children}
       </div>
     </div>
@@ -945,9 +946,9 @@ const s = {
   idNo: { marginLeft: "6px", color: "#64748b", fontWeight: 500 },
   kylas: { gridColumn: 4, justifySelf: "end", whiteSpace: "nowrap", padding: "6px 12px", borderRadius: "999px", border: "1.5px solid #a5f3fc", background: "var(--marka-acik)", fontSize: "12px",
     fontWeight: 700, color: "var(--marka)", textDecoration: "none" },
-  alanlar: { display: "grid", gridTemplateColumns: SUTUNLAR, gap: "12px 24px" },
-  bilgiBaslik: { margin: "14px 0 8px", paddingTop: "12px", borderTop: "1px solid #f1f5f9", fontSize: "11px", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" },
-  liste: { display: "flex", flexDirection: "column", gap: "6px", alignItems: "flex-start" },
+  alanlar: { display: "grid", gridTemplateColumns: SUTUNLAR, gap: "9px 24px" },
+  bilgiBaslik: { margin: "11px 0 6px", paddingTop: "9px", borderTop: "1px solid #f1f5f9", fontSize: "11px", fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" },
+  liste: { display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" },
   aramaDugme: { display: "inline-flex", alignItems: "center", gap: "8px", padding: 0, border: "none", background: "none", color: "#2563eb", fontSize: "14px",
     fontWeight: 600, cursor: "pointer", fontFamily: "'Sora', sans-serif" },
   aramaIkon: { display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0, border: "none", background: "none", color: "#1d4ed8",
@@ -959,7 +960,7 @@ const s = {
     alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0 },
   ikonMavi: { width: "22px", height: "22px", borderRadius: "7px", background: "#dbeafe", color: "#2563eb", display: "inline-flex",
     alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 800, flexShrink: 0 },
-  altBilgi: { display: "flex", gap: "8px 24px", flexWrap: "wrap", marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #f1f5f9",
+  altBilgi: { display: "flex", gap: "8px 24px", flexWrap: "wrap", marginTop: "9px", paddingTop: "8px", borderTop: "1px solid #f1f5f9",
     fontSize: "12px", color: "#64748b" },
   etiketKirmizi: { display: "inline-block", whiteSpace: "nowrap", marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fee2e2", color: "#991b1b", fontSize: "10px", fontWeight: 700 },
   etiketSari: { display: "inline-block", whiteSpace: "nowrap", marginLeft: "6px", padding: "1px 6px", borderRadius: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px", fontWeight: 700 },
