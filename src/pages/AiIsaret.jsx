@@ -1,3 +1,4 @@
+// v1.3: satır penceresi satıra bitişik (boşluk 6 → 1 px); pencerenin üzerindeyken her fare hareketi açık tutar (onMouseOver/Move)
 // v1.2: kanıt cümlesinin yanında kopyala ikonu (satır penceresinin üzerine gelince pencere açık kalır)
 // v1.1: AiSatirPenceresi — listede satırın üzerine gelince işaretler ve kanıtları özel pencerede
 // v1.0: Haftalık Claude analizinin (notları okuyarak) koyduğu işaretler: ⛔ vakit kaybetme, 🛂 vize avantajı, 🔥 sıcak data, ⚠️ risk.
@@ -74,9 +75,9 @@ export function AiSatirPenceresi({ ai, konum, onFare }) {
   const GEN = 380, tahminiYuk = 70 + ai.turler.length * 52;
   const asagi = konum.bottom + tahminiYuk + 12 < window.innerHeight;
   const left = Math.max(8, Math.min(konum.left + 48, window.innerWidth - GEN - 8));
-  const top = asagi ? konum.bottom + 6 : Math.max(8, konum.top - tahminiYuk - 6);
+  const top = asagi ? konum.bottom + 1 : Math.max(8, konum.top - tahminiYuk - 1);
   return createPortal(
-    <div role="tooltip" onMouseEnter={() => onFare && onFare(true)} onMouseLeave={() => onFare && onFare(false)}
+    <div role="tooltip" onMouseEnter={() => onFare && onFare(true)} onMouseOver={() => onFare && onFare(true)} onMouseMove={() => onFare && onFare(true)} onMouseLeave={() => onFare && onFare(false)}
       style={{ position: "fixed", left, top, width: GEN, zIndex: 9500, background: "#fff", border: "1px solid #e2e8f0", borderRadius: "14px",
       boxShadow: "0 16px 40px rgba(15,23,42,0.18)", padding: "12px 14px 10px", fontFamily: "'Sora', sans-serif", animation: "aiSatirGel .12s ease-out" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: "0.5px" }}>
