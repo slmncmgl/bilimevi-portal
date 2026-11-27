@@ -1,3 +1,4 @@
+// v2.26: sağ üstteki ✕ yerine belirgin "← Geri" düğmesi; Dataları Ele Al düğmesi seçim sonrası kalp atışı (atis prop)
 // v2.25: haftalık AI işaretleri (🔥 🛂 ⚠️ ⛔) kanıtlarıyla data kartının başında
 // v2.24: KAPANISLAR dışa açıldı (AI Önerileri Close Lead penceresi kullanıyor)
 // v2.23: Close Lead → İlgisiz / Olumsuza Dönen seçilince pencerede aşamalar yok; sadece o kapanışın sebepleri alt alta (Kylas sırası, radyo)
@@ -88,8 +89,10 @@ const yerelGun = d => `${d.getFullYear()}-${ikiHane(d.getMonth() + 1)}-${ikiHane
 const gunSonra = n => { const d = new Date(); d.setDate(d.getDate() + n); return yerelGun(d); };
 const bosForm = (ad = "", tur = 2614523) => ({ ad, tur, tarih: gunSonra(1), saat: "10:00" });
 
-export function EleAlDugmesi({ sayi, onClick, disabled }) {
+export function EleAlDugmesi({ sayi, onClick, disabled, atis = 0 }) {
+  // atis değişince sarmalayıcı yeniden kurulur, kalp atışı animasyonu baştan oynar
   return (
+    <span key={atis} className={atis && !disabled && sayi ? "elal-kalp" : undefined} style={{ display: "inline-flex" }}>
     <button type="button" className="elal-btn" onClick={onClick} disabled={disabled || !sayi}
       title={sayi ? `${sayi} Datayı sırayla aç, her birine not gir` : "Listede Data yok"}>
       <style>{DUGME_CSS}</style>
@@ -99,10 +102,11 @@ export function EleAlDugmesi({ sayi, onClick, disabled }) {
       <span>Dataları Ele Al</span>
       <b className="elal-sayi">{sayi}</b>
     </button>
+    </span>
   );
 }
 
-export const ELEAL_SURUM = "v2.25"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
+export const ELEAL_SURUM = "v2.26"; // 1. satırdaki sürümle aynı tut (Takip Tablosu etiketinde görünür)
 
 export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz Datalar", onKapat, aiIsaret = {} }) {
   const [pomYesil, setPomYesil] = useState(false);
@@ -367,7 +371,10 @@ export default function EleAl({ leadler: ilkListe, kisiAdi, listeAdi = "Takipsiz
           </div>
           <button type="button" onClick={atla} disabled={bitti || kaydediliyor || basari} style={{ ...s.ok, ...s.okAtla, opacity: bitti ? 0.35 : 1 }}
             aria-label="Atla, sonra ele al" title="Not girmeden sonrakine geç (sonra ele almak için atlananlara eklenir)">›</button>
-          <button type="button" onClick={kapatIste} style={{ ...s.kapat, marginLeft: "6px" }} aria-label="Kapat">✕</button>
+          <button type="button" onClick={kapatIste} style={{ ...s.geri, marginLeft: "6px" }} title="Listeye geri dön">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+            Geri
+          </button>
         </div>
         <div style={s.cubukZemin}><div className="elal-cubuk" style={{ width: `${ilerleme}%` }} /></div>
       </header>
@@ -687,6 +694,8 @@ const p = {
   ust: { display: "flex", alignItems: "center", gap: "12px", padding: "16px 18px", background: "linear-gradient(135deg, #f0fdf4, var(--marka-acik))", borderBottom: "1px solid #dcfce7" },
   ikon: { width: "34px", height: "34px", borderRadius: "11px", background: "linear-gradient(135deg, #16a34a, var(--marka))", color: "#fff", display: "inline-flex",
     alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: 800, flexShrink: 0, boxShadow: "0 6px 14px rgba(22,163,74,0.3)" },
+  geri: { display: "inline-flex", alignItems: "center", gap: "4px", height: "34px", padding: "0 14px 0 9px", borderRadius: "10px", border: "none", background: "var(--marka)", color: "#fff",
+    fontFamily: "'Sora', sans-serif", fontSize: "13px", fontWeight: 800, cursor: "pointer", flexShrink: 0, boxShadow: "0 4px 12px rgba(15,23,42,0.18)" },
   kapat: { marginLeft: "auto", width: "32px", height: "32px", borderRadius: "10px", border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569", cursor: "pointer", flexShrink: 0 },
   govde: { display: "flex", flexDirection: "column", gap: "14px", padding: "16px 18px" },
   etiket: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "11px", fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.4px" },
@@ -1047,6 +1056,9 @@ const DUGME_CSS = `
 .elal-sayi { min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px; background: rgba(255,255,255,0.95); color: #6d28d9;
   font-size: 11px; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
 .elal-btn:disabled .elal-sayi { background: #f1f5f9; color: #94a3b8; }
+.elal-kalp { animation: elalKalp 0.6s ease-in-out 3; }
+@keyframes elalKalp { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.12); } 30% { transform: scale(1); } 45% { transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .elal-kalp { animation: none; } }
 @keyframes elalBtnAkis { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 @keyframes elalBtnParilti { 0%, 55% { left: -60%; } 100% { left: 130%; } }
 @media (prefers-reduced-motion: reduce) { .elal-btn, .elal-btn::after { animation: none; } }

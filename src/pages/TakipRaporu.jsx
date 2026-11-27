@@ -1,3 +1,4 @@
+// v6.61: kart / aşama / AI seçimi değişince Dataları Ele Al düğmesi 3 kez kalp atışı yapar; Ele Al ekranında ✕ yerine "← Geri" (EleAl v2.26)
 // v6.60: satırda "Task zorunlu" yerine "Task"; satır zili (admin) Notlar sütununda not ikonunun yanında, Hatırlatma sütunu kalktı
 // v6.59: Tema seçici kartların üstünden kalktı, sayfanın altında sürüm etiketinin yanında
 // v6.58: AI Önerileri kartı kalktı, yerine Takip oranı geri geldi (tıklayınca takip edilmesi gereken datalar); işaretler haftalık AI analizinden
@@ -137,7 +138,7 @@ import { useTema } from "../lib/tema";
 import Ipucu from "./Ipucu";
 import { KAYNAKLAR, KYLAS_LEAD_URL, apiCagir, tarih, kucuk, NotBalonu, kisileriYukle, c, Cerceve, TUM_KAYNAKLAR, kaynakFiltresi } from "./CrmRaporu";
 
-export const AKTIVITE_SURUM = "v6.60"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
+export const AKTIVITE_SURUM = "v6.61"; // 1. satırdaki sürümle aynı tut (sayfanın altındaki etikette görünür)
 
 const ASAMA_ADLARI = { 217285: "Yeni", 222366: "Na1", 253357: "Na2", 253358: "Na3", 218701: "Görüşme", 218702: "İlgili" };
 const TEMA_V2_CSS = `
@@ -400,6 +401,10 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
 
   // Sayfalama: filtre, sayfa boyu ya da rapor değişince ilk sayfaya dön
   useEffect(() => { setSayfa(1); }, [asamaSecim, sayfaBoyu, rapor, gorunum, listeSahip, dataAra, aiSecim]);
+  // Kart / aşama / AI seçimi değişince Dataları Ele Al düğmesi kalp atışı yapar (ilk açılışta değil)
+  const [eleAlAtis, setEleAlAtis] = useState(0);
+  const ilkSecim = useRef(true);
+  useEffect(() => { if (ilkSecim.current) { ilkSecim.current = false; return; } setEleAlAtis(x => x + 1); }, [asamaSecim, gorunum, aiSecim]);
   // Kart ya da listedeki danışman değişince Data araması sıfırlanır
   useEffect(() => { setDataAra(""); }, [gorunum, listeSahip]);
   const sayfaSayisi = Math.max(1, Math.ceil(liste.length / sayfaBoyu));
@@ -518,7 +523,7 @@ export default function TakipRaporu({ user, isAdmin, isManager }) {
               </span>
               <span style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
                 {listeSahip && <button onClick={() => setListeSahip(null)} style={c.chip}>✕ Tüm seçili danışmanlar</button>}
-                <EleAlDugmesi sayi={yukleniyor ? 0 : eleAlinacak.length} disabled={aktarim || yukleniyor} onClick={() => setEleAl(eleAlinacak)} />
+                <EleAlDugmesi atis={eleAlAtis} sayi={yukleniyor ? 0 : eleAlinacak.length} disabled={aktarim || yukleniyor} onClick={() => setEleAl(eleAlinacak)} />
               </span>
             </div>
             <div style={{ ...t.filtreler, alignItems: "center" }}>
