@@ -1,3 +1,4 @@
+// v1.1: varsayılan tema v2 (Sade); seçim yapmamış herkes Sade görür, Renkli seçenler Renkli kalır
 // v1.0: Portal ortak marka renkleri (CSS değişkenleri). Düğmeler, sekmeler, Geri vb. renkleri buradan alır:
 //   var(--marka)       ana renk (düğme zemini, seçili sekme, link)
 //   var(--marka-koyu)  üzerine gelince / koyu ton
@@ -11,7 +12,7 @@ const STIL = `
 :root[data-tema="v2"] { --marka: #001A71; --marka-koyu: #000f4a; --marka-acik: #eef0f8; }
 `;
 const ANAHTAR = "portalTema";
-let tema = "v1";
+let tema = "v2";
 const dinleyiciler = new Set();
 
 export function temaBaslat() {
@@ -22,7 +23,7 @@ export function temaBaslat() {
     s.textContent = STIL;
     document.head.appendChild(s);
   }
-  try { tema = (localStorage.getItem(ANAHTAR) || localStorage.getItem("takipTema")) === "v2" ? "v2" : "v1"; } catch { tema = "v1"; }
+  try { tema = (localStorage.getItem(ANAHTAR) || localStorage.getItem("takipTema")) === "v1" ? "v1" : "v2"; } catch { tema = "v2"; }
   document.documentElement.dataset.tema = tema;
 }
 
