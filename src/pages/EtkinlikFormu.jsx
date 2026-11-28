@@ -1,3 +1,4 @@
+// v1.4: üst boşluk margin yerine padding (margin dış kutudan taşıp başlığın altında beyaz şerit bırakıyordu).
 // v1.3: Sora yazı tipi bileşenin kendisinde yüklenir ve tüm sayfaya uygulanır (ana sayfa kartından açılan /etkinlik serif görünüyordu).
 // v1.2: Kylas formunun içi de portal yazı tipinde (Sora).
 // v1.1: Form gönderilince 1 sn sonra boş form yeniden yüklenir; sayaç her gönderimde 1 artar (tarayıcıda form başına saklanır).
@@ -6,7 +7,7 @@
 // Yeni etkinlikte sadece ETKINLIK_FORMLARI listesini güncelleyin.
 import { useEffect, useRef, useState } from "react";
 
-export const ETKINLIK_SURUM = "v1.3";
+export const ETKINLIK_SURUM = "v1.4";
 export const ETKINLIK_ADI = "BBSE İzmir Kasım 2026";
 
 // ad: Personel sekmesindeki Ad Soyad ile eşleşir.
@@ -97,7 +98,7 @@ export default function EtkinlikFormu({ user, isAdmin }) {
 }
 
 const s = {
-  sayfa: { fontFamily: "'Sora', sans-serif", maxWidth: 640, margin: "24px auto", padding: "0 16px" },
+  sayfa: { fontFamily: "'Sora', sans-serif", maxWidth: 640, margin: "0 auto", padding: "24px 16px" },
   ust: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 },
   baslik: { fontSize: 18, fontWeight: 700, color: "#0f172a" },
   alt: { fontSize: 13, color: "#64748b", marginTop: 2 },

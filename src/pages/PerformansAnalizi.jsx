@@ -1,3 +1,4 @@
+// v5.6: Etkinlik v1.4 (üst beyaz şerit)
 // v5.5: Etkinlik v1.3 (yazı tipi)
 // v5.4: Etkinlik v1.2 (form içi Sora yazı tipi)
 // v5.3: Etkinlik v1.1 (gönderimden sonra form yenilenir, sayaç)
@@ -56,7 +57,7 @@ import EtkinlikFormu, { ETKINLIK_SURUM, etkinlikFormuBul } from "./EtkinlikFormu
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 import TemaSecici from "../components/TemaSecici";
 
-const PERFORMANS_SURUM = "v5.5"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v5.6"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
