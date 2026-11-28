@@ -1,3 +1,4 @@
+// v1.2: kayıt danışmanları (satisEkibi.js) yeşil, müdürler (manager/director) mor buton; üstte renk açıklaması
 // v1.1: "Test Login" başlığı kaldırıldı (ortak şeritte görünüyor); Yönetici Paneli'ne dönüş ve açıklama kaldı
 // TestLogin.jsx v1.0: Yönetici Paneli > Kullanıcı Yönetimi > Test Login
 // Admin/owner, Personel listesindeki bir kişiye tıklayınca YAN SEKMEDE o kişinin hesabıyla giriş yapılır;
@@ -7,6 +8,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
+import { satisBul } from "../lib/satisEkibi";
+
+const RENK = {
+  satis: { bg: "#ecfdf5", border: "#6ee7b7", ad: "#065f46", etiket: "Kayıt danışmanı" },
+  mudur: { bg: "#f5f3ff", border: "#c4b5fd", ad: "#5b21b6", etiket: "Müdür" },
+  diger: { bg: "#fff", border: "#e2e8f0", ad: "#1e3a5f", etiket: "Diğer" },
+};
+const turu = k => ["manager", "director"].includes(k.rol) ? "mudur" : satisBul(k.ad) ? "satis" : "diger";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 const IZINLI_ROLLER = ["admin", "owner"];
@@ -139,6 +148,13 @@ export default function TestLogin() {
               placeholder="Ad, şube ya da şirket ara"
               style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", border: "1px solid #cbd5e1", borderRadius: "10px", fontSize: "14px", marginBottom: "12px" }}
             />
+            <div style={{ display: "flex", gap: "14px", marginBottom: "12px", fontSize: "12px", color: "#475569" }}>
+              {Object.values(RENK).map(r => (
+                <span key={r.etiket} style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ width: "12px", height: "12px", borderRadius: "3px", background: r.bg, border: `1px solid ${r.border}` }} />{r.etiket}
+                </span>
+              ))}
+            </div>
             {mesaj && (
               <div style={{
                 marginBottom: "12px", padding: "10px 14px", borderRadius: "10px", fontSize: "13px",
@@ -153,23 +169,23 @@ export default function TestLogin() {
               <div key={baslik} style={{ marginBottom: "18px" }}>
                 <div style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", margin: "0 0 8px", letterSpacing: "0.3px" }}>{baslik}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "8px" }}>
-                  {liste.map(k => (
+                  {liste.map(k => { const r = RENK[turu(k)]; return (
                     <button
                       key={k.email} type="button" onClick={() => testGiris(k)} disabled={!!aciliyor}
                       title={`${k.ad} olarak yan sekmede giriş yap`}
                       style={{
-                        textAlign: "left", padding: "10px 12px", borderRadius: "10px", border: "1px solid #e2e8f0",
-                        background: aciliyor === k.email ? "#eff6ff" : "#fff", cursor: aciliyor ? "default" : "pointer",
+                        textAlign: "left", padding: "10px 12px", borderRadius: "10px", border: `1px solid ${r.border}`,
+                        background: aciliyor === k.email ? "#eff6ff" : r.bg, cursor: aciliyor ? "default" : "pointer",
                         boxShadow: "0 1px 2px rgba(15,23,42,0.05)", opacity: aciliyor && aciliyor !== k.email ? 0.6 : 1,
                       }}
                     >
-                      <div style={{ fontSize: "14px", fontWeight: 700, color: "#1e3a5f" }}>{k.ad}</div>
+                      <div style={{ fontSize: "14px", fontWeight: 700, color: r.ad }}>{k.ad}</div>
                       <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
                         {[k.sube, k.sirket].filter(Boolean).join(" · ")}{k.rol !== "staff" ? ` · ${k.rol}` : ""}
                       </div>
                       {aciliyor === k.email && <div style={{ fontSize: "11px", color: "#2563eb", marginTop: "4px" }}>Açılıyor...</div>}
                     </button>
-                  ))}
+                  ); })}
                 </div>
               </div>
             ))}
