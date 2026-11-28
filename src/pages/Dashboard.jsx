@@ -1,3 +1,4 @@
+// v1.25: Etkinlik kartı artık Modüller sekmesindeki "Etkinlik" sütununa bakıyor (diğer kartlar gibi).
 // v1.24: "Etkinlik" kartı (/etkinlik): izin sütunu yerine admin ya da etkinlikte formu olan danışman görür.
 // v1.23: Selamlama satırındaki 👋 kaldırıldı.
 // v1.22: Kullanılmayan eski başlık stilleri (styles.header, avatar, logoutBtn vb., .dash-header-*/.dash-user-* kuralları) ve temalara giden cikis prop'u kaldırıldı.
@@ -29,7 +30,6 @@ import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { getSession } from "../utils/sheets";
 import { IZIN_YONETIM_SCRIPT_URL } from "../config";
-import { etkinlikYetkili } from "./EtkinlikSayfasi";
 import { temaOku, temaKaydet, YONETICI_ROLLERI } from "./dashboard/tema";
 import TemaSecici from "./dashboard/TemaSecici";
 import BiletTema from "./dashboard/BiletTema";
@@ -41,7 +41,7 @@ import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.24";
+const DASHBOARD_VERSION = "v1.25";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -316,7 +316,7 @@ export default function Dashboard() {
     setSozlesmeLoading(false);
   }
 
-  const allowedModules = MODULE_CONFIG.filter(m => (m.key === "etkinlik" ? etkinlikYetkili(user) : user?.modules?.[m.key]));
+  const allowedModules = MODULE_CONFIG.filter(m => user?.modules?.[m.key]);
   const kullaniciAnahtari = user ? `${user.company}|${user.name}` : "";
   const kart = useKartSirasi(allowedModules, kullaniciAnahtari);
   const isFortis = user?.company === "Fortis";

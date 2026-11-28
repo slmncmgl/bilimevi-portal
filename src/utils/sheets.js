@@ -1,3 +1,4 @@
+// v1.2 — modules objesine "etkinlik" (Modüller > Etkinlik sütunu) eklendi
 // v1.1 — login tek isteğe indirildi: Personel ve Modüller satırları Login Servisi (L3) cevabından geliyor, gviz istekleri kaldırıldı
 // v1.0 — modules objesine "kayittakip" (Kayıt Takip) eklendi
 import { LOGIN_SCRIPT_URL } from "../config";
@@ -58,6 +59,7 @@ export async function loginWithCredentials(username, password) {
     anketraporu: modulRow?.["Anket Raporu"]?.toLowerCase() === "evet",
     kayitformlinkleri: modulRow?.["Kayıt Form Linkleri"]?.toLowerCase() === "evet",
     kayittakip: modulRow?.["Kayıt Takip"]?.toLowerCase() === "evet",
+    etkinlik: modulRow?.["Etkinlik"]?.toLowerCase() === "evet",
   
   };
 

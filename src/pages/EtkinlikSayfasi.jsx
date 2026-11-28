@@ -1,15 +1,16 @@
+// v1.1: sayfa izni Modüller > Etkinlik sütunundan (admin her zaman girer).
 // v1.0: Ana sayfadaki "Etkinlik" kartının sayfası (/etkinlik). CRM > Etkinlik sekmesiyle aynı form ve sayaç (EtkinlikFormu.jsx).
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSession } from "../utils/sheets";
-import EtkinlikFormu, { ETKINLIK_SURUM, etkinlikFormuBul } from "./EtkinlikFormu";
+import EtkinlikFormu, { ETKINLIK_SURUM } from "./EtkinlikFormu";
 
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 
 export const etkinlikYetkili = user => {
   const rol = user?.rol?.toLowerCase() || "staff";
-  return ["admin", "director", "owner"].includes(rol) || !!etkinlikFormuBul(user?.name);
+  return ["admin", "director", "owner"].includes(rol) || !!user?.modules?.etkinlik;
 };
 
 export default function EtkinlikSayfasi() {
