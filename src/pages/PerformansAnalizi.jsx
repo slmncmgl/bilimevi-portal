@@ -1,3 +1,4 @@
+// v5.3: Etkinlik v1.1 (gönderimden sonra form yenilenir, sayaç)
 // v5.2: Data Tablosu sekmesi şimdilik sadece admin / director / owner
 // v5.1: Quiz Skorları sekmesi staff'a kapalı (sadece manager / admin / director / owner)
 // v5.0: yeni sekme "Etkinlik" (EtkinlikFormu.jsx): danışman kendi Kylas formunu görür, admin hepsini; formu olmayan sekmeyi görmez
@@ -53,7 +54,7 @@ import EtkinlikFormu, { ETKINLIK_SURUM, etkinlikFormuBul } from "./EtkinlikFormu
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 import TemaSecici from "../components/TemaSecici";
 
-const PERFORMANS_SURUM = "v5.2"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v5.3"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)

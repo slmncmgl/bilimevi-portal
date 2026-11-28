@@ -1,9 +1,10 @@
+// v1.1: Form gönderilince 1 sn sonra boş form yeniden yüklenir; sayaç her gönderimde 1 artar (tarayıcıda form başına saklanır).
 // v1.0: CRM > Etkinlik sekmesi. Danışman kendi Kylas Lead Capture formunu görür, admin hepsini seçebilir.
 // Formların danışman, okul, kaynak (Event) ve kampanya değerleri Kylas'ta formun gizli alanlarında durur.
 // Yeni etkinlikte sadece ETKINLIK_FORMLARI listesini güncelleyin.
 import { useEffect, useRef, useState } from "react";
 
-export const ETKINLIK_SURUM = "v1.0";
+export const ETKINLIK_SURUM = "v1.1";
 export const ETKINLIK_ADI = "BBSE İzmir Kasım 2026";
 
 // ad: Personel sekmesindeki Ad Soyad ile eşleşir.
@@ -40,10 +41,32 @@ function KylasFormu({ formId }) {
   return <div ref={kutu} />;
 }
 
+// Kylas scripti başarılı gönderimde document'a "onKylasFormSubmit" olayı yayınlar (lcf.min.js).
+const sayacAnahtari = formId => `etkinlik-sayac-${formId}`;
+const sayacOku = formId => Number(localStorage.getItem(sayacAnahtari(formId))) || 0;
+
 export default function EtkinlikFormu({ user, isAdmin }) {
   const kendi = etkinlikFormuBul(user?.name);
   const [secili, setSecili] = useState(kendi?.formId || (isAdmin ? ETKINLIK_FORMLARI[0].formId : null));
   const form = ETKINLIK_FORMLARI.find(f => f.formId === secili);
+  const [yenile, setYenile] = useState(0);
+  const [sayac, setSayac] = useState(() => (secili ? sayacOku(secili) : 0));
+
+  useEffect(() => { if (secili) setSayac(sayacOku(secili)); }, [secili]);
+
+  useEffect(() => {
+    if (!secili) return;
+    let zamanlayici;
+    const gonderildi = () => {
+      const yeni = sayacOku(secili) + 1;
+      localStorage.setItem(sayacAnahtari(secili), String(yeni));
+      setSayac(yeni);
+      clearTimeout(zamanlayici);
+      zamanlayici = setTimeout(() => setYenile(n => n + 1), 1000);
+    };
+    document.addEventListener("onKylasFormSubmit", gonderildi);
+    return () => { document.removeEventListener("onKylasFormSubmit", gonderildi); clearTimeout(zamanlayici); };
+  }, [secili]);
 
   if (!form) return <div style={s.bos}>Bu etkinlikte sana atanmış bir form yok.</div>;
 
@@ -54,6 +77,9 @@ export default function EtkinlikFormu({ user, isAdmin }) {
           <div style={s.baslik}>{ETKINLIK_ADI}</div>
           <div style={s.alt}>{form.okul} · {form.ad}</div>
         </div>
+        <div style={s.sayac} title="Bu tarayıcıdan bu formla gönderilen kayıt sayısı">
+          <span style={s.sayacSayi}>{sayac}</span> kayıt gönderildi
+        </div>
         {isAdmin && (
           <select value={secili} onChange={e => setSecili(e.target.value)} style={s.secim}>
             {ETKINLIK_FORMLARI.map(f => <option key={f.formId} value={f.formId}>{f.okul} ({f.ad})</option>)}
@@ -61,7 +87,7 @@ export default function EtkinlikFormu({ user, isAdmin }) {
         )}
       </div>
       <div style={s.kart}>
-        <KylasFormu key={form.formId} formId={form.formId} />
+        <KylasFormu key={`${form.formId}-${yenile}`} formId={form.formId} />
       </div>
     </div>
   );
@@ -73,6 +99,8 @@ const s = {
   baslik: { fontSize: 18, fontWeight: 700, color: "#0f172a" },
   alt: { fontSize: 13, color: "#64748b", marginTop: 2 },
   secim: { padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, maxWidth: "100%" },
+  sayac: { fontSize: 13, color: "#0f766e", background: "#f0fdfa", border: "1px solid #99f6e4", borderRadius: 999, padding: "6px 12px" },
+  sayacSayi: { fontWeight: 700, fontSize: 15 },
   kart: { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 16 },
   bos: { textAlign: "center", color: "#64748b", padding: 40 },
 };
