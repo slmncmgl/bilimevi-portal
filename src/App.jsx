@@ -14,6 +14,7 @@ import BultenDuzenleyici from "./pages/BultenDuzenleyici";
 import KayitGuncelle from "./pages/KayitGuncelle";
 import FiyatTeklifi from "./pages/FiyatTeklifi";
 import KatalogParse from "./pages/KatalogParse";
+import EtkinlikSayfasi from "./pages/EtkinlikSayfasi";
 import PerformansAnalizi from './pages/PerformansAnalizi';
 import AnketRaporu from './pages/AnketRaporu';
 import KayitFormLinkleri from './pages/KayitFormLinkleri';
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="/fiyat-teklifi" element={<FiyatTeklifi />} />
         <Route path="/katalog-parse" element={<KatalogParse />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/etkinlik" element={<EtkinlikSayfasi />} />
         <Route path="/crm" element={<PerformansAnalizi />} />
         <Route path="/performans-analizi" element={<Navigate to="/crm" replace />} />
         <Route path="/anket-raporu" element={<AnketRaporu />} />

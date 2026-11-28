@@ -1,3 +1,4 @@
+// v1.24: "Etkinlik" kartı (/etkinlik): izin sütunu yerine admin ya da etkinlikte formu olan danışman görür.
 // v1.23: Selamlama satırındaki 👋 kaldırıldı.
 // v1.22: Kullanılmayan eski başlık stilleri (styles.header, avatar, logoutBtn vb., .dash-header-*/.dash-user-* kuralları) ve temalara giden cikis prop'u kaldırıldı.
 // v1.21: Üst şerit tüm sayfalarda ortak: src/components/UstSerit.jsx (App.jsx). Buradaki header, çevrimiçi etiketi ve el sallama oraya taşındı;
@@ -28,6 +29,7 @@ import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { getSession } from "../utils/sheets";
 import { IZIN_YONETIM_SCRIPT_URL } from "../config";
+import { etkinlikYetkili } from "./EtkinlikSayfasi";
 import { temaOku, temaKaydet, YONETICI_ROLLERI } from "./dashboard/tema";
 import TemaSecici from "./dashboard/TemaSecici";
 import BiletTema from "./dashboard/BiletTema";
@@ -39,7 +41,7 @@ import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.23";
+const DASHBOARD_VERSION = "v1.24";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -176,6 +178,24 @@ export const MODULE_CONFIG = [
     border: "#bfdbfe",
   },
   {
+    key: "etkinlik",
+    title: "Etkinlik",
+    desc: "Etkinlikte öğrenci kaydı formu",
+    path: "/etkinlik",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <path d="M9 15l2 2 4-4" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+    color: "#0f766e",
+    bg: "#f0fdfa",
+    border: "#99f6e4",
+  },
+  {
     key: "performansanalizi",
     title: "CRM",
     desc: "Danışman sınav sayılarını ve başarı ortalamalarını takip et",
@@ -296,7 +316,7 @@ export default function Dashboard() {
     setSozlesmeLoading(false);
   }
 
-  const allowedModules = MODULE_CONFIG.filter(m => user?.modules?.[m.key]);
+  const allowedModules = MODULE_CONFIG.filter(m => (m.key === "etkinlik" ? etkinlikYetkili(user) : user?.modules?.[m.key]));
   const kullaniciAnahtari = user ? `${user.company}|${user.name}` : "";
   const kart = useKartSirasi(allowedModules, kullaniciAnahtari);
   const isFortis = user?.company === "Fortis";
