@@ -1,3 +1,4 @@
+// v1.27: Etkinlik kartında kelime tekrarı kalktı: rozet "Canlı", açıklama "BBSE İzmir Kasım 2026 öğrenci kaydı".
 // v1.26: Etkinlik kartı öne çıkar: yeşil-turkuaz akan degrade, nefes alan çerçeve ışığı, sallanan ikon, "Etkinlik günü" rozeti (hareket azaltma tercihinde durur).
 // v1.25: Etkinlik kartı artık Modüller sekmesindeki "Etkinlik" sütununa bakıyor (diğer kartlar gibi).
 // v1.24: "Etkinlik" kartı (/etkinlik): izin sütunu yerine admin ya da etkinlikte formu olan danışman görür.
@@ -42,7 +43,7 @@ import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.26";
+const DASHBOARD_VERSION = "v1.27";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -181,7 +182,7 @@ export const MODULE_CONFIG = [
   {
     key: "etkinlik",
     title: "Etkinlik",
-    desc: "Etkinlikte öğrenci kaydı formu",
+    desc: "BBSE İzmir Kasım 2026 öğrenci kaydı",
     path: "/etkinlik",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="32" height="32">
@@ -426,7 +427,7 @@ export default function Dashboard() {
                 <div style={styles.moduleContent}>
                   <h3 style={styles.moduleTitle}>
                     {isFortis ? (mod.titleEn || mod.title) : mod.title}
-                    {mod.key === "etkinlik" && <span className="etkinlik-rozet"><span className="etkinlik-nokta" />Etkinlik günü</span>}
+                    {mod.key === "etkinlik" && <span className="etkinlik-rozet"><span className="etkinlik-nokta" />Canlı</span>}
                   </h3>
                   <p style={styles.moduleDesc}>{isFortis ? (mod.descEn || mod.desc) : mod.desc}</p>
                 </div>
