@@ -1,3 +1,4 @@
+// v1.3: Sora yazı tipi bileşenin kendisinde yüklenir ve tüm sayfaya uygulanır (ana sayfa kartından açılan /etkinlik serif görünüyordu).
 // v1.2: Kylas formunun içi de portal yazı tipinde (Sora).
 // v1.1: Form gönderilince 1 sn sonra boş form yeniden yüklenir; sayaç her gönderimde 1 artar (tarayıcıda form başına saklanır).
 // v1.0: CRM > Etkinlik sekmesi. Danışman kendi Kylas Lead Capture formunu görür, admin hepsini seçebilir.
@@ -5,7 +6,7 @@
 // Yeni etkinlikte sadece ETKINLIK_FORMLARI listesini güncelleyin.
 import { useEffect, useRef, useState } from "react";
 
-export const ETKINLIK_SURUM = "v1.2";
+export const ETKINLIK_SURUM = "v1.3";
 export const ETKINLIK_ADI = "BBSE İzmir Kasım 2026";
 
 // ad: Personel sekmesindeki Ad Soyad ile eşleşir.
@@ -87,7 +88,7 @@ export default function EtkinlikFormu({ user, isAdmin }) {
           </select>
         )}
       </div>
-      <style>{`.etkinlik-kylas, .etkinlik-kylas * { font-family: 'Sora', sans-serif !important; }`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap'); .etkinlik-kylas, .etkinlik-kylas * { font-family: 'Sora', sans-serif !important; }`}</style>
       <div style={s.kart} className="etkinlik-kylas">
         <KylasFormu key={`${form.formId}-${yenile}`} formId={form.formId} />
       </div>
@@ -96,7 +97,7 @@ export default function EtkinlikFormu({ user, isAdmin }) {
 }
 
 const s = {
-  sayfa: { maxWidth: 640, margin: "24px auto", padding: "0 16px" },
+  sayfa: { fontFamily: "'Sora', sans-serif", maxWidth: 640, margin: "24px auto", padding: "0 16px" },
   ust: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 },
   baslik: { fontSize: 18, fontWeight: 700, color: "#0f172a" },
   alt: { fontSize: 13, color: "#64748b", marginTop: 2 },

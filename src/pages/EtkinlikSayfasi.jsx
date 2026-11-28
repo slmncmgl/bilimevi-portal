@@ -26,7 +26,7 @@ export default function EtkinlikSayfasi() {
 
   if (!user || !yetkili) return null;
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc", paddingBottom: 32 }}>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", paddingBottom: 32, fontFamily: "'Sora', sans-serif" }}>
       <EtkinlikFormu user={user} isAdmin={isAdmin} />
       <div style={{ textAlign: "center", fontSize: 11, color: "#94a3b8" }}>
         Etkinlik {ETKINLIK_SURUM}{BUILD_SHA ? ` · ${BUILD_SHA}` : ""}
