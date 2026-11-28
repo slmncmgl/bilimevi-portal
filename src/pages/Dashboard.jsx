@@ -1,3 +1,4 @@
+// v1.28: Fiyat Teklifi kartı diğerleri gibi beyaz zemin ve gri çerçeve (konumu aynı).
 // v1.27: Etkinlik kartında kelime tekrarı kalktı: rozet "Canlı", açıklama "BBSE İzmir Kasım 2026 öğrenci kaydı".
 // v1.26: Etkinlik kartı öne çıkar: yeşil-turkuaz akan degrade, nefes alan çerçeve ışığı, sallanan ikon, "Etkinlik günü" rozeti (hareket azaltma tercihinde durur).
 // v1.25: Etkinlik kartı artık Modüller sekmesindeki "Etkinlik" sütununa bakıyor (diğer kartlar gibi).
@@ -43,7 +44,7 @@ import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.27";
+const DASHBOARD_VERSION = "v1.28";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -402,7 +403,7 @@ export default function Dashboard() {
                   ...styles.moduleCard,
                   animationDelay: `${i * 0.08}s`,
                   "--hover-border": mod.color,
-                  ...(mod.key === "fiyatteklifi" ? { gridColumn: 2, gridRow: 1, background: mod.bg, borderColor: mod.border } : {}),
+                  ...(mod.key === "fiyatteklifi" ? { gridColumn: 2, gridRow: 1 } : {}),
                   // Kullanıcı kendi sırasını kaydettiyse Fiyat Teklifi de sıraya girer, sabit konum kalkar.
                   ...(kart.ozelSira ? { gridColumn: "auto", gridRow: "auto" } : {}),
                   ...(kart.animasyonKapali ? { animation: "none" } : {}),
