@@ -1,3 +1,4 @@
+// v1.5: sayaç metni "N form gönderildi".
 // v1.4: üst boşluk margin yerine padding (margin dış kutudan taşıp başlığın altında beyaz şerit bırakıyordu).
 // v1.3: Sora yazı tipi bileşenin kendisinde yüklenir ve tüm sayfaya uygulanır (ana sayfa kartından açılan /etkinlik serif görünüyordu).
 // v1.2: Kylas formunun içi de portal yazı tipinde (Sora).
@@ -7,7 +8,7 @@
 // Yeni etkinlikte sadece ETKINLIK_FORMLARI listesini güncelleyin.
 import { useEffect, useRef, useState } from "react";
 
-export const ETKINLIK_SURUM = "v1.4";
+export const ETKINLIK_SURUM = "v1.5";
 export const ETKINLIK_ADI = "BBSE İzmir Kasım 2026";
 
 // ad: Personel sekmesindeki Ad Soyad ile eşleşir.
@@ -80,8 +81,8 @@ export default function EtkinlikFormu({ user, isAdmin }) {
           <div style={s.baslik}>{ETKINLIK_ADI}</div>
           <div style={s.alt}>{form.okul} · {form.ad}</div>
         </div>
-        <div style={s.sayac} title="Bu tarayıcıdan bu formla gönderilen kayıt sayısı">
-          <span style={s.sayacSayi}>{sayac}</span> kayıt gönderildi
+        <div style={s.sayac} title="Bu tarayıcıdan bu formla gönderilen form sayısı">
+          <span style={s.sayacSayi}>{sayac}</span> form gönderildi
         </div>
         {isAdmin && (
           <select value={secili} onChange={e => setSecili(e.target.value)} style={s.secim}>
