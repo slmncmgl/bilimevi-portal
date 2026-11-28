@@ -1,3 +1,4 @@
+// v5.2: Data Tablosu sekmesi şimdilik sadece admin / director / owner
 // v5.1: Quiz Skorları sekmesi staff'a kapalı (sadece manager / admin / director / owner)
 // v5.0: yeni sekme "Etkinlik" (EtkinlikFormu.jsx): danışman kendi Kylas formunu görür, admin hepsini; formu olmayan sekmeyi görmez
 // v4.9: Tema v1/v2 seçici sayfanın altında sürüm etiketinin yanında (Takip Tablosu'ndaki kartların üstünden taşındı)
@@ -52,7 +53,7 @@ import EtkinlikFormu, { ETKINLIK_SURUM, etkinlikFormuBul } from "./EtkinlikFormu
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 import TemaSecici from "../components/TemaSecici";
 
-const PERFORMANS_SURUM = "v5.1"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v5.2"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
@@ -66,7 +67,7 @@ const SEKME_SURUMU = {
 };
 const surumMetni = sekme => `${SEKME_SURUMU[sekme] || `CRM ${PERFORMANS_SURUM}`}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
 // Performans Tablosu sadece admin/director/owner'da görünür
-const SEKMELER = [["takip", "Takip Tablosu"], ["ozet", "Danışman Özeti"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu", "admin"], ["quiz", "Quiz Skorları", "yonetici"], ["etkinlik", "Etkinlik", "etkinlik"]];
+const SEKMELER = [["takip", "Takip Tablosu"], ["ozet", "Danışman Özeti"], ["crm", "Data Tablosu", "admin"], ["deg", "Performans Tablosu", "admin"], ["quiz", "Quiz Skorları", "yonetici"], ["etkinlik", "Etkinlik", "etkinlik"]];
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -258,7 +259,7 @@ export default function PerformansAnalizi() {
           ))}
         </div>
 
-        {sekme === "crm" && <CrmRaporu user={user} isAdmin={isAdmin} isManager={isManager} />}
+        {sekme === "crm" && isAdmin && <CrmRaporu user={user} isAdmin={isAdmin} isManager={isManager} />}
         {sekme === "takip" && <TakipRaporu user={user} isAdmin={isAdmin} isManager={isManager} />}
         {sekme === "ozet" && <DanismanOzeti user={user} isAdmin={isAdmin} isManager={isManager} />}
         {sekme === "deg" && isAdmin && <PerformansDegerlendirme user={user} isAdmin={isAdmin} isManager={isManager} />}
