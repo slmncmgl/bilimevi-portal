@@ -7,6 +7,7 @@ import islemLog from "./_n8nIslemLog.js";
 import kayitFormuTalebi from "./_n8nKayitFormuTalebi.js";
 import indirimBildirim from "./_n8nIndirimBildirim.js";
 import hataBildirimi from "./_n8nHataBildirim.js";
+import wpHat from "./_n8nWpHat.js";
 
 const HEDEFLER = {
   "sozlesme-gonder": sozlesmeGonder,
@@ -14,6 +15,7 @@ const HEDEFLER = {
   "kayit-formu-talebi": kayitFormuTalebi,
   "indirim-bildirim": indirimBildirim,
   "hata-bildirimi": hataBildirimi,
+  "wp-hat": wpHat,
 };
 
 export default async function handler(req, res) {

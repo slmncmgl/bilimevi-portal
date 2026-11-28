@@ -10,6 +10,7 @@ import { useState, useEffect, useRef, memo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getSession } from "../utils/sheets";
 import { IZIN_YONETIM_SCRIPT_URL } from "../config";
+import WpHatKutusu from "../components/WpHatKutusu";
 
 const SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
 // SİL: yerel const SCRIPT_URL tanımı kaldırıldı
@@ -1579,6 +1580,7 @@ function AdminPanel({ list, loading, onRefresh, scriptUrl, adminEmail, isAdmin, 
 
   return (
     <div style={styles.adminWrap}>
+      {isAdmin && <WpHatKutusu />}
       {saveOverlay && (
         <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, pointerEvents: "none" }}>
           <div style={{ background: "#fff", border: "1.5px solid #bfdbfe", color: "#1e3a5f", padding: "16px 32px", borderRadius: "14px", fontSize: "14px", fontWeight: "600", boxShadow: "0 4px 24px rgba(30,58,95,0.13)", display: "flex", alignItems: "center", gap: "10px", fontFamily: "inherit", animation: "fadeUp 0.2s ease" }}>
