@@ -1,3 +1,4 @@
+// v1.11: Giriş saatleri: haftalık yoğunluk çubuk grafiği kalktı, sadece gün × saat ızgarası
 // v1.10: Giriş saatleri: yorumlar kalktı; haftalık giriş yoğunluğu (gün bazında çubuk) + gün × saat sıcaklık haritası (Pzt-Paz, son 4 hafta, ısınan renk, hover)
 // v1.9: "Giriş saatleri" ortada açılan pencerede: saatlik ortalama çubuk grafiği + ısı haritası + yorum
 // v1.8: yöneticiler çevrimiçi listesinin altında "Giriş saatleri" ısı haritası açabilir (son 14 gün × 24 saat + kısa yorum)
@@ -302,7 +303,7 @@ function DurtmeBildirim({ isFortis }) {
 }
 
 // Yöneticiler için: son 4 haftanın giriş yoğunluğu (İstanbul saati, servis bilimevi-cevrimici v1.4).
-// 1) Haftanın günlerine göre ortalama giriş yapan kişi (çubuk). 2) Gün × saat sıcaklık haritası: X saat 00-23, Y Pazartesi-Pazar,
+// Gün × saat sıcaklık haritası: X saat 00-23, Y Pazartesi-Pazar,
 //    hücre = o gün ve saatte portalda bulunan farklı kişilerin 4 haftalık toplamı; renk açık maviden koyu kırmızıya ısınır.
 function ikiH(n) { return String(n).padStart(2, "0"); }
 const ISI_GUN = 28;
@@ -334,44 +335,16 @@ function IsiPenceresi({ isFortis, onKapat }) {
   if (gunler === undefined) icerik = <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>{T("Yükleniyor…", "Loading…")}</div>;
   else if (!gunler || !gunler.length) icerik = <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "14px" }}>{T("Henüz veri yok. Kayıt 25.11.2026'da başladı.", "No data yet.")}</div>;
   else {
-    // Gün × saat toplamları ve haftanın günü başına gün sayısı
+    // Gün × saat toplamları
     const matris = Array.from({ length: 7 }, () => Array(24).fill(0));
-    const gunSayisi = Array(7).fill(0), kisiToplam = Array(7).fill(0);
     for (const g of gunler) {
       const w = haftaGunu(g.gun);
-      gunSayisi[w]++;
-      kisiToplam[w] += g.kisi ?? Math.max(0, ...g.saatler);
       g.saatler.forEach((v, s) => { matris[w][s] += v || 0; });
     }
     const enFazla = Math.max(1, ...matris.flat());
-    const ort = kisiToplam.map((t, w) => (gunSayisi[w] ? t / gunSayisi[w] : 0));
-    const ortMax = Math.max(1, ...ort);
-    const virgul = v => (Math.round(v * 10) / 10).toLocaleString(isFortis ? "en-GB" : "tr-TR");
-    const GRAFIK_Y = 170;
     icerik = (
       <>
-        <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155", marginBottom: "10px" }}>{T("Haftalık giriş yoğunluğu", "Weekly login density")}
-          <span style={{ fontWeight: 500, color: "#94a3b8" }}> · {T("günlük ortalama giriş yapan kişi", "average people per day")}</span></div>
-        <div style={{ display: "grid", gridTemplateColumns: "36px 1fr", gap: "8px" }}>
-          <div style={{ position: "relative", height: `${GRAFIK_Y}px`, fontSize: "10px", color: "#94a3b8" }}>
-            {[1, 0.5, 0].map(o => <span key={o} style={{ position: "absolute", right: 0, top: `${(1 - o) * (GRAFIK_Y - 12)}px` }}>{virgul(ortMax * o)}</span>)}
-          </div>
-          <div style={{ position: "relative", height: `${GRAFIK_Y}px`, borderLeft: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0", display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "14px", alignItems: "end", padding: "0 14px" }}>
-            {[0.5, 1].map(o => <div key={o} style={{ position: "absolute", left: 0, right: 0, bottom: `${o * (GRAFIK_Y - 12)}px`, borderTop: "1px dashed #eef2f6" }} />)}
-            {ort.map((v, w) => (
-              <div key={w} onMouseEnter={e => goster(e, `${adlar[w]}: ${T("ortalama", "avg")} ${virgul(v)} ${T("kişi", "people")} · ${gunSayisi[w]} ${T("gün", "days")}, ${T("toplam", "total")} ${kisiToplam[w]}`)} onMouseLeave={() => setIpucu(null)}
-                style={{ position: "relative", height: `${(v / ortMax) * (GRAFIK_Y - 12)}px`, minHeight: v ? "4px" : 0, borderRadius: "6px 6px 2px 2px", background: isiRengi(0.25 + 0.75 * (v / ortMax)), transition: "height .5s ease", cursor: "default" }}>
-                {v > 0 && <span style={{ position: "absolute", top: "-17px", left: "50%", transform: "translateX(-50%)", fontSize: "11px", fontWeight: 700, color: "#334155" }}>{virgul(v)}</span>}
-              </div>
-            ))}
-          </div>
-          <span />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "14px", padding: "0 14px", fontSize: "11px", color: "#64748b", textAlign: "center" }}>
-            {adlar.map(a => <span key={a}>{a.slice(0, 3)}</span>)}
-          </div>
-        </div>
-
-        <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155", margin: "26px 0 10px" }}>{T("Sıcaklık haritası", "Activity heatmap")}
+        <div style={{ fontSize: "13px", fontWeight: 700, color: "#334155", marginBottom: "10px" }}>{T("Sıcaklık haritası", "Activity heatmap")}
           <span style={{ fontWeight: 500, color: "#94a3b8" }}> · {T("gün × saat, giriş sayısı", "day × hour, logins")}</span></div>
         <div style={{ display: "grid", gridTemplateColumns: "84px repeat(24, minmax(0, 1fr))", gap: "3px", alignItems: "center", fontSize: "11px", color: "#64748b" }}
           onMouseLeave={() => setIpucu(null)}>
