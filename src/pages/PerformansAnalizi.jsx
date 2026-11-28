@@ -1,3 +1,4 @@
+// v5.1: Quiz Skorları sekmesi staff'a kapalı (sadece manager / admin / director / owner)
 // v5.0: yeni sekme "Etkinlik" (EtkinlikFormu.jsx): danışman kendi Kylas formunu görür, admin hepsini; formu olmayan sekmeyi görmez
 // v4.9: Tema v1/v2 seçici sayfanın altında sürüm etiketinin yanında (Takip Tablosu'ndaki kartların üstünden taşındı)
 // v4.8: açıklama satırı ortak üst şeride (kart adının yanına) taşındı, sayfadaki başlık şeridi kaldırıldı
@@ -51,7 +52,7 @@ import EtkinlikFormu, { ETKINLIK_SURUM, etkinlikFormuBul } from "./EtkinlikFormu
 import SurumEtiketi from "./dashboard/SurumEtiketi";
 import TemaSecici from "../components/TemaSecici";
 
-const PERFORMANS_SURUM = "v5.0"; // 1. satırdaki sürümle aynı tut
+const PERFORMANS_SURUM = "v5.1"; // 1. satırdaki sürümle aynı tut
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 // Sayfanın altındaki etiket sadece açık sekmenin sürümünü gösterir (Quiz'in ayrı sürümü yok, sayfa sürümü görünür)
@@ -65,7 +66,7 @@ const SEKME_SURUMU = {
 };
 const surumMetni = sekme => `${SEKME_SURUMU[sekme] || `CRM ${PERFORMANS_SURUM}`}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
 // Performans Tablosu sadece admin/director/owner'da görünür
-const SEKMELER = [["takip", "Takip Tablosu"], ["ozet", "Danışman Özeti"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu", "admin"], ["quiz", "Quiz Skorları"], ["etkinlik", "Etkinlik", "etkinlik"]];
+const SEKMELER = [["takip", "Takip Tablosu"], ["ozet", "Danışman Özeti"], ["crm", "Data Tablosu"], ["deg", "Performans Tablosu", "admin"], ["quiz", "Quiz Skorları", "yonetici"], ["etkinlik", "Etkinlik", "etkinlik"]];
 
 const QUIZ_SHEET_ID = "1LAu1ji5sr-ZHrpAEZ4jALtHg_re7KcEaKZ0IHj9IEYY";
 const PERSONEL_SHEET_ID = "1jS9yt_wIrL-JXbstqtrG9nML0nalRmOkSarpIbOLCxA";
@@ -252,7 +253,7 @@ export default function PerformansAnalizi() {
 
       <main style={s.main}>
         <div style={s.sekmeler}>
-          {SEKMELER.filter(([, , rol]) => (rol !== "admin" || isAdmin) && (rol !== "etkinlik" || isAdmin || etkinlikFormuBul(user?.name))).map(([k, ad]) => (
+          {SEKMELER.filter(([, , rol]) => (rol !== "admin" || isAdmin) && (rol !== "yonetici" || isAdmin || isManager) && (rol !== "etkinlik" || isAdmin || etkinlikFormuBul(user?.name))).map(([k, ad]) => (
             <button key={k} onClick={() => setSekme(k)} style={sekme === k ? s.sekmeAktif : s.sekme}>{ad}</button>
           ))}
         </div>
@@ -263,7 +264,7 @@ export default function PerformansAnalizi() {
         {sekme === "deg" && isAdmin && <PerformansDegerlendirme user={user} isAdmin={isAdmin} isManager={isManager} />}
 
         {sekme === "etkinlik" && <EtkinlikFormu user={user} isAdmin={isAdmin} />}
-        {sekme === "quiz" && (<>
+        {sekme === "quiz" && (isAdmin || isManager) && (<>
         {loading && (
           <div style={s.loadingWrap}>
             <span style={s.spinner} />
