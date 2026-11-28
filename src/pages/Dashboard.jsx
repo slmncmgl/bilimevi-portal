@@ -1,3 +1,4 @@
+// v1.29: Etkinlik kartı herkes için sağ üstte sabit (sürükle-bırak sırası etkilemez), mobilde tek sütunda en üstte. Fiyat Teklifi'nin sağ üst sabitlemesi kalktı, sırada akar.
 // v1.28: Fiyat Teklifi kartı diğerleri gibi beyaz zemin ve gri çerçeve (konumu aynı).
 // v1.27: Etkinlik kartında kelime tekrarı kalktı: rozet "Canlı", açıklama "BBSE İzmir Kasım 2026 öğrenci kaydı".
 // v1.26: Etkinlik kartı öne çıkar: yeşil-turkuaz akan degrade, nefes alan çerçeve ışığı, sallanan ikon, "Etkinlik günü" rozeti (hareket azaltma tercihinde durur).
@@ -44,7 +45,7 @@ import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.28";
+const DASHBOARD_VERSION = "v1.29";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -403,10 +404,12 @@ export default function Dashboard() {
                   ...styles.moduleCard,
                   animationDelay: `${i * 0.08}s`,
                   "--hover-border": mod.color,
-                  ...(mod.key === "fiyatteklifi" ? { gridColumn: 2, gridRow: 1 } : {}),
+                  
                   // Kullanıcı kendi sırasını kaydettiyse Fiyat Teklifi de sıraya girer, sabit konum kalkar.
                   ...(kart.ozelSira ? { gridColumn: "auto", gridRow: "auto" } : {}),
                   ...(kart.animasyonKapali ? { animation: "none" } : {}),
+                  // Etkinlik kartı herkes için sağ üstte sabit; kullanıcının kendi sırası da bunu değiştirmez.
+                  ...(mod.key === "etkinlik" && allowedModules.length > 1 ? { gridColumn: 2, gridRow: 1 } : {}),
                   ...(kart.suruklenen === mod.key ? { opacity: 0.5, cursor: "grabbing" } : {}),
                   ...(mod.key === "etkinlik" ? { borderColor: "#5eead4", position: "relative", isolation: "isolate", overflow: "hidden" } : {}),
                 }}
@@ -509,6 +512,7 @@ export default function Dashboard() {
           .dash-module-card { padding: 16px !important; gap: 12px !important; }
           .dash-module-icon { width: 44px !important; height: 44px !important; border-radius: 10px !important; }
           .dash-module-icon svg { width: 22px !important; height: 22px !important; }
+          .etkinlik-kart { order: -1; }
         }
       `}</style>
     </div>
