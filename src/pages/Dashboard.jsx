@@ -1,3 +1,4 @@
+// v1.26: Etkinlik kartı öne çıkar: yeşil-turkuaz akan degrade, nefes alan çerçeve ışığı, sallanan ikon, "Etkinlik günü" rozeti (hareket azaltma tercihinde durur).
 // v1.25: Etkinlik kartı artık Modüller sekmesindeki "Etkinlik" sütununa bakıyor (diğer kartlar gibi).
 // v1.24: "Etkinlik" kartı (/etkinlik): izin sütunu yerine admin ya da etkinlikte formu olan danışman görür.
 // v1.23: Selamlama satırındaki 👋 kaldırıldı.
@@ -41,7 +42,7 @@ import SuruklemeIpucu from "./dashboard/SuruklemeIpucu";
 import { golgeBaslat, golgeDurdur } from "./dashboard/renkliGolge";
 
 // Her Dashboard değişikliğinde bir artar (dosya başındaki notlarla aynı numara).
-const DASHBOARD_VERSION = "v1.25";
+const DASHBOARD_VERSION = "v1.26";
 // eslint-disable-next-line no-undef
 const BUILD_SHA = typeof __BUILD_SHA__ !== "undefined" ? __BUILD_SHA__ : "";
 const SURUM_METNI = `Dashboard ${DASHBOARD_VERSION}${BUILD_SHA ? ` · ${BUILD_SHA}` : ""}`;
@@ -396,7 +397,7 @@ export default function Dashboard() {
                 key={mod.key}
                 {...kart.kartProps(mod.key)}
                 onClick={() => { if (!kart.tiklamaEngellendi()) navigate(mod.path); }}
-                className="dash-module-card" style={{
+                className={mod.key === "etkinlik" ? "dash-module-card etkinlik-kart" : "dash-module-card"} style={{
                   ...styles.moduleCard,
                   animationDelay: `${i * 0.08}s`,
                   "--hover-border": mod.color,
@@ -405,6 +406,7 @@ export default function Dashboard() {
                   ...(kart.ozelSira ? { gridColumn: "auto", gridRow: "auto" } : {}),
                   ...(kart.animasyonKapali ? { animation: "none" } : {}),
                   ...(kart.suruklenen === mod.key ? { opacity: 0.5, cursor: "grabbing" } : {}),
+                  ...(mod.key === "etkinlik" ? { borderColor: "#5eead4", position: "relative", isolation: "isolate", overflow: "hidden" } : {}),
                 }}
                 onMouseEnter={e => {
                   e.currentTarget.style.transform = "translateY(-4px)";
@@ -414,7 +416,7 @@ export default function Dashboard() {
                 onMouseLeave={e => {
                   golgeDurdur(e.currentTarget);
                   e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.borderColor = "#e2e8f0";
+                  e.currentTarget.style.borderColor = mod.key === "etkinlik" ? "#5eead4" : "#e2e8f0";
                   e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
                 }}
               >
@@ -422,7 +424,10 @@ export default function Dashboard() {
                   {mod.icon}
                 </div>
                 <div style={styles.moduleContent}>
-                  <h3 style={styles.moduleTitle}>{isFortis ? (mod.titleEn || mod.title) : mod.title}</h3>
+                  <h3 style={styles.moduleTitle}>
+                    {isFortis ? (mod.titleEn || mod.title) : mod.title}
+                    {mod.key === "etkinlik" && <span className="etkinlik-rozet"><span className="etkinlik-nokta" />Etkinlik günü</span>}
+                  </h3>
                   <p style={styles.moduleDesc}>{isFortis ? (mod.descEn || mod.desc) : mod.desc}</p>
                 </div>
                 <div style={{ ...styles.moduleArrow, color: mod.color }}>
@@ -468,6 +473,31 @@ export default function Dashboard() {
         @keyframes fadeUp {
           from { opacity: 0; transform: translateY(16px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        .etkinlik-kart::before {
+          content: ""; position: absolute; inset: 0; z-index: -1;
+          background: linear-gradient(120deg, #f0fdfa, #ccfbf1, #ecfeff, #d1fae5, #f0fdfa);
+          background-size: 300% 300%;
+          animation: etkinlikAkis 8s ease-in-out infinite;
+        }
+        .etkinlik-kart::after {
+          content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+          box-shadow: inset 0 0 0 1.5px rgba(20,184,166,0.35), 0 0 0 0 rgba(20,184,166,0.0);
+          animation: etkinlikNefes 2.8s ease-in-out infinite;
+        }
+        .etkinlik-kart .dash-module-icon { animation: etkinlikSalla 3.2s ease-in-out infinite; background: #fff !important; }
+        .etkinlik-rozet {
+          display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; vertical-align: middle;
+          padding: 3px 9px; border-radius: 999px; background: #0f766e; color: #fff;
+          font-size: 11px; font-weight: 600; letter-spacing: 0.2px;
+        }
+        .etkinlik-nokta { width: 6px; height: 6px; border-radius: 50%; background: #5eead4; animation: etkinlikNokta 1.4s ease-in-out infinite; }
+        @keyframes etkinlikAkis { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+        @keyframes etkinlikNefes { 0%,100% { box-shadow: inset 0 0 0 1.5px rgba(20,184,166,0.25); } 50% { box-shadow: inset 0 0 0 2px rgba(20,184,166,0.6); } }
+        @keyframes etkinlikSalla { 0%,100% { transform: rotate(0deg); } 8% { transform: rotate(-8deg); } 16% { transform: rotate(6deg); } 24% { transform: rotate(0deg); } }
+        @keyframes etkinlikNokta { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+        @media (prefers-reduced-motion: reduce) {
+          .etkinlik-kart::before, .etkinlik-kart::after, .etkinlik-kart .dash-module-icon, .etkinlik-nokta { animation: none; }
         }
         @media (max-width: 640px) {
           .dash-greeting-title { font-size: 22px !important; }
